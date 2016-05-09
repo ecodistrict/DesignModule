@@ -1,0 +1,467 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Design module</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="Content/leaflet.css" />
+    <link rel="stylesheet" href="Content/leaflet.draw.css" />
+    <link rel="stylesheet" href="Content/button.css" />
+    <link rel="stylesheet" href="Content/modaldialog.css" />
+    <link rel="stylesheet" href="Content/querydialog.css" />
+    <link rel="stylesheet" href="Content/measures.css" />
+    <link rel="stylesheet" href="Content/info.css" />
+    <link rel="stylesheet" href="Content/legend.css" />
+    <link rel="stylesheet" href="Content/domains.css" />
+    <link rel="stylesheet" href="Content/details.css" />
+    <link rel="stylesheet" href="Content/kpis.css" />
+    <link rel="stylesheet" href="Content/history.css" />
+    <link rel="stylesheet" href="Content/projectdescription.css" />
+    <link rel="stylesheet" href="Content/connectionstatus.css" />
+    <link rel="stylesheet" href="Content/errorMessages.css" />
+    <link rel="stylesheet" href="Content/timeslider.css" />
+    <link rel="stylesheet" href="Content/map.css" />
+</head>
+<body>
+    <!-- main map -->
+    <div id="map"></div>
+    <!-- static modal dialog place holder -->
+    <div id="modalDialog" class="modalDialog"></div>
+    <!-- connection status -->
+    <div id="connectionStatus" class="connection-status connection-status-disconnected" ></div>
+    <!-- error messages -->
+    <div id="errorMessages" class="errorMessages errorMessages-hidden"><p id="errorMessage">There is an error</p></div>
+    <!-- time related elements-->
+    <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div> 
+    <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
+    <!-- load scripts -->
+    <script src="Scripts/leaflet-src.js"></script>
+    <script src="Scripts/leaflet.draw-src.js"></script>
+    <script src="Scripts/modaldialog.js"></script>
+    <script src="Scripts/querydialog.js"></script>
+    <script src="Scripts/map.js"></script>
+    <script src="Scripts/select.js"></script>
+    <script src="Scripts/measures.js"></script>
+    <script src="Scripts/info.js"></script>
+    <script src="Scripts/legend.js"></script>
+    <script src="Scripts/domains.js"></script>
+    <script src="Scripts/kpis.js"></script>
+    <script src="Scripts/charts.js"></script>
+    <script src="Scripts/layers.js"></script>
+    <script src="Scripts/details.js"></script>
+    <script src="Scripts/history.js"></script>
+    <script src="Scripts/projectdescription.js"></script>
+    <script src="Scripts/timeslider.js"></script>
+    <script src="Scripts/errorMessages.js"></script>
+    <!-- charts -->
+    <script src="Scripts/d3.js"></script> 
+    <script src="Scripts/bullet.js"></script>
+    <!-- local scripts -->
+    <script>
+        // determine parameters and config
+        var wsBaseURL = 'ws://vps17642.public.cloudvps.com:4502';
+        var session = getParameterByName('session', '1234');
+        var scenario = '';
+        var userid = '';
+        var sessionDescription = getParameterByName('sessionDescription', 'Test session');
+        // todo: split session in session id/scenario id/user id
+        var sessionParts = session.split('$');
+        if (sessionParts.length > 1) {
+            session = sessionParts[0];
+            if (sessionParts.length > 2) {
+                scenario = sessionParts[1];
+                userid = sessionParts[2];
+            }
+            else
+                userid = sessionParts[1];
+        }
+
+        // todo: test credentials
+
+        // override sesion, scenario and credentials for testing
+        //session = '57161b0e476be01375b9d3ad';
+        //scenario = '';
+        //userid = '5714c5691054d2e45285c5c3';
+        
+        // test set measures
+        var measuresDefaults =
+            [
+                {
+                    category: 'district',
+                    measures: [
+                        {
+                            measure: 'measure d1',
+                            actions: [
+                              { id: 5, action: 'action5', description: 'a description for action5', objecttypes: '' },
+                              { id: 6, action: 'action6', description: 'a description for action6', objecttypes: '' }
+                            ]
+                        },
+                        {
+                            measure: 'measure d2', actions: [
+                              { id: 7, action: 'action7', description: 'a description for action7', objecttypes: '' },
+                              { id: 8, action: 'action8', description: 'a description for action8', objecttypes: '' }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    category: 'energy',
+                    measures: [
+                        {
+                            measure: 'measure e',
+                            actions: [
+                                { id: 1, action: 'action1', description: 'a description for action1', objecttypes: ['building', 'energynode', 'electricalconduit'] },
+                                { id: 2, action: 'action2', description: 'a description for action2', objecttypes: ['building'] }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    category: 'trafic',
+                    measures: [
+                        {
+                            measure: 'measure t',
+                            actions: [
+                                { id: 3, action: 'action3', description: 'a description for action3', objecttypes: ['road'] },
+                                { id: 4, action: 'action4', description: 'a description for action4', objecttypes: ['road'] }
+                            ]
+                        }
+                    ]
+                }
+            ];
+
+        // test set domains
+        var domainsDefaults = {
+            Noise: {},
+            Air: {},
+            Trafic: {},
+            Safety: {}
+        };
+
+        var detailsControlDefaults = {
+            elementsPerRow: 4, elementWidth: 140,
+            kpiWidth: 134, kpiHeight: 20,
+            chartWidth: 134, chartHeight: 100,
+            layerWidth: 134, layerHeight: 140
+        };
+
+        var selectedCategoriesDefaults = ['road']; //['building']; // todo: defaults to empty?
+
+        var domainsControl = L.control.domains(domainsDefaults);
+        map.addControl(domainsControl);
+
+        var detailsControl = L.control.details(detailsControlDefaults);
+        map.addControl(detailsControl);
+
+        var historyControl = L.control.history(baseLayers);
+        map.addControl(historyControl);
+
+        // measures control demo data
+        var measuresControl = L.control.measures(measuresDefaults, historyControl);
+        map.addControl(measuresControl);
+        measuresControl.setSelectCategories(selectedCategoriesDefaults);
+
+        addTimeSlider(timeslider, { startRange: new Date(2015, 0, 1), endRange: new Date(), minScale: 0.5, maxScale: 500 });
+        // todo: scaling factor of domain (0.5 = 1.25 years (1 jan 2015 till now)/0.5 = 2.5 years; 500 = 2 years*365 day*24 hours*4 kwarters/35 visible max
+
+        var timesliderControl = L.control.timeslider(timeslider);
+        map.addControl(timesliderControl);
+
+        var infoControl = L.control.info();
+        map.addControl(infoControl);
+
+        var legendControl = L.control.legend;
+        map.addControl(legendControl);
+
+        // project description
+        var projectDescription = L.control.projectDescription;
+        projectDescription.options.description = sessionDescription;
+        map.addControl(projectDescription);
+        
+        // web socket connection
+        var ws;
+
+        function wsConnect() {
+            ws = new WebSocket(wsBaseURL + '/sessions?session=' + session);
+            ws.onopen = function () {
+                connectionStatus.classList.remove('connection-status-disconnected');
+                connectionStatus.classList.add('connection-status-connected');
+            };
+            ws.onmessage = function (evt) {
+                var message = JSON.parse(evt.data);
+                if (message.measures) {
+                    measuresControl.resetMeasures(message.measures);
+                }
+                else if (message.domains) {
+                    // first domains after login
+                    domainsControl.resetDomains(message.domains);
+                    // remove all basic overlay layers from layers control (and with that from map)
+                    for (var id in layerControl._layers) {
+                        var lcl = layerControl._layers[id];
+                        if (lcl.overlay) {
+                            layerControl.removeLayer(lcl.layer);
+                        }
+                    }
+                    // add basic layers from domains
+                    for (var domainName in message.domains) {
+                        var domain = message.domains[domainName];
+                        for (var id in domain.layers) {
+                            var layer = domain.layers[id];
+                            if (layer.basic) {
+                                if (layer.objects) {
+                                    var thisLayer = L.geoJson(layer.objects.features);
+                                    layerControl.addOverlay(thisLayer, layer.name);
+                                    if (layer.default && layer.default == 1) {
+                                        thisLayer.addTo(map);
+                                        layerControl._update();
+                                    }
+                                } else if (layer.tiles) {
+                                    var thisLayer = L.tileLayer(layer.tiles, { id: layer.name });
+                                    layerControl.addOverlay(thisLayer, layer.name);
+                                    if (layer.default && layer.default == 1) {
+                                        thisLayer.addTo(map);
+                                        layerControl._update();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (message.updatedomains) {
+                    // update of domains (on scenario change)
+                    removeAllDomainLayers();
+                    legendControl.clearLegend(true);
+                    domainsControl.updateDomains(message.updatedomains);
+                    // replace all basic overlay layers from layers control (and with that from map)
+                    for (var id in layerControl._layers) {
+                        var lcl = layerControl._layers[id];
+                        if (lcl.overlay) {
+                            layerControl.removeLayer(lcl.layer);
+                        }
+                    }
+                    // add basic layers from domains
+                    for (var domainName in message.updatedomains) {
+                        var domain = message.updatedomains[domainName];
+                        for (var id in domain.layers) {
+                            var layer = domain.layers[id];
+                            if (layer.basic) {
+                                if (layer.objects) {
+                                    var thisLayer = L.geoJson(layer.objects.features);
+                                    layerControl.addOverlay(thisLayer, layer.name);
+                                    if (layer.default && layer.default == 1) {
+                                        thisLayer.addTo(map);
+                                        layerControl._update();
+                                    }
+                                } else if (layer.tiles) {
+                                    var thisLayer = L.tileLayer(layer.tiles, { id: layer.name });
+                                    layerControl.addOverlay(thisLayer, layer.name);
+                                    if (layer.default && layer.default == 1) {
+                                        thisLayer.addTo(map);
+                                        layerControl._update();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (message.refresh) {
+                    var elementID = message.refresh;
+                    if (message.tiles && message.tiles != '')
+                        detailsControl.updateTilesURL(elementID, message.tiles);
+                    else if (message.preview)
+                        detailsControl.updatePreview(elementID, message.preview);
+                    else {
+                        refreshOtherLayer(elementID);
+                        // todo: check kpis?
+                        // todo: check charts?
+                    }
+                    
+                }
+                else if (message.updatelayer) {
+                    var elementID = message.updatelayer.id;
+                    // online layer
+                    for (var mlid in map._layers) {
+                        var layer = map._layers[mlid];
+                        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == elementID) {
+                            if (message.updatelayer.newobjects) {
+                                // dictionary of id: feature
+                                for (var id in message.updatelayer.newobjects) {
+                                    layer.addData(message.updatelayer.newobjects[id]);
+                                }
+                            }
+                            else if (message.updatelayer.changedcolors) {
+                                // dictionary of id: color
+                                for (var lid in layer._layers) {
+                                    var fid = layer._layers[lid].feature.properties.id;
+                                    var newColor = message.updatelayer.changedcolors[fid];
+                                    if (newColor)
+                                        layer._layers[lid].feature.properties.color = newColor;
+                                }
+                                layer.setStyle(
+                                    function (feature) {
+                                        // todo: test code for live trafic.. generalize..
+                                        if (feature.properties.color == '#000000')
+                                            return { color: '#000000', weight: 1  };
+                                        else
+                                            return { color: feature.properties.color }
+                                    });
+                            }
+                            else if (message.updatelayer.removedobjects) {
+                                // dictionary id: X
+                                for (var lid in layer._layers) {
+                                    var fid = layer._layers[lid].feature.properties.id;
+                                    if (message.updatelayer.removedobjects[fid])
+                                        layer.removeLayer(layer._layers[lid]);
+                                }
+                            }
+                            if (message.updatelayer.timestamp) {
+                                showLayerTimeStamp(message.updatelayer.timestamp)
+                                
+                            }
+                        }
+                    }
+                    // data in details view
+                }
+                else if (message.updatekpi) {
+                    detailsControl.resetkpi(message.updatekpi);
+                }
+                else if (message.selectedObjects) {
+                    // add selected objects to layer, ut first adjust selected categories
+                    measuresControl.setSelectCategories(message.selectedObjects.selectCategories);
+                    handleObjectSelection(message.selectedObjects);
+                }
+                else if (message.session) {
+                    // handle session message
+                    if (message.session.description) {
+                        projectDescription.options.description = message.session.description;
+                        projectDescription.update();
+                    }
+                    if (message.session.activeScenario)
+                        projectDescription.options.activeScenario = message.session.activeScenario;
+                    if (message.session.referenceScenario)
+                        projectDescription.options.referenceScenario = message.session.referenceScenario;
+                    if (message.session.scenarios)
+                        projectDescription.options.scenarios = message.session.scenarios;
+                    if (message.session.view) {
+                        map.setView([message.session.view.lat, message.session.view.lon], message.session.view.zoom);
+                    }
+                    if (typeof message.session.timeslider !== "undefined") {
+                        if (message.session.timeslider) {
+                            if (message.session.timeslider == 1) {
+                                map.addControl(timesliderControl);
+                                timesliderControl._collapse();
+                            }
+                            else if (message.session.timeslider == 2) {
+                                map.addControl(timesliderControl);
+                                timesliderControl._expand();
+                            }
+                        }
+                        else {
+                            timesliderControl._collapse();
+                            map.removeControl(timesliderControl);
+                        }
+                    }
+                    if (typeof message.session.selectionEnabled !== "undefined") {
+                        if (message.session.selectionEnabled)
+                            addSelectControl();
+                        else
+                            removeSelectControl();
+                    }
+                    if (typeof message.session.measuresEnabled !== "undefined") {
+                        if (message.session.measuresEnabled)
+                            map.addControl(measuresControl);
+                        else
+                            map.removeControl(measuresControl);
+                    }
+                    if (typeof message.session.measuresHistoryEnabled !== "undefined") {
+                        if (message.session.measuresHistoryEnabled)
+                            map.addControl(historyControl);
+                        else
+                            map.removeControl(historyControl);
+                    }
+                }
+                else if (message.login) {
+                    // login request, return login information
+                    wsSend({ login: { scenario: scenario, userid: userid } });
+                }
+                else if (message.connection) {
+                    // connection specific, from ws2imb
+                    if (message.connection.message)
+                        showErrorMessage(message.connection.message);
+                }
+            };
+            ws.onerror = function (evt) {
+                if (evt.message)
+                    showErrorMessage("disconnect: " + evt.message);
+                else
+                    showErrorMessage("disconnected");
+            };
+            ws.onclose = function () {
+                connectionStatus.classList.remove('connection-status-connected');
+                connectionStatus.classList.add('connection-status-disconnected');
+                //showErrorMessage("disconnected");
+            };
+        };
+
+        function wsSend(obj) {
+            if (ws && ws.readyState && ws.readyState == WebSocket.OPEN) {
+                return ws.send(JSON.stringify(obj));
+            }
+            else {
+                return -1;
+            }
+        };
+
+        function wsClose() {
+            ws.close();
+        }
+
+        // link up connection control
+        var connectionStatus = document.getElementById('connectionStatus');
+        connectionStatus.classList.add('connection-status-disconnected');
+        connectionStatus.onclick = function (e) {
+            if (e.target.classList.contains('connection-status-disconnected')) 
+                wsConnect();
+            else 
+                wsClose();
+        };
+
+        // default: try to connect
+        wsConnect();
+
+        
+
+        // todo: handling window resize and orientation change
+        // http://stackoverflow.com/questions/5284878/how-do-i-correctly-detect-orientation-change-using-javascript-and-phonegap-in-io
+        /*
+        var matchMedia = window.msMatchMedia || window.MozMatchMedia || window.WebkitMatchMedia || window.matchMedia;
+        if (typeof(matchMedia) !== 'undefined') {
+            // use matchMedia function to detect orientationchange
+            window.matchMedia('(orientation: portrait)').addListener(function() {
+                // your code ...
+            });
+        } 
+        else {
+            // use orientationchange event with timeout (fires to early)
+            $(window).on('orientationchange', function() {
+                window.setTimeout(function() {
+                    // your code ...
+                }, 300)
+            });
+        }
+        */
+
+
+
+        /*
+        // test layers live air
+        var testLayer132 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=122&zoom={z}&x={x}&y={y}', { id: 'PM10' });
+        layerControl.addOverlay(testLayer132, 'PM10');
+        var testLayer133 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=123&zoom={z}&x={x}&y={y}', { id: 'PM25' });
+        layerControl.addOverlay(testLayer133, 'PM25');
+        var testLayer134 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=134&zoom={z}&x={x}&y={y}', { id: 'NO2' });
+        layerControl.addOverlay(testLayer134, 'NO2');
+        */
+    </script>
+</body>
+</html>

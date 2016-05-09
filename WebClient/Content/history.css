@@ -1,0 +1,150 @@
+﻿/* .leaflet-control-history derived from .leaflet--control-layers (leaflet.css) */
+
+.leaflet-control-history-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	}
+
+
+/* history control */
+
+.leaflet-control-history {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-history-toggle {
+	background-image: url('images/history2.png');
+    width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-history-toggle {
+	background-image: url('images/history2-2x.png');
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-history-toggle {
+    width: 44px;
+	height: 44px;
+	}
+.leaflet-control-history .leaflet-control-history-list,
+.leaflet-control-history-expanded .leaflet-control-history-toggle {
+	display: none;
+	}
+.leaflet-control-history-expanded .leaflet-control-history-list {
+	display: block;
+	position: relative;
+	}
+.leaflet-control-history-expanded {
+	padding: 6px 10px 6px 6px;
+	color: #333;
+	background: #fff;
+	}
+.leaflet-control-history-scrollbar {
+	overflow-y: scroll;
+	padding-right: 5px;
+	}
+.leaflet-control-history-selector {
+	margin-top: 2px;
+	position: relative;
+	top: 1px;
+	}
+.leaflet-control-history label {
+	display: block;
+	}
+.leaflet-control-history-separator {
+	height: 0;
+	border-top: 1px solid #ddd;
+	margin: 5px -10px 5px -6px;
+	}
+
+
+
+.leaflet-control-history h4 {
+    margin: 0;
+    padding: 0;
+    }
+
+.leaflet-control-history ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    }
+
+.leaflet-control-history li  {
+    padding-left: 10px;
+    }
+
+.leaflet-control-history li ul li {
+    padding-left: 20px;
+    padding-right: 10px;
+    line-height: 22px;
+    }
+
+.leaflet-control-history li ul li:hover {
+    background: #f0f0f0;
+    }
+
+.leaflet-control-history li a:link, .leaflet-control-history li a:visited {
+    /*
+    background-color: white;
+    color: white;
+    text-decoration: none;
+    display: inline-block;
+    */
+    text-decoration: none;
+    color: #000;
+    display: block;
+    font-size: 16px;
+}
+
+.history-remove-button {
+    float: right;
+    background-image: url(images/historyremove.png);
+    background-repeat: no-repeat;
+    width: 16px;
+    height: 16px;
+    margin-left: 10px;
+    margin-right: 4px;
+    opacity: 0.7;
+}
+
+.history-remove-button:hover {
+    opacity: 1.0;
+    cursor: pointer;    
+}
+
+.history-remove-line {
+    line-height:20px;
+}
+
+.history-name {
+    cursor: pointer;    
+}
+
+.leaflet-control-history-apply {
+    
+}
+
+.history-button {
+    display: block; 
+    margin: 0 auto;
+}
+
+/* touch */
+
+.leaflet-touch .leaflet-control-history {
+	box-shadow: none;
+	}
+.leaflet-touch .leaflet-control-history {
+	border: 2px solid rgba(0,0,0,0.2);
+	background-clip: padding-box;
+	}
+
+
+
+.leaflet-oldie .leaflet-control-history {
+	border: 1px solid #999;
+	}
+
+

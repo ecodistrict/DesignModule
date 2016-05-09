@@ -1,0 +1,168 @@
+﻿/* .leaflet-control-measures derived from .leaflet--control-layers (leaflet.css) */
+
+.leaflet-control-measures-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	}
+
+
+/* measures control */
+
+.leaflet-control-measures {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-measures-toggle {
+	background-image: url('images/dmspritesheet.png');
+    background-position: -301px -2px;
+	width: 26px;
+	height: 26px;
+	}
+.leaflet-retina .leaflet-control-measures-toggle {
+	background-image: url('images/dmspritesheet-2x.png');
+	background-size: 360px 30px;
+	}
+.leaflet-touch .leaflet-control-measures-toggle {
+    background-position: -300px -1px;
+	width: 30px;
+	height: 30px;
+	}
+.leaflet-control-measures .leaflet-control-measures-list,
+.leaflet-control-measures-expanded .leaflet-control-measures-toggle {
+	display: none;
+	}
+.leaflet-control-measures-expanded .leaflet-control-measures-list {
+	display: block;
+	position: relative;
+	}
+.leaflet-control-measures-expanded {
+	padding: 6px 10px 6px 6px;
+	color: #333;
+	background: #fff;
+	}
+.leaflet-control-measures-scrollbar {
+	overflow-y: scroll;
+	padding-right: 5px;
+	}
+.leaflet-control-measures-selector {
+	margin-top: 2px;
+	position: relative;
+	top: 1px;
+	}
+.leaflet-control-measures label {
+	display: block;
+	}
+.leaflet-control-measures-separator {
+	height: 0;
+	border-top: 1px solid #ddd;
+	margin: 5px -10px 5px -6px;
+	}
+
+
+
+.leaflet-control-measures h4 {
+    margin: 0;
+    padding: 0;
+    }
+
+.leaflet-control-measures ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    }
+
+.leaflet-control-measures li  {
+    padding-left: 10px;
+    }
+
+.leaflet-control-measures li ul li {
+    padding-left: 20px;
+    padding-right: 10px;
+    line-height: 22px;
+
+    margin: 2px 0 2px 0;
+
+    background-color: white;
+    border: 1px solid white;
+    border-radius: 3px;
+    }
+
+.leaflet-control-measures li ul li:hover {
+    background-color: lightblue;
+    }
+
+.leaflet-control-measures li a:link, .leaflet-control-measures li a:visited {
+    text-decoration: none;
+    color: #000;
+    display: block;
+    font-size: 16px;
+}
+
+
+/* touch */
+
+.leaflet-touch .leaflet-control-measures {
+	box-shadow: none;
+	}
+.leaflet-touch .leaflet-control-measures {
+	border: 2px solid rgba(0,0,0,0.2);
+	background-clip: padding-box;
+	}
+
+.leaflet-oldie .leaflet-control-measures {
+	border: 1px solid #999;
+	}
+
+
+/* categories */
+
+.measure-enabled {
+}
+
+.measure-disabled {
+    display: none;
+}
+
+.measure-category-enabled {
+}
+
+.measure-category-disabled {
+    display: none;
+}
+
+/* meaure action options form */
+
+.selectMeasureRadio {
+    margin: 0 0 0 24px;
+    float: left;
+    display: none;
+}
+
+.selectMeasureLabel {
+    margin: 4px 0 4px 24px;
+    font-size: 16px;
+    display: block;
+
+    background-color: white;
+    border: 1px solid white;
+    border-radius: 3px;
+
+}
+
+.selectMeasureRadio:checked +.selectMeasureLabel {
+    font-style:italic;
+    background: lightblue;
+    border-radius: 3px;
+    border: 1px solid lightblue;
+}
+
+.selectMeasureRadio:checked + .selectMeasureLabel:hover {
+    border: 1px solid dodgerblue;
+}
+
+.selectMeasureLabel:hover {
+    border: 1px solid dodgerblue;
+}
+

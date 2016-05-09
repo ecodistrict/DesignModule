@@ -1,0 +1,169 @@
+﻿/* .leaflet-control-domains derived from .leaflet--control-layers (leaflet.css) */
+
+.leaflet-control-domains-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	}
+
+
+/* domains control */
+
+.leaflet-control-domains {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-domains-toggle {
+	background-image: url('images/domains.png');
+    width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-domains-toggle {
+	background-image: url('images/domains-2x.png');
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-domains-toggle {
+    width: 44px;
+	height: 44px;
+	}
+.leaflet-control-domains .leaflet-control-domains-list,
+.leaflet-control-domains-expanded .leaflet-control-domains-toggle {
+	display: none;
+	}
+.leaflet-control-domains-expanded .leaflet-control-domains-list {
+	display: block;
+	position: relative;
+	}
+.leaflet-control-domains-expanded {
+	padding: 6px 10px 6px 6px;
+	color: #333;
+	background: #fff;
+	}
+.leaflet-control-domains-scrollbar {
+	overflow-y: scroll;
+	padding-right: 5px;
+	}
+.leaflet-control-domains-selector {
+	margin-top: 2px;
+	position: relative;
+	top: 1px;
+	}
+.leaflet-control-domains label {
+	/*display: block;*/
+	}
+.leaflet-control-domains-separator {
+	height: 0;
+	border-top: 1px solid #ddd;
+	margin: 5px -10px 5px -6px;
+	}
+
+
+
+.leaflet-control-domains h4 {
+    margin: 0;
+    padding: 0;
+    }
+
+.leaflet-control-domains ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    }
+
+.leaflet-control-domains li  {
+    padding-left: 10px;
+    }
+
+.leaflet-control-domains li ul li {
+    padding-left: 20px;
+    padding-right: 10px;
+    line-height: 22px;
+    }
+
+.leaflet-control-domains li ul li:hover {
+    background: #f0f0f0;
+    }
+
+.leaflet-control-domains li a:link, .leaflet-control-domains li a:visited {
+    /*
+    background-color: white;
+    color: white;
+    text-decoration: none;
+    display: inline-block;
+    */
+    text-decoration: none;
+    color: #000;
+    display: block;
+    font-size: 16px;
+}
+
+.domains-name {
+    
+}
+
+.domains-line {
+    display: block;
+    font-size: 16px;
+    /*margin: 3px 6px 3px 6px;*/
+    padding: 2px 16px 2px 16px;
+    cursor: pointer;
+}
+
+.domains-plus {
+    float: right;
+    height: 16px;
+    width: 16px;
+    margin-left: 10px;
+    background-image: url('images/domainadd2.png');
+}
+
+.domains-line {
+    margin: 2px 0 2px 0;
+    background-color: white;
+    border: 1px solid white;
+    border-radius: 3px;
+}
+
+.domains-line:hover {
+    /*background-color: lightblue;*/
+    border: 1px solid dodgerblue;
+}
+
+.domains-line-selected {
+    /*background-color: lightgray;*/
+    font-style:italic;
+    /*font-weight:bolder;*/
+    background: lightblue;
+    border: 1px solid lightblue;
+    border-radius: 3px;
+}
+
+.domains-line .domains-select:checked {
+    /*background: red;*/
+}
+
+/*
+.domains-button {
+    display: block; 
+    margin: 0 auto;
+}
+*/
+
+/* touch */
+
+.leaflet-touch .leaflet-control-domains {
+	box-shadow: none;
+	}
+.leaflet-touch .leaflet-control-domains {
+	border: 2px solid rgba(0,0,0,0.2);
+	background-clip: padding-box;
+	}
+
+
+
+.leaflet-oldie .leaflet-control-domains {
+	border: 1px solid #999;
+	}
+
+

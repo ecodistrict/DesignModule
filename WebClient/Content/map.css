@@ -1,0 +1,80 @@
+﻿body { 
+    padding: 0; margin: 0; 
+}
+
+html, body, #map { 
+    height: 100%; width: 100%; 
+}
+
+/* adjust layer selection control */
+.leaflet-control-layers-selector {
+    display: none;
+}
+
+.leaflet-control-layers-selector:checked + span {
+    /*background: LightGray;*/
+    font-style:italic;
+    /*font-weight:bolder;*/
+    background: lightblue;
+    border: 1px solid lightblue;
+    border-radius: 3px;
+}
+
+.leaflet-control-layers-base span {
+    font-size: 16px;
+    padding: 2px 0 2px 4px;
+    margin: 2px 12px 2px 0;
+    width:100%;
+    display:block;
+    cursor: pointer;
+    border: 1px solid white;
+    border-radius: 3px;
+}
+
+.leaflet-control-layers-base span:hover {
+    border: 1px solid dodgerblue;
+}
+
+.leaflet-control-layers-overlays span {
+    font-size: 16px;
+    padding: 2px 0 2px 4px;
+    margin: 2px 12px 2px 0;
+    width:100%;
+    display:block;
+    cursor: pointer;
+    border: 1px solid white;
+    border-radius: 3px;
+}
+
+.leaflet-control-layers-overlays span:hover {
+    border: 1px solid dodgerblue;
+}
+
+.timestamp {
+    height: 24px;
+    width: 150px;
+    bottom: 0;
+    left: 70px;
+
+    z-index: 999;
+    position: fixed;
+    background-color: whitesmoke;
+    border-color: gray;
+    border-width:thin;
+    border-top-style: solid;
+    border-left-style: solid;
+    border-right-style: solid;
+    border-radius: 4px 4px 0 0;
+    opacity: 0.7;
+    /*cursor: col-resize;*/
+
+    text-align:center;
+    /*vertical-align:middle;*/
+    display: table-cell;
+    line-height: 24px; /* same as height div? */
+
+}
+
+.timestamp-hidden {
+    display: none;
+}

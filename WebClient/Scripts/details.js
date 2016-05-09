@@ -1,0 +1,231 @@
+﻿L.Control.Details = L.Control.extend({
+    options: {
+        collapsed: true,
+        position: 'topright',
+        autoZIndex: true,
+        hideSingleBase: false
+    },
+
+    initialize: function (options) {
+        L.setOptions(this, options);
+
+        this._kpis = {};
+        this._charts = {};
+        this._layers = {};
+        this._lastZIndex = 0;
+        this._handlingClick = false;
+    },
+
+    onAdd: function (map) {
+        this._initLayout();
+        this._update();
+        this._map = map;
+        return this._container;
+    },
+
+    onRemove: function () {
+    },
+
+    _initLayout: function () {
+        var className = 'leaflet-control-details',
+		    container = this._container = L.DomUtil.create('div', className);
+
+        // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
+        container.setAttribute('aria-haspopup', true);
+
+        L.DomEvent.disableClickPropagation(container);
+        if (!L.Browser.touch) {
+            L.DomEvent.disableScrollPropagation(container);
+        }
+
+        var form = this._form = L.DomUtil.create('form', className + '-list');
+
+        if (this.options.collapsed) {
+            if (!L.Browser.android) {
+                L.DomEvent.on(container, {
+                    mouseenter: this._expand,
+                    mouseleave: this._collapse
+                }, this);
+            }
+
+            var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
+            link.href = '#';
+            link.title = 'Details of selected domains in KPIs, charts and map layers';
+
+            if (L.Browser.touch) {
+                L.DomEvent
+				    .on(link, 'click', L.DomEvent.stop)
+				    .on(link, 'click', this._expand, this);
+            } else {
+                L.DomEvent.on(link, 'focus', this._expand, this);
+            }
+
+            // work around for Firefox Android issue https://github.com/Leaflet/Leaflet/issues/2033
+            /*
+            L.DomEvent.on(form, 'click', function () {
+                setTimeout(L.bind(this._onInputClick, this), 0);
+            }, this);
+            */
+            this._map.on('click', this._collapse, this);
+            // TODO keyboard accessibility
+        } else {
+            this._expand();
+        }
+
+        this._detailList = L.DomUtil.create('div', className + '-base', form);
+
+        container.appendChild(form);
+    },
+
+    resetDomains: function (domains) {
+        // clear existing
+        this._kpis = {};
+        this._charts = {};
+        this._layers = {};
+        // merge enabled domains (kpis, charts, layers)
+        for (var domainName in domains) {
+            var domain = domains[domainName];
+            if (domain.enabled) {
+                for (var id in domain.kpis)
+                    this._kpis[domain.kpis[id].name] = domain.kpis[id];
+                for (var id in domain.charts)
+                    this._charts[domain.charts[id].name] = domain.charts[id];
+                for (var id in domain.layers) {
+                    var layer = domain.layers[id];
+                    // all except basic layers (they are handled by the layers control)
+                    if (!layer.basic)
+                        this._layers[layer.name] = layer;
+                }
+            }
+        }
+        // re-build details elements
+        this._update();
+    },
+
+    resetkpi: function (aKPI) {
+        for (var kpiName in this._kpis) {
+            if (kpiName == aKPI.name) {
+                this._kpis[aKPI.name] = aKPI;
+                // rebuild details elements
+                this._update(); 
+                return;
+            }
+        }
+        // todo: kpi not found.. add?
+    },
+
+    
+    updatePreview: function (aElementID, preview) {
+        if (this.layers) {
+            var img = document.getElementById(aElementID);
+            if (img) {
+                img.src = preview;
+                // update domains in domainsControl
+                //var domain = domainsControl._domains[img.domain];
+                //domain.layer
+            }
+        }
+    },
+
+    updateTilesURL: function (aElementID, aTilesURL) {
+        // update data
+        var changed = false;
+        if (this._layers) {
+            for (var layerName in this._layers) {
+                var layer = this._layers[layerName];
+                if (layer.id == aElementID) {
+                    if (layer.tiles != aTilesURL) {
+                        layer.tiles = aTilesURL;
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if (changed)
+            updateTilesLayerOnMap(aElementID, aTilesURL);
+    },
+    
+    _update: function () {
+        if (!this._container) { return this; }
+
+        var container = this._detailList;
+        L.DomUtil.empty(container);
+        var h = document.createElement('h4');
+        h.textContent = 'Details';
+        container.appendChild(h);
+
+        this.kpis = document.createElement('div');
+        this.kpis.className = 'detailskpis';
+        this.kpis.style.width = (this.options.elementsPerRow * this.options.elementWidth) + 'px';
+        container.appendChild(this.kpis);
+
+        var hr1 = container.appendChild(document.createElement('hr'));
+
+        this.charts = document.createElement('div');
+        this.charts.className = 'detailscharts';
+        this.charts.style.width = (this.options.elementsPerRow * this.options.elementWidth) + 'px';
+        container.appendChild(this.charts);
+
+        var hr2 = container.appendChild(document.createElement('hr'));
+
+        this.layers = document.createElement('div');
+        this.layers.className = 'detailslayers';
+        this.layers.style.width = (this.options.elementsPerRow * this.options.elementWidth) + 'px';
+        container.appendChild(this.layers);
+
+        var kpiCount = 0;
+        for (var id in this._kpis) {
+            addKPI(this.kpis, this._kpis[id], this.options.kpiWidth, this.options.kpiHeight);
+            kpiCount++;
+        }
+        
+        var chartCount = 0;
+        for (var id in this._charts) {
+            addChart(this.charts, this._charts[id], this.options.chartWidth, this.options.chartHeight, false, false, true);
+            chartCount++;
+        }
+
+        var layerCount = 0;
+        for (var id in this._layers) {
+            addLayer(this.layers, this._layers[id], this.options.layerWidth, this.options.layerHeight);
+            layerCount++;
+        }
+
+        if (kpiCount == 0 || (chartCount == 0 && layerCount == 0))
+            hr1.style.display = 'None';
+        if (chartCount == 0 || layerCount == 0)
+            hr2.style.display = 'None';
+        return this;
+    },
+    hasElements : function() {
+        for (var kpi in this._kpis)
+            return true;
+        for (var chart in this._charts)
+            return true;
+        for (var layer in this._layers)
+            return true;
+        return false;
+    },
+
+    _expand: function () {
+        if (this.hasElements()) {
+            L.DomUtil.addClass(this._container, 'leaflet-control-details-expanded');
+            this._form.style.height = null;
+            var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
+            if (acceptableHeight < this._form.clientHeight) {
+                L.DomUtil.addClass(this._form, 'leaflet-control-details-scrollbar');
+                this._form.style.height = acceptableHeight + 'px';
+            } else {
+                L.DomUtil.removeClass(this._form, 'leaflet-control-details-scrollbar');
+            }
+        }
+    },
+
+    _collapse: function () {
+        L.DomUtil.removeClass(this._container, 'leaflet-control-details-expanded');
+    }
+});
+
+L.control.details = function (categories, options) {
+    return new L.Control.Details(categories, options);
+};

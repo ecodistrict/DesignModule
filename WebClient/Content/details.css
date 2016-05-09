@@ -1,0 +1,240 @@
+﻿
+
+
+
+/* .leaflet-control-details derived from .leaflet--control-layers (leaflet.css) */
+
+
+/* details control */
+
+.leaflet-control-details {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-details-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	background-image: url('images/details.png');
+    width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-details-toggle {
+	background-image: url('images/details-2x.png');
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-details-toggle {
+    width: 44px;
+	height: 44px;
+	}
+.leaflet-control-details .leaflet-control-details-list,
+.leaflet-control-details-expanded .leaflet-control-details-toggle {
+	display: none;
+	}
+.leaflet-control-details-expanded .leaflet-control-details-list {
+	display: block;
+	position: relative;
+	}
+.leaflet-control-details-expanded {
+	padding: 6px 10px 6px 6px;
+	color: #333;
+	background: #fff;
+	}
+.leaflet-control-details-scrollbar {
+	overflow-y: scroll;
+	padding-right: 5px;
+	}
+.leaflet-control-details-selector {
+	margin-top: 2px;
+	position: relative;
+	top: 1px;
+	}
+.leaflet-control-details label {
+	/*display: block;*/
+	}
+.leaflet-control-details-separator {
+	height: 0;
+	border-top: 1px solid #ddd;
+	margin: 5px -10px 5px -6px;
+	}
+
+
+
+.leaflet-control-details h4 {
+    margin: 0;
+    padding: 0;
+    }
+
+.leaflet-control-details ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    }
+
+.leaflet-control-details li  {
+    padding-left: 10px;
+    }
+
+.leaflet-control-details li ul li {
+    padding-left: 20px;
+    padding-right: 10px;
+    line-height: 22px;
+    }
+
+.leaflet-control-details li ul li:hover {
+    background: #f0f0f0;
+    }
+
+.leaflet-control-details li a:link, .leaflet-control-details li a:visited {
+    text-decoration: none;
+    color: #000;
+    display: block;
+    font-size: 16px;
+}
+
+.details-name {
+    
+}
+
+.details-line {
+    display: block;
+    font-size: 16px;
+    padding: 2px 16px 2px 16px;
+    cursor: pointer;
+    background-color: white;
+}
+
+.details-plus {
+    float: right;
+    height: 16px;
+    width: 16px;
+    margin-left: 10px;
+    background-image: url('images/domainadd2.png');
+}
+
+.details-line:hover {
+    background-color: dodgerblue;
+}
+
+.details-line-selected {
+    background-color: lightgray;
+    font-style:italic;
+}
+
+.details-line .details-select:checked {
+
+}
+
+/* touch */
+
+.leaflet-touch .leaflet-control-details {
+	box-shadow: none;
+	border: 2px solid rgba(0,0,0,0.2);
+	background-clip: padding-box;
+	}
+
+
+.leaflet-oldie .leaflet-control-details {
+	border: 1px solid #999;
+	}
+
+
+
+/* elements in details */
+
+.bullet { 
+    font: 8px sans-serif; 
+    pointer-events:all;
+}
+.bullet .marker { stroke: #000; stroke-width: 2px; }
+.bullet .tick line { stroke: #666; stroke-width: .5px; }
+.bullet .range.s0 { fill: #eee; }
+.bullet .range.s1 { fill: #ddd; }
+.bullet .range.s2 { fill: #ccc; }
+.bullet .measure.s0 { fill: lightsteelblue; }
+.bullet .measure.s1 { fill: steelblue; }
+.bullet .title { font-size: 10px; font-weight: bold; }
+.bullet .subtitle { fill: #999; }
+.detailskpis .tick { display: none; }
+
+.bullet:hover .title {
+    fill: dodgerblue;
+}
+
+
+/* charts input details */
+
+.chartDiv {
+    border-radius: 3px;
+    border: 1px solid gray;
+    margin: 2px;
+}
+
+.chartDiv:hover {
+    border-color: dodgerblue;
+}
+
+.chartDetailsMainGroup {
+    pointer-events:all;
+}
+
+/* details chart and on hover select */
+
+.chartDetailsRect {
+    fill: none;
+    stroke: black; 
+    stroke-width: 0.9px;
+}
+
+.chartDetailsMainGroup:hover .chartDetailsRect {
+    stroke: dodgerblue; 
+}
+
+
+.lineChartLine {
+    fill: none;
+    stroke: steelblue;
+    stroke-width: 1.0px;
+}
+
+/* layers in details */
+
+.layerDetails {
+    border-radius: 3px;
+    border: 1px solid gray;
+    margin: 2px;
+    /*display: inline-block;*/
+    float:left;
+}
+
+.layerDetails:hover {
+    border-color: dodgerblue;
+}
+
+.layerDetailsTitle {
+    /*margin: auto auto;*/
+    text-align:center;
+}
+
+.layerDetailsImg {
+    /*left: 6px;*/
+    top: 10px;
+    position: relative;
+    display: block;
+    margin: auto auto;
+}
+
+.layerDetailsSelected {
+    top: 45px;
+    left:5px;
+    position: relative;
+    width: 12px;
+    height: 7px;
+    background-image: url('images/detailsSelected.png');
+	background-size: 12px 7px;
+}
+
+.layerDetailsSelectedHidden {
+    display: none;
+}

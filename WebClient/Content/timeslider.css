@@ -1,0 +1,81 @@
+﻿/* D3 override */
+.domain {
+    fill: none;
+    stroke: black;
+    stroke-width: 1;
+}
+
+line {
+    stroke: black;
+    stroke-width: 1;
+}
+
+text {
+    color: black;
+}
+
+.xaxis {
+    top: 8px;
+}
+
+/* div that holds time slider */
+
+.timeslider {
+    z-index: 999;
+    position: fixed;
+    left: 70px; 
+    right: 70px; 
+    bottom: 0;
+    height: 48px;
+    background-color: whitesmoke;
+    border-color: gray;
+    border-width:thin;
+    border-top-style: solid;
+    border-left-style: solid;
+    border-right-style: solid;
+    border-radius: 4px 4px 0 0;
+    opacity: 0.7;
+    cursor: col-resize;
+    /*cursor:pointer;*/
+}
+
+.timeslider-close {
+    position:absolute;
+    right: 6px;
+    top: 1px;
+    cursor:pointer;
+}
+
+.timeslider-close:hover {
+    font-weight: bold;
+}
+
+/* time slider leaflet button */
+
+.leaflet-control-timeslider-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	}
+
+.leaflet-control-timeslider {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-timeslider-toggle {
+	background-image: url('images/timeslider.png');
+    width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-timeslider-toggle {
+	background-image: url('images/timeslider-2x.png');
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-timeslider-toggle {
+    width: 44px;
+	height: 44px;
+	}
+.leaflet-control-timeslider-expanded {
+    display: none;
+}
