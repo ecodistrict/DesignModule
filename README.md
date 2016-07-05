@@ -13,7 +13,7 @@ Overview
 
 
 ## Client <a name="client"></a>
-[This is the web client part of the design module](WebClient.md). This module is written in html/css/javascript and uses 2 libraries: leaflet and D3. It uses a web socket to communicate to the publishing server. Information layers can be handled in geojson objects or as tiles through the tiles server. The client is a viewer for geo data layers, charts and kpis but can also be used to apply measures to underlying data objects. It also supports to retrieve and change object properties. Information layers can be filtered by domains to make selection easier. 
+[This is the web client part of the design module](https://github.com/ecodistrict/DesignModule/wiki/WebClient.md). This module is written in html/css/javascript and uses 2 libraries: leaflet and D3. It uses a web socket to communicate to the publishing server. Information layers can be handled in geojson objects or as tiles through the tiles server. The client is a viewer for geo data layers, charts and kpis but can also be used to apply measures to underlying data objects. It also supports to retrieve and change object properties. Information layers can be filtered by domains to make selection easier. 
 
 
 ## WS2IMB <a name="ws2imb"></a>
