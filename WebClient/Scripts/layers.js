@@ -39,7 +39,7 @@
                 removeDomainLayer(layer);
                 layer.leaflet_id = null;
                 var s = element.getElementsByClassName('layerDetailsSelected');
-                for(var i=0; i<s.length;i++)
+                for(var i=0; i<s.length; i++)
                     s[i].className = 'layerDetailsSelected layerDetailsSelectedHidden';
                 legendControl.clearLegend(true);
                 // todo: if other layers are visible which legend to show? none for now..
@@ -47,14 +47,14 @@
             else {
                 if (!e.ctrlKey) {
                     removeAllDomainLayers();
-                    var s = element.parentNode.getElementsByClassName('layerDetailsSelected');
-                    for (var i = 0; i < s.length; i++)
-                        s[i].className = 'layerDetailsSelected layerDetailsSelectedHidden';
+                    var s3 = element.parentNode.getElementsByClassName('layerDetailsSelected');
+                    for (var i3 = 0; i3 < s3.length; i3++)
+                        s3[i3].className = 'layerDetailsSelected layerDetailsSelectedHidden';
                 }
                 layer.leaflet_id = addLayerToMap(layer, opacity);
-                var s = element.getElementsByClassName('layerDetailsSelected');
-                for (var i = 0; i < s.length; i++)
-                    s[i].className = 'layerDetailsSelected';
+                var s2 = element.getElementsByClassName('layerDetailsSelected');
+                for (var i2 = 0; i2 < s2.length; i2++)
+                    s2[i2].className = 'layerDetailsSelected';
                 // show legend
                 if (layer.legend)
                     legendControl.createLegend(layer.legend);
@@ -90,7 +90,7 @@ function addLayerToMap(layer, opacity) {
         showLayerTimeStamp(layer.timestamp);
     else
         hideLayerTimeStamp();
-    if (layer.tiles && layer.tiles != '') {
+    if (layer.tiles && layer.tiles !== '' && !layer.objects) {
         var tileLayer;
         tileLayer = L.tileLayer(layer.tiles, {
             opacity: opacity,
@@ -107,7 +107,7 @@ function addLayerToMap(layer, opacity) {
             opacity: opacity,
             style: function (feature) {
                 // test code for live trafic..
-                if (feature.properties.color == '#000000')
+                if (feature.properties.color === '#000000')
                     return { color: '#000000', weight: 1 };
                 else
                     return { color: feature.properties.color };
@@ -124,9 +124,9 @@ function addLayerToMap(layer, opacity) {
 function updateTilesLayerOnMap(aElementID, aTilesURL) {
     for (var mlid in map._layers) {
         var layer = map._layers[mlid];
-        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == aElementID) {
+        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id === aElementID) {
             var domainLayer = layer.domainLayer;
-            if (domainLayer.tiles != aTilesURL || !layer.redraw) {
+            if (domainLayer.tiles !== aTilesURL || !layer.redraw) {
                 // update tiles url
                 domainLayer.tiles = aTilesURL;
                 if (!layer.redraw) {
@@ -157,7 +157,7 @@ function updateTilesLayerOnMap(aElementID, aTilesURL) {
 function refreshOtherLayer(aElementID) {
     for (var mlid in map._layers) {
         var layer = map._layers[mlid];
-        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == aElementID) {
+        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id === aElementID) {
             if (layer.redraw)
                 layer.redraw();
             else {

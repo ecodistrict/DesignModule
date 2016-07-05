@@ -1,0 +1,48 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Screenshot helper</title>
+	<meta charset="utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="Content/leaflet.css" />
+    <link rel="stylesheet" href="Content/map.css" />
+</head>
+<body>
+    <!-- main map -->
+    <div id="map"></div>
+    <!-- load scripts -->
+    <script src="Scripts/leaflet-src.js"></script>
+    <!--<script src="Scripts/map.js"></script>-->
+    <script>
+        mapboxUrl = 'https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiY29ybmVsaXNzZW5qYSIsImEiOiJjaWo5end1azYwMDN6dWxrbnI3eDd4ZzF0In0.tkDIhjkvxgARGteWbAeqPg';
+        mapboxAttribution = '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+        var baseMapLayerGrayScale = L.tileLayer(mapboxUrl, { id: 'mapbox.light', attribution: mapboxAttribution})
+
+        //var imageUrl = 'Noise  Industry Lnight (V20).png',
+            //imageBounds = [[52.24916234, 4.45269978], [52.14916234, 4.35269978]];
+            //imageBounds = [[51.8966150066021, 4.3526813232507], [51.962686298843, 4.41630547018536]]
+
+        var images = [
+            { imageURL: "Noise  Industry Lnight (V20).png", imageBounds: [[51.8966150066021, 4.3526813232507], [51.962686298843, 4.41630547018536]] }
+            , { imageURL: "Noise  Traffic Lden_55dB (V20).png", imageBounds: [[51.8966150066021, 4.3526813232507], [51.962686298843, 4.41630547018536]] }
+            , { imageURL: "Traffic   Intensity_Capacity 4h (V20).png", imageBounds: [[51.8936001787398, 4.27930755783073], [51.9732631686074, 4.49031667960186]] }
+        ];
+
+
+        var imageIndex = 1;
+        var testLayer = L.imageOverlay(images[imageIndex].imageURL, images[imageIndex].imageBounds);
+
+        var map = L.map('map', {
+            center: [51.93, 4.39],
+            zoom: 13,
+            zoomControl:false,
+            layers: [baseMapLayerGrayScale, testLayer]
+        });
+
+        
+
+
+    </script>
+</body>
+</html>

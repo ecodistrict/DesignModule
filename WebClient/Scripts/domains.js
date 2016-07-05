@@ -30,7 +30,7 @@
 
     _initLayout: function () {
         var className = 'leaflet-control-domains',
-		    container = this._container = L.DomUtil.create('div', className);
+            container = this._container = L.DomUtil.create('div', className);
 
         // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
         container.setAttribute('aria-haspopup', true);
@@ -56,8 +56,8 @@
 
             if (L.Browser.touch) {
                 L.DomEvent
-				    .on(link, 'click', L.DomEvent.stop)
-				    .on(link, 'click', this._expand, this);
+                    .on(link, 'click', L.DomEvent.stop)
+                    .on(link, 'click', this._expand, this);
             } else {
                 L.DomEvent.on(link, 'focus', this._expand, this);
             }
@@ -90,7 +90,7 @@
             else {
                 if (domain.layers) {
                     for (var l = 0; l < domain.layers.length; l++) {
-                        if (!domain.layers[l].basic || domain.layers[l].basic == 0) {
+                        if (!domain.layers[l].basic || domain.layers[l].basic === 0) {
                             this._addItem(domainName, domain.enabled);
                             break;
                         }

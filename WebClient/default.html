@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="Content/leaflet.css" />
     <link rel="stylesheet" href="Content/leaflet.draw.css" />
+    <link rel="stylesheet" href="Content/leaflet.contextmenu.css" />
     <link rel="stylesheet" href="Content/button.css" />
     <link rel="stylesheet" href="Content/modaldialog.css" />
     <link rel="stylesheet" href="Content/querydialog.css" />
@@ -18,7 +19,7 @@
     <link rel="stylesheet" href="Content/history.css" />
     <link rel="stylesheet" href="Content/projectdescription.css" />
     <link rel="stylesheet" href="Content/connectionstatus.css" />
-    <link rel="stylesheet" href="Content/errorMessages.css" />
+    <link rel="stylesheet" href="Content/userMessages.css" />
     <link rel="stylesheet" href="Content/timeslider.css" />
     <link rel="stylesheet" href="Content/map.css" />
 </head>
@@ -30,16 +31,18 @@
     <!-- connection status -->
     <div id="connectionStatus" class="connection-status connection-status-disconnected" ></div>
     <!-- error messages -->
-    <div id="errorMessages" class="errorMessages errorMessages-hidden"><p id="errorMessage">There is an error</p></div>
+    <div id="userMessages" class="userMessages userMessages-hidden"><p id="userMessage">There is a message</p></div>
     <!-- time related elements-->
     <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div> 
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
     <!-- load scripts -->
     <script src="Scripts/leaflet-src.js"></script>
     <script src="Scripts/leaflet.draw-src.js"></script>
+    <script src="Scripts/leaflet.contextmenu-src.js"></script>
     <script src="Scripts/modaldialog.js"></script>
     <script src="Scripts/querydialog.js"></script>
     <script src="Scripts/map.js"></script>
+    <script src="Scripts/userMessages.js"></script>
     <script src="Scripts/select.js"></script>
     <script src="Scripts/measures.js"></script>
     <script src="Scripts/info.js"></script>
@@ -52,7 +55,6 @@
     <script src="Scripts/history.js"></script>
     <script src="Scripts/projectdescription.js"></script>
     <script src="Scripts/timeslider.js"></script>
-    <script src="Scripts/errorMessages.js"></script>
     <!-- charts -->
     <script src="Scripts/d3.js"></script> 
     <script src="Scripts/bullet.js"></script>
@@ -60,11 +62,16 @@
     <script>
         // determine parameters and config
         var wsBaseURL = 'ws://vps17642.public.cloudvps.com:4502';
-        var session = getParameterByName('session', '1234');
+        var session = getParameterByName('session', ''); 
+        if (session == '') {
+            session = '1234'; // default test session
+            //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
+            //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
+        }
+        var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
         var userid = '';
-        var sessionDescription = getParameterByName('sessionDescription', 'Test session');
-        // todo: split session in session id/scenario id/user id
+        // split session in session id/scenario id/user id
         var sessionParts = session.split('$');
         if (sessionParts.length > 1) {
             session = sessionParts[0];
@@ -76,76 +83,20 @@
                 userid = sessionParts[1];
         }
 
-        // todo: test credentials
+        // measures
+        var measuresDefaults = [];
 
-        // override sesion, scenario and credentials for testing
-        //session = '57161b0e476be01375b9d3ad';
-        //scenario = '';
-        //userid = '5714c5691054d2e45285c5c3';
-        
-        // test set measures
-        var measuresDefaults =
-            [
-                {
-                    category: 'district',
-                    measures: [
-                        {
-                            measure: 'measure d1',
-                            actions: [
-                              { id: 5, action: 'action5', description: 'a description for action5', objecttypes: '' },
-                              { id: 6, action: 'action6', description: 'a description for action6', objecttypes: '' }
-                            ]
-                        },
-                        {
-                            measure: 'measure d2', actions: [
-                              { id: 7, action: 'action7', description: 'a description for action7', objecttypes: '' },
-                              { id: 8, action: 'action8', description: 'a description for action8', objecttypes: '' }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    category: 'energy',
-                    measures: [
-                        {
-                            measure: 'measure e',
-                            actions: [
-                                { id: 1, action: 'action1', description: 'a description for action1', objecttypes: ['building', 'energynode', 'electricalconduit'] },
-                                { id: 2, action: 'action2', description: 'a description for action2', objecttypes: ['building'] }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    category: 'trafic',
-                    measures: [
-                        {
-                            measure: 'measure t',
-                            actions: [
-                                { id: 3, action: 'action3', description: 'a description for action3', objecttypes: ['road'] },
-                                { id: 4, action: 'action4', description: 'a description for action4', objecttypes: ['road'] }
-                            ]
-                        }
-                    ]
-                }
-            ];
-
-        // test set domains
-        var domainsDefaults = {
-            Noise: {},
-            Air: {},
-            Trafic: {},
-            Safety: {}
-        };
+        // domains
+        var domainsDefaults = {};
 
         var detailsControlDefaults = {
-            elementsPerRow: 4, elementWidth: 140,
+            elementWidth: 140,
             kpiWidth: 134, kpiHeight: 20,
             chartWidth: 134, chartHeight: 100,
             layerWidth: 134, layerHeight: 140
         };
 
-        var selectedCategoriesDefaults = ['road']; //['building']; // todo: defaults to empty?
+        var selectedCategoriesDefaults = [];
 
         var domainsControl = L.control.domains(domainsDefaults);
         map.addControl(domainsControl);
@@ -186,6 +137,8 @@
             ws.onopen = function () {
                 connectionStatus.classList.remove('connection-status-disconnected');
                 connectionStatus.classList.add('connection-status-connected');
+                // todo: remove all basic layers?
+                // todo: remove all non-basic layers?
             };
             ws.onmessage = function (evt) {
                 var message = JSON.parse(evt.data);
@@ -330,6 +283,9 @@
                     measuresControl.setSelectCategories(message.selectedObjects.selectCategories);
                     handleObjectSelection(message.selectedObjects);
                 }
+                else if (message.selectedObjectsProperties) {
+                    showSelectedObjectsProperties(message.selectedObjectsProperties)
+                }
                 else if (message.session) {
                     // handle session message
                     if (message.session.description) {
@@ -362,10 +318,12 @@
                         }
                     }
                     if (typeof message.session.selectionEnabled !== "undefined") {
-                        if (message.session.selectionEnabled)
+                        if (message.session.selectionEnabled) {
                             addSelectControl();
-                        else
+                        }
+                        else {
                             removeSelectControl();
+                        }
                     }
                     if (typeof message.session.measuresEnabled !== "undefined") {
                         if (message.session.measuresEnabled)
@@ -387,19 +345,20 @@
                 else if (message.connection) {
                     // connection specific, from ws2imb
                     if (message.connection.message)
-                        showErrorMessage(message.connection.message);
+                        showUserMessage(message.connection.message, message.connection.messageType);
                 }
             };
             ws.onerror = function (evt) {
                 if (evt.message)
-                    showErrorMessage("disconnect: " + evt.message);
+                    showUserMessage("disconnect: " + evt.message);
                 else
-                    showErrorMessage("disconnected");
+                    showUserMessage("disconnected");
             };
-            ws.onclose = function () {
+            ws.onclose = function (evt) {
                 connectionStatus.classList.remove('connection-status-connected');
                 connectionStatus.classList.add('connection-status-disconnected');
-                //showErrorMessage("disconnected");
+                if (evt.code && evt.code != 1000)
+                    showUserMessage("disconnected (close " + evt.code + ", " + evt.reason + ")");
             };
         };
 
@@ -428,8 +387,6 @@
 
         // default: try to connect
         wsConnect();
-
-        
 
         // todo: handling window resize and orientation change
         // http://stackoverflow.com/questions/5284878/how-do-i-correctly-detect-orientation-change-using-javascript-and-phonegap-in-io

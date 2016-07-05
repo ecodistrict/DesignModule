@@ -4,7 +4,7 @@
         position: 'topleft',
         autoZIndex: true,
         hideSingleBase: false,
-        selectCategories: [],
+        selectCategories: []
     },
 
     initialize: function (measuredefinitions, measuresHistory, options) {
@@ -30,7 +30,7 @@
 
     _initLayout: function () {
         var className = 'leaflet-control-measures',
-		    container = this._container = L.DomUtil.create('div', className);
+            container = this._container = L.DomUtil.create('div', className);
 
         // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
         container.setAttribute('aria-haspopup', true);
@@ -56,8 +56,8 @@
 
             if (L.Browser.touch) {
                 L.DomEvent
-				    .on(link, 'click', L.DomEvent.stop)
-				    .on(link, 'click', this._expand, this);
+                    .on(link, 'click', L.DomEvent.stop)
+                    .on(link, 'click', this._expand, this);
             } else {
                 L.DomEvent.on(link, 'focus', this._expand, this);
             }
@@ -146,7 +146,7 @@
             if (aObjectTypes.length > 0) {
                 for (var i = 0; i < this.options.selectCategories.length; i++) {
                     for (var ot = 0; ot < aObjectTypes.length; ot++) {
-                        if (this.options.selectCategories[i] == aObjectTypes[ot]) {
+                        if (this.options.selectCategories[i] === aObjectTypes[ot]) {
                             return true;
                         }
                     }
@@ -157,9 +157,9 @@
                 return true;
         }
         else {
-            if (aObjectTypes != "") {
-                for (var i = 0; i < this.options.selectCategories.length; i++) {
-                    if (aObjectTypes == this.options.selectCategories[i])
+            if (aObjectTypes !== "") {
+                for (var i2 = 0; i2 < this.options.selectCategories.length; i2++) {
+                    if (aObjectTypes === this.options.selectCategories[i2])
                         return true;
                 }
                 return false;
@@ -183,7 +183,7 @@
         if (measureDefinition) {
             // build modal dialog for possible actions
             var div = modalDialogCreate(measureDefinition.measure, 
-                this.options.selectCategories.length == 0 ? 
+                this.options.selectCategories.length === 0 ? 
                     'Select measure to apply' : 
                     'Select measure to apply to objects of type: ' + this.options.selectCategories);
             div.style.width = '450px';
@@ -208,7 +208,8 @@
                             description: selectedRadio.title,
                             measure: measureDefinition.measure
                         },
-                        _this._map.selectedObjects ? _this._map.selectedObjects : []
+                        getSelectedObjects(),
+                        _this.options.selectCategories
                     );
                     _this._collapse();
                     modalDialogClose();
@@ -238,24 +239,6 @@
         }
     },
 
-    /*
-    _applyMeasure: function (e) {
-        var measureDefinition = this._measuresLookup[L.stamp(e.target)];
-        if (measureDefinition) {
-            //alert('apply ' + measureDefinition.name + ' (' + measureDefinition.id + ')');
-            if (this._map.selectedObjects) {
-                this._measuresHistory.addMeasure(measureDefinition, this._map.selectedObjects);
-            }
-            else {
-                this._measuresHistory.addMeasure(measureDefinition, []);
-            }
-            this._collapse();
-        }
-        else {
-            alert('## apply measure: cannot find measure to apply');
-        }
-    },
-    */
     _expand: function () {
         if (this._measuredefinitions.length > 0) {
             L.DomUtil.addClass(this._container, 'leaflet-control-measures-expanded');

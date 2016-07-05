@@ -24,7 +24,7 @@
 
     _initLayout: function () {
         var className = 'leaflet-control-history',
-		    container = this._container = L.DomUtil.create('div', className);
+            container = this._container = L.DomUtil.create('div', className);
 
         // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
         container.setAttribute('aria-haspopup', true);
@@ -50,18 +50,11 @@
 
             if (L.Browser.touch) {
                 L.DomEvent
-				    .on(link, 'click', L.DomEvent.stop)
-				    .on(link, 'click', this._expand, this);
+                    .on(link, 'click', L.DomEvent.stop)
+                    .on(link, 'click', this._expand, this);
             } else {
                 L.DomEvent.on(link, 'focus', this._expand, this);
             }
-
-            // work around for Firefox Android issue https://github.com/Leaflet/Leaflet/issues/2033
-            /*
-            L.DomEvent.on(form, 'click', function () {
-                setTimeout(L.bind(this._onInputClick, this), 0);
-            }, this);
-            */
 
             this._map.on('click', this._collapse, this);
             // TODO keyboard accessibility
@@ -103,13 +96,14 @@
 
         var name = document.createElement('span');
         if (obj.selectedObjects.length > 0) {
-            name.innerHTML = '&nbsp;&nbsp; ' + obj.measure.name + ', ' + obj.selectedObjects.length+' objects';
+            name.innerHTML = '&nbsp;&nbsp; ' + obj.measure.name + ', ' + obj.selectedObjects.length + ' objects';
         }
         else {
             name.innerHTML = '&nbsp;&nbsp; ' + obj.measure.name;
         }
         
         name.className = 'history-name';
+        L.DomEvent.on(name, 'click', this._onSelectObjectsFromHistory, this);
 
         var holder = document.createElement('div');
 
@@ -122,55 +116,36 @@
         return label;
     },
 
-    addMeasure: function (m, so) {
-        this._addItem({ measure: m, selectedObjects: so });
+    addMeasure: function (m, so, sc) {
+        this._addItem({ measure: m, selectedObjects: so, selectedCategories: sc });
     },
 
     _applyMeasures: function() {
-        alert('apply measures from history');
-        // todo: apply measures
+        // apply measures from history control by sending to server
+        var message = {};
+        message.applyMeasures = [];
+        for (var mi in this._historyItems) {
+            var am = {
+                measure: this._historyItems[mi].measure,
+                selectedCategories: this._historyItems[mi].selectedCategories,
+                selectedObjects: this._historyItems[mi].selectedObjects
+            };
+            message.applyMeasures.push(am);
+        }
+        wsSend(message);
         this._refocusOnMap();
     },
 
-    _onInputClick: function () {
-        /*
-        var inputs = this._form.getElementsByTagName('input'),
-		    input, layer, hasLayer;
-        var addedLayers = [],
-		    removedLayers = [];
-        */
-        
-        alert('apply measures from history');
-        // todo: apply measures
-        /*
-        for (var i = inputs.length - 1; i >= 0; i--) {
-            input = inputs[i];
-            layer = this._layers[input.layerId].layer;
-            hasLayer = this._map.hasLayer(layer);
-
-            if (input.checked && !hasLayer) {
-                addedLayers.push(layer);
-
-            } else if (!input.checked && hasLayer) {
-                removedLayers.push(layer);
-            }
-        }
-
-        // Bugfix issue 2318: Should remove all old layers before readding new ones
-        for (i = 0; i < removedLayers.length; i++) {
-            this._map.removeLayer(removedLayers[i]);
-        }
-        for (i = 0; i < addedLayers.length; i++) {
-            this._map.addLayer(addedLayers[i]);
-        }
-        */
-        
-        this._refocusOnMap();
-    },
-
-    _onRemovenMeasure: function (e) {
+    _onRemovenMeasure: function(e) {
         delete this._historyItems[e.currentTarget.layerId];
         this._update();
+    },
+
+    _onSelectObjectsFromHistory: function(e) {
+        alert('select objects from measure history');
+        var r = this._historyItems[e.currentTarget.layerId];
+
+        this._refocusOnMap();
     },
 
     hasElements: function() {

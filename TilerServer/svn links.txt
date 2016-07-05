@@ -1,0 +1,6 @@
+tatukGIS\Lib:	https://tf.tno.nl/svn/repos/urban_strategy/thirdparty/TatukGIS/DK_10_39_0_15246/Lib
+
+tatukGIS\LibSrc:https://tf.tno.nl/svn/repos/urban_strategy/thirdparty/TatukGIS/DK_10_39_0_15246/LibSrc
+
+
+

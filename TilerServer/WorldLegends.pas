@@ -10,7 +10,7 @@ uses
 type
   // [minValue, maxValue>
   TDiscretePaletteEntry = record
-    color: TAlphaRGBPixel;
+    colors: TGeoColors;
     minValue: Double;
     maxValue: Double;
     description: string;
@@ -22,7 +22,7 @@ type
   TPaletteDiscreteEntryArray = array of TDiscretePaletteEntry;
 
   TDiscretePalette = class(TWDPalette)
-  constructor Create(const aDescription: string; const aEntries: TPaletteDiscreteEntryArray; aNoDataColor: TAlphaRGBPixel); overload;
+  constructor Create(const aDescription: string; const aEntries: TPaletteDiscreteEntryArray; aNoDataColor: TGeoColors); overload;
   destructor Destroy; override;
   class function WorldType: TWDWorldType; override;
   class function wdTag: UInt32; override;
@@ -31,13 +31,13 @@ type
     procedure Decode(const aBuffer: TWDValue; var aCursor: Integer; aLimit: Integer); override;
   private
     fEntries: TPaletteDiscreteEntryArray;
-    fNoDataColor: TAlphaRGBPixel;
+    fNoDataColors: TGeoColors;
   protected
     function _clone: TWDPalette; override;
   public
     property entries: TPaletteDiscreteEntryArray read fEntries;
-    property noDataColor: TAlphaRGBPixel read fNoDataColor;
-    function ValueToColor(const aValue: Double): TAlphaRGBPixel; override;
+    property noDataColors: TGeoColors read fNoDataColors;
+    function ValueToColors(const aValue: Double): TGeoColors; override;
   end;
 
   TRampPaletteEntry = record
@@ -69,7 +69,10 @@ type
   protected
     function _clone: TWDPalette; override;
   public
-    function ValueToColor(const aValue: Double): TAlphaRGBPixel; override;
+    function ValueToColors(const aValue: Double): TGeoColors; override;
+    property lowerDataColor: TAlphaRGBPixel read fLowerDataColor;
+    property noDataColor: TAlphaRGBPixel read fNoDataColor;
+    property higherDataColor: TAlphaRGBPixel read fHigherDataColor;
   end;
 
 implementation
@@ -95,7 +98,9 @@ end;
 
 procedure TDiscretePaletteEntry.Decode(const aBuffer: TWDValue; var aCursor: Integer; aLimit: Integer);
 begin
-  color := aBuffer.bb_read_uint32(aCursor);
+  colors.outlineColor := aBuffer.bb_read_uint32(aCursor);
+  colors.fillColor := aBuffer.bb_read_uint32(aCursor);
+  colors.fill2Color := aBuffer.bb_read_uint32(aCursor);
   minValue := aBuffer.bb_read_double(aCursor);
   maxValue := aBuffer.bb_read_double(aCursor);
   description := aBuffer.bb_read_string(aCursor);
@@ -106,7 +111,9 @@ end;
 function TDiscretePaletteEntry.Encode: TWDValue;
 begin
   Result :=
-    TByteBuffer.bb_uint32(color)+
+    TByteBuffer.bb_uint32(colors.outlineColor)+
+    TByteBuffer.bb_uint32(colors.fillColor)+
+    TByteBuffer.bb_uint32(colors.fill2Color)+
     TByteBuffer.bb_bytes(minValue, SizeOf(minValue))+
     TByteBuffer.bb_bytes(maxValue, SizeOf(maxValue))+
     TByteBuffer.bb_string(description);
@@ -119,17 +126,19 @@ end;
 
 { TDiscretePalette }
 
-constructor TDiscretePalette.Create(const aDescription: string; const aEntries: TPaletteDiscreteEntryArray; aNoDataColor: TAlphaRGBPixel);
+constructor TDiscretePalette.Create(const aDescription: string; const aEntries: TPaletteDiscreteEntryArray; aNoDataColor: TGeoColors);
 begin
   inherited Create(aDescription);
   fEntries := aEntries;
-  fNoDataColor := aNoDataColor;
+  fNoDataColors := aNoDataColor;
 end;
 
 procedure TDiscretePalette.Decode(const aBuffer: TWDValue; var aCursor: Integer; aLimit: Integer);
 begin
   inherited Decode(aBuffer, aCursor, aLimit);
-  fNoDataColor := aBuffer.bb_read_uint32(aCursor);
+  fNoDataColors.fillColor := aBuffer.bb_read_uint32(aCursor);
+  fNoDataColors.outlineColor := aBuffer.bb_read_uint32(aCursor);
+  fNoDataColors.fill2Color := aBuffer.bb_read_uint32(aCursor);
   while aCursor<aLimit do
   begin
     setLength(fEntries, length(fEntries)+1);
@@ -148,12 +157,15 @@ var
   i: Integer;
 begin
   Result := inherited Encode;
-  Result := Result+TByteBuffer.bb_uint32(fNoDataColor);
+  Result := Result+
+    TByteBuffer.bb_uint32(fNoDataColors.fillColor)+
+    TByteBuffer.bb_uint32(fNoDataColors.outlineColor)+
+    TByteBuffer.bb_uint32(fNoDataColors.fill2Color);
   for i := 0 to length(fEntries)-1
   do Result := Result+fEntries[i].Encode;
 end;
 
-function TDiscretePalette.ValueToColor(const aValue: Double): TAlphaRGBPixel;
+function TDiscretePalette.ValueToColors(const aValue: Double): TGeoColors;
 var
   e: Integer;
 begin
@@ -163,10 +175,10 @@ begin
     while (e>=0) and not fEntries[e].ValueInRange(aValue)
     do e := e-1;
     if e>=0
-    then Result := fEntries[e].Color
-    else Result := fNoDataColor;
+    then Result := fEntries[e].colors
+    else Result := fNoDataColors;
   end
-  else Result := fNoDataColor;
+  else Result := fNoDataColors;
 end;
 
 class function TDiscretePalette.wdTag: UInt32;
@@ -183,7 +195,7 @@ function TDiscretePalette._clone: TWDPalette;
 begin
   Result := TDiscretePalette.Create(fDescription);
   (Result as  TDiscretePalette).fEntries := fEntries;
-  (Result as  TDiscretePalette).fNoDataColor := fNoDataColor;
+  (Result as  TDiscretePalette).fNoDataColors := fNoDataColors;
 end;
 
 { TRampPaletteEntry }
@@ -255,10 +267,11 @@ begin
   do Result := Result+fEntries[i].Encode;
 end;
 
-function TRampPalette.ValueToColor(const aValue: Double): TAlphaRGBPixel;
+function TRampPalette.ValueToColors(const aValue: Double): TGeoColors;
 var
   e: Integer;
 begin
+  Result := TGeoColors.Create(fNoDataColor);
   if not IsNaN(aValue) then
   begin
     e := Length(fEntries)-1;
@@ -269,14 +282,13 @@ begin
       if e<Length(fEntries)-1 then
       begin
         if not SameValue(aValue, fEntries[e].Value)
-        then Result := ColorRamp(aValue, fEntries[e].Value, fEntries[e+1].Value, fEntries[e].Color, fEntries[e+1].Color)
-        else Result := fEntries[e].color;
+        then Result.fillColor := ColorRamp(aValue, fEntries[e].Value, fEntries[e+1].Value, fEntries[e].Color, fEntries[e+1].Color)
+        else Result.fillColor := fEntries[e].color;
       end
-      else Result := fHigherDataColor;
+      else Result.fillColor := fHigherDataColor;
     end
-    else Result := fLowerDataColor;
-  end
-  else Result := fNoDataColor;
+    else Result.fillColor := fLowerDataColor;
+  end;
 end;
 
 class function TRampPalette.wdTag: UInt32;

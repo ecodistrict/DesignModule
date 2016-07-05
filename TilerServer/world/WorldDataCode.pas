@@ -209,6 +209,16 @@ type
 
   TAlphaRGBPixel = Cardinal; // 32 bit ARGB color
 
+  TGeoColors = record
+  class function Create(aFillColor: TAlphaRGBPixel=0; aOutlineColor: TAlphaRGBPixel=0; aFill2Color: TAlphaRGBPixel=0): TGeoColors; static;
+  public
+    fillColor: TAlphaRGBPixel;
+    outlineColor: TAlphaRGBPixel;
+    fill2Color: TAlphaRGBPixel; // for pattern
+    function mainColor(aDefaultColor: TAlphaRGBPixel=0): TAlphaRGBPixel;
+    function toJSON: string;
+  end;
+
   TWDPalette = class(TWDClass)
   constructor Create(const aDescription: string); overload;
   function Clone: TWDPalette;
@@ -220,8 +230,8 @@ type
     fDescription: string;
     function _clone: TWDPalette; virtual; abstract;
   public
-    function ValueToColor(const aValue: Double): TAlphaRGBPixel; virtual; abstract;
-    function ValueToColorJSON(const aValue: Double): string;
+    function ValueToColors(const aValue: Double): TGeoColors; virtual; abstract;
+    property description: string read fDescription;
   end;
 
 const
@@ -358,6 +368,14 @@ end;
 function ColorToJSON(aColor: TAlphaRGBPixel): string;
 begin
   Result := '#'+(aColor and $FFFFFF).ToHexString(6);
+end;
+
+function OpacityToJSON(aColor:  TAlphaRGBPixel): string;
+var
+  opacity: Double;
+begin
+  opacity := (aColor shr 24)/255;
+  Result := opacity.ToString(TFloatFormat.ffFixed, 3, 2, dotFormat)
 end;
 
 { TWDBinStateHelper }
@@ -971,6 +989,15 @@ begin
 end;
 }
 
+{ TGeoColors }
+
+class function TGeoColors.Create(aFillColor, aOutlineColor, aFill2Color: TAlphaRGBPixel): TGeoColors;
+begin
+  Result.fillColor := aFillColor;
+  Result.outlineColor := aOutlineColor;
+  Result.fill2Color := aFill2Color;
+end;
+
 { TWDGeometryPoint }
 {
 class function TWDGeometryPoint.CreateFromBuffer(const aBuffer: TWDValue; var aCursor: Integer; aLimit: Integer): TWDClass;
@@ -979,6 +1006,7 @@ begin
   Result.Decode(aBuffer, aCursor, aLimit);
 end;
 }
+
 constructor TWDGeometryPoint.Create(ax, ay, az: Double);
 begin
   inherited Create;
@@ -1029,6 +1057,38 @@ end;
 class function TWDGeometryPoint.WorldType: TWDWorldType;
 begin
   Result := wdkGeometryPoint;
+end;
+
+function TGeoColors.mainColor(aDefaultColor: TAlphaRGBPixel=0): TAlphaRGBPixel;
+begin
+  if fillColor<>0
+  then Result := fillColor
+  else if outlineColor<>0
+  then Result := outlineColor
+  else if fill2Color<>0
+  then Result := fill2Color
+  else Result := aDefaultColor;
+end;
+
+function TGeoColors.toJSON: string;
+
+  procedure AddColor(const aFieldPrefix: string; aColor: TAlphaRGBPixel);
+  begin
+    if aColor<>0 then
+    begin
+      if Result<>''
+      then Result := Result+',';
+      if ((aColor AND $FF000000) <> $FF000000) and ((aColor AND $FF000000) <> $00000000)
+      then Result := Result+'"'+aFieldPrefix+'Opacity":'+ OpacityToJSON(aColor)+'",';
+      Result := Result+'"'+aFieldPrefix+'Color":"'+ColorToJSON(aColor)+'"';
+    end;
+  end;
+
+begin
+  Result := '';
+  AddColor('fill', fillColor);
+  AddColor('outline', outlineColor);
+  AddColor('fill2', fill2Color);
 end;
 
 { TWDGeometryPart }
@@ -1263,6 +1323,7 @@ begin
   inherited Create;
   fParts := TObjectList<TWDGeometryPart>.Create;
 end;
+
 constructor TWDGeometry.CreateFromSVGPath(const aSVGPath: string);
 var
   elements: TArray<string>;
@@ -1447,10 +1508,10 @@ begin
   Result := TByteBuffer.bb_string(fDescription);
 end;
 
-function TWDPalette.ValueToColorJSON(const aValue: Double): string;
-begin
-  Result := ColorToJSON(ValueToColor(aValue));
-end;
+//function TWDPalette.ValueToColorJSON(const aValue: Double): string;
+//begin
+//  Result := ColorToJSON(ValueToColor(aValue));
+//end;
 
 
 

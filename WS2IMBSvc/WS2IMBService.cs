@@ -25,14 +25,17 @@ using IMB;
 
 // netsh http add urlacl url=http://+:4502/sessions user="NT AUTHORITY\NETWORK SERVICE" ?? -> no, has to run under local system
 
+// install as windows service: installutil.exe in dotnet folder (C:\Windows\Microsoft.NET\Framework\vx.x.xxxxx)
+// installutil.exe <path>\WS2IMBSvc.exe
+// this will install the dotnet assembly as a windows service
 
 namespace WS2IMBSvc
 {
     public partial class WS2IMBService : ServiceBase
     {
         //const string WebSocketUrl = "http://vps17642.public.cloudvps.com:4502/sessions";
-        const string WebSocketUrl = "http://localhost:4502/sessions";
-        const string IMBHub = "vps17642.public.cloudvps.com";
+        string WebSocketUrl = Properties.Settings.Default.WebSocketUrl; // "http://localhost:4502/sessions";
+        string IMBHub = Properties.Settings.Default.IMBHub; // "vps17642.public.cloudvps.com";
 
         const string IMBModelName = "WS2IMB";
         const int IMBModelID = 0;
@@ -44,7 +47,6 @@ namespace WS2IMBSvc
 
         protected override void OnStart(string[] args)
         {
-            //Lookups.eventLog = eventLog;
             Lookups.connection = new TSocketConnection(IMBModelName, IMBModelID, "", IMBHub);
             Uri baseAddress = new Uri(WebSocketUrl);
             Lookups.host = new ServiceHost(typeof(WebSocketsServer), baseAddress);
@@ -67,7 +69,7 @@ namespace WS2IMBSvc
 
             Lookups.host.Open();
             //var dispatcher = Lookups.host.ChannelDispatchers[0] as ChannelDispatcher;
-            //eventLog.WriteEntry("Started WS2IMB service");
+            Debug.WriteLine("Started WS2IMB service");
         }
 
         protected override void OnStop()
@@ -76,14 +78,13 @@ namespace WS2IMBSvc
             ((IDisposable)Lookups.host).Dispose();
             Lookups.host = null;
             Lookups.connection.close();
-            //eventLog.WriteEntry("Stopped WS2IMB service");
+            Debug.WriteLine("Stopped WS2IMB service");
         }
     }
 
     public class Lookups
     {
         public static ServiceHost host = null;
-        //public static System.Diagnostics.EventLog eventLog = null;
         public static string RootEventName = "USIdle.Sessions.WS2IMB";
         public static TConnection connection = null;
         public static Dictionary<object, TEventEntry> channelToEvent = new Dictionary<object, TEventEntry>();
@@ -121,17 +122,15 @@ namespace WS2IMBSvc
     {
         public void Initialize(IClientChannel channel)
         {
-            var sessionID = channel.SessionId;
-            //Console.WriteLine("Client connect: {0}", sessionID);
-            //Lookups.eventLog.WriteEntry("WS2IMB", "Client connect: " + sessionID.ToString());
+            Debug.WriteLine("Client connect: " + channel.SessionId.ToString());
+            // link handlers
             channel.Closed += ClientDisconnected;
             channel.Faulted += ClientDisconnected;
         }
 
         static void ClientDisconnected(object sender, EventArgs e)
         {
-            //Console.WriteLine("Client disconnect: {0}", ((IClientChannel)sender).SessionId);
-            //Lookups.eventLog.WriteEntry("WS2IMB", "Client disconnect: " + ((IClientChannel)sender).SessionId.ToString());
+            Debug.WriteLine("Client disconnect: " + ((IClientChannel)sender).SessionId.ToString());
             // cleanup event
             TEventEntry channelEvent;
             if (Lookups.channelToEvent.TryGetValue(sender, out channelEvent))
@@ -186,8 +185,9 @@ namespace WS2IMBSvc
                 var queryParameters = HttpUtility.ParseQueryString((OperationContext.Current.IncomingMessageProperties["WebSocketMessageProperty"] as WebSocketMessageProperty).WebSocketContext.RequestUri.Query);
                 var sessionName = queryParameters["session"];
                 if (sessionName == null || sessionName == "") sessionName = "unknown";
-                //Console.WriteLine("Start of client on session: " + sessionName);
-                //Lookups.eventLog.WriteEntry("WS2IMB", "Start of client on session: " + sessionName);
+                //var remoteAddress = OperationContext.Current.IncomingMessageHeaders.From;
+                var remoteAddress = (OperationContext.Current.IncomingMessageProperties[RemoteEndpointMessageProperty.Name] as RemoteEndpointMessageProperty).Address;
+                Debug.WriteLine("Start of client " + remoteAddress + " on session: " + sessionName+ " ("+channel.SessionId.ToString()+")");
                 // signal start of client on session
                 TEventEntry sessionEvent = Lookups.connection.publish(Lookups.RootEventName + "." + sessionName, false);
                 channelEvent = Lookups.connection.subscribe(sessionEvent.eventName + "." + channel.SessionId, false);
@@ -198,14 +198,11 @@ namespace WS2IMBSvc
                 channelEvent.onStreamEnd += ChannelEvent_onStreamEnd;
                 channelEvent.onIntString += ChannelEvent_onIntString;
                 sessionEvent.signalIntString(TEventEntry.actionNew, channelEvent.eventName);
-                // todo: sessionEvent.onIntString += SessionEvent_onIntString;
-                // sessionEvent.subscribe();
                 // make client list queryable by session module
                 Lookups.HookupRoot();
             }
             if (!msg.IsEmpty && ((IChannel)callback).State == CommunicationState.Opened)
             {
-                //eventEntry.signalString(Encoding.UTF8.GetString(msg.GetBody<byte[]>()));
                 byte[] returnMessage = msg.GetBody<byte[]>();
                 if (returnMessage.Length > TConnection.imbMaximumPayloadSize / 10) // switch to stream for very large messages
                     channelEvent.signalStream("string", new MemoryStream(returnMessage));
@@ -213,18 +210,6 @@ namespace WS2IMBSvc
                     channelEvent.signalString(returnMessage);
             }
         }
-
-        /*
-        private void SessionEvent_onIntString(TEventEntry aEventEntry, int aInt, string aString)
-        {
-            if (aInt == TEventEntry.actionDelete)
-            {
-                // handle disconnect of session server side..
-                // just unpublish to free up event, but keep on listening because web part is still up
-                aEventEntry.unPublish();
-            }
-        }
-        */
 
         private void ChannelEvent_onIntString(TEventEntry aEventEntry, int aInt, string aString)
         {

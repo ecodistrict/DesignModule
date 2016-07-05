@@ -29,7 +29,26 @@ var overlayLayers = {
 var map = L.map('map', {
     center: [getParameterByName('lat', 52.08606), getParameterByName('lon', 5.17689)],
     zoom: getParameterByName('zoom', 11),
-    layers: [baseMapLayerGrayScale]
+    layers: [baseMapLayerGrayScale],
+    contextmenu: true,
+    contextmenuWidth: 140,
+    contextmenuItems: [
+        {
+            text: 'Show coordinates',
+            callback: showCoordinates
+        },
+        {
+            text: 'Deselect objects',
+            callback: deselectObjects
+        }]
 });
+
+function showCoordinates(e) {
+    alert(e.latlng); // todo: change to nicer view? or remove
+}
+
+function deselectObjects(e) {
+    handleObjectsDeselect(); // clear selection (of objects on map)
+}
 
 var layerControl = L.control.layers(baseLayers, overlayLayers).addTo(map);

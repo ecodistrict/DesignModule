@@ -10,9 +10,11 @@
     var h2 = document.createElement('h2');
     h2.appendChild(document.createTextNode(aTitle));
     div.appendChild(h2);
-    var p = document.createElement('p');
-    p.appendChild(document.createTextNode(aDescription));
-    div.appendChild(p);
+    if (typeof (aDescription) !== 'undefined') {
+        var p = document.createElement('p');
+        p.appendChild(document.createTextNode(aDescription));
+        div.appendChild(p);
+    }
     return div;
 }
 

@@ -28,7 +28,7 @@
 
     _initLayout: function () {
         var className = 'leaflet-control-details',
-		    container = this._container = L.DomUtil.create('div', className);
+            container = this._container = L.DomUtil.create('div', className);
 
         // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
         container.setAttribute('aria-haspopup', true);
@@ -54,8 +54,8 @@
 
             if (L.Browser.touch) {
                 L.DomEvent
-				    .on(link, 'click', L.DomEvent.stop)
-				    .on(link, 'click', this._expand, this);
+                    .on(link, 'click', L.DomEvent.stop)
+                    .on(link, 'click', this._expand, this);
             } else {
                 L.DomEvent.on(link, 'focus', this._expand, this);
             }
@@ -86,12 +86,12 @@
         for (var domainName in domains) {
             var domain = domains[domainName];
             if (domain.enabled) {
-                for (var id in domain.kpis)
-                    this._kpis[domain.kpis[id].name] = domain.kpis[id];
-                for (var id in domain.charts)
-                    this._charts[domain.charts[id].name] = domain.charts[id];
-                for (var id in domain.layers) {
-                    var layer = domain.layers[id];
+                for (var kpiid in domain.kpis)
+                    this._kpis[domain.kpis[kpiid].name] = domain.kpis[kpiid];
+                for (var chartid in domain.charts)
+                    this._charts[domain.charts[chartid].name] = domain.charts[chartid];
+                for (var layerid in domain.layers) {
+                    var layer = domain.layers[layerid];
                     // all except basic layers (they are handled by the layers control)
                     if (!layer.basic)
                         this._layers[layer.name] = layer;
@@ -104,7 +104,7 @@
 
     resetkpi: function (aKPI) {
         for (var kpiName in this._kpis) {
-            if (kpiName == aKPI.name) {
+            if (kpiName === aKPI.name) {
                 this._kpis[aKPI.name] = aKPI;
                 // rebuild details elements
                 this._update(); 
@@ -133,10 +133,12 @@
         if (this._layers) {
             for (var layerName in this._layers) {
                 var layer = this._layers[layerName];
-                if (layer.id == aElementID) {
-                    if (layer.tiles != aTilesURL) {
+                if (layer.id === aElementID) {
+                    if (layer.tiles !== aTilesURL) {
                         layer.tiles = aTilesURL;
-                        changed = true;
+                        // only reload layer if not showing the objects directly (ie is using tiles)
+                        if (!layer.objects)
+                            changed = true;
                     }
                 }
             }
@@ -154,46 +156,49 @@
         h.textContent = 'Details';
         container.appendChild(h);
 
+        // determine elements per row
+        var maxElementCount = Math.max(Object.keys(this._kpis).length, Object.keys(this._charts).length, Object.keys(this._layers).length);
+        var elementsPerRow = maxElementCount >0 ? Math.ceil(Math.sqrt(maxElementCount)) : 1;
         this.kpis = document.createElement('div');
         this.kpis.className = 'detailskpis';
-        this.kpis.style.width = (this.options.elementsPerRow * this.options.elementWidth) + 'px';
+        this.kpis.style.width = (/*this.options.*/elementsPerRow * this.options.elementWidth) + 'px';
         container.appendChild(this.kpis);
 
         var hr1 = container.appendChild(document.createElement('hr'));
 
         this.charts = document.createElement('div');
         this.charts.className = 'detailscharts';
-        this.charts.style.width = (this.options.elementsPerRow * this.options.elementWidth) + 'px';
+        this.charts.style.width = (/*this.options.*/elementsPerRow * this.options.elementWidth) + 'px';
         container.appendChild(this.charts);
 
         var hr2 = container.appendChild(document.createElement('hr'));
 
         this.layers = document.createElement('div');
         this.layers.className = 'detailslayers';
-        this.layers.style.width = (this.options.elementsPerRow * this.options.elementWidth) + 'px';
+        this.layers.style.width = (/*this.options.*/elementsPerRow * this.options.elementWidth) + 'px';
         container.appendChild(this.layers);
 
         var kpiCount = 0;
-        for (var id in this._kpis) {
-            addKPI(this.kpis, this._kpis[id], this.options.kpiWidth, this.options.kpiHeight);
+        for (var kpiid in this._kpis) {
+            addKPI(this.kpis, this._kpis[kpiid], this.options.kpiWidth, this.options.kpiHeight);
             kpiCount++;
         }
         
         var chartCount = 0;
-        for (var id in this._charts) {
-            addChart(this.charts, this._charts[id], this.options.chartWidth, this.options.chartHeight, false, false, true);
+        for (var chartid in this._charts) {
+            addChart(this.charts, this._charts[chartid], this.options.chartWidth, this.options.chartHeight, false, false, true);
             chartCount++;
         }
 
         var layerCount = 0;
-        for (var id in this._layers) {
-            addLayer(this.layers, this._layers[id], this.options.layerWidth, this.options.layerHeight);
+        for (var layerid in this._layers) {
+            addLayer(this.layers, this._layers[layerid], this.options.layerWidth, this.options.layerHeight);
             layerCount++;
         }
 
-        if (kpiCount == 0 || (chartCount == 0 && layerCount == 0))
+        if (kpiCount === 0 || (chartCount === 0 && layerCount === 0))
             hr1.style.display = 'None';
-        if (chartCount == 0 || layerCount == 0)
+        if (chartCount === 0 || layerCount === 0)
             hr2.style.display = 'None';
         return this;
     },

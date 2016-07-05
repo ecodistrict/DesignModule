@@ -1,0 +1,12 @@
+url to web server that hosts client app
+pass project in client app url
+client app connects to websocket, sends project and aquires client id
+websocket server sends client id to client 
+websocket server connects websocket (ie the client) to the correct imb event name
+security to application is on websocket server
+websocket server is wcf service that build on iis
+
+
+files: docu welke waarvoor
+
+dpi: http://stackoverflow.com/questions/9437584/what-does-webkit-min-device-pixel-ratio-2-stand-for

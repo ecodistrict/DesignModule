@@ -1,0 +1,117 @@
+Measures
+	Category: measure category
+		Sustainable planning
+		Low carbon energy supply
+		Building envelope renewal
+		Building services renewal
+		Electricity demand reduction
+		Sustainable transport
+	Object: target category
+		Urban plan
+		Building
+		Road
+		
+
+Session module is started for specific alternative: "Stockholm.<alternative>"
+Session module connects to database
+Session module listens on IMB-session-link: "USIdle.Sessions.WS2IMB.Stockholm.<alternative>"
+Session module sends all geometries for all available layers on session to Tiler on IMB: "USIdle.Sessions.Tiler"
+	layer-ID: Stockholm.<alternative>.<category> 	
+
+Design module is started by url to design-web-client
+	http(s)://<server>/design/default.html?[lat=<lat>&lon=<lon>&zoom=<zoom-level>&]session=Stockholm.<alternative>
+Web-client connects to url
+web-client connects to web-socket on ws(s)://<server>/sessions?session=Stockholm.<alternative>
+
+WS2IMB creates session link from web-client<->web-socket<->IMB<->"USIdle.Sessions.WS2IMB.Stockholm.<alternative>.<client ID>"
+WS2IMB registers client session link on IMB: "USIdle.Sessions.WS2IMB.Stockholm.<alternative>"
+
+Session module creates internal session object for web client
+	Session module sends all measures
+	Session module sends all applied measures
+	Session module sends all available layers and attributes (attributes per category)
+
+
+Client: 
+
+Clients requests tiles on layer ID: Stockholm.<alternative>.<layer> 
+where layer is all objects on tiler or specific layer-ID belonging to selection made by client
+
+
+
+session-tiler:
+multiple session servers
+multiple tilers
+for client: layer is unique by url for tiles which contain unique address tiles by server, port and layer ID
+for session: server layer is unique by project-scenario-layer
+-> tiler determines layer-ID in url to avoid collisions
+-> tiler has private channel to request layer IDs
+-> define tiler per session server project: base url tiler = private event name
+1 session server layer - multiple tiler servers: is possible (load deviding/balancing)
+multiple session servers - 1 tiler server layer is not an option
+-> session server determines event name for data transport to tiler and back
+
+
+	session-project created		private event name tiler is specified (project specific or default for session server)
+
+	session-scenario-layer created
+
+	session-scenario-layer: 	register layer, specific type, palette, layer event name on tiler event 
+	tiler:				creates layer with a generated ID and starts listening on layer event 
+	tiler: 				sends back refresh on layer event with tiler url (which contains layer ID etc.)
+	session-scenario-layer: 	sends refresh on tiler url to clients
+
+	layer configured but no data
+
+	session-scenario-layer: 	send updates to palette, objects etc. to tiler on layer event
+	tiler: 				sends refresh on tiler url to session server on layer event
+	session-scenario-layer: 	sends refresh on tiler url to connected clients
+
+	layer complete
+
+	session-scenario-layer: 	send remove to connected clients
+	session-scenario-layer: 	send remove layer to tiler
+
+	layer is removed
+
+
+
+
+
+json commands to client
+	{measures: {...}}
+	{session: {measuresEnabled:0|1}}
+	{session: {measuresHistoryEnabled:0|1}}
+	{session: {SelectionEnabled: 0|1}}
+	{refresh:<elementID>, preview:<base64>}
+	{refresh:<elementID>, timestamp:<...>, tiles:<link>}
+	{domains: {..}}
+	{session:{
+		description:<description>,
+		timeslider:<int>,
+		selectionEnabled:0|1,
+		measuresEnabled:0|1,
+		measuresHistoryEnabled:0|1,
+		view:{lat:<lat>, lon:<lon>, zoom:<zoom>}
+		}
+	}
+	{session:{timeslider:<int>}}
+	{updatelayer: {
+		id:<elementID>,
+		name:<name>,
+		timestamp:<timestamp>,
+		newobjects:{...}
+	}}
+	{updatelayer: {
+		id:<elementID>,
+		name:<name>,
+		timestamp:<timestamp>,
+		changedcolors:{...}
+	}}
+	{updatelayer: {
+		id:<elementID>,
+		name:<name>,
+		timestamp:<timestamp>,
+		removedobjects:{...}
+	}}
+	

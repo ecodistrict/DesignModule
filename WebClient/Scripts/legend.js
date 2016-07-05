@@ -21,11 +21,11 @@ L.control.legend._moveit = function (e) {
     }
 };
 
-L.control.legend._endmove = function(e) {
+L.control.legend._endmove = function (e) {
     window.removeEventListener('mouseup', L.control.legend._endmove, true);
     window.removeEventListener('mousemove', L.control.legend._moveit, true);
     legend = null;
-}
+};
 
 L.control.legend._startmove = function (e) {
     legend = e.target;
@@ -69,12 +69,16 @@ L.control.legend._createEntryText2 = function (text) {
     return entry;
 };
 
-L.control.legend._createEntryKey = function (color) {
+L.control.legend._createEntryKey = function (colors) {
     var entry = document.createElement('td');
     entry.className = 'legend-entry';
     var entryKey = document.createElement('div');
     entryKey.className = 'legend-entry-key';
-    entryKey.style['background-color'] = color;
+    //entryKey.style['background-color'] = colors;
+    if (colors.fillColor)
+        entryKey.style['background-color'] = colors.fillColor;
+    if (colors.outlineColor)
+        entryKey.style['border-color'] = colors.outlineColor;
     entry.appendChild(entryKey);
     return entry;
 };
@@ -155,7 +159,7 @@ function createGradientLegend(definition) {
     legendDiv.appendChild(middle);
     legendDiv.appendChild(lower);
     return legendDiv;
-};
+}
 
 L.control.legend._createGrid = function (definition) {
     if (definition.title) {
@@ -164,12 +168,12 @@ L.control.legend._createGrid = function (definition) {
         this._table.appendChild(this._createRow(row));
     }
     for (var r = 0; r < definition.labels.length; r++) {
-        var row = [];
+        var row2 = [];
         for (var c in definition.labels[r]) {
-            row.push(this._createEntryKey(definition.labels[r][c]));
-            row.push(this._createEntryText(c));
+            row2.push(this._createEntryKey(definition.labels[r][c]));
+            row2.push(this._createEntryText(c));
         }
-        this._table.appendChild(this._createRow(row));
+        this._table.appendChild(this._createRow(row2));
     }
 };
 
@@ -180,16 +184,16 @@ L.control.legend._createGrid2 = function (definition) {
         this._table.appendChild(this._createRow(row));
     }
     for (var r = 0; r < definition.labels.length; r++) {
-        var row = [];
-        for (var c in definition.labels[r]) {
-            row.push(this._createEntryKey(definition.labels[r][c]));
+        var row2 = [];
+        for (var c2 in definition.labels[r]) {
+            row2.push(this._createEntryKey(definition.labels[r][c2]));
         }
-        this._table.appendChild(this._createRow(row));
-        var row = [];
-        for (var c in definition.labels[r]) {
-            row.push(this._createEntryText2(c));
+        this._table.appendChild(this._createRow(row2));
+        var row3 = [];
+        for (var c3 in definition.labels[r]) {
+            row3.push(this._createEntryText2(c3));
         }
-        this._table.appendChild(this._createRow(row));
+        this._table.appendChild(this._createRow(row3));
     }
 };
 

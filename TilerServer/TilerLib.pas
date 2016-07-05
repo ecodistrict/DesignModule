@@ -24,7 +24,7 @@ const
 
   icehTilerStartup = icehTilerBase+20; // vt64bit, TDateTime, tiler startup time
 
-  icehTilerOutlinePalette = icehTilerBase+21; //wtVarInt, dummy
+  //icehTilerOutlinePalette = icehTilerBase+21; //wtVarInt, dummy
   //icehFillPalette = icehTilerBase+27; //wtVarInt, dummy
   icehTilerPOIImage = icehTilerBase+23; // wtLengthDelimited
   icehTilerPNGExtent = icehTilerBase+24; // wtLengthDelimited

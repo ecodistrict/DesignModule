@@ -11,6 +11,16 @@ uses
   SuperObject,
   System.Classes, System.SysUtils;
 
+procedure HandleException(aConnection: TConnection; aException: Exception);
+begin
+  Log.WriteLn('FATAL IMB4 connection exception: '+aException.Message, llError);
+end;
+
+procedure HandleDisconnect(aConnection: TConnection);
+begin
+  Log.WriteLn('DISCONNECT from IMB4 connection', llError);
+end;
+
 function Subscribe(aConnection: TConnection; const aEventName: string): TEventEntry;
 begin
   Result := aConnection.subscribe(aEventName);
@@ -27,34 +37,39 @@ begin
         _method: string;
         _eventId: string;
       begin
-        lJSON := SO(aString);
         try
-          _type := lJSON.S['type'];
-        except
-          _type := '##';
-        end;
-        try
-          _method := lJSON.S['method'];
-        except
-          _method := '##';
-        end;
-        try
-          _eventId:= lJSON.S['eventId'];
-          if _eventId<>''
-          then Subscribe(aConnection, _eventId);
-        except
-          _eventId:= '';
-        end;
-        Log.WriteLn('on '+aEventName+': '+_type+', '+_method, llNormal, 0);
-        lines := TStringList.Create;
-        try
-          lines.Text := lJSON.AsJSon(True);
-          for l := 0 to lines.Count-1 do
-          begin
-            Log.WriteLn(lines[l], llDump, 1);
+          lJSON := SO(aString);
+          try
+            _type := lJSON.S['type'];
+          except
+            _type := '##';
           end;
-        finally
-          lines.Free;
+          try
+            _method := lJSON.S['method'];
+          except
+            _method := '##';
+          end;
+          try
+            _eventId:= lJSON.S['eventId'];
+            if _eventId<>''
+            then Subscribe(aConnection, _eventId);
+          except
+            _eventId:= '';
+          end;
+          Log.WriteLn('on '+aEventName+': '+_type+', '+_method, llNormal, 0);
+          lines := TStringList.Create;
+          try
+            lines.Text := lJSON.AsJSon(True);
+            for l := 0 to lines.Count-1 do
+            begin
+              Log.WriteLn(lines[l], llDump, 1);
+            end;
+          finally
+            lines.Free;
+          end;
+        except
+          on e: Exception
+          do Log.WriteLn('Exception in OnString: '+e.Message, llError);
         end;
       end);
     Result.OnStreamCreate := function(aEventyEntry: TEventEntry; const aStreamName: string): TStream
@@ -75,6 +90,9 @@ begin
   try
     connection := TSocketConnection.Create('Debugger', 3, 'ecodistrict');
     try
+      connection.onDisconnect := HandleDisconnect;
+      connection.onException := HandleException;
+
       Subscribe(connection, 'modules');
       Subscribe(connection, 'dashboard');
       Subscribe(connection, 'data');

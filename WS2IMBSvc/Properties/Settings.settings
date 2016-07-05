@@ -1,0 +1,12 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="WS2IMBSvc.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="WebSocketUrl" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">http://localhost:4502/sessions</Value>
+    </Setting>
+    <Setting Name="IMBHub" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">vps17642.public.cloudvps.com</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

@@ -94,6 +94,29 @@
         h.textContent = 'Info';
         container.appendChild(h);
 
+        // hack for demo
+
+        if (session == '4B95BE74F9A44DA0908A30B27C3E8C99') {
+            var divZoomConnectionDescription = container.appendChild(document.createElement('div'));
+            divZoomConnectionDescription.className = 'leaflet-container info-element info-ZoomConnectionDescription';
+            divZoomConnectionDescription.appendChild(document.createTextNode('Klik hier om een scenario te selecteren en eventueel een referentiescenario aan te geven'));
+            var divLayersDomainDetails = container.appendChild(document.createElement('div'));
+            divLayersDomainDetails.className = 'leaflet-container info-element info-LayersDomainDetails';
+            divLayersDomainDetails.appendChild(document.createTextNode('Selecteer de basis kaart'));
+            divLayersDomainDetails.appendChild(document.createElement('br'));
+            divLayersDomainDetails.appendChild(document.createElement('br'));
+            divLayersDomainDetails.appendChild(document.createElement('br'));
+            divLayersDomainDetails.appendChild(document.createTextNode('Selecteer de relevante domeinen door deze aan te klikken'));
+            divLayersDomainDetails.appendChild(document.createElement('br'));
+            divLayersDomainDetails.appendChild(document.createElement('br'));
+            divLayersDomainDetails.appendChild(document.createElement('br'));
+            divLayersDomainDetails.appendChild(document.createTextNode('Selecteer de gewenste kaart uit een overzicht van beschikbare kaarten'));
+            var divCentral = container.appendChild(document.createElement('div'));
+            divCentral.className = 'leaflet-container info-element info-Central';
+            //divCentral.appendChild(document.createTextNode('Deze ‘Client’ versie van Urban Strategy brengt milieu- en leefomgevingsaspecten in kaart, deze zijn via de knoppen rechtsboven te selecteren. Via een klik op de scenarionaam linksboven zijn verschillende scenario’s te selecteren. Deze zijn vervolgens met elkaar te vergelijken via de drie knoppen rechtsonder.'));
+            divCentral.appendChild(document.createTextNode('Deze ‘Client’ versie van Urban Strategy brengt milieu- en leefomgevingsaspecten in kaart, deze zijn via de knoppen rechtsboven te selecteren. Via een klik op de scenarionaam linksboven zijn verschillende scenario’s te selecteren.')); // Deze zijn vervolgens met elkaar te vergelijken via de drie knoppen rechtsonder.'));
+        }
+
 
         /*
         this.kpis = document.createElement('div');
@@ -140,12 +163,14 @@
         holder.className = 'info-line';
         holder.id = obj.id;
         holder.innerHTML = obj.name;
-        L.DomEvent.on(holder, 'click', this._onDomainClick, this);
+        //L.DomEvent.on(holder, 'click', this._onDomainClick, this);
+
         /*
         holder.appendChild(input);
         holder.appendChild(label);
         holder.appendChild(inputPlus);
         */
+
         var container = this._detailList;
         container.appendChild(holder);
 

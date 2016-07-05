@@ -144,7 +144,7 @@ begin
   begin
 	TMonitor.Enter(Self);
 	try
-      fLog.fLogList.Extract(Self);
+    fLog.fLogList.Extract(Self);
 	finally
 	  TMonitor.Exit(Self);
 	end;

@@ -62,3 +62,34 @@
 	border-top: 1px solid #ddd;
 	margin: 5px -10px 5px -6px;
 	}
+
+
+.info-element {
+    background-color: whitesmoke;
+    border-color: gray;
+    border-width:thin;
+    border-style: solid;
+    border-radius: 4px;
+    opacity: 0.8;
+    padding: 8px 8px;
+}
+
+.info-ZoomConnectionDescription {
+    position:fixed;
+    top: 60px;
+    left: 100px;
+}
+
+.info-LayersDomainDetails {
+    position:fixed;
+    top: 20px;
+    right: 80px;
+    text-align: right;
+}
+
+.info-Central {
+    position:fixed;
+    top: 50%;
+    left: 35%;
+    width: 30%;
+}
