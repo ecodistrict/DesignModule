@@ -1,19 +1,25 @@
-# DesignModule
+# Design module
 All parts of the design module
 
-- Client
-- WS2IMB
-- Publishing server
-- Tiler server
+- [Client](#client)
+- [WS2IMB](#ws2imb)
+- [Publishing server](#publishing)
+- [Tiler server](#tiler)
+
+- [testing](#testing)
+
+Overview
+
+![overview of elements, construction and dependencies of the design module](overview.png)
 
 
-## Client
+## Client <a name="client"></a>
 [This is the web client part of the design module](WebClient.md). This module is written in html/css/javascript and uses 2 libraries: leaflet and D3. It uses a web socket to communicate to the publishing server. Information layers can be handled in geojson objects or as tiles through the tiles server. The client is a viewer for geo data layers, charts and kpis but can also be used to apply measures to underlying data objects. It also supports to retrieve and change object properties. Information layers can be filtered by domains to make selection easier. 
 
-## WS2IMB
+## WS2IMB <a name="ws2imb"></a>
 This part of the design module is a C# web service that connects the web client via web sockets to the IMB framework. every web socket connected from the web client connects to an event registered on the publishing server that uses a specific object to represent the client within the publishing server. Messages are all strings containing JSON. Data from the publishing server to the web client are also sent over this web socket (bi-directional). 
 
-## Publishing server
+## Publishing server <a name="publishing"></a>
 This part of the design module handles all the server side work for the web client. The web clients talks over a web socket via IMB to this server. The publishing server internally handles all its actions via classes 
 
 - module (1 per project type)
@@ -25,7 +31,7 @@ This part of the design module handles all the server side work for the web clie
 	- kpis, bullits graphs to visualize kpi values (not used in ecodistrict)
 - client, represents the specific web client that is started from the dashboard
 
-## Tiler server
+## Tiler server <a name="tiler"></a>
 Creates tiles (256*256 pixels bitmaps in png format) out of geo data. Layers are defined over IMB and connect to data events. Several layer formats are supported
 
 - receptor, a set of points with a value that are triangulated and colored according a given palette based on the value.
@@ -53,7 +59,7 @@ The server supports 3 access methods
 - /point: request a value at a specific location `/point?layer=<id>&lat=<latitude>&lon=<longitude>[&time=<yyyymmddhhmmss>]` where lat and lon are in wgs84 degrees (float)
 
 
-## Testing
+## Testing <a name="testing"></a>
 
 - link to main page design module [http://vps17642.public.cloudvps.com:4501](http://vps17642.public.cloudvps.com:4501 "main page design module")
 - link to web socket page [http://vps17642.public.cloudvps.com:4502/sessions](http://vps17642.public.cloudvps.com:4502/sessions "test page web socket connection")
