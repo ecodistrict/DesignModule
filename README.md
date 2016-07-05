@@ -53,4 +53,10 @@ The server supports 3 access methods
 - /point: request a value at a specific location `/point?layer=<id>&lat=<latitude>&lon=<longitude>[&time=<yyyymmddhhmmss>]` where lat and lon are in wgs84 degrees (float)
 
 
+## Testing
+
+- link to main page design module [http://vps17642.public.cloudvps.com:4501](http://vps17642.public.cloudvps.com:4501 "main page design module")
+- link to web socket page [http://vps17642.public.cloudvps.com:4502/sessions](http://vps17642.public.cloudvps.com:4502/sessions "test page web socket connection")
+- link to the default tiler server [http://vps17642.public.cloudvps.com:4503/](http://vps17642.public.cloudvps.com:4503/ "tiler default page")
+
 
