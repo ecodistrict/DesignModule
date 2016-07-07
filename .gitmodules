@@ -1,3 +1,15 @@
 [submodule "EcoDistrictDebugger/SuperObject"]
 	path = EcoDistrictDebugger/SuperObject
 	url = https://github.com/hgourvest/superobject.git
+[submodule "WS2IMBSvc/imb"]
+	path = WS2IMBSvc/imb
+	url = git@bitbucket.org:cornelissenja/imb-client-csharp.git
+[submodule "TilerServer/imb"]
+	path = TilerServer/imb
+	url = git@bitbucket.org:cornelissenja/imb-client-delphi.git
+[submodule "TilerServer/logger"]
+	path = TilerServer/logger
+	url = git@bitbucket.org:cornelissenja/logger-delphi.git
+[submodule "TilerServer/world"]
+	path = TilerServer/world
+	url = git@bitbucket.org:cornelissenja/world-delphi.git
