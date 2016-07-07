@@ -11,8 +11,13 @@ uses
   SessionServerSessions,
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.SvcMgr, Vcl.Dialogs;
 
+const
+  ServiceNameSwitch = 'ServiceName';
+  ServiceDisplayNameSwitch = 'ServiceDisplayName';
+
+
 type
-  TSessionServer = class(TService)
+  TPublishingServer = class(TService)
     procedure ServiceCreate(Sender: TObject);
     procedure ServiceDestroy(Sender: TObject);
     procedure ServiceShutdown(Sender: TService);
@@ -20,8 +25,9 @@ type
     procedure ServiceStop(Sender: TService; var Stopped: Boolean);
   private
     fIMBConnection: TConnection;
-    fSessionModel: TSessionModel;
+    fPublishingModel: TSessionModel;
     fTilerEventName: string;
+    fEcodistrictModule: TEcodistrictModule;
     procedure HandleDisconnect(aConnection: TConnection);
     procedure HandleException(aConnection: TConnection; aException: Exception);
   public
@@ -29,7 +35,7 @@ type
   end;
 
 var
-  SessionServer: TSessionServer;
+  PublishingServer: TPublishingServer;
 
 implementation
 
@@ -37,20 +43,20 @@ implementation
 
 procedure ServiceController(CtrlCode: DWord); stdcall;
 begin
-  SessionServer.Controller(CtrlCode);
+  PublishingServer.Controller(CtrlCode);
 end;
 
-function TSessionServer.GetServiceController: TServiceController;
+function TPublishingServer.GetServiceController: TServiceController;
 begin
   Result := ServiceController;
 end;
 
-procedure TSessionServer.HandleException(aConnection: TConnection; aException: Exception);
+procedure TPublishingServer.HandleException(aConnection: TConnection; aException: Exception);
 begin
   Log.WriteLn('FATAL IMB4 connection exception: '+aException.Message, llError);
 end;
 
-procedure TSessionServer.HandleDisconnect(aConnection: TConnection);
+procedure TPublishingServer.HandleDisconnect(aConnection: TConnection);
 begin
   Log.WriteLn('DISCONNECT from IMB4 connection', llWarning);
 end;
@@ -71,52 +77,66 @@ end;
 
 
 
-procedure TSessionServer.ServiceCreate(Sender: TObject);
+procedure TPublishingServer.ServiceCreate(Sender: TObject);
 var
   curdir: string;
 begin
-  Log.WriteLn('Session server create');
+  Name := GetSetting(ServiceNameSwitch, Name);
+  DisplayName := GetSetting(ServiceDisplayNameSwitch, DisplayName);
+  Log.WriteLn('Created service "'+DisplayName+'" as '+Name);
   curdir := ExtractFileDir(ParamStr(0));
   SetCurrentDirectory(PChar(curdir));
   Log.WriteLn('set current directory to '+curdir);
   Log.WriteLn('path='+GetEnvVarValue('PATH'));
 end;
 
-procedure TSessionServer.ServiceDestroy(Sender: TObject);
+procedure TPublishingServer.ServiceDestroy(Sender: TObject);
 begin
-  Log.WriteLn('Session server destroy');
+  Log.WriteLn('Publishing server destroy');
 end;
 
-procedure TSessionServer.ServiceShutdown(Sender: TService);
+procedure TPublishingServer.ServiceShutdown(Sender: TService);
 begin
-  Log.WriteLn('Session server shutdown');
+  Log.WriteLn('Publishing server shutdown');
 end;
 
-procedure TSessionServer.ServiceStart(Sender: TService; var Started: Boolean);
+procedure TPublishingServer.ServiceStart(Sender: TService; var Started: Boolean);
 begin
   FileLogger.SetLogDef(AllLogLevels, [llsTime]);
-  Log.WriteLn('Session server prepare start');
+  Log.WriteLn('Publishing server prepare start');
   // todo: change to tls connection
-  fIMBConnection := TSocketConnection.Create('SessionServer');
+  fIMBConnection := TSocketConnection.Create(Name);
   fIMBConnection.onException := HandleException;
   fIMBConnection.onDisconnect := HandleDisconnect;
-  Log.WriteLn('Session server started imb4');
-  fSessionModel := TSessionModel.Create(fIMBConnection);
-  Log.WriteLn('Session server started session model');
+  Log.WriteLn('Publishing server started imb4');
+  fPublishingModel := TSessionModel.Create(fIMBConnection);
+  Log.WriteLn('Publishing server started publishing model');
   fTilerEventName := GetSetting(TilerEventNameSwitch, DefaultTilerEventName);
   try
     // default us
-    //CreateSessionProject(fSessionModel, 'us_schiedam_2016', 'Schiedam (2016)', ptUrbanStrategyOracle, fTilerEventName, 'us_schiedam_2016/us_schiedam_2016@app-usdata01.tsn.tno.nl/uspsde');
-    //CreateSessionProject(sessionModel, 'us_ws_hc', ptUrbanStrategyOracle, tilerEventName, 'us_ws_hc/us_ws_hc@app-usdata01.tsn.tno.nl/uspsde');
+    //CreateSessionProject(fPublishingModel, 'us_schiedam_2016', 'Schiedam (2016)', ptUrbanStrategyOracle, fTilerEventName, 'us_schiedam_2016/us_schiedam_2016@app-usdata01.tsn.tno.nl/uspsde');
+    //CreateSessionProject(fPublishingModel, 'us_ws_hc', ptUrbanStrategyOracle, tilerEventName, 'us_ws_hc/us_ws_hc@app-usdata01.tsn.tno.nl/uspsde');
 
     // default ecodistrict
-    CreateSessionProject(fSessionModel, 'ecodistrict', 'Ecodistrict - Valencia', ptEcoDistrict, fTilerEventName,
-      StandardIni.ReadString('projects', 'ecodistrict', 'User_Name=ecodistrict;Password=HyDhCpStZQEYrHuagz79;Server=vps17642.public.cloudvps.com;Port=5443;Database=ecodistrict;PGAdvanced=sslmode=require'));
-    Log.WriteLn('Session server started ecodistrict project');
+    //CreateSessionProject(fPublishingModel, 'ecodistrict', 'Ecodistrict - Warsaw', ptEcoDistrict, fTilerEventName,
+    //  StandardIni.ReadString('projects', 'ecodistrict', 'User_Name=ecodistrict;Password=HyDhCpStZQEYrHuagz79;Server=vps17642.public.cloudvps.com;Port=5443;Database=ecodistrict;PGAdvanced=sslmode=require'));
+    //CreateSessionProject(fPublishingModel, 'ecodistrict', 'Ecodistrict - Warsaw', ptEcoDistrict, fTilerEventName,
+    //  StandardIni.ReadString('projects', 'ecodistrict', 'User_Name=postgres;Password=x0mxaJc69J9KAlFNsaDt;Server=vps17642.public.cloudvps.com;Port=5443;Database=Warsaw;PGAdvanced=sslmode=require'));
+    //Log.WriteLn('Publishing server started ecodistrict project');
 
     // nwb live feed
-    CreateSessionProject(fSessionModel, 'rotterdam', 'Rotterdam dashboard', ptNWBLiveFeed, fTilerEventName, ''); {todo: NWBLiveFeedProjectName}
-    Log.WriteLn('Session server started rotterdam dashboard project');
+    //CreateSessionProject(fPublishingModel, 'rotterdam', 'Rotterdam dashboard', ptNWBLiveFeed, fTilerEventName, ''); {todo: NWBLiveFeedProjectName}
+    //Log.WriteLn('Publishing server started rotterdam dashboard project');
+
+    // ecodistrict module
+    fEcodistrictModule := TEcodistrictModule.Create(fPublishingModel, fIMBConnection,
+      'User_Name='+GetSetting('EcoDBUserName', 'postgres')+';'+
+      'Password='+GetSetting('EcoDBPassword', 'x0mxaJc69J9KAlFNsaDt')+';'+
+      'Server='+GetSetting('EcoDBServer', 'vps17642.public.cloudvps.com')+';'+
+      'Port='+GetSetting('EcoDBPort', '5443')+';'+
+      'Database='+GetSetting('EcoDBDatabase', 'Warsaw')+';'+
+      'PGAdvanced=sslmode=require', fTilerEventName);
+    Log.WriteLn('Publishing server started ecodistrict module');
 
     // inquire existing session and rebuild internal sessions..
     fIMBConnection.subscribe(fIMBConnection.privateEventName, False).OnIntString.Add(
@@ -128,7 +148,7 @@ begin
         // find project with client
         // aString = 'USIdle.Sessions.WS2IMB.1234.uuid:ac1ab9e5-4db9-4f03-ae05-b4558b0f0f8c;id=14'
         // project.fProjectEvent.eventname = 'USIdle.Sessions.WS2IMB.1234'
-        for p in fSessionModel.Projects do
+        for p in fPublishingModel.Projects do
         begin
           projectEventPrefix := p.ProjectEvent.eventName+'.';
           if aString.StartsWith(projectEventPrefix) then
@@ -145,7 +165,7 @@ begin
     // inquire existing sessions
     fIMBConnection.publish(WS2IMBEventName, False).signalIntString(actionInquire, fIMBConnection.privateEventName);
 
-    Log.WriteLn('Session server start');
+    Log.WriteLn('Publishing server start');
     started := True;
   except
     on E: Exception do
@@ -156,17 +176,14 @@ begin
   end;
 end;
 
-procedure TSessionServer.ServiceStop(Sender: TService; var Stopped: Boolean);
+procedure TPublishingServer.ServiceStop(Sender: TService; var Stopped: Boolean);
 begin
   FinalizeCommandQueue();
-  FreeAndNil(fSessionModel);
+  FreeAndNil(fEcodistrictModule);
+  FreeAndNil(fPublishingModel);
   FreeAndNil(fIMBConnection);
-  if PGInited then
-  begin
-    ExitPG;
-    PGInited := False;
-  end;
-  Log.WriteLn('Session server stop');
+  ExitPG;
+  Log.WriteLn('Publishing server stop');
   stopped := True;
 end;
 

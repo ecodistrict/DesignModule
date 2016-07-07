@@ -1,9 +1,9 @@
-object SessionServer: TSessionServer
+object PublishingServer: TPublishingServer
   OldCreateOrder = False
   OnCreate = ServiceCreate
   OnDestroy = ServiceDestroy
   AllowPause = False
-  DisplayName = 'Session server'
+  DisplayName = 'Publishing server'
   OnShutdown = ServiceShutdown
   OnStart = ServiceStart
   OnStop = ServiceStop

@@ -55,8 +55,7 @@ procedure InitializeCommandQueue(aMaxQueueDepth, aThreadCount: Integer);
 var
   t: Integer;
 begin
-  FreeAndNil(handlers);
-  FreeAndNil(queue);
+  FinalizeCommandQueue();
   queue := TThreadedQueue<TQueueCommand>.Create(aMaxQueueDepth);
   handlers := TQueueHandlers.Create(True);
   for t := 0 to aThreadCount-1

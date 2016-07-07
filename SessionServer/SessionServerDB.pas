@@ -36,26 +36,33 @@ function FDReadJSON(aDBConnection: TFDConnection; const aQuery: string): string;
 //function FDCreateQuery(aDBConnection: TFDConnection; const aQuery: string ): TFDQuery;
 
 function PGGeometriesJSONQuery(const aTableName, aIDFieldName, aGeometryFieldName: string): string;
-function PGSVGPathsQuery(const aTableName, aIDFieldName, aGeometryFieldName: string): string;
+function PGSVGPathsQuery(const aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string): string;
 
 implementation
 
 procedure InitPG;
 begin
-  dbFDGUIxWaitCursor1 := TFDGUIxWaitCursor.Create(nil);
-  dbFDPhysPgDriverLink := TFDPhysPgDriverLink.Create(nil);
+  if not Assigned(dbFDGUIxWaitCursor1) then
+  begin
+    dbFDGUIxWaitCursor1 := TFDGUIxWaitCursor.Create(nil);
+    dbFDPhysPgDriverLink := TFDPhysPgDriverLink.Create(nil);
+  end;
 end;
 
 procedure ExitPG;
 begin
-  FreeAndNil(dbFDPhysPgDriverLink);
-  FreeAndNil(dbFDGUIxWaitCursor1);
+  if Assigned(dbFDGUIxWaitCursor1) then
+  begin
+    FreeAndNil(dbFDPhysPgDriverLink);
+    FreeAndNil(dbFDGUIxWaitCursor1);
+  end;
 end;
 
 procedure SetPGConnection(aDBConnection: TFDConnection;
   const aDatabase, aUserName, aPassword: string;
   const aServer: string='localhost'; aPort: Integer=5432);
 begin
+  aDBConnection.ResourceOptions.AutoReconnect := True;
   aDBConnection.LoginPrompt := False;
   aDBConnection.DriverName := 'PG';
   aDBConnection.Params.Add('DriverID=PG');
@@ -68,6 +75,7 @@ end;
 
 procedure SetPGConnection(aDBConnection: TFDConnection; aParameters: TStrings);
 begin
+  aDBConnection.ResourceOptions.AutoReconnect := True;
   aDBConnection.LoginPrompt := False;
   aDBConnection.DriverName := 'PG';
   aDBConnection.Params.Add('DriverID=PG');
@@ -119,9 +127,13 @@ begin
     'FROM '+aTableName+' As lg   ) As f )  As fc;'
 end;
 
-function PGSVGPathsQuery(const aTableName, aIDFieldName, aGeometryFieldName: string): string;
+function PGSVGPathsQuery(const aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string): string;
 begin
-  Result :=
+  if aDataFieldName<>''
+  then Result :=
+    'SELECT '+aIDFieldName+', ST_AsSVG('+aGeometryFieldName+'), '+aDataFieldName+' '+
+    'FROM '+aTableName
+  else Result :=
     'SELECT '+aIDFieldName+', ST_AsSVG('+aGeometryFieldName+') '+
     'FROM '+aTableName;
 end;

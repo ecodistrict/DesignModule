@@ -7,7 +7,8 @@ uses
   imb4,
   Data.DB,
   TimerPool,
-  WorldDataCode, WorldLegends,
+  WorldDataCode,
+  WorldLegends,
   IdCoderMIME,
   Int64Time,
 
@@ -20,16 +21,17 @@ uses
 
   Logger, // after bitmap units (also use log)
   CommandQueue,
-  TilerLib, // iceh* tiler consts
+  WorldTilerConsts, // iceh* tiler consts
 
 	System.JSON, System.SysConst, System.Math,
-  System.Generics.Collections, System.Classes, System.SysUtils;
+  System.Generics.Collections, System.Generics.Defaults,
+  System.Classes, System.SysUtils;
 
 const
   WS2IMBEventName = 'USIdle.Sessions.WS2IMB';
   sepElementID = '$';
   PreviewImageWidth = 64; // default width/height of a minuture layer preview in pixels
-  MaxDirectSendObjectCount = 100; // todo: tune, 200, 500.. ?
+  MaxDirectSendObjectCount = 300; // todo: tune, 200, 500.. ?
 
   colorBasicOutline = $3388FF or $FF000000;
   colorBasicFill = $B5C6DD or $FF000000;
@@ -92,17 +94,24 @@ type
   constructor Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
   destructor Destroy; override;
   private
-    fSubscribedElements: TObjectList<TScenarioElement>; // ref
+    fSubscribedElements: TObjectList<TScenarioElement>; // ref, use TMonitor to lock
     fProject: TProject; // ref
     fCurrentScenario: TScenario; // ref
     fRefScenario: TScenario; // ref
-    //fDiffLayers: TObjectDictionary<string, TLayer>; // owns
-    //fDiffCharts: TObjectDictionary<string, TChart>; // owns
+    // todo: diff
+    //fDiffLayers: TObjectDictionary<TLayer, TLayer>; // owns
+    //fDiffCharts: TObjectDictionary<TChart, TChart>; // owns
+    //fDiffKPIs: TObjectDictionary<TKPI, TKPI>; // owns
     fClientID: string;
     fClientEvent: TEventEntry;
 
     function getSessionModel: TSessionModel;
+
+    function sessionDescription: string;
+    function activeScenario: string;
+    function referenceScenario: string;
   protected
+    procedure SendErrorMessage(const aMessage: string);
     procedure SendMeasures();
     procedure SendDomains(const aPrefix: string);
     procedure SendSession();
@@ -113,6 +122,9 @@ type
     procedure SendMeasuresHistoryEnabled();
   public
     property sessionModel: TSessionModel read getSessionModel;
+    property subscribedElements: TObjectList<TScenarioElement> read fSubscribedElements; // ref, use TMonitor to lock
+    property clientID: string read fClientID;
+
     procedure signalString(const aString: string);
 
     procedure SendRefresh(const aElementID, aTimeStamp, aObjectsTilesLink: string);
@@ -186,10 +198,8 @@ type
     function getGeoJSON2D(const aType: string): string; override;
     function getValidGeometry: Boolean; override;
     function getExtent: TExtent; override;
-    function getJSONColor: string; virtual;
     function Encode: TByteBuffer; override;
   public
-    property JSONColor: string read getJSONColor;
     property geometryPoint: TWDGeometryPoint read fGeometryPoint;
     property value: Double read fValue;
     function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; override;
@@ -223,10 +233,8 @@ type
     function getGeoJSON2D(const aType: string): string; override;
     function getValidGeometry: Boolean; override;
     function getExtent: TExtent; override;
-    function getJSONColor: string; virtual;
     function Encode: TByteBuffer; override;
   public
-    property JSONColor: string read getJSONColor;
     property geometry: TWDGeometry read fGeometry;
     property value: Double read fValue;
     function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; override;
@@ -257,7 +265,7 @@ type
     function getObjectsJSON: string; virtual;
     function getPreviewBASE64: string; virtual;
     procedure handleOutputEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer); virtual;
-    procedure SignalObjects(aSender: TObject); virtual;
+    procedure signalObjects(aSender: TObject); virtual;
     procedure handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
     procedure signalTilerRequestPreview(aTimer: TTImer);
   public
@@ -271,7 +279,7 @@ type
     property previewBASE64: string read getPreviewBASE64;
     //
     property objectTypes: string read fObjectTypes;
-    property legendJSON: string read fLegendJSON;
+    property legendJSON: string read fLegendJSON write fLegendJSON;
     property query: string read fQuery write fQuery; // r/w
     property objectsTilesID: Integer read fObjectsTilesID write fObjectsTilesID;
     property objectsTilesLink: string read fObjectsTilesLink write fObjectsTilesLink;
@@ -352,7 +360,7 @@ type
   end;
 
   TScenario = class
-  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aMapView: TMapView);
+  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
   destructor Destroy; override;
   protected
     fProject: TProject; // ref
@@ -364,18 +372,21 @@ type
     fKPIs: TObjectDictionary<string, TKPI>; // owns
     fCharts: TObjectDictionary<string, TChart>; // owns
     fClients: TObjectList<TClient>; // refs, lock with TMonitor
+    fAddbasicLayers: Boolean;
     function getElementID: string;
     function selectLayersOnCategories(const aSelectedCategories: TArray<string>; aLayers: TList<TLayer>): Boolean;
   public
     property Project: TProject read fProject;
     property ID: string read fID;
-    property name: string read fName;
-    property description: string read fDescription;
+    property name: string read fName write fName;
+    property description: string read fDescription write fDescription;
+    property mapView: TMapView read fMapView write fMapView;
     property elementID: string read getElementID;
     property Layers: TObjectDictionary<string, TLayer> read fLayers;
     property KPIs: TObjectDictionary<string, TKPI> read fKPIs;
     property Charts: TObjectDictionary<string, TChart> read fCharts;
     property clients: TObjectList<TClient> read fClients; // refs, lock with TMonitor
+    property addBasicLayers: Boolean read fAddBasicLayers;
     procedure ReadBasicData(); virtual;
   public
     function AddLayer(aLayer: TLayer): TLayer;
@@ -451,7 +462,7 @@ type
 
   TProject = class
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerEventName: string;
-    aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled: Boolean);
+    aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean);
   destructor Destroy; override;
   private
     fMapView: TMapView;
@@ -482,6 +493,7 @@ type
     fSelectionEnabled: Boolean;
     fMeasuresEnabled: Boolean;
     fMeasuresHistoryEnabled: Boolean;
+    fAddBasicLayers: Boolean;
     procedure setTimeSlider(aValue: Integer);
     procedure setSelectionEnabled(aValue: Boolean);
     procedure setMeasuresEnabled(aValue: Boolean);
@@ -499,7 +511,8 @@ type
     property ProjectEvent: TEventEntry read fProjectEvent;
     property TilerEvent: TEventEntry read fTilerEvent;
     property Timers: TTimerPool read fTimers;
-    property scenarios: TObjectDictionary<string, TScenario> read fScenarios; // owns
+    property scenarios: TObjectDictionary<string, TScenario> read fScenarios; // owns, lock with TMonitor
+    property clients: TObjectList<TClient> read fClients; // owns, lock with TMonitor
 
     property measuresJSON: string read getMeasuresJSON;
     property measures: TObjectDictionary<string, TMeasure> read fMeasures;
@@ -508,6 +521,10 @@ type
     property selectionEnabled: Boolean read fSelectionEnabled write setSelectionEnabled;
     property measuresEnabled: Boolean read fMeasuresEnabled write setMeasuresEnabled;
     property measuresHistoryEnabled: Boolean read fMeasuresHistoryEnabled write setMeasuresHistoryEnabled;
+    property addBasicLayers: Boolean read fAddBasicLayers;
+  public
+    procedure SendRefresh();
+    procedure SendPreview();
   end;
 
   // empty model control entries
@@ -543,6 +560,8 @@ procedure jsonAdd(var aCurrent: string; const aAdd: string);
 function jsonArrayOfDoubleToStr(const aValues: TArray<double>): string;
 function geoJsonFeatureCollection(const aFeatures: string): string;
 function geoJsonFeature(const aGeometry: string; const aProperties: string=''): string;
+
+function ZoomLevelFromDeltaLon(aDeltaLon: Double): Integer;
 
 implementation
 
@@ -582,6 +601,25 @@ end;
 function URITimeStamp: string;
 begin
   Result := NowUTCInt64.ToString();
+end;
+
+function ZoomLevelFromDeltaLon(aDeltaLon: Double): Integer;
+begin
+  try
+    if aDeltaLon>0 then
+    begin
+      if aDeltaLon<=180 then
+      begin
+        Result := Trunc(ln(360/aDeltaLon)/ln(2));
+        if Result>19
+        then Result := 19;
+      end
+      else Result := 0;
+    end
+    else Result := 19;
+  except
+    Result := 0;
+  end;
 end;
 
 { TDistanceLatLon }
@@ -786,6 +824,13 @@ end;
 
 { TClient }
 
+function TClient.activeScenario: string;
+begin
+  if Assigned(fCurrentScenario)
+  then Result := '"activeScenario":"'+fCurrentScenario.id+'",'
+  else Result := '';
+end;
+
 constructor TClient.Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
 begin
   inherited Create;
@@ -796,8 +841,11 @@ begin
   fRefScenario := aRefScenario;
   if Assigned(fCurrentScenario)
   then fCurrentScenario.HandleClientSubscribe(Self);
-  if Assigned(fRefScenario)
-  then fRefScenario.HandleClientSubscribe(Self);
+  if Assigned(fRefScenario) then
+  begin
+    fRefScenario.HandleClientSubscribe(Self);
+    // todo: create list diff layers, charts and kpis
+  end;
   fClientEvent := fProject.fConnection.publish(aClientID, False);
   fClientEvent.subscribe;
   // add handler for disconnecting clients
@@ -1021,11 +1069,17 @@ begin
                         scenarioID := jsonValue.Value;
                         if not fProject.scenarios.TryGetValue(scenarioID, scenario)
                         then scenario := fProject.ReadScenario(scenarioID);
-                        if Assigned(fRefScenario)
-                        then fRefScenario.HandleClientUnsubscribe(Self);
+                        if Assigned(fRefScenario) then
+                        begin
+                          fRefScenario.HandleClientUnsubscribe(Self);
+                          // todo: clear list of diff layers, charts and kpis
+                        end;
                         fRefScenario := scenario;
-                        if Assigned(fRefScenario)
-                        then fRefScenario.HandleClientSubscribe(Self);
+                        if Assigned(fRefScenario) then
+                        begin
+                          fRefScenario.HandleClientSubscribe(Self);
+                          // todo: create list diff layers, charts and kpis
+                        end;
                       end;
                       SendDomains('updatedomains');
                       UpdateSession();
@@ -1041,7 +1095,7 @@ begin
         end;
       except
         on e: Exception
-        do Log.WriteLn(e);
+        do Log.WriteLn('exception in TClient.Create: fClientEvent.OnString: '+e.Message, llError);
       end;
     end);
   // trigger login
@@ -1063,6 +1117,7 @@ begin
     fClientEvent.unPublish;
     fClientEvent := nil;
   end;
+  // todo: free diff layers etc.
   if Assigned(fCurrentScenario)  then
   begin
     fCurrentScenario.HandleClientUnsubscribe(Self);
@@ -1114,38 +1169,67 @@ begin
   // todo: implement
 end;
 
+function TClient.referenceScenario: string;
+begin
+  if Assigned(fRefScenario)
+  then Result := '"referenceScenario":"'+fRefScenario.id+'",'
+  else Result := '';
+end;
+
+function compareLayerNames(const aLayer1, aLayer2: TLayer): Integer;
+begin
+  Result := AnsiCompareText(aLayer1.name, aLayer2.name);
+end;
+
 procedure TClient.SendDomains(const aPrefix: string);
 var
   d: TClientDomain;
   domains: TDictionary<string, TClientDomain>;
   JSON: string;
-  nlp: TPair<string, TLayer>;
+  //nlp: TPair<string, TLayer>;
+  layer: TLayer;
   ndp: TPair<string, TClientDomain>;
   domainsJSON: string;
   nkp: TPair<string, TKPI>;
   ngp: TPair<string, TChart>;
+  locLayers: TList<TLayer>;
+  refLayer: TLayer;
 begin
   // todo: add reference and diff layers/charts if fRefScenario<>nil
-
   domains := TDictionary<string, TClientDomain>.Create;
   try
     if Assigned(fCurrentScenario) then
     begin
       // layers
-      for nlp in fCurrentScenario.fLayers do
-      begin
-        JSON := '{'+nlp.Value.JSON+'}';
-        if domains.TryGetValue(nlp.Value.domain, d) then
+      locLayers := TList<TLayer>.Create(TComparer<TLayer>.Construct(compareLayerNames));
+      try
+        locLayers.AddRange(fCurrentScenario.Layers.Values);
+        locLayers.Sort;
+        for layer in locLayers do
         begin
-          jsonAdd(d.layers, JSON);
-          domains[nlp.Value.domain] := d;
-        end
-        else
-        begin
-          d := TClientDomain.Create(nlp.Value.domain);
-          d.layers := JSON;
-          domains.Add(d.name, d);
+          JSON := layer.JSON;
+          if Assigned(fRefScenario) and fRefScenario.Layers.TryGetValue(layer.ID, refLayer) then
+          begin
+            JSON := JSON+',{"ref":{'+refLayer.JSON+'}}';
+            // todo: add diff layer
+            //diffLayerID := 'diff|'+layer.elementID+'|'+refLayer.elementID;
+            //JSON := JSON+',{"diff":{'+diffLayer.JSON+'}}';
+          end;
+          JSON  := '{'+JSON+'}';
+          if domains.TryGetValue(layer.domain, d) then
+          begin
+            jsonAdd(d.layers, JSON);
+            domains[layer.domain] := d;
+          end
+          else
+          begin
+            d := TClientDomain.Create(layer.domain);
+            d.layers := JSON;
+            domains.Add(d.name, d);
+          end;
         end;
+      finally
+        locLayers.Free;
       end;
       // kpis
       for nkp in fCurrentScenario.fKPIs do
@@ -1195,12 +1279,24 @@ begin
   end;
 end;
 
+procedure TClient.SendErrorMessage(const aMessage: string);
+begin
+  signalString('{"connection":{"message":"'+aMessage+'"}}');
+end;
+
 procedure TClient.SendMeasures;
 var
   mj: string;
 begin
-  mj := '{"measures":'+fProject.measuresJSON+'}';
-  signalString(mj);
+  try
+    mj := '{"measures":'+fProject.measuresJSON+'}';
+    signalString(mj);
+  except
+    Log.WriteLn('Could not read measures from database', llError);
+    mj := '{"measures":{}}';
+    signalString(mj);
+    SendErrorMessage('Could not read measures');
+  end;
 end;
 
 procedure TClient.SendMeasuresEnabled;
@@ -1238,31 +1334,6 @@ begin
 end;
 
 procedure TClient.SendSession;
-
-  function sessionDescription: string;
-  begin
-    Result := fProject.ProjectName;
-    if Assigned(fCurrentScenario) then
-    begin
-      Result := Result+' - '+fCurrentScenario.name;
-      if fCurrentScenario.description<>''
-      then Result := Result+', '+fCurrentScenario.description;
-    end;
-  end;
-
-  function activeScenario: string;
-  begin
-    if Assigned(fCurrentScenario)
-    then Result := '"activeScenario":"'+fCurrentScenario.id+'",'
-    else Result := '';
-  end;
-
-  function referenceScenario: string;
-  begin
-    if Assigned(fRefScenario)
-    then Result := '"referenceScenario":"'+fRefScenario.id+'",'
-    else Result := '';
-  end;
 
   function view: string;
   begin
@@ -1303,6 +1374,22 @@ begin
     '}}');
 end;
 
+function TClient.sessionDescription: string;
+begin
+  Result := fProject.ProjectName;
+  if Assigned(fCurrentScenario) then
+  begin
+    if fCurrentScenario.name<>''
+    then Result := Result+' - '+fCurrentScenario.name;
+    if fCurrentScenario.description<>'' then
+    begin
+      if fCurrentScenario.name<>''
+      then Result := Result+', '+fCurrentScenario.description
+      else Result := Result+' - '+fCurrentScenario.description;
+    end;
+  end;
+end;
+
 procedure TClient.signalString(const aString: string);
 var
   stream: TStream;
@@ -1322,33 +1409,7 @@ begin
 end;
 
 procedure TClient.UpdateSession;
-
-  function sessionDescription: string;
-  begin
-    Result := fProject.ProjectName;
-    if Assigned(fCurrentScenario) then
-    begin
-      Result := Result+' - '+fCurrentScenario.name;
-      if fCurrentScenario.description<>''
-      then Result := Result+', '+fCurrentScenario.description;
-    end;
-  end;
-
-  function activeScenario: string;
-  begin
-    if Assigned(fCurrentScenario)
-    then Result := '"activeScenario":"'+fCurrentScenario.id+'",'
-    else Result := '';
-  end;
-
-  function referenceScenario: string;
-  begin
-    if Assigned(fRefScenario)
-    then Result := '"referenceScenario":"'+fRefScenario.id+'",'
-    else Result := '';
-  end;
-
-begin
+begin
   signalString(
     '{"session":{'+
       '"description":"'+sessionDescription+'",'+
@@ -1499,8 +1560,14 @@ begin
 end;
 
 function TGeometryPointLayerObject.getGeoJSON2D(const aType: string): string;
+var
+  colors: TGeoColors;
 begin
   if Assigned(fGeometryPoint) then
+  begin
+    if Assigned(fLayer.palette)
+    then colors := fLayer.palette.ValueToColors(fValue)
+    else colors := TGeoColors.Create($FF000000); // black
     Result := '{ '+
       '"type":"Feature",'+
       '"geometry":{'+
@@ -1509,18 +1576,11 @@ begin
       '},'+
       '"properties":{'+
         '"id":"'+string(ID)+'",'+
-        '"color": "'+JSONColor+'"'+
+        '"color": "'+ColorToJSON(colors.mainColor)+'"'+
       '}'+
     '}'
-  else
-    Result := '';
-end;
-
-function TGeometryPointLayerObject.getJSONColor: string;
-begin
-  if Assigned(fLayer.palette)
-  then Result := fLayer.palette.ValueToColorJSON(fValue)
-  else Result := '#000000'; // black, default
+  end
+  else Result := '';
 end;
 
 function TGeometryPointLayerObject.getValidGeometry: Boolean;
@@ -1724,8 +1784,14 @@ begin
 end;
 
 function TGeometryLayerObject.getGeoJSON2D(const aType: string): string;
+var
+  colors: TGeoColors;
 begin
   if Assigned(fGeometry) then
+  begin
+    if Assigned(fLayer.palette)
+    then colors := fLayer.palette.ValueToColors(fValue)
+    else colors := TGeoColors.Create($FF000000); // black
     Result := '{ '+
       '"type":"Feature",'+
       '"geometry":{'+
@@ -1734,20 +1800,20 @@ begin
       '},'+
       '"properties":{'+
         '"id":"'+string(ID)+'",'+
-        '"color": "'+JSONColor+'"'+
+        '"color": "'+ColorToJSON(colors.mainColor)+'"'+
       '}'+
     '}'
-  else
-    Result := '';
+  end
+  else Result := '';
 end;
-
+{
 function TGeometryLayerObject.getJSONColor: string;
 begin
   if Assigned(fLayer.palette)
   then Result := fLayer.palette.ValueToColorJSON(fValue)
   else Result := '#000000'; // black, default
 end;
-
+}
 function TGeometryLayerObject.getValidGeometry: Boolean;
 begin
   Result := Assigned(fGeometry);
@@ -2011,7 +2077,7 @@ end;
 const
   MaxBufferLength = 2048;
 
-procedure TLayer.SignalObjects(aSender: TObject);
+procedure TLayer.signalObjects(aSender: TObject);
 var
   timeStamp: TDateTime;
   iop: TPair<TWDID, TLayerObject>;
@@ -2052,6 +2118,7 @@ end;
 
 procedure TLayer.signalTilerRequestPreview(aTimer: TTImer);
 begin
+  Log.WriteLn('triggered preview timer for '+elementID);
   fOutputEvent.signalEvent(TByteBuffer.bb_tag_uint32(icehTilerRequestPreviewImage, PreviewImageWidth));
 end;
 
@@ -2108,116 +2175,122 @@ var
   pvBASE64: string;
   previewsFolder: string;
 begin
-  // todo:
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-    case fieldInfo of
-      (icehTilerID shl 3) or wtVarInt:
-        begin
-          fObjectsTilesID := aBuffer.bb_read_int32(aCursor);
-        end;
-      (icehTilerURL shl 3) or wtLengthDelimited:
-        begin
-          fObjectsTilesLink := aBuffer.bb_read_string(aCursor);
-          // todo: make uri unique with time stamp
-          fObjectsTilesLink := fObjectsTilesLink+'&ts='+URITimeStamp;
-          AddCommandToQueue(Self, Self.SignalObjects);
-          // todo: update client info
-          // NO refresh to clients, slice not created yet!
-          {
-          // subscribed to layer
-          TMonitor.Enter(clients);
-          try
-            for client in clients
-            do client.SendRefresh(elementID, '', objectsTilesLink);
-          finally
-            TMonitor.Exit(clients);
+  try
+    // todo:
+    while aCursor<aLimit do
+    begin
+      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+      case fieldInfo of
+        (icehTilerID shl 3) or wtVarInt:
+          begin
+            fObjectsTilesID := aBuffer.bb_read_int32(aCursor);
           end;
-          // clients in scenario to update definition
-          TMonitor.Enter(fScenario.clients);
-          try
-            for client in fScenario.clients do
-            begin
-              if not clients.Contains(client)
-              then client.SendRefresh(elementID, '', objectsTilesLink);
-            end;
-          finally
-            TMonitor.Exit(fScenario.clients);
-          end;
-          }
-        end;
-      (icehTilerRefresh shl 3) or wt64Bit:
-        begin
-          timeStamp := aBuffer.bb_read_double(aCursor);
-          if timeStamp<>0
-          then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', timeStamp)
-          else timeStampStr := '';
-          // todo: start refresh timer
-          // signal refresh to layer client
-          TMonitor.Enter(clients);
-          try
-            for client in clients
-            do client.SendRefresh(elementID, timeStampStr, fObjectsTilesLink);
-          finally
-            TMonitor.Exit(clients);
-          end;
-          // signal refresh to scenario client
-          TMonitor.Enter(fScenario.clients);
-          try
-            for client in fScenario.clients do
-            begin
-              if not clients.Contains(client)
-              then client.SendRefresh(elementID, timeStampStr, fObjectsTilesLink);
-            end;
-          finally
-            TMonitor.Exit(fScenario.clients);
-          end;
-          // refresh preview also
-          fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneMinute/6);
-        end;
-      (icehTilerPreviewImage shl 3) or wtLengthDelimited:
-        begin
-          try
-            stream := TBytesStream.Create(aBuffer.bb_read_tbytes(aCursor));
-            try
-              fPreview.Free;
-              fPreview := TPngImage.Create;
-              fPreview.LoadFromStream(stream);
-            finally
-              stream.Free;
-            end;
-            previewsFolder := ExtractFilePath(ParamStr(0))+'previews';
-            ForceDirectories(previewsFolder);
-            fPreview.SaveToFile(previewsFolder+'\'+elementID+'.png');
-            pvBASE64 := previewBASE64;
-            // layer clients
+        (icehTilerURL shl 3) or wtLengthDelimited:
+          begin
+            fObjectsTilesLink := aBuffer.bb_read_string(aCursor);
+            // todo: make uri unique with time stamp
+            fObjectsTilesLink := fObjectsTilesLink+'&ts='+URITimeStamp;
+            AddCommandToQueue(Self, Self.signalObjects);
+            // todo: update client info
+            // NO refresh to clients, slice not created yet!
+            {
+            // subscribed to layer
             TMonitor.Enter(clients);
             try
-              for client in fClients
-              do client.SendPreview(elementID, pvBASE64);
+              for client in clients
+              do client.SendRefresh(elementID, '', objectsTilesLink);
             finally
               TMonitor.Exit(clients);
             end;
-            // scenario clients
+            // clients in scenario to update definition
             TMonitor.Enter(fScenario.clients);
             try
               for client in fScenario.clients do
               begin
                 if not clients.Contains(client)
-                then client.SendPreview(elementID, pvBASE64);
+                then client.SendRefresh(elementID, '', objectsTilesLink);
               end;
             finally
               TMonitor.Exit(fScenario.clients);
             end;
-          except
-            on E: Exception
-            do Log.WriteLn('Exception TLayer.handleOutputEvent handling icehTilerPreviewImage: '+e.Message, llError);
+            }
           end;
-        end;
-    else
-      aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+        (icehTilerRefresh shl 3) or wt64Bit:
+          begin
+            timeStamp := aBuffer.bb_read_double(aCursor);
+            if timeStamp<>0
+            then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', timeStamp)
+            else timeStampStr := '';
+            // todo: start refresh timer
+            // signal refresh to layer client
+            TMonitor.Enter(clients);
+            try
+              for client in clients
+              do client.SendRefresh(elementID, timeStampStr, fObjectsTilesLink);
+            finally
+              TMonitor.Exit(clients);
+            end;
+            // signal refresh to scenario client
+            TMonitor.Enter(fScenario.clients);
+            try
+              for client in fScenario.clients do
+              begin
+                if not clients.Contains(client)
+                then client.SendRefresh(elementID, timeStampStr, fObjectsTilesLink);
+              end;
+            finally
+              TMonitor.Exit(fScenario.clients);
+            end;
+            // refresh preview also
+            //Log.WriteLn('set preview timer for '+elementID);
+            fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneMinute/6);
+          end;
+        (icehTilerPreviewImage shl 3) or wtLengthDelimited:
+          begin
+            try
+              stream := TBytesStream.Create(aBuffer.bb_read_tbytes(aCursor));
+              try
+                fPreview.Free;
+                fPreview := TPngImage.Create;
+                fPreview.LoadFromStream(stream);
+              finally
+                stream.Free;
+              end;
+              previewsFolder := ExtractFilePath(ParamStr(0))+'previews';
+              ForceDirectories(previewsFolder);
+              fPreview.SaveToFile(previewsFolder+'\'+elementID+'.png');
+              pvBASE64 := previewBASE64;
+              // layer clients
+              TMonitor.Enter(clients);
+              try
+                for client in fClients
+                do client.SendPreview(elementID, pvBASE64);
+              finally
+                TMonitor.Exit(clients);
+              end;
+              // scenario clients
+              TMonitor.Enter(fScenario.clients);
+              try
+                for client in fScenario.clients do
+                begin
+                  if not clients.Contains(client)
+                  then client.SendPreview(elementID, pvBASE64);
+                end;
+              finally
+                TMonitor.Exit(fScenario.clients);
+              end;
+            except
+              on E: Exception
+              do Log.WriteLn('Exception TLayer.handleOutputEvent handling icehTilerPreviewImage: '+e.Message, llError);
+            end;
+          end;
+      else
+        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+      end;
     end;
+  except
+    on e: Exception
+    do  log.WriteLn('exception in TLayer.handleOutputEvent: '+e.Message, llError);
   end;
 end;
 
@@ -2226,22 +2299,27 @@ var
   fieldInfo: UInt32;
 //  tilerStartup: TDateTime;
 begin
-  // todo:
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-    case fieldInfo of
-      //signalEvent(TByteBuffer.bb_tag_double(icehTilerStartup, now));
-      (icehTilerStartup shl 3) or wt64Bit:
-        begin
-          //fObjectsTilesID := aBuffer.bb_read_int32(aCursor);
-          {tilerStartup := }aBuffer.bb_read_double(aCursor);
-          // re-register layer
-          RegisterLayer;
-        end;
-    else
-      aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+  try
+    // todo:
+    while aCursor<aLimit do
+    begin
+      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+      case fieldInfo of
+        //signalEvent(TByteBuffer.bb_tag_double(icehTilerStartup, now));
+        (icehTilerStartup shl 3) or wt64Bit:
+          begin
+            //fObjectsTilesID := aBuffer.bb_read_int32(aCursor);
+            {tilerStartup := }aBuffer.bb_read_double(aCursor);
+            // re-register layer
+            RegisterLayer;
+          end;
+      else
+        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+      end;
     end;
+  except
+    on e: Exception
+    do log.WriteLn('exception in TLayer.handleTilerEvent: '+e.Message, llError);
   end;
 end;
 
@@ -2385,7 +2463,7 @@ begin
   Result := aLayer;
 end;
 
-constructor TScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aMapView: TMapView);
+constructor TScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
 begin
   inherited Create;
   fProject := aProject;
@@ -2397,6 +2475,7 @@ begin
   fKPIs := TObjectDictionary<string, TKPI>.Create([doOwnsValues]);
   fCharts := TObjectDictionary<string, TChart>.Create([doOwnsValues]);
   fClients := TObjectList<TClient>.Create(False); // refs
+  fAddbasicLayers := aAddbasicLayers;
   ReadBasicData;
 end;
 
@@ -2650,13 +2729,14 @@ end;
 
 constructor TProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerEventName: string; aDBConnection: TCustomConnection;
-  aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled: Boolean{; aSourceEPSG: Integer});
+  aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean{; aSourceEPSG: Integer});
 begin
   inherited  Create;
   fTimeSlider := aTimeSlider;
   fSelectionEnabled := aSelectionEnabled;
   fMeasuresEnabled := aMeasuresEnabled;
   fMeasuresHistoryEnabled := aMeasuresHistoryEnabled;
+  fAddBasicLayers := aAddbasicLayers;
   fSessionModel := aSessionModel;
   fConnection := aConnection;
   fClients := TObjectList<TClient>.Create;
@@ -2722,6 +2802,70 @@ end;
 function TProject.ReadScenario(const aID: string): TScenario;
 begin
   Result := nil;
+end;
+
+procedure TProject.SendPreview;
+var
+  client: TClient;
+  se: TScenarioElement;
+  preview: string;
+begin
+  Log.WriteLn('Sending preview to clients connected to project '+Self.ProjectName);
+  TMonitor.Enter(clients);
+  try
+    for client in clients do
+    begin
+      TMonitor.Enter(client.subscribedElements);
+      try
+        for se in client.subscribedElements do
+         begin
+           if se is TLayer then
+           begin
+             preview := (se as TLayer).previewBASE64;
+             if preview<>'' then
+             begin
+               client.SendPreview(se.elementID, preview);
+               Log.WriteLn('Send preview for '+se.elementID);
+             end
+             else Log.WriteLn('NO preview to send for '+se.elementID);
+           end;
+         end;
+      finally
+        TMonitor.Exit(client.subscribedElements);
+      end;
+    end;
+  finally
+    TMonitor.Exit(clients);
+  end;
+end;
+
+procedure TProject.SendRefresh;
+var
+  client: TClient;
+  se: TScenarioElement;
+begin
+  Log.WriteLn('Sending refresh to clients connected to project '+Self.ProjectName);
+  TMonitor.Enter(clients);
+  try
+    for client in clients do
+    begin
+      TMonitor.Enter(client.subscribedElements);
+      try
+        for se in client.subscribedElements do
+        begin
+          if se is TLayer then
+          begin
+            client.SendRefresh(se.elementID, '', (se as TLayer).fObjectsTilesLink);
+            Log.WriteLn('Send refresh for '+se.elementID+': '+(se as TLayer).fObjectsTilesLink);
+          end;
+        end;
+      finally
+        TMonitor.Exit(client.subscribedElements);
+      end;
+    end;
+  finally
+    TMonitor.Exit(clients);
+  end;
 end;
 
 procedure TProject.setMapView(const aValue: TMapView);

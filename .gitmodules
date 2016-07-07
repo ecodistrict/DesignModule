@@ -22,3 +22,9 @@
 [submodule "SessionServer/logger"]
 	path = SessionServer/logger
 	url = git@bitbucket.org:cornelissenja/logger-delphi.git
+[submodule "EcoDistrictDebugger/logger"]
+	path = EcoDistrictDebugger/logger
+	url = git@bitbucket.org:cornelissenja/logger-delphi.git
+[submodule "EcoDistrictDebugger/imb"]
+	path = EcoDistrictDebugger/imb
+	url = git@bitbucket.org:cornelissenja/imb-client-delphi.git

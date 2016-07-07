@@ -2,7 +2,7 @@ program SessionServerSvc;
 
 uses
   Vcl.SvcMgr,
-  SessionServerSvcMain in 'SessionServerSvcMain.pas' {SessionServer: TService};
+  SessionServerSvcMain in 'SessionServerSvcMain.pas' {PublishingServer: TService};
 
 {$R *.RES}
 
@@ -23,6 +23,6 @@ begin
   //
   if not Application.DelayInitialize or Application.Installing then
     Application.Initialize;
-  Application.CreateForm(TSessionServer, SessionServer);
+  Application.CreateForm(TPublishingServer, PublishingServer);
   Application.Run;
 end.
