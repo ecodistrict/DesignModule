@@ -7,9 +7,6 @@
 [submodule "TilerServer/imb"]
 	path = TilerServer/imb
 	url = git@bitbucket.org:cornelissenja/imb-client-delphi.git
-[submodule "TilerServer/logger"]
-	path = TilerServer/logger
-	url = git@bitbucket.org:cornelissenja/logger-delphi.git
 [submodule "TilerServer/world"]
 	path = TilerServer/world
 	url = git@bitbucket.org:cornelissenja/world-delphi.git
@@ -28,3 +25,6 @@
 [submodule "EcoDistrictDebugger/imb"]
 	path = EcoDistrictDebugger/imb
 	url = git@bitbucket.org:cornelissenja/imb-client-delphi.git
+[submodule "TilerServer/logger"]
+	path = TilerServer/logger
+	url = git@bitbucket.org:cornelissenja/logger-delphi.git
