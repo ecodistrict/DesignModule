@@ -431,6 +431,7 @@ type
     function findScenario(aID: Integer): TScenarioLink;
     function removeLeave(const aStatus: string): Boolean;
     procedure buildHierarchy();
+    procedure sortChildren();
     function JSON: string;
   end;
 
@@ -2689,6 +2690,16 @@ begin
   Result := Self;
   while Assigned(Result.fParent)
   do Result := Result.fParent;
+end;
+
+function compareScenarioLinks(const aScenarioLink1, aScenarioLink2: TScenarioLink): Integer;
+begin
+  Result := AnsiCompareText(aScenarioLink1.description, aScenarioLink2.description);
+end;
+
+procedure TScenarioLink.sortChildren();
+begin
+  children.Sort(TComparer<TScenarioLink>.Construct(compareScenarioLinks));
 end;
 
 { TMeasure }

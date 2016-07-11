@@ -58,6 +58,8 @@ const
 
   SourceEPSGSwitch = 'SourceEPSG';
 
+  UseScenarioHierarchySwitch = 'UseScenarioHierarchy';
+
 type
   TProjectType = (
     ptUrbanStrategyOracle,
@@ -588,8 +590,9 @@ var
 //  dataresponse: string;
   jsonDataResponse: TJSONObject;
   jsonList: TJSONObject;
+  jsonIterator: TJSONArrayEnumerator;
+  jsonKpi: TJSONValue;
   attr_value: string;
-  OutputIsList: boolean;
   dataguid: string;
   thisguid: string;
   dataquery: TDMQuery;
@@ -602,6 +605,8 @@ var
   _calculationId: string;
   _moduleId: string;
   _eventId: string;
+  _kpiId: string;
+  _kpiValueList: TJSONArray;
   _variantId: string;
   DataEvent: TEventEntry;
   _variantName: string;
@@ -617,8 +622,8 @@ begin
     // todo:
     jsonObject := TJSONObject.ParseJSONValue(aString) as TJSONObject;
     jsonResponse := TJSONObject.Create;
-    _type := jsonObject.getValue<string>('type');
-    _method := jsonObject.getValue<string>('method');
+    if Assigned(jsonObject.GetValue('type')) then _type := jsonObject.getValue<string>('type') else _type:='';
+    if Assigned(jsonObject.GetValue('method')) then _method := jsonObject.getValue<string>('method') else _method:='';
     Log.WriteLn('HandleDataEvent: type: '+_type+', method: '+_method);
     if _type='request' then
     begin
@@ -651,17 +656,24 @@ begin
       if Assigned(jsonObject.GetValue('moduleId')) then
       begin
         _moduleId := jsonObject.getValue<string>('moduleId');
+        jsonResponse.AddPair('moduleId', _moduleId);
       end
       else _moduleId := '';
+      if Assigned(jsonObject.GetValue('kpiId')) then
+      begin
+        _kpiId := jsonObject.getValue<string>('kpiId');
+        jsonResponse.AddPair('kpiId', _kpiId);
+      end
+      else _kpiId := '';
       if Assigned(jsonObject.GetValue('eventId')) then
       begin
         _eventId := jsonObject.getValue<string>('eventId');
       end
       else _eventId := 'ecodistrict.data-to-dashboard';
       if _eventId='' then _eventId:='data-to-dashboard';
+      jsonResponse.AddPair('eventId', _eventId);
       DataEvent:=fConnection.publish('ecodistrict.' + _eventId, false);
       jsonResponse.AddPair('status','<undefined>');
-
       if _method='createCase' then
       begin
         if not ((_caseId = 'null') or (_caseId = '')) then
@@ -674,9 +686,7 @@ begin
             end
             else
             begin
-              _status := 'In progress - creating schema'; // do not send for now
-//              response := '{"method": "'+_method+'", "type": "response", "userId": "'+_UserId+'", "caseId": "'+_CaseId+'", "status": "'+_status+'"}';
-//              DataEvent.signalString(response);
+              _status := 'In progress - creating schema';
               jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
               DataEvent.signalString(JSONresponse.ToString);
               SchemaCreate(EcoDistrictSchemaId(_caseId));
@@ -701,8 +711,6 @@ begin
           else _status := 'failed - not supposed to have a variant id';
         end
         else _status := 'failed - no case id';
-//        response := '{"method": "'+_method+'", "type": "response", "userId": "'+_UserId+'", "caseId": "'+_CaseId+'", "status": "'+_status+'"}';
-//        DataEvent.signalString(response);
         jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
         DataEvent.signalString(JSONresponse.ToString);
         Log.WriteLn(_status);
@@ -720,9 +728,7 @@ begin
             end
             else
             begin
-              _status := 'In progress - deleting cascading schemas'; // do not send for now
-//              response := '{"method": "'+_method+'", "type": "response", "userId": "'+_UserId+'", "caseId": "'+_CaseId+'", "status": "'+_status+'"}';
-//              DataEvent.signalString(response);
+              _status := 'In progress - deleting cascading schemas';
               jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
               DataEvent.signalString(JSONresponse.ToString);
               SchemaDelete(EcoDistrictSchemaId(_caseId, _variantId));
@@ -733,8 +739,6 @@ begin
           else _status := 'failed - not supposed to have a variant id';
         end
         else _status := 'failed - no case id';
-//        response := '{"method": "'+_method+'", "type": "response", "userId": "'+_UserId+'", "caseId": "'+_CaseId+'", "status": "'+_status+'"}';
-//        DataEvent.signalString(response);
         jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
         DataEvent.signalString(JSONresponse.ToString);
         Log.WriteLn(_status);
@@ -758,9 +762,7 @@ begin
               end
               else
               begin
-                _status := 'In progress - creating variant'; // do not send for now
-//                response := '{"method": "'+_method+'", "type": "response", "userId": "'+_UserId+'", "caseId": "'+_CaseId+'", "variantId": "'+_variantId+'", "status": "'+_status+'"}';
-//                DataEvent.signalString(response);
+                _status := 'In progress - creating variant';
                 jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
                 DataEvent.signalString(JSONresponse.ToString);
                 SchemaCreate(EcoDistrictSchemaId(_caseId, _variantId), EcoDistrictSchemaId(_caseId));
@@ -783,11 +785,8 @@ begin
           else _status := 'failed - no variant id';
         end
         else _status := 'failed - no case id';
-//        response := '{"method": "'+_method+'", "type": "response", "userId": "'+_UserId+'", "caseId": "'+_CaseId+'", "variantId": "'+_variantId+'", "status": "'+_status+'"}';
-//        DataEvent.signalString(response);
         jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
-        //DataEvent.signalString(JSONresponse.ToString);
-
+        DataEvent.signalString(JSONresponse.ToString);
         Log.WriteLn(_status);
       end
       else
@@ -804,8 +803,6 @@ begin
             else
             begin
               _status := 'In progress - deleting variant';
-//              response := '{"method": "'+_method+'", "type": "response", "userId": "'+_UserId+'", "caseId": "'+_CaseId+'", "variantId": "'+_variantId+'", "status": "'+_status+'"}';
-//              DataEvent.signalString(response);
               jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
               DataEvent.signalString(JSONresponse.ToString);
               SchemaDelete(EcoDistrictSchemaId(_caseId, _variantId));
@@ -816,8 +813,6 @@ begin
           else _status := 'failed - no variant id';
         end
         else _status := 'failed - no case id';
-//        response := '{"method": "'+_method+'", "type": "response", "userId": "'+_UserId+'", "caseId": "'+_CaseId+'", "variantId": "'+_variantId+'", "status": "'+_status+'"}';
-//        DataEvent.signalString(response);
         jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
         DataEvent.signalString(JSONresponse.ToString);
         Log.WriteLn(_status);
@@ -838,7 +833,6 @@ begin
             begin
               Log.WriteLn('getData queries for '+_moduleId);
               _status := 'Success';
-              OutputIsList:=false;
               for datafield in fQueries.Keys do
               begin
                 if fQueries.TryGetValue(datafield, dataquery) then
@@ -884,12 +878,9 @@ begin
                         else
                         if dataquery.ReturnType='LIST' then
                         begin
-//                          if not Assigned(JSONdataarray) then JSONdataarray:=TJSONArray.Create;
                           jsonList:=TJSONObject.Create;
-                          OutputIsList:=true;
                           dataguid:='';
 //we expect the query to return: attr_gml_id, attr_name, string_value, double_value, int_value
-//                          if not query.Eof then dataresponse:='"'+ datafield + '": ';
                           while not query.Eof do
                           begin
                             thisguid:=query.FieldByName('attr_gml_id').AsString;
@@ -897,24 +888,17 @@ begin
                             begin
                               if dataguid='' then
                               begin
-//                                dataresponse:='{';
                                 dataguid:=thisguid;
                               end;
-//                              end
-//                              else dataresponse:=dataresponse+ '}, {';
-//                              dataresponse:=dataresponse + '"gml_id": "'+thisguid+'"';
                               jsonList.AddPair('gml_id', thisguid);
                             end;
                             if not query.FieldByName('string_value').IsNull then attr_value:='"'+query.FieldByName('string_value').AsString+'"';
                             if not query.FieldByName('double_value').IsNull then attr_value:=query.FieldByName('double_value').AsString;
                             if not query.FieldByName('int_value').IsNull then attr_value:=query.FieldByName('int_value').AsString;
-//                            dataresponse:=dataresponse + ', "'+ query.FieldByName('attr_name').AsString + '": '+attr_value;
                             jsonList.AddPair(query.FieldByName('attr_name').AsString, attr_value);
                             query.Next;
                           end;
-//                          dataresponse:= dataresponse + '}';
                           jsonDataResponse.AddPair(datafield,jsonList);
-  //                        JSONdataarray.Add(JSONlist); //owns jsonobjects
                         end;
                       finally
                         query.Close;
@@ -925,8 +909,6 @@ begin
                   end;
                 end;
               end;
-//              if OutputIsList
-//              then dataresponse:='['+dataresponse+']';
             end;
           end
           else _status := 'failed - no module id';
@@ -943,12 +925,81 @@ begin
       else
       if _method='setKpiResult' then
       begin
+        if not ((_caseId = 'null') or (_caseId = '')) then
+        begin
+          if not ((_moduleId = 'null') or (_moduleId = '')) then
+          begin
+            if not ((_kpiId = 'null') or (_kpiId = '')) then
+            begin
+              if not SchemaExists(EcoDistrictSchemaId(_caseId, _variantId)) then
+              begin
+                _status := 'failed - no schema found for case and variant';
+              end
+              else
+              begin
+                if Assigned(jsonObject.GetValue('kpiValueList')) then _kpiValueList := jsonObject.getValue<TJSONArray>('kpiValueList') else _kpiValueList:=nil;
+                jsonIterator :=TJSONArrayEnumerator.Create(_kpiValueList);
+                while jsonIterator.MoveNext do
+                begin
+                  jsonKpi:=jsonIterator.GetCurrent
+                end;
+(*
+                query := TFDQuery.Create(nil);
+                try
+                  query.Connection := fDBConnection as TFDConnection;
+//insert variables into query
+//                  dataquery.SQL:= ReplaceStr(dataquery.SQL,'{case_id}', EcoDistrictSchemaId(_caseId)); // todo (HC): should this not be schema_id? or not being used at all in a query?
+//end variables insert
+                  query.SQL.Text :=  'SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''; ' +
+                                    'DELETE';
+                  query.Open();
+                  try
+                    query.First;
+                  finally
+                    query.Close;
+                  end;
 
+                finally
+                  query.Free;
+                end;
+*)
+              end;
+            end
+            else _status := 'failed - no kpiId found in request';
+          end
+          else _status := 'failed - no module id';
+        end
+        else _status := 'failed - no case id';
+        jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
+        DataEvent.signalString(JSONresponse.ToString);
+        Log.WriteLn(_status);
       end
       else
       if _method='getKpiResult' then
       begin
+        if not ((_caseId = 'null') or (_caseId = '')) then
+        begin
+          if not ((_moduleId = 'null') or (_moduleId = '')) then
+          begin
+            if not ((_kpiId = 'null') or (_kpiId = '')) then
+            begin
+              if not SchemaExists(EcoDistrictSchemaId(_caseId, _variantId)) then
+              begin
+                _status := 'failed - no schema found for case and variant';
+              end
+              else
+              begin
 
+              end;
+            end
+            else _status := 'failed - no kpiId found in request';
+          end
+          else _status := 'failed - no module id';
+        end
+        else _status := 'failed - no case id';
+        jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
+        DataEvent.signalString(JSONresponse.ToString);
+        Log.WriteLn(_status);
       end
       else
       if _method='getGeojson' then
@@ -1334,7 +1385,6 @@ var
   l: TLayer;
   objectCount: Integer;
 begin
-  // todo: implement
   Result := '';
   layers := TList<TLayer>.Create;
   try
@@ -1381,7 +1431,6 @@ var
   totalObjectCount: Integer;
   objectCount: Integer;
 begin
-  // todo: implement
   Result := '';
   layers := TList<TLayer>.Create;
   try
@@ -1447,7 +1496,6 @@ function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode
 var
   layers: TList<TLayer>;
 begin
-  // todo: implement
   Result := '';
   layers := TList<TLayer>.Create;
   try
@@ -1698,7 +1746,6 @@ var
   resourceFolder: string;
   stream: TBytesStream;
 begin
-  // todo: implement
   // register layer with tiler?
   // start query
   // decode objects and add to aLayer
@@ -1878,7 +1925,7 @@ begin
           begin
             if Result<>''
             then Result := Result+',';
-            Result := Result+'{"'+aMetaLayerEntry.odbList[i].Description+'":"'+ColorToJSON(aMetaLayerEntry.odbList[i].Color)+'"}';
+            Result := Result+'{"'+aMetaLayerEntry.odbList[i].Description+'":{"fillColor":"'+ColorToJSON(aMetaLayerEntry.odbList[i].Color)+'"}}';
           end;
         end;
         Result := '"grid":{"title":"'+FormatLegendDescription(aMetaLayerEntry.LEGEND_DESC)+'","labels":['+Result+']}';;
@@ -1891,7 +1938,7 @@ begin
           begin
             if Result<>''
             then Result := Result+',';
-            Result := Result+'"'+aMetaLayerEntry.odbList[i].Description+'":"'+ColorToJSON(aMetaLayerEntry.odbList[i].Color)+'"';
+            Result := Result+'"'+aMetaLayerEntry.odbList[i].Description+'":{"fillColor":"'+ColorToJSON(aMetaLayerEntry.odbList[i].Color)+'"}}';
           end;
         end;
         Result := '"grid2":{"title":"'+FormatLegendDescription(aMetaLayerEntry.LEGEND_DESC)+'","labels":[{'+Result+'}]}';;
@@ -2043,8 +2090,6 @@ begin
         layerInfoParts[1] := mlp.Value.LEGEND_DESC;
       end;
 
-      //mlp.Value.LEGEND_DESC
-      //palette := nil; //  todo: create palette from avl
       palette := CreatePaletteFromODB(mlp.Value.LEGEND_DESC, mlp.Value.odbList, True);
 
       case mlp.Value.LAYER_TYPE mod 100 of // i+100 image layer version same as i but ignored by US3D
@@ -2100,13 +2145,8 @@ begin
           palette,
           objectTypes, geometryType, fProject.tilerEvent,
           mlp.Value.LAYER_TYPE mod 100);
-        // todo: create layer
-        // todo: create legend
-        //sl.legendJSON := '';
         layer.fLegendJSON := BuildLegendJSON(mlp.Value, layer, lfVertical);
         layer.query := mlp.Value.SQLQuery(fTableprefix);
-        //sl.objectsTilesID := -1;
-        //sl.objectsTilesLink := '';
         Layers.Add(layer.ID, layer);
         Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
         // schedule reading objects and send to tiler
@@ -2150,7 +2190,6 @@ var
   l: TLayer;
   objectCount: Integer;
 begin
-  // todo: implement
   Result := '';
   layers := TList<TLayer>.Create;
   try
@@ -2197,7 +2236,6 @@ var
   totalObjectCount: Integer;
   objectCount: Integer;
 begin
-  // todo: implement
   Result := '';
   layers := TList<TLayer>.Create;
   try
@@ -2263,7 +2301,6 @@ function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string;
 var
   layers: TList<TLayer>;
 begin
-  // todo: implement
   Result := '';
   layers := TList<TLayer>.Create;
   try
@@ -2465,7 +2502,9 @@ begin
   for isp in fUSDBScenarios
   do isp.Value.Relink(fUSDBScenarios);
   // build hierarchy
-  fScenarioLinks.buildHierarchy();
+  if GetSetting(UseScenarioHierarchySwitch, False)
+  then fScenarioLinks.buildHierarchy() // todo: use hierarchy via setting?
+  else fScenarioLinks.sortChildren(); // todo: sort scenario links?
   // filter closed 'leaves'
   fScenarioLinks.removeLeave('CLOSED');
 end;

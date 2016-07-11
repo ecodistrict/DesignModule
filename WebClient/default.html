@@ -408,17 +408,15 @@
         }
         */
 
-
-
-        /*
+        
         // test layers live air
-        var testLayer132 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=122&zoom={z}&x={x}&y={y}', { id: 'PM10' });
-        layerControl.addOverlay(testLayer132, 'PM10');
-        var testLayer133 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=123&zoom={z}&x={x}&y={y}', { id: 'PM25' });
-        layerControl.addOverlay(testLayer133, 'PM25');
-        var testLayer134 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=134&zoom={z}&x={x}&y={y}', { id: 'NO2' });
-        layerControl.addOverlay(testLayer134, 'NO2');
-        */
+        var testLayer1 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=122&zoom={z}&x={x}&y={y}', { id: 'l1' });
+        layerControl.addOverlay(testLayer1, 'PM10 122');
+        var testLayer2 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=123&zoom={z}&x={x}&y={y}', { id: 'l2' });
+        layerControl.addOverlay(testLayer2, 'PM25 123');
+        var testLayer3 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=134&zoom={z}&x={x}&y={y}', { id: 'l3' });
+        layerControl.addOverlay(testLayer3, 'NO2 tot 134');
+        
     </script>
 </body>
 </html>
