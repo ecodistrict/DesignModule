@@ -38,7 +38,7 @@ uses
   imb4,
   Delaunay2, MyThreads,
   WorldLegends, WorldDataCode,
-  TilerLib,
+  WorldTilerConsts,
 
   // bitmaps
   FMX.Platform,

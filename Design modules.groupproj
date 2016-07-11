@@ -1,0 +1,84 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{EA6C13A6-379D-41EC-852F-54755E1881A3}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="SessionServer\SessionServerCmd.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="SessionServer\SessionServerMC.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="SessionServer\SessionServerSvc.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="TilerServer\TilerWebService.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="EcoDistrictDebugger\EcodistrictDebugger.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="SessionServerCmd">
+        <MSBuild Projects="SessionServer\SessionServerCmd.dproj"/>
+    </Target>
+    <Target Name="SessionServerCmd:Clean">
+        <MSBuild Projects="SessionServer\SessionServerCmd.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="SessionServerCmd:Make">
+        <MSBuild Projects="SessionServer\SessionServerCmd.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="SessionServerMC">
+        <MSBuild Projects="SessionServer\SessionServerMC.dproj"/>
+    </Target>
+    <Target Name="SessionServerMC:Clean">
+        <MSBuild Projects="SessionServer\SessionServerMC.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="SessionServerMC:Make">
+        <MSBuild Projects="SessionServer\SessionServerMC.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="SessionServerSvc">
+        <MSBuild Projects="SessionServer\SessionServerSvc.dproj"/>
+    </Target>
+    <Target Name="SessionServerSvc:Clean">
+        <MSBuild Projects="SessionServer\SessionServerSvc.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="SessionServerSvc:Make">
+        <MSBuild Projects="SessionServer\SessionServerSvc.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="TilerWebService">
+        <MSBuild Projects="TilerServer\TilerWebService.dproj"/>
+    </Target>
+    <Target Name="TilerWebService:Clean">
+        <MSBuild Projects="TilerServer\TilerWebService.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TilerWebService:Make">
+        <MSBuild Projects="TilerServer\TilerWebService.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="EcodistrictDebugger">
+        <MSBuild Projects="EcoDistrictDebugger\EcodistrictDebugger.dproj"/>
+    </Target>
+    <Target Name="EcodistrictDebugger:Clean">
+        <MSBuild Projects="EcoDistrictDebugger\EcodistrictDebugger.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="EcodistrictDebugger:Make">
+        <MSBuild Projects="EcoDistrictDebugger\EcodistrictDebugger.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
