@@ -16,7 +16,7 @@ function addTimeSlider(aParent, options) {
 
     var range = function () {
         return [xMargin, rectParent.width - 1 - xMargin];
-    }
+    };
 
     var scale = d3.time.scale()
                     .domain([options.startRange, options.endRange])
@@ -33,7 +33,10 @@ function addTimeSlider(aParent, options) {
             selectedTime: aSelectedTimeText
         };
         wsSend(selectedTimeCommand);
-    }
+    };
+
+    // todo: set selectedTime by moving scale
+    // todo: implement
 
     function rescale() {
         svg.select("g").call(xaxis).selectAll("text").style("font-size", "10px").style("pointer-events", "none");
@@ -94,17 +97,17 @@ function addTimeSlider(aParent, options) {
         zoom.x(scale); // rebind, zoom makes copy! http://stackoverflow.com/questions/27204907/d3-reset-zoom-when-chart-is-brushed
         line
             .attr("x1", rectParent.width / 2)
-            .attr("x2", rectParent.width / 2)
-        selectedTime.attr("x", xSelTextOffset + rectParent.width / 2)
+            .attr("x2", rectParent.width / 2);
+        selectedTime.attr("x", xSelTextOffset + rectParent.width / 2);
         rescale();
-    }
+    };
 
     // resize handler
     window.addEventListener('resize', resize);
 
     aParent.resetTimeSlider = function () {
         resize();
-    }
+    };
 }
 
 // leaflet button
@@ -138,7 +141,7 @@ L.Control.TimeSlider = L.Control.extend({
 
     _initLayout: function () {
         var className = 'leaflet-control-timeslider',
-		    container = this._container = L.DomUtil.create('div', className+' '+className+'-expanded'); // initially hidden ie expanded
+            container = this._container = L.DomUtil.create('div', className+' '+className+'-expanded'); // initially hidden ie expanded
 
         // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
         container.setAttribute('aria-haspopup', true);

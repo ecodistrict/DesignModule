@@ -118,9 +118,9 @@ L.Util = {
 	// wrap the given number to lie within a certain range (used for wrapping longitude)
 	wrapNum: function (x, range, includeMax) {
 		var max = range[1],
-		    min = range[0],
-		    d = max - min;
-		return x === max && includeMax ? x : ((x - min) % d + d) % d + min;
+            min = range[0],
+            d = max - min;
+        return x === max && includeMax ? x : ((x - min) % d + d) % d + min;
 	},
 
 	// do nothing (used as a noop throughout the code)

@@ -146,8 +146,10 @@ function updateTilesLayerOnMap(aElementID, aTilesURL) {
                 if (layer.redraw)
                     layer.redraw();
                 else {
-                    if (layer.tiles) { }
-                    //layer.setUrl
+                    if (layer.tiles) {
+                        //layer.setUrl
+                    }
+                    
                 }
             }
         }
@@ -161,7 +163,9 @@ function refreshOtherLayer(aElementID) {
             if (layer.redraw)
                 layer.redraw();
             else {
-                if (layer.tiles) { }
+                if (layer.tiles) {
+                    //layer.setUrl
+                }
             }
         }
     }
@@ -178,4 +182,22 @@ function hideLayerTimeStamp() {
     timestamp.classList.add('timestamp-hidden');
     while (timestamp.lastChild)
         timestamp.removeChild(timestamp.lastChild);
+}
+
+// add basic layer to layers control
+// layer: name, [objects|tiles], [default]
+function addBasicLayer(layer) {
+    var thisLayer = null;
+    if (layer.objects)
+        thisLayer = L.geoJson(layer.objects.features);
+    else if (layer.tiles) 
+        thisLayer = L.tileLayer(layer.tiles, { id: layer.name });
+    // else.. add other types of layers
+    if (thislayer !== null) {
+        layerControl.addOverlay(thisLayer, layer.name);
+        if (layer.default && layer.default === 1) {
+            thisLayer.addTo(map);
+            layerControl._update();
+        }
+    }
 }

@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="Content/projectdescription.css" />
     <link rel="stylesheet" href="Content/connectionstatus.css" />
     <link rel="stylesheet" href="Content/userMessages.css" />
+    <link rel="stylesheet" href="Content/curprevdiff.css" />
     <link rel="stylesheet" href="Content/timeslider.css" />
     <link rel="stylesheet" href="Content/map.css" />
 </head>
@@ -32,6 +33,8 @@
     <div id="connectionStatus" class="connection-status connection-status-disconnected" ></div>
     <!-- error messages -->
     <div id="userMessages" class="userMessages userMessages-hidden"><p id="userMessage">There is a message</p></div>
+    <!-- current-previous-difference selector -->
+    <div id="curprevdiff" class="curprevdiff leaflet-container" title="Show the current version of the layer, previous version or difference between those"></div>
     <!-- time related elements-->
     <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div> 
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
@@ -54,6 +57,7 @@
     <script src="Scripts/details.js"></script>
     <script src="Scripts/history.js"></script>
     <script src="Scripts/projectdescription.js"></script>
+    <script src="Scripts/curprevdiff.js"></script>
     <script src="Scripts/timeslider.js"></script>
     <!-- charts -->
     <script src="Scripts/d3.js"></script> 
@@ -64,9 +68,9 @@
         var wsBaseURL = 'ws://vps17642.public.cloudvps.com:4502';
         var session = getParameterByName('session', ''); 
         if (session == '') {
-            session = '1234'; // default test session
+            //session = '1234'; // default test session
             //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
-            //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
+            session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
@@ -83,46 +87,60 @@
                 userid = sessionParts[1];
         }
 
-        // measures
-        var measuresDefaults = [];
+        // top-right
 
         // domains
-        var domainsDefaults = {};
+        var domainsControl = L.control.domains({});
+        map.addControl(domainsControl);
 
-        var detailsControlDefaults = {
+        // details
+        var detailsControl = L.control.details({
             elementWidth: 140,
             kpiWidth: 134, kpiHeight: 20,
             chartWidth: 134, chartHeight: 100,
             layerWidth: 134, layerHeight: 140
-        };
-
-        var selectedCategoriesDefaults = [];
-
-        var domainsControl = L.control.domains(domainsDefaults);
-        map.addControl(domainsControl);
-
-        var detailsControl = L.control.details(detailsControlDefaults);
+        });
         map.addControl(detailsControl);
 
+        // history
         var historyControl = L.control.history(baseLayers);
         map.addControl(historyControl);
 
-        // measures control demo data
-        var measuresControl = L.control.measures(measuresDefaults, historyControl);
+        // top-left
+
+        // measures
+        var measuresControl = L.control.measures([], historyControl);
         map.addControl(measuresControl);
-        measuresControl.setSelectCategories(selectedCategoriesDefaults);
+        measuresControl.setSelectCategories([]);
 
-        addTimeSlider(timeslider, { startRange: new Date(2015, 0, 1), endRange: new Date(), minScale: 0.5, maxScale: 500 });
+        // bottom-right (reverse order)
+
+        // time slider
+        var tsStart = new Date();
+        tsStart.setDate(tsStart.getDate() - 180);
+        var tsEnd = new Date();
+        tsEnd.setDate(tsEnd.getDate() + 180);
+        addTimeSlider(timeslider, { startRange: tsStart, endRange: tsEnd, minScale: 0.5, maxScale: 500 });
         // todo: scaling factor of domain (0.5 = 1.25 years (1 jan 2015 till now)/0.5 = 2.5 years; 500 = 2 years*365 day*24 hours*4 kwarters/35 visible max
-
         var timesliderControl = L.control.timeslider(timeslider);
         map.addControl(timesliderControl);
 
+        // current-previous-difference control
+        var cpd = cpdCreateControl(curprevdiff, function (e) {
+            //alert('switch layer to '+e.srcElement.value);
+        });
+
+        // bottom-left (reverse order)
+
+        // info
         var infoControl = L.control.info();
         map.addControl(infoControl);
 
+        // legend
         var legendControl = L.control.legend;
         map.addControl(legendControl);
+
+        // other
 
         // project description
         var projectDescription = L.control.projectDescription;
@@ -160,23 +178,8 @@
                         var domain = message.domains[domainName];
                         for (var id in domain.layers) {
                             var layer = domain.layers[id];
-                            if (layer.basic) {
-                                if (layer.objects) {
-                                    var thisLayer = L.geoJson(layer.objects.features);
-                                    layerControl.addOverlay(thisLayer, layer.name);
-                                    if (layer.default && layer.default == 1) {
-                                        thisLayer.addTo(map);
-                                        layerControl._update();
-                                    }
-                                } else if (layer.tiles) {
-                                    var thisLayer = L.tileLayer(layer.tiles, { id: layer.name });
-                                    layerControl.addOverlay(thisLayer, layer.name);
-                                    if (layer.default && layer.default == 1) {
-                                        thisLayer.addTo(map);
-                                        layerControl._update();
-                                    }
-                                }
-                            }
+                            if (layer.basic)
+                                addBasicLayer(layer);
                         }
                     }
                 }
@@ -197,23 +200,8 @@
                         var domain = message.updatedomains[domainName];
                         for (var id in domain.layers) {
                             var layer = domain.layers[id];
-                            if (layer.basic) {
-                                if (layer.objects) {
-                                    var thisLayer = L.geoJson(layer.objects.features);
-                                    layerControl.addOverlay(thisLayer, layer.name);
-                                    if (layer.default && layer.default == 1) {
-                                        thisLayer.addTo(map);
-                                        layerControl._update();
-                                    }
-                                } else if (layer.tiles) {
-                                    var thisLayer = L.tileLayer(layer.tiles, { id: layer.name });
-                                    layerControl.addOverlay(thisLayer, layer.name);
-                                    if (layer.default && layer.default == 1) {
-                                        thisLayer.addTo(map);
-                                        layerControl._update();
-                                    }
-                                }
-                            }
+                            if (layer.basic)
+                                addBasicLayer(layer);
                         }
                     }
                 }
@@ -408,15 +396,16 @@
         }
         */
 
-        
         // test layers live air
-        var testLayer1 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=122&zoom={z}&x={x}&y={y}', { id: 'l1' });
-        layerControl.addOverlay(testLayer1, 'PM10 122');
-        var testLayer2 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=123&zoom={z}&x={x}&y={y}', { id: 'l2' });
-        layerControl.addOverlay(testLayer2, 'PM25 123');
-        var testLayer3 = L.tileLayer('http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=134&zoom={z}&x={x}&y={y}', { id: 'l3' });
-        layerControl.addOverlay(testLayer3, 'NO2 tot 134');
-        
+        //addBasicLayer({ name: 'Eindh NO2 1',    tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=1&zoom={z}&x={x}&y={y}',  default: 0 });
+        //addBasicLayer({ name: 'Eindh PM10 2',   tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=2&zoom={z}&x={x}&y={y}',  default: 0 });
+        //addBasicLayer({ name: 'Eindh PM25 3',   tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=3&zoom={z}&x={x}&y={y}',  default: 0 });
+        //addBasicLayer({ name: 'PM10 102',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=102&zoom={z}&x={x}&y={y}', default: 0 });
+        //addBasicLayer({ name: 'PM25 103',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=103&zoom={z}&x={x}&y={y}', default: 0 });
+        //addBasicLayer({ name: '? 114',          tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=114&zoom={z}&x={x}&y={y}', default: 0 });
+        //addBasicLayer({ name: 'PM10 122',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=122&zoom={z}&x={x}&y={y}', default: 0 });
+        //addBasicLayer({ name: 'PM25 123',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=123&zoom={z}&x={x}&y={y}', default: 0 });
+        //addBasicLayer({ name: 'NO2 tot 134',    tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=134&zoom={z}&x={x}&y={y}', default: 0 });
     </script>
 </body>
 </html>
