@@ -90,7 +90,7 @@ function addLayerToMap(layer, opacity) {
         showLayerTimeStamp(layer.timestamp);
     else
         hideLayerTimeStamp();
-    if (layer.tiles && layer.tiles !== '' && !layer.objects) {
+    if (layer.tiles && layer.tiles != '' && !layer.objects) {
         var tileLayer;
         tileLayer = L.tileLayer(layer.tiles, {
             opacity: opacity,
@@ -107,7 +107,7 @@ function addLayerToMap(layer, opacity) {
             opacity: opacity,
             style: function (feature) {
                 // test code for live trafic..
-                if (feature.properties.color === '#000000')
+                if (feature.properties.color == '#000000')
                     return { color: '#000000', weight: 1 };
                 else
                     return { color: feature.properties.color };
@@ -124,9 +124,9 @@ function addLayerToMap(layer, opacity) {
 function updateTilesLayerOnMap(aElementID, aTilesURL) {
     for (var mlid in map._layers) {
         var layer = map._layers[mlid];
-        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id === aElementID) {
+        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == aElementID) {
             var domainLayer = layer.domainLayer;
-            if (domainLayer.tiles !== aTilesURL || !layer.redraw) {
+            if (domainLayer.tiles != aTilesURL || !layer.redraw) {
                 // update tiles url
                 domainLayer.tiles = aTilesURL;
                 if (!layer.redraw) {
@@ -159,7 +159,7 @@ function updateTilesLayerOnMap(aElementID, aTilesURL) {
 function refreshOtherLayer(aElementID) {
     for (var mlid in map._layers) {
         var layer = map._layers[mlid];
-        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id === aElementID) {
+        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == aElementID) {
             if (layer.redraw)
                 layer.redraw();
             else {
@@ -193,9 +193,9 @@ function addBasicLayer(layer) {
     else if (layer.tiles) 
         thisLayer = L.tileLayer(layer.tiles, { id: layer.name });
     // else.. add other types of layers
-    if (thislayer !== null) {
+    if (thislayer != null) {
         layerControl.addOverlay(thisLayer, layer.name);
-        if (layer.default && layer.default === 1) {
+        if (layer.default && layer.default == 1) {
             thisLayer.addTo(map);
             layerControl._update();
         }

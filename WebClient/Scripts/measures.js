@@ -142,11 +142,11 @@
     },
 
     _selectedObjectTypes: function (aObjectTypes) {
-        if (typeof aObjectTypes !== 'string') {
+        if (typeof aObjectTypes != 'string') {
             if (aObjectTypes.length > 0) {
                 for (var i = 0; i < this.options.selectCategories.length; i++) {
                     for (var ot = 0; ot < aObjectTypes.length; ot++) {
-                        if (this.options.selectCategories[i] === aObjectTypes[ot]) {
+                        if (this.options.selectCategories[i] == aObjectTypes[ot]) {
                             return true;
                         }
                     }
@@ -157,9 +157,9 @@
                 return true;
         }
         else {
-            if (aObjectTypes !== "") {
+            if (aObjectTypes != '') {
                 for (var i2 = 0; i2 < this.options.selectCategories.length; i2++) {
-                    if (aObjectTypes === this.options.selectCategories[i2])
+                    if (aObjectTypes == this.options.selectCategories[i2])
                         return true;
                 }
                 return false;
@@ -183,7 +183,7 @@
         if (measureDefinition) {
             // build modal dialog for possible actions
             var div = modalDialogCreate(measureDefinition.measure, 
-                this.options.selectCategories.length === 0 ? 
+                this.options.selectCategories.length == 0 ? 
                     'Select measure to apply' : 
                     'Select measure to apply to objects of type: ' + this.options.selectCategories);
             div.style.width = '450px';

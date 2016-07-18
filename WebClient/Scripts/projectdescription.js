@@ -40,12 +40,12 @@ L.control.projectDescription.showScenarios = function () {
         var _this = this;
         modelDialogAddButton(mddb, 'Apply', function () {
             var selectedRadio = document.querySelector('input[name=activeScenario]:checked');
-            if (selectedRadio && _this.options.activeScenario !== selectedRadio.value) {
+            if (selectedRadio && _this.options.activeScenario != selectedRadio.value) {
                 _this.options.activeScenario = selectedRadio.value;
                 wsSend({ selectScenario: { currentScenario: selectedRadio.value } });
             }
             selectedRadio = document.querySelector('input[name=referenceScenario]:checked');
-            if (selectedRadio && _this.options.referenceScenario !== selectedRadio.value) {
+            if (selectedRadio && _this.options.referenceScenario != selectedRadio.value) {
                 _this.options.referenceScenario = selectedRadio.value;
                 wsSend({ selectScenario: { referenceScenario: selectedRadio.value } });
             }
@@ -55,7 +55,7 @@ L.control.projectDescription.showScenarios = function () {
     }
 };
 
-function selectScenario(e) {
+function selectRefScenario(e) {
     var referenceScenario = e.currentTarget.defaultReference;
     var referenceScenarioElement = document.getElementById('referenceScenario' + referenceScenario);
     if (referenceScenarioElement)
@@ -79,12 +79,12 @@ L.control.projectDescription._addScenario = function (aParent, aScenario) {
     rb.name = 'activeScenario';
     rb.value = aScenario.id;
     rb.defaultReference = aScenario.reference;
-    if (aScenario.id === this.options.activeScenario)
+    if (aScenario.id == this.options.activeScenario)
         rb.checked = true;
     //rb.scenario = aScenario;
     //rb.action = aScenario.description;
     rb.title = aScenario.description;
-    rb.addEventListener('click', selectScenario);
+    rb.addEventListener('click', selectRefScenario);
 
     var label = li.appendChild(document.createElement('label'));
     label.className = 'selectActiveScenarioLabel';
@@ -103,7 +103,7 @@ L.control.projectDescription._addScenario = function (aParent, aScenario) {
     rb2.type = 'radio';
     rb2.name = 'referenceScenario';
     rb2.value = aScenario.id;
-    if (aScenario.id === this.options.referenceScenario)
+    if (aScenario.id == this.options.referenceScenario)
         rb2.checked = true;
     rb2.title = 'reference scenario: ' + aScenario.name;
 

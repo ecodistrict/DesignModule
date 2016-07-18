@@ -293,6 +293,7 @@ type
     function findNearestObject(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double; var aDistance: Double): TLayerObject;
     function findObjectsInCircle(const aDistanceLatLon: TDistanceLatLon; aX, aY, aRadius: Double; var aObjectsJSON: string): Integer;
     function findObjectsInGeometry(const aGeometryExtent: TExtent; aGeometry: TWDGeometry; var aObjectsJSON: string): Integer;
+    function uniqueObjectsTilesLink: string;
   public
     procedure ReadObjectsDBSVGPaths(aQuery: TDataSet; aDefaultValue: Double);
   public
@@ -1061,8 +1062,11 @@ begin
                         if Assigned(fCurrentScenario)
                         then fCurrentScenario.HandleClientUnsubscribe(Self);
                         fCurrentScenario := scenario;
-                        if Assigned(fCurrentScenario)
-                        then fCurrentScenario.HandleClientSubscribe(Self);
+                        if Assigned(fCurrentScenario) then
+                        begin
+                          fCurrentScenario.HandleClientSubscribe(Self);  Log.WriteLn('client switched scenario to '+fCurrentScenario.elementID);
+                          Log.WriteLn('client switched scenario to '+fCurrentScenario.elementID);
+                        end;
                       end;
                       jsonValue := (jsonPair.JsonValue as TJSONObject).Values['referenceScenario'];
                       if Assigned(jsonValue) then
@@ -1073,13 +1077,15 @@ begin
                         if Assigned(fRefScenario) then
                         begin
                           fRefScenario.HandleClientUnsubscribe(Self);
-                          // todo: clear list of diff layers, charts and kpis
+                          // todo: clear list of diff layers, charts and kpis -> not..
                         end;
                         fRefScenario := scenario;
                         if Assigned(fRefScenario) then
                         begin
                           fRefScenario.HandleClientSubscribe(Self);
+                          Log.WriteLn('client switched ref scenario to '+fCurrentScenario.elementID);
                           // todo: create list diff layers, charts and kpis
+
                         end;
                       end;
                       SendDomains('updatedomains');
@@ -1195,6 +1201,7 @@ var
   ngp: TPair<string, TChart>;
   locLayers: TList<TLayer>;
   refLayer: TLayer;
+  //diffLayerID: string;
 begin
   // todo: add reference and diff layers/charts if fRefScenario<>nil
   domains := TDictionary<string, TClientDomain>.Create;
@@ -1211,7 +1218,7 @@ begin
           JSON := layer.JSON;
           if Assigned(fRefScenario) and fRefScenario.Layers.TryGetValue(layer.ID, refLayer) then
           begin
-            JSON := JSON+',{"ref":{'+refLayer.JSON+'}}';
+            JSON := JSON+',"ref":{'+refLayer.JSON+'}';
             // todo: add diff layer
             //diffLayerID := 'diff|'+layer.elementID+'|'+refLayer.elementID;
             //JSON := JSON+',{"diff":{'+diffLayer.JSON+'}}';
@@ -2123,6 +2130,11 @@ begin
   fOutputEvent.signalEvent(TByteBuffer.bb_tag_uint32(icehTilerRequestPreviewImage, PreviewImageWidth));
 end;
 
+function TLayer.uniqueObjectsTilesLink: string;
+begin
+  Result := fObjectsTilesLink+'&ts='+URITimeStamp;
+end;
+
 function TLayer.getJSON: string;
 begin
   Result := inherited getJSON+','+
@@ -2130,7 +2142,7 @@ begin
     '"objectTypes":['+objectTypes+'],'+
     '"legend":{'+legendJSON+'},'+
     '"preview":"'+previewBASE64+'",'+
-    '"tiles":"'+objectsTilesLink+'"';
+    '"tiles":"'+uniqueObjectsTilesLink+'"';
   if objects.Count<=MaxDirectSendObjectCount
   then Result := Result+',"objects": '+objectsJSON;
 end;
@@ -2175,6 +2187,7 @@ var
   stream: TStream;
   pvBASE64: string;
   previewsFolder: string;
+  tiles: string;
 begin
   try
     // todo:
@@ -2190,7 +2203,7 @@ begin
           begin
             fObjectsTilesLink := aBuffer.bb_read_string(aCursor);
             // todo: make uri unique with time stamp
-            fObjectsTilesLink := fObjectsTilesLink+'&ts='+URITimeStamp;
+            //fObjectsTilesLink := fObjectsTilesLink+'&ts='+URITimeStamp;
             AddCommandToQueue(Self, Self.signalObjects);
             // todo: update client info
             // NO refresh to clients, slice not created yet!
@@ -2224,10 +2237,11 @@ begin
             else timeStampStr := '';
             // todo: start refresh timer
             // signal refresh to layer client
+            tiles := uniqueObjectsTilesLink;
             TMonitor.Enter(clients);
             try
               for client in clients
-              do client.SendRefresh(elementID, timeStampStr, fObjectsTilesLink);
+              do client.SendRefresh(elementID, timeStampStr, tiles);
             finally
               TMonitor.Exit(clients);
             end;
@@ -2237,7 +2251,7 @@ begin
               for client in fScenario.clients do
               begin
                 if not clients.Contains(client)
-                then client.SendRefresh(elementID, timeStampStr, fObjectsTilesLink);
+                then client.SendRefresh(elementID, timeStampStr, tiles);
               end;
             finally
               TMonitor.Exit(fScenario.clients);
@@ -2854,6 +2868,7 @@ procedure TProject.SendRefresh;
 var
   client: TClient;
   se: TScenarioElement;
+  tiles: string;
 begin
   Log.WriteLn('Sending refresh to clients connected to project '+Self.ProjectName);
   TMonitor.Enter(clients);
@@ -2866,8 +2881,9 @@ begin
         begin
           if se is TLayer then
           begin
-            client.SendRefresh(se.elementID, '', (se as TLayer).fObjectsTilesLink);
-            Log.WriteLn('Send refresh for '+se.elementID+': '+(se as TLayer).fObjectsTilesLink);
+            tiles := (se as TLayer).uniqueObjectsTilesLink;
+            client.SendRefresh(se.elementID, '', tiles);
+            Log.WriteLn('Send refresh for '+se.elementID+': '+tiles);
           end;
         end;
       finally

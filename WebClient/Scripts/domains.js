@@ -90,7 +90,7 @@
             else {
                 if (domain.layers) {
                     for (var l = 0; l < domain.layers.length; l++) {
-                        if (!domain.layers[l].basic || domain.layers[l].basic === 0) {
+                        if (!domain.layers[l].basic || domain.layers[l].basic == 0) {
                             this._addItem(domainName, domain.enabled);
                             break;
                         }

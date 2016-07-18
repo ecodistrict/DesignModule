@@ -2979,7 +2979,7 @@ begin
   TMonitor.Enter(clients);
   try
     for client in clients
-    do client.SendRefresh(elementID, '', objectsTilesLink); // todo: add time stamp?
+    do client.SendRefresh(elementID, '', uniqueObjectsTilesLink); // todo: add time stamp?
   finally
     TMonitor.Exit(clients);
   end;

@@ -48,7 +48,7 @@ uses
 
   // canvas class implementations (different on hardware and VPS machine)
   //FMX.Canvas.GDIP,
-  FMX.Canvas.D2D,
+  FMX.Canvas.D2D.my,
 
   // TPolygon
   System.Math.Vectors,

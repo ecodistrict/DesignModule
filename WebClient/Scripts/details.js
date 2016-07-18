@@ -104,7 +104,7 @@
 
     resetkpi: function (aKPI) {
         for (var kpiName in this._kpis) {
-            if (kpiName === aKPI.name) {
+            if (kpiName == aKPI.name) {
                 this._kpis[aKPI.name] = aKPI;
                 // rebuild details elements
                 this._update(); 
@@ -133,8 +133,8 @@
         if (this._layers) {
             for (var layerName in this._layers) {
                 var layer = this._layers[layerName];
-                if (layer.id === aElementID) {
-                    if (layer.tiles !== aTilesURL) {
+                if (layer.id == aElementID) {
+                    if (layer.tiles != aTilesURL) {
                         layer.tiles = aTilesURL;
                         // only reload layer if not showing the objects directly (ie is using tiles)
                         if (!layer.objects)
@@ -196,9 +196,9 @@
             layerCount++;
         }
 
-        if (kpiCount === 0 || (chartCount === 0 && layerCount === 0))
+        if (kpiCount == 0 || (chartCount == 0 && layerCount == 0))
             hr1.style.display = 'None';
-        if (chartCount === 0 || layerCount === 0)
+        if (chartCount == 0 || layerCount == 0)
             hr2.style.display = 'None';
         return this;
     },
@@ -228,6 +228,10 @@
 
     _collapse: function () {
         L.DomUtil.removeClass(this._container, 'leaflet-control-details-expanded');
+    },
+
+    setCRD: function (aCRD) {
+        this._crd = aCRD;
     }
 });
 

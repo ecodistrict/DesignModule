@@ -81,7 +81,7 @@ map.on('draw:created', function (e,e2) {
     sessionRequest.selectObjects = {};
     sessionRequest.selectObjects.type = e.layerType;
     sessionRequest.selectObjects.geometry = e.layer.toGeoJSON();
-    if (e.layerType === "circle")
+    if (e.layerType == "circle")
         sessionRequest.selectObjects.radius = e.layer._mRadius;
     sessionRequest.selectObjects.mode = window.event.ctrlKey ? '+' : '=';
     sessionRequest.selectObjects.selectCategories = measuresControl.options.selectCategories;
@@ -137,7 +137,7 @@ function signalSelectByQuery(aQuery) {
 }
 
 function handleObjectSelection(aSelectedObjects) {
-    if (aSelectedObjects.mode === '=') {
+    if (aSelectedObjects.mode == '=') {
         selectedItems.clearLayers();
         selectedItems.addData(aSelectedObjects.objects);
     }
@@ -146,9 +146,9 @@ function handleObjectSelection(aSelectedObjects) {
             var oid = aSelectedObjects.objects[o].properties.id;
             // check if selectedItems contains object: remove from selectedItems else add
             for (var lid in selectedItems._layers) {
-                if (selectedItems._layers[lid].feature.properties.id === oid) {
+                if (selectedItems._layers[lid].feature.properties.id == oid) {
                     // check if we have to invert selection -> actively remove from selected objects
-                    if (aSelectedObjects.mode === '~')
+                    if (aSelectedObjects.mode == '~')
                         selectedItems.removeLayer(lid);
                     oid = undefined; // already in list, skip add
                     break;
@@ -162,7 +162,7 @@ function handleObjectSelection(aSelectedObjects) {
         var lid2 = undefined;
         for (var l in selectedItems._layers)
             lid2 = l;
-        if (lid2 === undefined)
+        if (lid2 == undefined)
             measuresControl.setSelectCategories([]);
     }
 }

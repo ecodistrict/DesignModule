@@ -14,13 +14,13 @@
     <link rel="stylesheet" href="Content/info.css" />
     <link rel="stylesheet" href="Content/legend.css" />
     <link rel="stylesheet" href="Content/domains.css" />
+    <link rel="stylesheet" href="Content/currefdiff.css" />
     <link rel="stylesheet" href="Content/details.css" />
     <link rel="stylesheet" href="Content/kpis.css" />
     <link rel="stylesheet" href="Content/history.css" />
     <link rel="stylesheet" href="Content/projectdescription.css" />
     <link rel="stylesheet" href="Content/connectionstatus.css" />
     <link rel="stylesheet" href="Content/userMessages.css" />
-    <link rel="stylesheet" href="Content/curprevdiff.css" />
     <link rel="stylesheet" href="Content/timeslider.css" />
     <link rel="stylesheet" href="Content/map.css" />
 </head>
@@ -33,8 +33,8 @@
     <div id="connectionStatus" class="connection-status connection-status-disconnected" ></div>
     <!-- error messages -->
     <div id="userMessages" class="userMessages userMessages-hidden"><p id="userMessage">There is a message</p></div>
-    <!-- current-previous-difference selector -->
-    <div id="curprevdiff" class="curprevdiff leaflet-container" title="Show the current version of the layer, previous version or difference between those"></div>
+    <!-- current-reference-difference selector -->
+    <div id="currefdiff" class="currefdiff leaflet-container" title="Show the current version of the layer, reference version or difference between those"></div>
     <!-- time related elements-->
     <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div> 
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
@@ -51,13 +51,13 @@
     <script src="Scripts/info.js"></script>
     <script src="Scripts/legend.js"></script>
     <script src="Scripts/domains.js"></script>
+    <script src="Scripts/currefdiff.js"></script>
     <script src="Scripts/kpis.js"></script>
     <script src="Scripts/charts.js"></script>
     <script src="Scripts/layers.js"></script>
     <script src="Scripts/details.js"></script>
     <script src="Scripts/history.js"></script>
     <script src="Scripts/projectdescription.js"></script>
-    <script src="Scripts/curprevdiff.js"></script>
     <script src="Scripts/timeslider.js"></script>
     <!-- charts -->
     <script src="Scripts/d3.js"></script> 
@@ -125,10 +125,15 @@
         var timesliderControl = L.control.timeslider(timeslider);
         map.addControl(timesliderControl);
 
-        // current-previous-difference control
-        var cpd = cpdCreateControl(curprevdiff, function (e) {
+        // current-reference-difference control
+        var crd = crdCreateControl(currefdiff, function (e) {
             //alert('switch layer to '+e.srcElement.value);
+
+            //crdSetMode(crd, true, false, false);
+            //crdSetSelected(crd, false, true, false);
         });
+
+        detailsControl.setCRD(crd);
 
         // bottom-left (reverse order)
 
@@ -289,7 +294,7 @@
                     if (message.session.view) {
                         map.setView([message.session.view.lat, message.session.view.lon], message.session.view.zoom);
                     }
-                    if (typeof message.session.timeslider !== "undefined") {
+                    if (typeof message.session.timeslider !== 'undefined') {
                         if (message.session.timeslider) {
                             if (message.session.timeslider == 1) {
                                 map.addControl(timesliderControl);
@@ -305,7 +310,7 @@
                             map.removeControl(timesliderControl);
                         }
                     }
-                    if (typeof message.session.selectionEnabled !== "undefined") {
+                    if (typeof message.session.selectionEnabled !== 'undefined') {
                         if (message.session.selectionEnabled) {
                             addSelectControl();
                         }
@@ -313,13 +318,13 @@
                             removeSelectControl();
                         }
                     }
-                    if (typeof message.session.measuresEnabled !== "undefined") {
+                    if (typeof message.session.measuresEnabled !== 'undefined') {
                         if (message.session.measuresEnabled)
                             map.addControl(measuresControl);
                         else
                             map.removeControl(measuresControl);
                     }
-                    if (typeof message.session.measuresHistoryEnabled !== "undefined") {
+                    if (typeof message.session.measuresHistoryEnabled !== 'undefined') {
                         if (message.session.measuresHistoryEnabled)
                             map.addControl(historyControl);
                         else
