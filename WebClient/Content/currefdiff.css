@@ -1,0 +1,49 @@
+﻿.currefdiff {
+    z-index: 999;
+    position: absolute;
+    right: 70px; 
+    bottom: 70px;
+    /*
+    background-color: whitesmoke;
+    border-color: gray;
+    border-width:thin;
+    border-style: solid;
+    border-radius: 4px;
+    */
+    background-color: transparent;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.crdRadioButton {
+    text-align:center;
+    display: table-cell;
+    pointer-events: auto;
+    
+}
+
+.crdRadioButton span {
+    display:block;
+    cursor: pointer;
+    border: 1px solid whitesmoke;
+    border-radius: 3px;
+    margin: 6px;
+    padding: 2px 8px 2px 8px;
+    background-color: whitesmoke;
+
+}
+
+.crdRadioButtonInput {
+    display: none;
+}
+
+.crdRadioButtonInput:checked + span {
+    font-style:italic;
+    background: lightblue;
+    border: 1px solid lightblue;
+    border-radius: 3px;
+}
+
+.crdRadioButton span:hover {
+    border: 1px solid dodgerblue;
+}
