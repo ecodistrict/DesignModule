@@ -126,12 +126,8 @@
         map.addControl(timesliderControl);
 
         // current-reference-difference control
-        var crd = crdCreateControl(currefdiff, function (e) {
-            //alert('switch layer to '+e.srcElement.value);
-
-            //crdSetMode(crd, true, false, false);
-            //crdSetSelected(crd, false, true, false);
-        });
+        var crd = L.control.crd({ parent: currefdiff });
+        map.addControl(crd);
 
         detailsControl.setCRD(crd);
 
@@ -192,6 +188,7 @@
                     // update of domains (on scenario change)
                     removeAllDomainLayers();
                     legendControl.clearLegend(true);
+                    crd.reset(false, false, false);
                     domainsControl.updateDomains(message.updatedomains);
                     // replace all basic overlay layers from layers control (and with that from map)
                     for (var id in layerControl._layers) {

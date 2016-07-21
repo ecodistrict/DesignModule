@@ -1,4 +1,4 @@
-﻿// create project description control
+﻿// create project description control 
 L.control.projectDescription = L.control();
 
 L.control.projectDescription.showScenarios = function () {
@@ -40,15 +40,15 @@ L.control.projectDescription.showScenarios = function () {
         var _this = this;
         modelDialogAddButton(mddb, 'Apply', function () {
             var selectedRadio = document.querySelector('input[name=activeScenario]:checked');
-            if (selectedRadio && _this.options.activeScenario != selectedRadio.value) {
-                _this.options.activeScenario = selectedRadio.value;
-                wsSend({ selectScenario: { currentScenario: selectedRadio.value } });
-            }
+            _this.options.activeScenario = selectedRadio ? selectedRadio.value : -1;
             selectedRadio = document.querySelector('input[name=referenceScenario]:checked');
-            if (selectedRadio && _this.options.referenceScenario != selectedRadio.value) {
-                _this.options.referenceScenario = selectedRadio.value;
-                wsSend({ selectScenario: { referenceScenario: selectedRadio.value } });
-            }
+            _this.options.referenceScenario = selectedRadio ? selectedRadio.value : -1;
+            wsSend({
+                selectScenario: {
+                    currentScenario: _this.options.activeScenario,
+                    referenceScenario: _this.options.referenceScenario
+                }
+            });
             modalDialogClose();
         });
         modelDialogAddButton(mddb, 'Cancel', modalDialogClose);

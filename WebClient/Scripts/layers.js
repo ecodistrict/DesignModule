@@ -42,6 +42,7 @@
                 for(var i=0; i<s.length; i++)
                     s[i].className = 'layerDetailsSelected layerDetailsSelectedHidden';
                 legendControl.clearLegend(true);
+                crd.reset(false, false, false);
                 // todo: if other layers are visible which legend to show? none for now..
             }
             else {
@@ -55,6 +56,23 @@
                 var s2 = element.getElementsByClassName('layerDetailsSelected');
                 for (var i2 = 0; i2 < s2.length; i2++)
                     s2[i2].className = 'layerDetailsSelected';
+                // cur-ref-diff
+                crd.reset(layer != undefined, layer.ref != undefined, layer.diff != undefined, function (e) {
+                    // todo: handle switching between current, refference and difference layer
+                    // todo: only implement for tiles now
+                    if (e.srcElement == crd.current) {
+                        if (layer.tileLayer)
+                            layer.tileLayer.setUrl(layer.tiles);
+                    }
+                    else if (e.srcElement == crd.reference) {
+                        if (layer.tileLayer)
+                            layer.tileLayer.setUrl(layer.ref.tiles);
+                    }
+                    else {
+                        if (layer.tileLayer)
+                            layer.tileLayer.setUrl(layer.diff.tiles);
+                    }
+                });
                 // show legend
                 if (layer.legend)
                     legendControl.createLegend(layer.legend);
@@ -100,6 +118,8 @@ function addLayerToMap(layer, opacity) {
         tileLayer.setZIndex(999);
         tileLayer.addTo(map);
         wsSend({ subscribe: layer.id });
+        layer.tileLayer = tileLayer;
+        layer.geoJsonLayer = undefined;
         return tileLayer._leaflet_id;
     }
     else {
@@ -117,6 +137,8 @@ function addLayerToMap(layer, opacity) {
         geoJsonLayer.setZIndex(999);
         geoJsonLayer.addTo(map);
         wsSend({ subscribe: layer.id });
+        layer.geoJsonLayer = geoJsonLayer;
+        layer.tileLayer = undefined;
         return geoJsonLayer._leaflet_id;
     }
 }
