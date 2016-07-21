@@ -154,22 +154,24 @@ type
   TExtent = TGIS_Extent;
 
   TExtentHelper = record helper for TExtent
+  class function Create: TExtent; static;
+  class function FromGeometry(aGeometry: TWDGeometry): TExtent; static;
+  public
     procedure Init; overload;
     procedure Init(x, y: Double); overload;
     procedure Init(x, y, aWidth, aHeight: Double); overload;
+  public
     function Width: Double;
     function Height: Double;
     function IsEmpty: Boolean;
     function Expand(x, y: Double): Boolean; overload;
     function Expand(aExtent: TExtent): Boolean; overload;
-    class function Create: TExtent; static;
-    class function FromGeometry(aGeometry: TWDGeometry): TExtent; static;
     function Intersects(const aExtent: TExtent): Boolean;
     function Contains(x, y: Double): Boolean;
-    function SquareInMeters: TExtent;
     function Center: TPointF;
     function Inflate(aFactor: Double): TExtent; overload;
     function Inflate(aDX, aDY: Double): TExtent; overload;
+    function SquareInMeters: TExtent;
   public
     function Encode: TByteBuffer;
     procedure Decode(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
@@ -3263,7 +3265,7 @@ begin
                   stream.Free;
                 end;
               end;
-            (icehTilerDiscreteColorsOnExtent shl 3) or wtVarInt: // boolean
+            (icehTilerDiscreteColorsOnStretch shl 3) or wtVarInt: // boolean
               begin
                 discreteColorsOnStretch := aBuffer.bb_read_bool(aCursor);
               end;
