@@ -1,0 +1,401 @@
+unit TilerControl;
+
+interface
+
+uses
+  imb4,
+  WorldDataCode,
+  WorldLegends,
+  WorldTilerConsts, // iceh* tiler consts
+
+  Vcl.graphics,
+  Vcl.Imaging.pngimage,
+
+  Logger, // after bitmap units (also use log)
+
+  IdCoderMIME, // base64
+
+  System.Math,
+  System.Generics.Collections, System.Generics.Defaults,
+  System.Classes, System.SysUtils;
+
+const
+  PreviewImageWidth = 64; // default width/height of a minuture layer preview in pixels
+
+
+type
+  TTilerLayer = class; // forward
+
+  TOnRefresh = reference to procedure(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
+  TOnTilerInfo = reference to procedure(aTilerLayer: TTilerLayer);
+  TOnPreview = reference to procedure(aTilerLayer: TTilerLayer);
+
+  TTilerLayer = class
+  constructor Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette);
+  destructor Destroy; override;
+  private
+    fEvent: TEventEntry;
+    // send
+    fElementID: string;
+    fSliceType: Integer;
+    fPalette: TWDPalette;
+    // return
+    fID: Integer;
+    fURL: string;
+    fPreview: TPngImage;
+    // events
+    fOnTilerInfo: TOnTilerInfo;
+    fOnRefresh: TOnRefresh;
+    fOnPreview: TOnPreview;
+    procedure handleLayerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
+  public
+    property event: TEventEntry read fEvent;
+    property elementID: string read fElementID;
+    property sliceType: Integer read fSliceType;
+    property palette: TWDPalette read fPalette;
+    property ID: Integer read fID;
+    property URL: string read fURL;
+    property preview: TPngImage read fPreview;
+    function previewAsBASE64: string;
+    // events
+    property onTilerInfo: TOnTilerInfo read fOnTilerInfo write fOnTilerInfo;
+    property onRefresh: TOnRefresh read fOnRefresh write fOnRefresh;
+    property onPreview: TOnPreview read fOnPreview write fOnPreview;
+    // signal info to tiler
+    procedure signalRegisterLayer(const aDescription: string; aPersistent: Boolean=False; aEdgeLengthInMeters: Double=NaN);
+    procedure signalData(const aData: TByteBuffer; aTimeStamp: TDateTime=0);
+    procedure signalRequestPreview;
+    // add single slice
+    procedure signalAddSlice(aTimeStamp: TDateTime=0);
+    procedure signalAddPOISlice(const aPOIImages: TArray<TPngImage>; aTimeStamp: TDateTime=0);
+    procedure signalAddPNGSlice(aPNG: TPngImage; const aExtent: TWDExtent; aDiscreteColorsOnStretch: Boolean=True);
+    // add diff slice
+    procedure signalAddDiffSlice(
+      aCurrentLayerID, aReferenceLayerID: Integer;
+      aCurrentTimeStamp: TDateTime=0; aReferenceTimeStamp: TDateTime=0; aTimeStamp: TDateTime=0);
+    procedure signalAddDiffPOISlice(
+      aColorRemovedPOI, aColorSamePOI, aColorNewPOI: TAlphaRGBPixel;
+      aCurrentLayerID, aReferenceLayerID: Integer;
+      aCurrentTimeStamp: TDateTime=0; aReferenceTimeStamp: TDateTime=0; aTimeStamp: TDateTime=0);
+  end;
+
+  TTiler = class; // forward
+
+  TOnTilerStartup = reference to procedure(aTiler: TTiler; aStartupTime: TDateTime);
+
+  TTiler = class
+  constructor Create(aConnection: TConnection; const aTilerFQDN: string);
+  destructor Destroy; override;
+  private
+    fEvent: TEventEntry;
+    fOnTilerStartup: TOnTilerStartup;
+    fLayers: TObjectDictionary<string, TTilerLayer>; // owned
+    procedure handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
+  public
+    property event: TEventEntry read fEvent;
+    property layers: TObjectDictionary<string, TTilerLayer> read fLayers;
+    property onTilerStartup: TOnTilerStartup read fOnTilerStartup write fOnTilerStartup;
+    function addLayer(const aElementID: string; aSliceType: Integer; const aDescription: string; aPalette: TWDPalette; aPersistent: Boolean=False; const aMaxEdgeLength: Double=NaN): TTilerLayer;
+  end;
+
+
+
+implementation
+
+{ TTilerLayer }
+
+constructor TTilerLayer.Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette);
+begin
+  inherited Create;
+  fElementID := aElementID;
+  fSliceType := aSliceType;
+  fPalette := aPalette;
+  fID := -1;
+  fURL := '';
+  fPreview := nil;
+  fOnTilerInfo := nil;
+  fOnRefresh := nil;
+  fOnPreview := nil;
+  fEvent := aConnection.subscribe('USIdle.sessions.'+aElementID, False);
+  fEvent.OnEvent.Add(handleLayerEvent);
+end;
+
+destructor TTilerLayer.Destroy;
+begin
+  if Assigned(fEvent) then
+  begin
+    fEvent.unSubscribe();
+    fEvent := nil;
+  end;
+  FreeAndNil(fPreview);
+  FreeAndNil(fPalette);
+  inherited;
+end;
+
+procedure TTilerLayer.handleLayerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
+var
+  fieldInfo: UInt32;
+  timeStamp: TDateTime;
+  stream: TStream;
+  previewsFolder: string;
+begin
+  try
+    // todo:
+    while aCursor<aLimit do
+    begin
+      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+      case fieldInfo of
+        (icehTilerID shl 3) or wtVarInt:
+          begin
+            fID := aBuffer.bb_read_int32(aCursor);
+          end;
+        (icehTilerURL shl 3) or wtLengthDelimited:
+          begin
+            fURL := aBuffer.bb_read_string(aCursor);
+            if Assigned(fOnTilerInfo)
+            then fOnTilerInfo(self); // -> AddCommandToQueue(Self, Self.signalObjects);
+          end;
+        (icehTilerRefresh shl 3) or wt64Bit:
+          begin
+            timeStamp := aBuffer.bb_read_double(aCursor);
+            if Assigned(fOnRefresh)
+            then fOnRefresh(self, timeStamp);
+            {
+            if timeStamp<>0
+            then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', timeStamp)
+            else timeStampStr := '';
+            // todo: start refresh timer
+            // signal refresh to layer client
+            tiles := uniqueObjectsTilesLink;
+            TMonitor.Enter(clients);
+            try
+              for client in clients
+              do client.SendRefresh(elementID, timeStampStr, tiles);
+            finally
+              TMonitor.Exit(clients);
+            end;
+            // signal refresh to scenario client
+            TMonitor.Enter(fScenario.clients);
+            try
+              for client in fScenario.clients do
+              begin
+                if not clients.Contains(client)
+                then client.SendRefresh(elementID, timeStampStr, tiles);
+              end;
+            finally
+              TMonitor.Exit(fScenario.clients);
+            end;
+            // refresh preview also
+            //Log.WriteLn('set preview timer for '+elementID);
+            fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneMinute/6);
+            }
+          end;
+        (icehTilerPreviewImage shl 3) or wtLengthDelimited:
+          begin
+            try
+              stream := TBytesStream.Create(aBuffer.bb_read_tbytes(aCursor));
+              try
+                fPreview.Free;
+                fPreview := TPngImage.Create;
+                fPreview.LoadFromStream(stream);
+              finally
+                stream.Free;
+              end;
+              previewsFolder := ExtractFilePath(ParamStr(0))+'previews';
+              ForceDirectories(previewsFolder);
+              fPreview.SaveToFile(previewsFolder+'\'+elementID+'.png');
+              if Assigned(fOnPreview)
+              then fOnPreview(self);
+              { ->
+              pvBASE64 := previewBASE64;
+              // layer clients
+              TMonitor.Enter(clients);
+              try
+                for client in fClients
+                do client.SendPreview(elementID, pvBASE64);
+              finally
+                TMonitor.Exit(clients);
+              end;
+              // scenario clients
+              TMonitor.Enter(fScenario.clients);
+              try
+                for client in fScenario.clients do
+                begin
+                  if not clients.Contains(client)
+                  then client.SendPreview(elementID, pvBASE64);
+                end;
+              finally
+                TMonitor.Exit(fScenario.clients);
+              end;
+              }
+            except
+              on E: Exception
+              do Log.WriteLn('Exception TTilerLayer.handleLayerEvent handling icehTilerPreviewImage: '+e.Message, llError);
+            end;
+          end;
+      else
+        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+      end;
+    end;
+  except
+    on e: Exception
+    do log.WriteLn('exception in TTilerLayer.handleLayerEvent: '+e.Message, llError);
+  end;
+end;
+
+function TTilerLayer.previewAsBASE64: string;
+var
+  ms: TMemoryStream;
+begin
+  if Assigned(fPreview) then
+  begin
+    ms := TMemoryStream.Create;
+    try
+      fPreview.SaveToStream(ms);
+      ms.Position := 0;
+      Result := 'data:image/png;base64,'+TIdEncoderMIME.EncodeStream(ms);
+    finally
+      ms.Free;
+    end;
+  end
+  else Result := '';
+end;
+
+procedure TTilerLayer.signalAddDiffPOISlice(aColorRemovedPOI, aColorSamePOI, aColorNewPOI: TAlphaRGBPixel; aCurrentLayerID,
+  aReferenceLayerID: Integer; aCurrentTimeStamp, aReferenceTimeStamp, aTimeStamp: TDateTime);
+begin
+  // todo: implement
+end;
+
+procedure TTilerLayer.signalAddDiffSlice(aCurrentLayerID, aReferenceLayerID: Integer; aCurrentTimeStamp, aReferenceTimeStamp, aTimeStamp: TDateTime);
+var
+  buffer: TByteBuffer;
+begin
+  // first all layer properties
+  if Assigned(fPalette)
+  then buffer := TByteBuffer.bb_tag_rawbytestring(fPalette.wdTag, fPalette.Encode)
+  else buffer :='';
+  buffer := buffer+
+    TByteBuffer.bb_tag_int32(icehTilerLayer, aCurrentLayerID)+
+    TByteBuffer.bb_tag_double(icehTilerCurrentSlice, aCurrentTimeStamp)+
+    TByteBuffer.bb_tag_int32(icehTilerLayer, aReferenceLayerID)+
+    TByteBuffer.bb_tag_double(icehTilerRefSlice, aReferenceTimeStamp)+
+    TByteBuffer.bb_tag_double(icehTilerSliceID, aTimeStamp);
+  fEvent.signalEvent(buffer);
+end;
+
+procedure TTilerLayer.signalAddPNGSlice(aPNG: TPngImage; const aExtent: TWDExtent; aDiscreteColorsOnStretch: Boolean);
+begin
+  // todo: implement
+end;
+
+procedure TTilerLayer.signalAddPOISlice(const aPOIImages: TArray<TPngImage>; aTimeStamp: TDateTime);
+begin
+  // todo: implement
+end;
+
+procedure TTilerLayer.signalAddSlice(aTimeStamp: TDateTime);
+var
+  buffer: TByteBuffer;
+begin
+  // first all layer properties
+  if Assigned(fPalette)
+  then buffer := TByteBuffer.bb_tag_rawbytestring(fPalette.wdTag, fPalette.Encode)
+  else buffer :='';
+  buffer := buffer+TByteBuffer.bb_tag_double(icehTilerSliceID, aTimeStamp);
+  fEvent.signalEvent(buffer);
+end;
+
+procedure TTilerLayer.signalData(const aData: TByteBuffer; aTimeStamp: TDateTime);
+begin
+  fEvent.signalEvent(
+    TByteBuffer.bb_tag_double(icehTilerSliceID, aTimeStamp)+
+    TByteBuffer.bb_tag_rawbytestring(icehTilerSliceUpdate, aData));
+end;
+
+procedure TTilerLayer.signalRegisterLayer(const aDescription: string; aPersistent: Boolean; aEdgeLengthInMeters: Double);
+var
+  payload: TByteBuffer;
+begin
+  payload :=
+    TByteBuffer.bb_tag_string(icehEventName, fEvent.eventName);
+  if not IsNaN(aEdgeLengthInMeters)
+  then payload := Payload+
+    TByteBuffer.bb_tag_double(icehTilerEdgeLength, aEdgeLengthInMeters);
+  payload := Payload+
+    TByteBuffer.bb_tag_string(icehTilerLayerDescription, aDescription)+
+    TByteBuffer.bb_tag_bool(icehTilerPersistent, aPersistent)+
+    TByteBuffer.bb_tag_int32(icehTilerRequestNewLayer, fSliceType); // last to trigger new layer request
+  fEvent.signalEvent(payload);
+end;
+
+procedure TTilerLayer.signalRequestPreview;
+begin
+  fEvent.signalEvent(TByteBuffer.bb_tag_uint32(icehTilerRequestPreviewImage, PreviewImageWidth));
+end;
+
+{ TTiler }
+
+constructor TTiler.Create(aConnection: TConnection; const aTilerFQDN: string);
+begin
+  inherited Create;
+  fOnTilerStartup := nil;
+  fLayers := TObjectDictionary<string, TTilerLayer>.Create([doOwnsValues]);
+  fEvent := aConnection.subscribe('USIdle.Tilers.'+aTilerFQDN.Replace('.', '_'), False);
+  fEvent.OnEvent.Add(handleTilerEvent);
+end;
+
+destructor TTiler.Destroy;
+begin
+  if Assigned(fEvent) then
+  begin
+    fEvent.OnEvent.Remove(handleTilerEvent);
+    fEvent := nil;
+  end;
+  FreeAndNil(fLayers);
+  inherited;
+end;
+
+procedure TTiler.handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
+var
+  fieldInfo: UInt32;
+  tilerStartup: TDateTime;
+begin
+  try
+    while aCursor<aLimit do
+    begin
+      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+      case fieldInfo of
+        (icehTilerStartup shl 3) or wt64Bit:
+          begin
+            tilerStartup := aBuffer.bb_read_double(aCursor);
+            if Assigned(fOnTilerStartup)
+            then fOnTilerStartup(Self, tilerStartup);
+          end;
+      else
+        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+      end;
+    end;
+  except
+    on e: Exception
+    do log.WriteLn('exception in TTiler.handleTilerEvent: '+e.Message, llError);
+  end;
+end;
+
+function TTiler.addLayer(const aElementID: string; aSliceType: Integer; const aDescription: string; aPalette: TWDPalette;
+  aPersistent: Boolean; const aMaxEdgeLength: Double): TTilerLayer;
+begin
+  TMonitor.Enter(fLayers);
+  try
+    if not fLayers.TryGetValue(aElementID, Result) then
+    begin
+      Result := TTilerLayer.Create(fEvent.connection, aElementID, aSliceType, aPalette);
+      fLayers.Add(aElementID, Result);
+    end;
+  finally
+    TMonitor.Exit(fLayers);
+  end;
+  Result.signalRegisterLayer(aDescription, aPersistent, aMaxEdgeLength);
+end;
+
+end.

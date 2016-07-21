@@ -22,6 +22,7 @@ uses
   Logger, // after bitmap units (also use log)
   CommandQueue,
   WorldTilerConsts, // iceh* tiler consts
+  TilerControl,
 
 	System.JSON, System.SysConst, System.Math,
   System.Generics.Collections, System.Generics.Defaults,
@@ -30,7 +31,6 @@ uses
 const
   WS2IMBEventName = 'USIdle.Sessions.WS2IMB';
   sepElementID = '$';
-  PreviewImageWidth = 64; // default width/height of a minuture layer preview in pixels
   MaxDirectSendObjectCount = 300; // todo: tune, 200, 500.. ?
 
   colorBasicOutline = $3388FF or $FF000000;
@@ -44,27 +44,6 @@ type
     class function Create(aLat1InDegrees, aLat2InDegrees: Double): TDistanceLatLon; overload; static;
     class function Create(aLatMidInRad: Double): TDistanceLatLon; overload; static;
     function distanceInMeters(aDeltaLat, aDeltaLon: Double): Double;
-  end;
-
-
-  TExtent = record
-    xMin: Double;
-    yMin: Double;
-    xMax: Double;
-    yMax: Double;
-    class function Create: TExtent; static;
-    class function FromGeometry(aGeometry: TWDGeometry): TExtent; static;
-    procedure Init; overload;
-    procedure Init(x, y: Double); overload;
-    procedure Init(x, y, aWidth, aHeight: Double); overload;
-    function IsEmpty: Boolean;
-    function Expand(x, y: Double): Boolean; overload;
-    function Expand(aExtent: TExtent): Boolean; overload;
-    function Intersects(const aExtent: TExtent): Boolean;
-    function Contains(x, y: Double): Boolean;
-    function CenterX: Double;
-    function CenterY: Double;
-    //function Square: TExtent;
   end;
 
   TProject = class; // forward
@@ -90,6 +69,24 @@ type
 
   TSessionModel = class; // forward
 
+  TDiffLayer = class
+  constructor Create(const aElementID: string; aSliceType: Integer; aCurrentTilerID, aReferenceTilerID: Integer; aPalette: TWDPalette; aTilerEvent: TEventEntry);
+  private
+    fElementID: string;
+    fObjectsTilesID: Integer; // set from tiler
+    fObjectsTilesLink: string; // set from tiler
+    fSliceType: Integer;
+    fCurrentTilerID: Integer;
+    fReferenceTilerID: Integer;
+    fPalette: TWDPalette;
+    fTilerEvent: TEventEntry;
+    function getRefJSON: string;
+  protected
+    function uniqueObjectsTilesLink: string;
+  public
+    property refJSON: string read getRefJSON;
+  end;
+
   TClient = class
   constructor Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
   destructor Destroy; override;
@@ -98,12 +95,9 @@ type
     fProject: TProject; // ref
     fCurrentScenario: TScenario; // ref
     fRefScenario: TScenario; // ref
-    // todo: diff
-    //fDiffLayers: TObjectDictionary<TLayer, TLayer>; // owns
-    //fDiffCharts: TObjectDictionary<TChart, TChart>; // owns
-    //fDiffKPIs: TObjectDictionary<TKPI, TKPI>; // owns
     fClientID: string;
     fClientEvent: TEventEntry;
+    fDiffLayers: TDictionary<string, TDiffLayer>; // ref
 
     function getSessionModel: TSessionModel;
 
@@ -132,6 +126,8 @@ type
 
     procedure HandleElementRemove(aElement: TScenarioElement);
     procedure HandleScenarioRemove(aScenario: TScenario);
+
+    procedure HandleClientCommand(const aJSONString: string);
   end;
 
   TScenarioElement = class
@@ -176,14 +172,14 @@ type
   protected
     function getGeoJSON2D(const aType: string): string; virtual; abstract;
     function getValidGeometry: Boolean; virtual;
-    function getExtent: TExtent; virtual;
+    function getExtent: TWDExtent; virtual;
     function Encode: TByteBuffer; virtual;
   public
     property layer: TLayer read fLayer;
     property ID: TWDID read fID;
     property GeoJSON2D[const aType: string]: string read getGeoJSON2D;
     property ValidGeometry: Boolean read getValidGeometry;
-    property Extent: TExtent read getExtent;
+    property Extent: TWDExtent read getExtent;
     function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; virtual; abstract;
     function intersects(aGeometry: TWDGeometry): Boolean; virtual; abstract;
   end;
@@ -197,7 +193,7 @@ type
   protected
     function getGeoJSON2D(const aType: string): string; override;
     function getValidGeometry: Boolean; override;
-    function getExtent: TExtent; override;
+    function getExtent: TWDExtent; override;
     function Encode: TByteBuffer; override;
   public
     property geometryPoint: TWDGeometryPoint read fGeometryPoint;
@@ -214,7 +210,7 @@ type
     fGeometryPoint: TWDGeometryPoint; // owns
     function getGeoJSON2D(const aType: string): string; override;
     function getValidGeometry: Boolean; override;
-    function getExtent: TExtent; override;
+    function getExtent: TWDExtent; override;
     function Encode: TByteBuffer; override;
   public
     property POI: Integer read fPOI;
@@ -232,7 +228,7 @@ type
   protected
     function getGeoJSON2D(const aType: string): string; override;
     function getValidGeometry: Boolean; override;
-    function getExtent: TExtent; override;
+    function getExtent: TWDExtent; override;
     function Encode: TByteBuffer; override;
   public
     property geometry: TWDGeometry read fGeometry;
@@ -260,10 +256,12 @@ type
     fObjectsTilesID: Integer;
     fObjectsTilesLink: string;
     fTilerEvent: TEventEntry;
+    fSliceType: Integer;
     //useTiles: Boolean;
     function getJSON: string; override;
     function getObjectsJSON: string; virtual;
     function getPreviewBASE64: string; virtual;
+    function getRefJSON: string; virtual;
     procedure handleOutputEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer); virtual;
     procedure signalObjects(aSender: TObject); virtual;
     procedure handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
@@ -283,6 +281,9 @@ type
     property query: string read fQuery write fQuery; // r/w
     property objectsTilesID: Integer read fObjectsTilesID write fObjectsTilesID;
     property objectsTilesLink: string read fObjectsTilesLink write fObjectsTilesLink;
+    property slicetype: Integer read fSliceType; // set by registerOnTiler
+
+    property refJSON: string read getRefJSON;
   public
     function FindObject(const aID: TWDID; out aObject: TLayerObject): Boolean;
     procedure AddObject(aObject: TLayerObject);
@@ -292,7 +293,7 @@ type
     procedure ClearObjects;
     function findNearestObject(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double; var aDistance: Double): TLayerObject;
     function findObjectsInCircle(const aDistanceLatLon: TDistanceLatLon; aX, aY, aRadius: Double; var aObjectsJSON: string): Integer;
-    function findObjectsInGeometry(const aGeometryExtent: TExtent; aGeometry: TWDGeometry; var aObjectsJSON: string): Integer;
+    function findObjectsInGeometry(const aGeometryExtent: TWDExtent; aGeometry: TWDGeometry; var aObjectsJSON: string): Integer;
     function uniqueObjectsTilesLink: string;
   public
     procedure ReadObjectsDBSVGPaths(aQuery: TDataSet; aDefaultValue: Double);
@@ -484,6 +485,7 @@ type
     fProjectEvent: TEventEntry;
     fClients: TObjectList<TClient>; // owns, lock with TMonitor
     fTimers: TTimerPool;
+    fDiffLayers: TObjectDictionary<string, TDiffLayer>; // owns, lock with TMonitor
     // data
     fMeasuresJSON: string;
     fMeasures: TObjectDictionary<string, TMeasure>; // owns
@@ -524,6 +526,9 @@ type
     property measuresEnabled: Boolean read fMeasuresEnabled write setMeasuresEnabled;
     property measuresHistoryEnabled: Boolean read fMeasuresHistoryEnabled write setMeasuresHistoryEnabled;
     property addBasicLayers: Boolean read fAddBasicLayers;
+  public
+    property diffLayers: TObjectDictionary<string, TDiffLayer> read fDiffLayers;
+    function diffElementID(aCurrent, aReference: TScenarioElement): string;
   public
     procedure SendRefresh();
     procedure SendPreview();
@@ -642,171 +647,30 @@ begin
   Result := sqrt(sqr(m_per_deg_lat * aDeltaLat) + sqr(m_per_deg_lon * aDeltaLon));
 end;
 
-{ TExtent }
+{ TDiffLayer }
 
-//function TExtent.AsStringInt: string;
-//begin
-//  Result := IntToStr(Round(xMin))+' x '+IntToStr(Round(yMin))+' - '+IntToStr(Round(xMax))+' x '+IntToStr(Round(yMax))
-//end;
-
-function TExtent.CenterX: Double;
+constructor TDiffLayer.Create(const aElementID: string; aSliceType: Integer; aCurrentTilerID, aReferenceTilerID: Integer; aPalette: TWDPalette; aTilerEvent: TEventEntry);
 begin
-  Result := (xMin+xMax)/2;
+  inherited Create;
+  fElementID := aElementID;
+  fObjectsTilesID := -1;
+  fObjectsTilesLink := '';
+  fSliceType := aSliceType;
+  fCurrentTilerID := aCurrentTilerID;
+  fReferenceTilerID := aReferenceTilerID;
+  fPalette := aPalette;
+  fTilerEvent := aTilerEvent; // todo: convert
 end;
 
-function TExtent.CenterY: Double;
+function TDiffLayer.getRefJSON: string;
 begin
-  Result := (yMin+yMax)/2;
+  Result := '"tiles":"'+uniqueObjectsTilesLink+'"';
 end;
 
-function TExtent.Contains(x, y: Double): Boolean;
+function TDiffLayer.uniqueObjectsTilesLink: string;
 begin
-  if not IsEmpty
-  then Result :=
-        (x >= Self.xMin) and
-        (x <= Self.xMax) and
-        (y >= Self.yMin) and
-        (y <= Self.xMax)
-  else Result := False;
+  Result := fObjectsTilesLink+'&ts='+URITimeStamp;
 end;
-
-class function TExtent.Create: TExtent;
-begin
-  Result.Init;
-end;
-
-procedure TExtent.Init;
-begin
-  xMin := NaN;
-  yMin := NaN;
-  xMax := NaN;
-  yMax := NaN;
-end;
-
-function TExtent.Expand(aExtent: TExtent): Boolean;
-begin
-  if not aExtent.IsEmpty then
-  begin
-    Result := Expand(aExtent.XMin, aExtent.YMin);
-    if Expand(aExtent.XMax, aExtent.YMax)
-    then Result := True;
-  end
-  else Result := False;
-end;
-
-function TExtent.Expand(x, y: Double): Boolean;
-begin
-  Result := False;
-  if isEmpty then
-  begin
-    if not (IsNaN(x) and IsNan(y)) then
-    begin
-      Init(x, y);
-      Result := True;
-    end;
-  end
-  else
-  begin
-    if xMin>x then
-    begin
-      xMin := x;
-      Result := True;
-    end;
-    if xMax<x then
-    begin
-      xMax := x;
-      Result := True;
-    end;
-    if yMin>y then
-    begin
-      yMin := y;
-      Result := True;
-    end;
-    if yMax<y then
-    begin
-      yMax := y;
-      Result := True;
-    end;
-  end;
-end;
-
-class function TExtent.FromGeometry(aGeometry: TWDGeometry): TExtent;
-var
-  part: TWDGeometryPart;
-  point: TWDGeometryPoint;
-begin
-  Result.Init;
-  for part in aGeometry.parts do
-  begin
-    for point in part.points do
-    begin
-      if Result.IsEmpty
-      then Result.Init(point.X, point.Y)
-      else Result.Expand(point.X, point.Y);
-    end;
-  end;
-end;
-
-procedure TExtent.Init(x, y, aWidth, aHeight: Double);
-begin
-  xMin := x;
-  xMax := xMin+aWidth;
-  yMin := y;
-  yMax := y+aHeight;
-end;
-
-procedure TExtent.Init(x, y: Double);
-begin
-  xMin := x;
-  xMax := x;
-  yMin := y;
-  yMax := y;
-end;
-
-function TExtent.Intersects(const aExtent: TExtent): Boolean;
-begin
-  if not (Self.IsEmpty or aExtent.IsEmpty)
-  then Result :=
-         (Self.XMin <= aExtent.XMax) and
-         (Self.XMax >= aExtent.XMin) and
-         (Self.YMin <= aExtent.YMax) and
-         (Self.YMax >= aExtent.YMin)
-  else Result := False;
-end;
-
-function TExtent.IsEmpty: Boolean;
-begin
-  Result := IsNaN(xMin);
-end;
-
-{
-function TExtent.Square: TExtent;
-var
-  d: TDistanceLatLon;
-  w, h: Double;
-begin
-  // make square in meters (relative from center of extent) containing the original extent
-  d := TDistanceLatLon.Create(YMin, YMax);
-  w := d.m_per_deg_lon*(XMax-XMin);
-  h := d.m_per_deg_lat*(YMax-YMin);
-  if Abs(w)>=Abs(h) then
-  begin
-    Result.XMin := XMin;
-    Result.XMax := XMax;
-    h := w/d.m_per_deg_lat;
-    Result.YMin := ((YMin+YMax)/2)-(h/2);
-    Result.YMax := ((YMin+YMax)/2)+(h/2);
-  end
-  else
-  begin
-    Result.YMin := YMin;
-    Result.YMax := YMax;
-    w := h/d.m_per_deg_lat;
-    Result.XMin := ((XMin+XMax)/2)-(w/2);
-    Result.XMax := ((XMin+XMax)/2)+(w/2);
-  end;
-end;
-}
 
 { TClientDomain }
 
@@ -837,6 +701,7 @@ constructor TClient.Create(aProject: TProject; aCurrentScenario, aRefScenario: T
 begin
   inherited Create;
   fSubscribedElements := TObjectList<TScenarioElement>.Create(False);
+  fDiffLayers := TDictionary<string, TDiffLayer>.Create;
   fProject := aProject;
   fClientID := aClientID;
   fCurrentScenario := aCurrentScenario;
@@ -871,240 +736,19 @@ begin
   // add handler for client commands
   fClientEvent.OnString.Add(
     procedure(event: TEventEntry; const aString: string)
-
-      procedure addClient(aElement: TScenarioElement);
-      begin
-        if Assigned(aElement) then
-        begin
-          TMonitor.Enter(fSubscribedElements);
-          try
-            if fSubscribedElements.IndexOf(aElement)<0
-            then fSubscribedElements.Add(aElement);
-          finally
-            TMonitor.Exit(fSubscribedElements);
-          end;
-          aElement.HandleClientSubscribe(Self);
-        end;
-      end;
-
-      procedure removeClient(aElement: TScenarioElement);
-      var
-        i: Integer;
-      begin
-        if Assigned(aElement) then
-        begin
-          TMonitor.Enter(fSubscribedElements);
-          try
-            i := fSubscribedElements.IndexOf(aElement);
-            if i>=0
-            then fSubscribedElements.Delete(i);
-          finally
-            TMonitor.Exit(fSubscribedElements);
-          end;
-          aElement.HandleClientUnsubscribe(Self);
-        end;
-      end;
-
-      procedure selectObjects(aSelectObjects: TJSONValue);
-      var
-        t: string;
-        m: string;
-        g: TJSONObject;
-        q: string;
-        rStr: string;
-        r: Double;
-        x, y: Double;
-        geometry: TWDGeometry;
-        //partI: Integer;
-        part: TWDGeometryPart;
-        c, c2: TJSONArray;
-        pointI: Integer;
-        sca: TJSONArray;
-        sc: TArray<string>;
-        i: Integer;
-        resp: string;
-      begin
-        // todo: decode selection and send back objects
-        resp := '';
-        // type
-        t := aSelectObjects.getValue<string>('type', '');
-        // mode
-        m := aSelectObjects.getValue<string>('mode', '');
-        // selectCategories
-        sca := aSelectObjects.getValue<TJSONArray>('selectCategories');
-        setLength(sc, sca.count);
-        for i := 0 to sca.count-1
-        do sc[i] := sca.Items[i].Value;
-        // radius
-        rStr := aSelectObjects.getValue<string>('radius', '');
-        // geometry
-        g := aSelectObjects.getValue<TJSONObject>('geometry', nil);
-        if Assigned(g) then
-        begin
-          c := g.Values['geometry'].getValue<TJSONArray>('coordinates');
-          // todo: select objects based on geometry
-          // always polygon or point (radius)? -> simplyfy
-          if c.Count=1 then
-          begin
-            // 1 part with coordinates
-            c2 := c.Items[0] as TJSONArray;
-            //TJSONArray(TJSONArray(TJSONArray(c.Items[0]).items[0])).items[0].tostring
-            geometry := TWDGeometry.Create;
-            try
-              part := geometry.AddPart;
-              for pointI := 0 to c2.Count-1 do
-              begin
-                x := Double.Parse(TJSONArray(c2.Items[pointI]).Items[0].tostring, dotFormat);
-                y := Double.Parse(TJSONArray(c2.Items[pointI]).Items[1].tostring, dotFormat);
-                part.AddPoint(x, y, NaN);
-              end;
-              // todo:
-              if Assigned(fCurrentScenario) then
-              begin
-                resp := fCurrentScenario.SelectObjects(Self, t, m, sc, geometry);
-              end;
-            finally
-              geometry.Free;
-            end;
-          end
-          else
-          begin
-            // must be point
-            x := Double.Parse(TJSONArray(c).Items[0].tostring, dotFormat);
-            y := Double.Parse(TJSONArray(c).Items[1].tostring, dotFormat);
-            if rStr<>''
-            then r := Double.Parse(rStr, dotFormat)
-            else r := 0;
-            // todo:
-            if Assigned(fCurrentScenario) then
-            begin
-              resp := fCurrentScenario.SelectObjects(Self, t, m, sc, x, y, r);
-            end;
-          end;
-        end
-        else
-        begin
-          q := aSelectObjects.getValue<string>('query', '');
-          // todo: select objects based on query
-          if Assigned(fCurrentScenario) then
-          begin
-            resp := fCurrentScenario.SelectObjects(Self, t, m, sc, q);
-          end;
-        end;
-        if resp<>'' then
-        begin
-          signalString(resp);
-        end;
-      end;
-
-    var
-      jsonObject: TJSONObject;
-      jsonPair: TJSONPair;
-      jsonValue: TJSONValue;
-      scenarioID: string;
-      userid: string;
-      scenario: TScenario;
     begin
-      try
-        if Assigned(fProject) and Assigned(fClientEvent) then
-        begin
-          Log.WriteLn('message from client: '+event.eventName+': '+aString);
-          // process message
-          jsonObject := TJSONObject.ParseJSONValue(aString) as TJSONObject;
-          try
-            jsonPair := jsonObject.Get('subscribe');
-            if Assigned(jsonPair)
-            then addClient(sessionModel.FindElement(jsonPair.JsonValue.Value))
-            else
-            begin
-              jsonPair := jsonObject.Get('unsubscribe');
-              if Assigned(jsonPair)
-              then removeClient(sessionModel.FindElement(jsonPair.JsonValue.Value))
-              else
-              begin
-                jsonPair := jsonObject.Get('selectObjects');
-                if Assigned(jsonPair)
-                then selectObjects(jsonPair.JsonValue)
-                else
-                begin
-                  jsonPair := jsonObject.Get('login');
-                  if Assigned(jsonPair) then
-                  begin
-                    scenarioID := (jsonPair.JsonValue as TJSONObject).GetValue<string>('scenario');
-                    if scenarioID<>'' then
-                    begin
-                      userid := (jsonPair.JsonValue as TJSONObject).GetValue<string>('userid');
-                      if fProject.scenarios.TryGetValue(scenarioID, scenario) then
-                      begin
-                        fCurrentScenario := scenario;
-                        fCurrentScenario.HandleClientSubscribe(Self);
-                        Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
-                        // retry
-                        SendSession();
-                        //SendMeasures(); // todo:?
-                        SendDomains('domains');
-
-                      end
-                      else Log.WriteLn('could not connect to scenario '+scenarioID+' user '+userid, llError);
-                    end;
-                  end
-                  else
-                  begin
-                    jsonPair := jsonObject.Get('selectScenario');
-                    if Assigned(jsonPair) then
-                    begin
-                      jsonValue := (jsonPair.JsonValue as TJSONObject).Values['currentScenario'];
-                      if Assigned(jsonValue) then
-                      begin
-                        scenarioID := jsonValue.Value;
-                        if not fProject.scenarios.TryGetValue(scenarioID, scenario)
-                        then scenario := fProject.ReadScenario(scenarioID);
-                        if Assigned(fCurrentScenario)
-                        then fCurrentScenario.HandleClientUnsubscribe(Self);
-                        fCurrentScenario := scenario;
-                        if Assigned(fCurrentScenario) then
-                        begin
-                          fCurrentScenario.HandleClientSubscribe(Self);  Log.WriteLn('client switched scenario to '+fCurrentScenario.elementID);
-                          Log.WriteLn('client switched scenario to '+fCurrentScenario.elementID);
-                        end;
-                      end;
-                      jsonValue := (jsonPair.JsonValue as TJSONObject).Values['referenceScenario'];
-                      if Assigned(jsonValue) then
-                      begin
-                        scenarioID := jsonValue.Value;
-                        if not fProject.scenarios.TryGetValue(scenarioID, scenario)
-                        then scenario := fProject.ReadScenario(scenarioID);
-                        if Assigned(fRefScenario) then
-                        begin
-                          fRefScenario.HandleClientUnsubscribe(Self);
-                          // todo: clear list of diff layers, charts and kpis -> not..
-                        end;
-                        fRefScenario := scenario;
-                        if Assigned(fRefScenario) then
-                        begin
-                          fRefScenario.HandleClientSubscribe(Self);
-                          Log.WriteLn('client switched ref scenario to '+fCurrentScenario.elementID);
-                          // todo: create list diff layers, charts and kpis
-
-                        end;
-                      end;
-                      SendDomains('updatedomains');
-                      UpdateSession();
-                    end;
-                    // rest
-                  end;
-                end;
-              end;
-            end;
-          finally
-            jsonObject.Free;
-          end;
-        end;
-      except
-        on e: Exception
-        do Log.WriteLn('exception in TClient.Create: fClientEvent.OnString: '+e.Message, llError);
-      end;
+      HandleClientCommand(aString);
     end);
+  fClientEvent.OnStreamCreate :=
+    function(aEventEntry: TEventEntry; const aName: string): TStream
+    begin
+      Result := TStringStream.Create('', TEncoding.UTF8, False);
+    end;
+  fClientEvent.OnStreamEnd :=
+    procedure(aEventEntry: TEventEntry; const aName: string; var aStream: TStream; aCancel: Boolean)
+    begin
+      handleClientCommand((aStream as TStringStream).DataString);
+    end;
   // trigger login
   signalString('{"login": {}}');
   // do default registration
@@ -1143,12 +787,279 @@ begin
     TMonitor.Exit(fSubscribedElements);
   end;
   FreeAndNil(fSubscribedElements);
+  // todo: unsubscribe diff layers..
+  FreeAndNil(fDiffLayers);
   inherited;
 end;
 
 function TClient.getSessionModel: TSessionModel;
 begin
   Result := fProject.fSessionModel;
+end;
+
+procedure TClient.HandleClientCommand(const aJSONString: string);
+
+  procedure addClient(aElement: TScenarioElement);
+  begin
+    if Assigned(aElement) then
+    begin
+      TMonitor.Enter(fSubscribedElements);
+      try
+        if fSubscribedElements.IndexOf(aElement)<0
+        then fSubscribedElements.Add(aElement);
+      finally
+        TMonitor.Exit(fSubscribedElements);
+      end;
+      aElement.HandleClientSubscribe(Self);
+    end;
+  end;
+
+  procedure removeClient(aElement: TScenarioElement);
+  var
+    i: Integer;
+  begin
+    if Assigned(aElement) then
+    begin
+      TMonitor.Enter(fSubscribedElements);
+      try
+        i := fSubscribedElements.IndexOf(aElement);
+        if i>=0
+        then fSubscribedElements.Delete(i);
+      finally
+        TMonitor.Exit(fSubscribedElements);
+      end;
+      aElement.HandleClientUnsubscribe(Self);
+    end;
+  end;
+
+  procedure selectObjects(aSelectObjects: TJSONValue);
+  var
+    t: string;
+    m: string;
+    g: TJSONObject;
+    q: string;
+    rStr: string;
+    r: Double;
+    x, y: Double;
+    geometry: TWDGeometry;
+    //partI: Integer;
+    part: TWDGeometryPart;
+    c, c2: TJSONArray;
+    pointI: Integer;
+    sca: TJSONArray;
+    sc: TArray<string>;
+    i: Integer;
+    resp: string;
+  begin
+    // todo: decode selection and send back objects
+    resp := '';
+    // type
+    t := aSelectObjects.getValue<string>('type', '');
+    // mode
+    m := aSelectObjects.getValue<string>('mode', '');
+    // selectCategories
+    sca := aSelectObjects.getValue<TJSONArray>('selectCategories');
+    setLength(sc, sca.count);
+    for i := 0 to sca.count-1
+    do sc[i] := sca.Items[i].Value;
+    // radius
+    rStr := aSelectObjects.getValue<string>('radius', '');
+    // geometry
+    g := aSelectObjects.getValue<TJSONObject>('geometry', nil);
+    if Assigned(g) then
+    begin
+      c := g.Values['geometry'].getValue<TJSONArray>('coordinates');
+      // todo: select objects based on geometry
+      // always polygon or point (radius)? -> simplyfy
+      if c.Count=1 then
+      begin
+        // 1 part with coordinates
+        c2 := c.Items[0] as TJSONArray;
+        //TJSONArray(TJSONArray(TJSONArray(c.Items[0]).items[0])).items[0].tostring
+        geometry := TWDGeometry.Create;
+        try
+          part := geometry.AddPart;
+          for pointI := 0 to c2.Count-1 do
+          begin
+            x := Double.Parse(TJSONArray(c2.Items[pointI]).Items[0].tostring, dotFormat);
+            y := Double.Parse(TJSONArray(c2.Items[pointI]).Items[1].tostring, dotFormat);
+            part.AddPoint(x, y, NaN);
+          end;
+          // todo:
+          if Assigned(fCurrentScenario) then
+          begin
+            resp := fCurrentScenario.SelectObjects(Self, t, m, sc, geometry);
+          end;
+        finally
+          geometry.Free;
+        end;
+      end
+      else
+      begin
+        // must be point
+        x := Double.Parse(TJSONArray(c).Items[0].tostring, dotFormat);
+        y := Double.Parse(TJSONArray(c).Items[1].tostring, dotFormat);
+        if rStr<>''
+        then r := Double.Parse(rStr, dotFormat)
+        else r := 0;
+        // todo:
+        if Assigned(fCurrentScenario) then
+        begin
+          resp := fCurrentScenario.SelectObjects(Self, t, m, sc, x, y, r);
+        end;
+      end;
+    end
+    else
+    begin
+      q := aSelectObjects.getValue<string>('query', '');
+      // todo: select objects based on query
+      if Assigned(fCurrentScenario) then
+      begin
+        resp := fCurrentScenario.SelectObjects(Self, t, m, sc, q);
+      end;
+    end;
+    if resp<>'' then
+    begin
+      signalString(resp);
+    end;
+  end;
+
+var
+  jsonObject: TJSONObject;
+  jsonPair: TJSONPair;
+  jsonValue: TJSONValue;
+  scenarioID: string;
+  userid: string;
+  scenario: TScenario;
+  diffLayerID: string;
+  diffLayer: TDiffLayer;
+  ilp: TPair<string, TLayer>;
+  refLayer: TLayer;
+  diffPalette: TWDPalette;
+begin
+  try
+    if Assigned(fProject) and Assigned(fClientEvent) then
+    begin
+      //Log.WriteLn('message from client: '+event.eventName+': '+aString);
+      // process message
+      jsonObject := TJSONObject.ParseJSONValue(aJSONString) as TJSONObject;
+      try
+        jsonPair := jsonObject.Get('subscribe');
+        if Assigned(jsonPair)
+        then addClient(sessionModel.FindElement(jsonPair.JsonValue.Value))
+        else
+        begin
+          jsonPair := jsonObject.Get('unsubscribe');
+          if Assigned(jsonPair)
+          then removeClient(sessionModel.FindElement(jsonPair.JsonValue.Value))
+          else
+          begin
+            jsonPair := jsonObject.Get('selectObjects');
+            if Assigned(jsonPair)
+            then selectObjects(jsonPair.JsonValue)
+            else
+            begin
+              jsonPair := jsonObject.Get('login');
+              if Assigned(jsonPair) then
+              begin
+                scenarioID := (jsonPair.JsonValue as TJSONObject).GetValue<string>('scenario');
+                if scenarioID<>'' then
+                begin
+                  userid := (jsonPair.JsonValue as TJSONObject).GetValue<string>('userid');
+                  if fProject.scenarios.TryGetValue(scenarioID, scenario) then
+                  begin
+                    fCurrentScenario := scenario;
+                    fCurrentScenario.HandleClientSubscribe(Self);
+                    Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
+                    // retry
+                    SendSession();
+                    //SendMeasures(); // todo:?
+                    SendDomains('domains');
+
+                  end
+                  else Log.WriteLn('could not connect to scenario '+scenarioID+' user '+userid, llError);
+                end;
+              end
+              else
+              begin
+                jsonPair := jsonObject.Get('selectScenario');
+                if Assigned(jsonPair) then
+                begin
+                  jsonValue := (jsonPair.JsonValue as TJSONObject).Values['currentScenario'];
+                  if Assigned(jsonValue) then
+                  begin
+                    scenarioID := jsonValue.Value;
+                    if not fProject.scenarios.TryGetValue(scenarioID, scenario)
+                    then scenario := fProject.ReadScenario(scenarioID);
+                    if Assigned(fCurrentScenario)
+                    then fCurrentScenario.HandleClientUnsubscribe(Self);
+                    fCurrentScenario := scenario;
+                    if Assigned(fCurrentScenario) then
+                    begin
+                      fCurrentScenario.HandleClientSubscribe(Self);
+                      Log.WriteLn('client switched scenario to '+fCurrentScenario.elementID);
+                    end
+                    else Log.WriteLn('client switched scenario to NONE');
+                  end;
+                  jsonValue := (jsonPair.JsonValue as TJSONObject).Values['referenceScenario'];
+                  if Assigned(jsonValue) then
+                  begin
+                    scenarioID := jsonValue.Value;
+                    if not fProject.scenarios.TryGetValue(scenarioID, scenario)
+                    then scenario := fProject.ReadScenario(scenarioID);
+                    if Assigned(fRefScenario) then
+                    begin
+                      fRefScenario.HandleClientUnsubscribe(Self);
+                      // todo: clear list of diff layers, charts and kpis -> not..
+                    end;
+                    fRefScenario := scenario;
+                    if Assigned(fRefScenario) then
+                    begin
+                      fRefScenario.HandleClientSubscribe(Self);
+                      Log.WriteLn('client switched ref scenario to '+fRefScenario.elementID);
+                      // todo: create list diff layers, charts and kpis
+                      if Assigned(fCurrentScenario) then
+                      begin
+                        for ilp in fCurrentScenario.Layers do
+                        begin
+                          if fRefScenario.Layers.TryGetValue(ilp.Key, refLayer) then
+                          begin
+                            diffLayerID := fProject.diffElementID(ilp.Value, refLayer);
+                            TMonitor.Enter(fProject.diffLayers);
+                            try
+                              if not fProject.diffLayers.ContainsKey(diffLayerID) then
+                              begin
+                                diffPalette := TDiscretePalette.Create('diff', [], TGeoColors.Create());
+                                diffLayer := TDiffLayer.Create(diffLayerID, ilp.Value.sliceType, ilp.value.objectsTilesID, refLayer.objectsTilesID, diffPalette, fProject.TilerEvent);
+                                // link to tiler
+
+                                //fProject.diffLayers.Add(diffLayerID, diffLayer);
+                              end;
+                            finally
+                              TMonitor.Exit(fProject.diffLayers);
+                            end;
+                          end;
+                        end;
+                      end;
+                    end
+                    else Log.WriteLn('client switched ref scenario to NONE');
+                  end;
+                  SendDomains('updatedomains');
+                  UpdateSession();
+                end;
+                // rest
+              end;
+            end;
+          end;
+        end;
+      finally
+        jsonObject.Free;
+      end;
+    end;
+  except
+    on e: Exception
+    do Log.WriteLn('exception in TClient.Create: fClientEvent.OnString: '+e.Message, llError);
+  end;
 end;
 
 procedure TClient.HandleElementRemove(aElement: TScenarioElement);
@@ -1193,7 +1104,6 @@ var
   d: TClientDomain;
   domains: TDictionary<string, TClientDomain>;
   JSON: string;
-  //nlp: TPair<string, TLayer>;
   layer: TLayer;
   ndp: TPair<string, TClientDomain>;
   domainsJSON: string;
@@ -1201,8 +1111,11 @@ var
   ngp: TPair<string, TChart>;
   locLayers: TList<TLayer>;
   refLayer: TLayer;
-  //diffLayerID: string;
+  diffLayer: TDiffLayer;
 begin
+  if Assigned(fRefScenario)
+  then Log.WriteLn('TClient.SendDomains ('+aPrefix+'), ref scenario '+fRefScenario.fID)
+  else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref scenario');
   // todo: add reference and diff layers/charts if fRefScenario<>nil
   domains := TDictionary<string, TClientDomain>.Create;
   try
@@ -1216,12 +1129,17 @@ begin
         for layer in locLayers do
         begin
           JSON := layer.JSON;
-          if Assigned(fRefScenario) and fRefScenario.Layers.TryGetValue(layer.ID, refLayer) then
+          if Assigned(fRefScenario) then
           begin
-            JSON := JSON+',"ref":{'+refLayer.JSON+'}';
-            // todo: add diff layer
-            //diffLayerID := 'diff|'+layer.elementID+'|'+refLayer.elementID;
-            //JSON := JSON+',{"diff":{'+diffLayer.JSON+'}}';
+            if fRefScenario.Layers.TryGetValue(layer.ID, refLayer) then
+            begin
+              // todo: full JSON for ref and diff, to include legend?
+              JSON := JSON+',"ref":{'+refLayer.refJSON+'}';
+              // todo: add diff layer
+              if fProject.diffLayers.TryGetValue(fProject.diffElementID(layer, refLayer), diffLayer)
+              then JSON := JSON+',"diff":{'+diffLayer.refJSON+'}';
+            end
+            else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref layer for '+layer.ID);
           end;
           JSON  := '{'+JSON+'}';
           if domains.TryGetValue(layer.domain, d) then
@@ -1524,9 +1442,9 @@ begin
   Result := TByteBuffer.bb_tag_rawbytestring(icehObjectID, ID);
 end;
 
-function TLayerObject.getExtent: TExtent;
+function TLayerObject.getExtent: TWDExtent;
 begin
-  Result := TExtent.Create;
+  Result := TWDExtent.Create;
 end;
 
 function TLayerObject.getValidGeometry: Boolean;
@@ -1562,7 +1480,7 @@ begin
     inherited Encode;
 end;
 
-function TGeometryPointLayerObject.getExtent: TExtent;
+function TGeometryPointLayerObject.getExtent: TWDExtent;
 begin
   Result.Init(fGeometryPoint.x, fGeometryPoint.y);
 end;
@@ -1629,7 +1547,7 @@ begin
     inherited Encode;
 end;
 
-function TGeometryLayerPOIObject.getExtent: TExtent;
+function TGeometryLayerPOIObject.getExtent: TWDExtent;
 begin
   Result.Init(fGeometryPoint.x, fGeometryPoint.y);
   // todo: inflate for size of poi?
@@ -1786,9 +1704,9 @@ begin
     inherited Encode;
 end;
 
-function TGeometryLayerObject.getExtent: TExtent;
+function TGeometryLayerObject.getExtent: TWDExtent;
 begin
-  Result := TExtent.FromGeometry(fGeometry);
+  Result := TWDExtent.FromGeometry(fGeometry);
 end;
 
 function TGeometryLayerObject.getGeoJSON2D(const aType: string): string;
@@ -1892,6 +1810,7 @@ begin
   fQuery := '';
   fObjectsTilesID := -1;
   fObjectsTilesLink := '';
+  fSlicetype := -1;
   fTilerEvent := aTilerEvent;
   fTilerEvent.OnEvent.Add(HandleTilerEvent);
   fTilerEvent.subscribe;
@@ -2004,7 +1923,7 @@ begin
   end;
 end;
 
-function TLayer.findObjectsInGeometry(const aGeometryExtent: TExtent; aGeometry: TWDGeometry; var aObjectsJSON: string): Integer;
+function TLayer.findObjectsInGeometry(const aGeometryExtent: TWDExtent; aGeometry: TWDGeometry; var aObjectsJSON: string): Integer;
 var
   o: TPair<TWDID, TLayerObject>;
 begin
@@ -2060,6 +1979,7 @@ procedure TLayer.RegisterOnTiler(aPersistent: Boolean; aSliceType: Integer; cons
 var
   payload: TByteBuffer;
 begin
+  fSliceType := aSliceType;
   payload :=
     TByteBuffer.bb_tag_string(icehEventName, fOutputEvent.eventName);
   if not IsNaN(aEdgeLengthInMeters)
@@ -2176,6 +2096,13 @@ begin
     end;
   end
   else Result := '';
+end;
+
+function TLayer.getRefJSON: string;
+begin
+  Result := '"tiles":"'+uniqueObjectsTilesLink+'"';
+  if objects.Count<=MaxDirectSendObjectCount
+  then Result := Result+',"objects": '+objectsJSON;
 end;
 
 procedure TLayer.handleOutputEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
@@ -2768,6 +2695,7 @@ begin
   fScenarios := TObjectDictionary<string, TScenario>.Create([doOwnsValues]);
   fScenarioLinks := TScenarioLink.Create(-1, -1, -1, '', '', '', nil);
   fTimers := TTimerPool.Create;
+  fDiffLayers := TObjectDictionary<string, TDiffLayer>.Create([doOwnsValues]);
   fProjectID := aProjectID;
   fProjectName := aProjectName;
   fProjectDescription := ''; // default no description set, set by property..
@@ -2800,6 +2728,7 @@ end;
 
 destructor TProject.Destroy;
 begin
+  FreeAndNil(fDiffLayers);
   FreeAndNil(fTimers);
   FreeAndNil(fClients);
   FreeAndNil(fScenarios);
@@ -2813,6 +2742,11 @@ begin
   FreeAndNil(fDBConnection);
 end;
 
+
+function TProject.diffElementID(aCurrent, aReference: TScenarioElement): string;
+begin
+  Result := 'diff|'+aCurrent.elementID+'|'+aReference.elementID;
+end;
 
 function TProject.getMeasuresJSON: string;
 begin

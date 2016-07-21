@@ -1076,7 +1076,7 @@ var
   i: Integer;
   j: Integer;
   response: string;
-  extent: TExtent;
+  extent: TWDExtent;
   mapView: TMapView;
 begin
   try
@@ -1125,7 +1125,7 @@ begin
         _title := _jsonObject.getValue<string>('caseData.title', '');
         _description := _jsonObject.getValue<string>('caseData.description', '');
         _polygons := _jsonObject.getValue<TJSONArray>('caseData.districtPolygon.geometry.coordinates');
-        extent := TExtent.Create;
+        extent := TWDExtent.Create;
         for i := 0 to _polygons.Count-1  do
         begin
           _polygon := _polygons.Items[i] as TJSONArray;
@@ -1381,7 +1381,7 @@ var
   categories: string;
   objectsGeoJSON: string;
   totalObjectCount: Integer;
-  extent: TExtent;
+  extent: TWDExtent;
   l: TLayer;
   objectCount: Integer;
 begin
@@ -1393,7 +1393,7 @@ begin
       categories := '';
       objectsGeoJSON := '';
       totalObjectCount := 0;
-      extent := TExtent.FromGeometry(aGeometry);
+      extent := TWDExtent.FromGeometry(aGeometry);
       for l in layers do
       begin
         objectCount := l.findObjectsInGeometry(extent, aGeometry, objectsGeoJSON);
@@ -2186,7 +2186,7 @@ var
   categories: string;
   objectsGeoJSON: string;
   totalObjectCount: Integer;
-  extent: TExtent;
+  extent: TWDExtent;
   l: TLayer;
   objectCount: Integer;
 begin
@@ -2198,7 +2198,7 @@ begin
       categories := '';
       objectsGeoJSON := '';
       totalObjectCount := 0;
-      extent := TExtent.FromGeometry(aGeometry);
+      extent := TWDExtent.FromGeometry(aGeometry);
       for l in layers do
       begin
         objectCount := l.findObjectsInGeometry(extent, aGeometry, objectsGeoJSON);
