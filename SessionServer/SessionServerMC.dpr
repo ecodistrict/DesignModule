@@ -158,7 +158,7 @@ begin
     projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
     projectName := GetSetting(ProjectNameSwitch, 'test project'); //aParameters.ParameterByName[FederationParameterName].ValueAsString
   end;
-  aParameters.Add(TModelParameter.Create(TilerEventNameSwitch, GetSetting(TilerEventNameSwitch, DefaultTilerEventName)));
+  aParameters.Add(TModelParameter.Create(TilerNameSwitch, GetSetting(TilerNameSwitch, DefaultTilerName)));
   aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
   aParameters.Add(TModelParameter.Create(ProjectNameSwitch, projectName));
   aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, True));
@@ -198,7 +198,7 @@ begin
   project := TUSProject.Create(
     fSessionModel, fSessionModel.Connection,
     projectID, projectName,
-    aParameters.ParameterByName[TilerEventNameSwitch].ValueAsString,
+    aParameters.ParameterByName[TilerNameSwitch].ValueAsString,
     dbConnection,
     mapView,
     preLoadScenarios);

@@ -18,6 +18,11 @@ object TilerWebModule: TTilerWebModule
       Name = 'RequestPointValue'
       PathInfo = '/point'
       OnAction = WebModuleTilerRequestPointValueAction
+    end
+    item
+      Name = 'RequestStatus'
+      PathInfo = '/status'
+      OnAction = TilerWebModuleRequestStatusAction
     end>
   OnException = WebModuleException
   Height = 179

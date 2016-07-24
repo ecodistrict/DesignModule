@@ -25,8 +25,8 @@ uses
 
 
 const
-  TilerEventNameSwitch = 'TilerEventName';
-    DefaultTilerEventName = 'USIdle.Tilers.PC-15176_tsn_tno_nl';
+  TilerNameSwitch = 'TilerName';
+    DefaultTilerName = 'vps17642.public.cloudvps.com';
 
   MaxEdgeLengthInMetersSwitchName = 'MaxEdgeLengthInMeters';
     DefaultMaxEdgeLengthInMeters = 250;
@@ -106,8 +106,8 @@ type
   end;
 
   TUSLayer = class(TLayer)
-  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aPalette: TWDPalette;
-    const aObjectTypes, aGeometryType: string; aTilerEvent: TEventEntry; aLayerType: Integer; aBasicLayer: Boolean=False);
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
+    aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aBasicLayer: Boolean=False);
   destructor Destroy; override;
   protected
     fLayerType: Integer;
@@ -116,6 +116,7 @@ type
   public
     procedure ReadObjects(aSender: TObject);
     procedure RegisterLayer; override;
+    procedure RegisterSlice; override;
   end;
 
   TLegendFormat = (lfVertical, lfHorizontal); // todo:..
@@ -168,7 +169,7 @@ type
   end;
 
   TUSProject = class(TProject)
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerEventName: string;
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN: string;
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean{; aSourceEPSG: Integer});
   destructor Destroy; override;
   private
@@ -199,7 +200,7 @@ type
   TEcodistrictScenario = class(TScenario)
   public
     function AddLayerFromTable(const aDomain, aID, aName, aDescription, aObjectTypes, aGeometryType: string;
-      aDefaultLoad: Boolean; aPalette: TWDPalette; aBasicLayer: Boolean;
+      aDefaultLoad: Boolean; aBasicLayer: Boolean;
       const aSchema, aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string): TLayer;
     procedure ReadBasicData(); override;
   public
@@ -225,14 +226,14 @@ type
  end;
 
   TEcodistrictModule = class
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aConnectString, aTilerEventName: string);
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aConnectString, aTilerFQDN: string);
   destructor Destroy; override;
   private
     fSessionModel: TSessionModel;
     fConnection: TConnection;
     fDBConnection: TCustomConnection;
     fConnectString: string;
-    fTilerEventName: string;
+    fTilerFQDN: string;
     fDashboardEvent: TEventEntry;
     fDataEvent: TEventEntry;
     fModuleEvent: TEventEntry;
@@ -319,7 +320,7 @@ type
   end;
 
   TNWBLiveFeedProject = class(TProject)
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerEventName: string;
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN: string;
     aLiveFeedConnection: TIMBConnection{IMB3}; aPalette: TWDPalette; const aShapeFilename: string);
   private
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
@@ -331,7 +332,7 @@ type
 
 
 function CreateSessionProject(aSessionModel: TSessionModel; const aProjectID, aProjectName: string; aProjectType: TProjectType;
-  const aTilerEventName, aConnectString: string): TProject;
+  const aTilerFQDN, aConnectString: string): TProject;
 
 implementation
 
@@ -429,7 +430,7 @@ end;
 
 { TEcodistrictModule }
 
-constructor TEcodistrictModule.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aConnectString, aTilerEventName: string);
+constructor TEcodistrictModule.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aConnectString, aTilerFQDN: string);
 begin
   // publish to dashboard
   // subscribe to modules
@@ -438,7 +439,7 @@ begin
   fSessionModel := aSessionModel;
   fConnection := aConnection;
   fConnectString := aConnectString;
-  fTilerEventName := aTilerEventName;
+  fTilerFQDN := aTilerFQDN;
   fProjects := TDictionary<string, TProject>.Create;//([doOwnsValues]);
   fQueries := TDictionary<string, TDMQuery>.Create();
   InitPG;
@@ -467,7 +468,7 @@ begin
   // load the case as project
   if not fProjects.TryGetValue(aCaseId, Result) then
   begin
-    Result := CreateSessionProject(fSessionModel, aCaseId, '', ptEcoDistrict, fTilerEventName, fConnectString);
+    Result := CreateSessionProject(fSessionModel, aCaseId, '', ptEcoDistrict, fTilerFQDN, fConnectString);
     fProjects.Add(aCaseId, Result);
   end;
   //else already loaded
@@ -1232,17 +1233,14 @@ end;
 { TEcodistrictScenario }
 
 function TEcodistrictScenario.AddLayerFromTable(const aDomain, aID, aName, aDescription, aObjectTypes, aGeometryType: string;
-  aDefaultLoad: Boolean; aPalette: TWDPalette; aBasicLayer: Boolean;
-  const aSchema, aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string): TLayer;
+  aDefaultLoad: Boolean; aBasicLayer: Boolean; const aSchema, aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string): TLayer;
 begin
-  Result := TLayer.Create(self, aDomain, aID, aName, aDescription, aDefaultLoad, aPalette, aObjectTypes, aGeometryType, fProject.TilerEvent, aBasicLayer);
+  Result := TLayer.Create(self, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, aBasicLayer);
   try
     Result.query := PGSVGPathsQuery('"'+aSchema+'".'+aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName);
     //AddCommandToQueue(sl, Self.ReadObjects);
     (fProject as TEcodistrictProject).ReadObjects(Result);
     // todo: other palette types..?
-    if aPalette is TDiscretePalette
-    then Result.legendJSON := BuildDiscreteLegendJSON(aPalette as TDiscretePalette, TLegendFormat.lfVertical); // todo: parameterize
     Layers.Add(Result.ID, Result);
   except
     on E: Exception do
@@ -1258,23 +1256,25 @@ var
   schema: string;
   entries: TPaletteDiscreteEntryArray;
   layer: TLayer;
+  palette: TWDPalette;
+  legendJSON: string;
 begin
   // read ecodistrict data
   if fID=fProject.ProjectID
   then schema := EcoDistrictSchemaId(fID)
   else schema := EcoDistrictSchemaId(fProject.ProjectID, fID);
   // buildings              -> v
-  //AddLayerFromTable('basic structures', 'buildings', 'buildings', 'basic buildings', '"building"', 'MultiPolygon', false, nil, True, schema, 'bldg_building', 'attr_gml_id', 'bldg_lod1multisurface_value');
-  AddLayerFromTable('basic structures', 'building',  'buildings', 'basic buildings',    '"building"',   'MultiPolygon', false, nil, True, schema, '"bldg_building"', 'attr_gml_id', 'bldg_lod0footprint_value', '');
-  //AddLayerFromTable('basic structures', 'building', 'buildings', 'basic buildings', '"building"', 'MultiPolygon', false, nil, True, schema, 'bldg_building_import', 'gid', 'geom');
-  AddLayerFromTable('basic structures', 'parking',   'parkings',  'basic parking lots', '"parking"',    'MultiPolygon', false, nil, True, schema, '"green_import" where layer=''PARKING''', 'gid', 'geom', '');
-  AddLayerFromTable('basic structures', 'trees  5m', 'trees  5m', 'trees  5m',          '"tree"',       'MultiPolygon', false, nil, True, schema, '"green_import" where layer=''TREES$5M''', 'gid', 'geom', '');
-  AddLayerFromTable('basic structures', 'trees 10m', 'trees 10m', 'trees 10m',          '"tree"',       'MultiPolygon', false, nil, True, schema, '"green_import" where layer=''TREES$10M''', 'gid', 'geom', '');
-  AddLayerFromTable('basic structures', 'trees 15m', 'trees 15m', 'trees 15m',          '"tree"',       'MultiPolygon', false, nil, True, schema, '"green_import" where layer=''TREES$15M''', 'gid', 'geom', '');
-  AddLayerFromTable('basic structures', 'trees 20m', 'trees 20m', 'trees 20m',          '"tree"',       'MultiPolygon', false, nil, True, schema, '"green_import" where layer=''TREES$20M''', 'gid', 'geom', '');
-  AddLayerFromTable('basic structures', 'grass',     'grass',     'grass areas',        '"grass area"', 'MultiPolygon', false, nil, True, schema, '"green_import" where layer=''GRASS_AREA''', 'gid', 'geom', '');
-  AddLayerFromTable('basic structures', 'water',     'water',     'water areas',        '"water area"', 'MultiPolygon', false, nil, True, schema, '"green_import" where layer=''WATER''', 'gid', 'geom', '');
-  AddLayerFromTable('basic structures', 'bushes',    'bushes',    'bushes',             '"bush"',       'MultiPolygon', false, nil, True, schema, '"green_import" where layer=''BUSHES''', 'gid', 'geom', '');
+  //AddLayerFromTable('basic structures', 'buildings', 'buildings', 'basic buildings', '"building"', 'MultiPolygon', false, True, schema, 'bldg_building', 'attr_gml_id', 'bldg_lod1multisurface_value');
+  AddLayerFromTable('basic structures', 'building',  'buildings', 'basic buildings',    '"building"',   'MultiPolygon', false, True, schema, '"bldg_building"', 'attr_gml_id', 'bldg_lod0footprint_value', '');
+  //AddLayerFromTable('basic structures', 'building', 'buildings', 'basic buildings', '"building"', 'MultiPolygon', false, True, schema, 'bldg_building_import', 'gid', 'geom');
+  AddLayerFromTable('basic structures', 'parking',   'parkings',  'basic parking lots', '"parking"',    'MultiPolygon', false, True, schema, '"green_import" where layer=''PARKING''', 'gid', 'geom', '');
+  AddLayerFromTable('basic structures', 'trees  5m', 'trees  5m', 'trees  5m',          '"tree"',       'MultiPolygon', false, True, schema, '"green_import" where layer=''TREES$5M''', 'gid', 'geom', '');
+  AddLayerFromTable('basic structures', 'trees 10m', 'trees 10m', 'trees 10m',          '"tree"',       'MultiPolygon', false, True, schema, '"green_import" where layer=''TREES$10M''', 'gid', 'geom', '');
+  AddLayerFromTable('basic structures', 'trees 15m', 'trees 15m', 'trees 15m',          '"tree"',       'MultiPolygon', false, True, schema, '"green_import" where layer=''TREES$15M''', 'gid', 'geom', '');
+  AddLayerFromTable('basic structures', 'trees 20m', 'trees 20m', 'trees 20m',          '"tree"',       'MultiPolygon', false, True, schema, '"green_import" where layer=''TREES$20M''', 'gid', 'geom', '');
+  AddLayerFromTable('basic structures', 'grass',     'grass',     'grass areas',        '"grass area"', 'MultiPolygon', false, True, schema, '"green_import" where layer=''GRASS_AREA''', 'gid', 'geom', '');
+  AddLayerFromTable('basic structures', 'water',     'water',     'water areas',        '"water area"', 'MultiPolygon', false, True, schema, '"green_import" where layer=''WATER''', 'gid', 'geom', '');
+  AddLayerFromTable('basic structures', 'bushes',    'bushes',    'bushes',             '"bush"',       'MultiPolygon', false, True, schema, '"green_import" where layer=''BUSHES''', 'gid', 'geom', '');
 
   // building energy label
   setLength(entries, 6);
@@ -1284,12 +1284,18 @@ begin
   with entries[3] do begin colors:=TGeoColors.Create($FFFFDD00); minValue:=30; maxValue:=45; description:='D'; end;
   with entries[4] do begin colors:=TGeoColors.Create($FFFCB913); minValue:=45; maxValue:=60; description:='E'; end;
   with entries[5] do begin colors:=TGeoColors.Create($FFED1B24); minValue:=60; maxValue:=70; description:='F'; end;
+  palette := TDiscretePalette.Create('Energy label', entries, TGeoColors.Create(TAlphaColors.Red and not TAlphaColors.Alpha));
+  legendJSON := BuildDiscreteLegendJSON(palette as TDiscretePalette, TLegendFormat.lfVertical); // todo: parameterize
+
   layer := AddLayerFromTable('Energy', 'EnergyLabel', 'Energy labels', 'Energy labels of buildings', '"building"', 'MultiPolygon', false,
-    TDiscretePalette.Create('Energy label', entries, TGeoColors.Create(TAlphaColors.Red and not TAlphaColors.Alpha)),
     false, schema, 'bldg_building join "'+schema+'".bldg_building_energylabel on attr_gml_id=id',
     'attr_gml_id', 'bldg_lod0footprint_value', 'kwh_m2_year');
-  if Assigned(layer)
-  then layer.RegisterOnTiler(False, stGeometry, layer.name);
+
+  if Assigned(layer) then
+  begin
+    layer.legendJSON := legendJSON;
+    layer.RegisterOnTiler(False, stGeometry, layer.name, palette);
+  end;
 
   // green
   (*
@@ -1706,12 +1712,12 @@ end;
 { TUSLayer }
 
 constructor TUSLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-  aPalette: TWDPalette; const aObjectTypes, aGeometryType: string; aTilerEvent: TEventEntry; aLayerType: Integer; aBasicLayer: Boolean);
+  const aObjectTypes, aGeometryType: string; aLayerType: Integer; aBasicLayer: Boolean);
 begin
   fLayerType := aLayerType;
   fPoiCategories := TObjectDictionary<string, TUSPOI>.Create([doOwnsValues]);
   fNewPoiCatID := 0;
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aPalette, aObjectTypes, aGeometryType, aTilerEvent, aBasicLayer);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, aBasicLayer);
 end;
 
 destructor TUSLayer.Destroy;
@@ -1754,7 +1760,7 @@ begin
   // create new ora session because we are running in a different thread
   oraSession := TOraSession.Create(nil);
   try
-    with (scenario.Project as TUSProject).OraSession
+    with (scenario.project as TUSProject).OraSession
     do _connectString := userName+'/'+password+'@'+server;
     oraSession.ConnectString := _connectString;
     oraSession.Connect;
@@ -1772,7 +1778,7 @@ begin
             begin
               value := FieldFloatValueOrNaN(query.FieldByName('VALUE'));
               geometryPoint := CreateWDGeometryPointFromSDOShape(query, 'SHAPE');
-              projectGeometryPoint(geometryPoint, (scenario.Project as TUSProject).sourceProjection);
+              projectGeometryPoint(geometryPoint, (scenario.project as TUSProject).sourceProjection);
               objects.Add(oid, TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value));
             end;
           4: // road (VALUE_EXPR)
@@ -1780,7 +1786,7 @@ begin
               // unidirectional, not left and right
               value := FieldFloatValueOrNaN(query.Fields[1]);
               geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
-              projectGeometry(geometry, (scenario.Project as TUSProject).sourceProjection);
+              projectGeometry(geometry, (scenario.project as TUSProject).sourceProjection);
               objects.Add(oid, TGeometryLayerObject.Create(Self, oid, geometry, value));
             end;
           5,9: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
@@ -1791,7 +1797,7 @@ begin
               texture := FieldFloatValueOrNaN(query.Fields[3]);
               texture2 := FieldFloatValueOrNaN(query.Fields[4]);
               geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
-              projectGeometry(geometry, (scenario.Project as TUSProject).sourceProjection);
+              projectGeometry(geometry, (scenario.project as TUSProject).sourceProjection);
               objects.Add(oid, TUSRoadICLR.Create(Self, oid, geometry, value, value2, texture, texture2));
             end;
           21: // POI
@@ -1816,6 +1822,7 @@ begin
                     do Log.WriteLn('Exception loading POI image '+resourceFolder+poicat+'_'+poiType+'.png', llError);
                   end;
                   // signal POI image to tiler
+                  fTilerLayer.s
                   stream  := TBytesStream.Create;
                   try
                     usPOI.picture.Graphic.SaveToStream(stream);
@@ -1831,7 +1838,7 @@ begin
         else
           value := FieldFloatValueOrNaN(query.FieldByName('VALUE'));
           geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
-          projectGeometry(geometry, (scenario.Project as TUSProject).sourceProjection);
+          projectGeometry(geometry, (scenario.project as TUSProject).sourceProjection);
           objects.Add(oid, TGeometryLayerObject.Create(Self, oid, geometry, value));
         end;
         query.Next;
@@ -1867,6 +1874,30 @@ begin
     21: // POI
       RegisterOnTiler(False, stPOI, name);
   end;
+end;
+
+procedure TUSLayer.RegisterSlice;
+begin
+  // todo:
+  case fLayerType of
+    1: // receptors
+      tilerLayer.signalAddSlice();
+    //2:; grid
+    3, // buildings
+    8: // RS buildings
+      tilerLayer.signalAddSlice();
+    4: // road color (VALUE_EXPR) unidirectional
+      tilerLayer.signalAddSlice();
+    5: // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
+      tilerLayer.signalAddSlice();
+    9: // energy color (VALUE_EXPR) and width (TEXTURE_EXPR)
+      tilerLayer.signalAddSlice();
+    11: // points, basic layer
+      tilerLayer.signalAddSlice();
+    21: // POI
+      tilerLayer.signalAddPOISlice();
+  end;
+
 end;
 
 { TUSScenario }
@@ -1974,7 +2005,7 @@ procedure TUSScenario.ReadBasicData;
       standardIni.ReadString('domains', aObjectType, aDefaultDomain), //  domain
       aID, aName, aDescription, false,
       TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicOutline)),
-       '"'+aObjectType+'"', aGeometryType , fProject.tilerEvent, aLayerType, True);
+       '"'+aObjectType+'"', aGeometryType , aLayerType, True);
     layer.query := aQuery;
     Layers.Add(layer.ID, layer);
     Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
@@ -2143,7 +2174,7 @@ begin
           mlp.Value.LEGEND_DESC.Replace('~~', '-').replace('\', '-'), // description
           false, //false, // todo: default load
           palette,
-          objectTypes, geometryType, fProject.tilerEvent,
+          objectTypes, geometryType,
           mlp.Value.LAYER_TYPE mod 100);
         layer.fLegendJSON := BuildLegendJSON(mlp.Value, layer, lfVertical);
         layer.query := mlp.Value.SQLQuery(fTableprefix);
@@ -2354,7 +2385,7 @@ end;
 
 { TUSProject }
 
-constructor TUSProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerEventName: string;
+constructor TUSProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN: string;
   aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean);
 var
   SourceEPSGstr: string;
@@ -2373,7 +2404,7 @@ begin
   end
   else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   fPreLoadScenarios := aPreLoadScenarios;
-  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerEventName, aDBConnection, 0, False, False, False, addBasicLayers); //1, True, True, True);
+  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aDBConnection, 0, False, False, False, addBasicLayers); //1, True, True, True);
 end;
 
 destructor TUSProject.Destroy;
@@ -2623,7 +2654,7 @@ begin
   geometry.parts.Clear;
   if Assigned(aShape) then
   begin
-    projection := (layer.scenario.Project as TNWBLiveFeedProject).sourceProjection;
+    projection := (layer.scenario.project as TNWBLiveFeedProject).sourceProjection;
     for partI := 0 to aShape.GetNumParts-1 do
     begin
       partG := geometry.AddPart;
@@ -2710,7 +2741,7 @@ begin
   fObjectsAdded := TNWBObjectList.Create(False); // refs
   fObjectsUpdated := TNWBObjectList.Create(False); // refs
   fObjectsDeleted := TNWBObjectList.Create(True); // owns!
-  fUpdateTimeOut := aScenario.Project.Timers.SetTimer(HandleUpdateTimeOut);
+  fUpdateTimeOut := aScenario.project.Timers.SetTimer(HandleUpdateTimeOut);
   fWVKID2UID := TDictionary<TWDID, Integer>.Create;
   fNWBShape := TGIS_LayerSHP.Create;
   // load shape file
@@ -2729,7 +2760,7 @@ begin
   // go live
   fLiveFeedConnection.Subscribe('NWB', HandleNormalEvent);
   // start timer to cleanup old layer objects
-  fCleanupTimer := scenario.Project.Timers.SetTimerDelta(
+  fCleanupTimer := scenario.project.Timers.SetTimerDelta(
     HandleCleanup,
     MilliSeconds2HRT(NWBCleanupCycle_ms),
     MilliSeconds2HRT(NWBCleanupCycle_ms));
@@ -3111,7 +3142,7 @@ end;
 
 { utils }
 
-function CreateSessionProject(aSessionModel: TSessionModel; const aProjectID, aProjectName: string; aProjectType: TProjectType; const aTilerEventName, aConnectString: string): TProject;
+function CreateSessionProject(aSessionModel: TSessionModel; const aProjectID, aProjectName: string; aProjectType: TProjectType; const aTilerFQDN, aConnectString: string): TProject;
 var
   dbConnection: TCustomConnection;
   palette: TWDPalette;
@@ -3122,7 +3153,7 @@ begin
         dbConnection := TOraSession.Create(nil);
         (dbConnection as TOraSession).ConnectString := aConnectString;
         dbConnection.Open;
-        Result := TUSProject.Create(aSessionModel, aSessionModel.Connection, aProjectID, aProjectName, aTilerEventName,
+        Result := TUSProject.Create(aSessionModel, aSessionModel.Connection, aProjectID, aProjectName, aTilerFQDN,
           dbConnection, TMapView.Create(51.919775, 4.403763 {51.914852, 4.394151}, 13), false);
         aSessionModel.Projects.Add(Result);
       end;
@@ -3131,7 +3162,7 @@ begin
         InitPG;
         dbConnection := TFDConnection.Create(nil);
         SetPGConnection(dbConnection as TFDConnection, aConnectString);
-        Result := TEcodistrictProject.Create(aSessionModel, aSessionModel.Connection, aProjectID, aProjectName, aTilerEventName, dbConnection, 0, True, True, True, True);
+        Result := TEcodistrictProject.Create(aSessionModel, aSessionModel.Connection, aProjectID, aProjectName, aTilerFQDN, dbConnection, 0, True, True, True, True);
         aSessionModel.Projects.Add(Result);
       end;
     ptNWBLiveFeed:
@@ -3144,7 +3175,7 @@ begin
           TAlphaColors.Black,
           TAlphaColors.Black,
           TAlphaColors.Green);
-        Result := TNWBLiveFeedProject.Create(aSessionModel, aSessionModel.Connection, aProjectID, aProjectName, aTilerEventName,
+        Result := TNWBLiveFeedProject.Create(aSessionModel, aSessionModel.Connection, aProjectID, aProjectName, aTilerFQDN,
           TIMBConnection.Create(
             getSetting(NWBLiveFeedRemoteHostSwitch, DefaultNWBLiveFeedRemoteHost),
             getSetting(NWBLiveFeedRemotePortSwitch, DefaultNWBLiveFeedRemotePort),

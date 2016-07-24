@@ -89,6 +89,7 @@ namespace WS2IMBSvc
         public static TConnection connection = null;
         public static Dictionary<object, TEventEntry> channelToEvent = new Dictionary<object, TEventEntry>();
         public static TEventEntry rootEvent = null;
+        const int actionStatus = 4;
 
         public static void HookupRoot()
         {
@@ -101,19 +102,43 @@ namespace WS2IMBSvc
 
         private static void RootEvent_onIntString(TEventEntry aEventEntry, int aInt, string aString)
         {
-            if (aInt == TEventEntry.actionInquire)
+            try
             {
-                var returnEvent = aString != "" ? connection.publish(aString, false) : aEventEntry;
-                try
+                if (aInt == TEventEntry.actionInquire)
                 {
-                    foreach (var ctep in channelToEvent)
-                        returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName);
+                    var returnEvent = aString != "" ? connection.publish(aString, false) : aEventEntry;
+                    try
+                    {
+                        foreach (var ctep in channelToEvent)
+                            returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName);
+                    }
+                    finally
+                    {
+                        if (aString != "")
+                            aEventEntry.unPublish();
+                    }
                 }
-                finally
+                else if (aInt == actionStatus)
                 {
-                    if (aString != "")
-                        aEventEntry.unPublish();
+
+                    // build status to return
+                    var status = "{\"id\":\"" + connection.modelName + " @ " + host.BaseAddresses[0].AbsoluteUri + "\",\"status\":\"" + host.State.ToString() + "\",\"info\":\"" + channelToEvent.Count.ToString() + " channels\"}";
+                    // signal status
+                    var returnEvent = aString != "" ? connection.publish(aString, false) : aEventEntry;
+                    try
+                    {
+                        returnEvent.signalString(status);
+                    }
+                    finally
+                    {
+                        if (aString != "")
+                            aEventEntry.unPublish();
+                    }
                 }
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine("## Exception in RootEvent_onIntString ("+aInt.ToString()+", "+aString+"): " + e.Message);
             }
         }
     }

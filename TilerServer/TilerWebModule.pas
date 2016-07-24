@@ -73,7 +73,7 @@ const
   RemoteHostSwitch = 'RemoteHost';
   //  DefaultRemoteHost = 'localhost';
   RemotePortSwitch = 'RemotePort';
-  
+
   MaxEdgeLengthSwitch = 'MaxEdgeLength';
     DefaultMaxEdgeLength = 250;
 
@@ -90,6 +90,8 @@ const
 
   TileSizeX = 256;
   TileSizeY = 256;
+
+  actionStatus = 4;
 
   // request parameters
   rpLayerID = 'layer';
@@ -588,10 +590,13 @@ type
     fCacheFolder: string;
     fDefaultCanvasTriggerLock: TCriticalSection;
     fTilerEvent: TEventEntry;
+    fWS2IMBEvent: TEventEntry;
     fURL: string;
+    fConnectedServices: TStringList;
   private
     procedure HandleDisconnect(aConnection: TConnection);
     procedure HandleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
+    procedure HandleTilerStatus(aEventEntry: TEventEntry; const aString: string);
     procedure setURL(const aValue: string);
     procedure ClearCache;
   private
@@ -605,6 +610,8 @@ type
     property Connection: TConnection read fConnection;
     property URL: string read fURL write setURL;
     property TilerEvent: TEventEntry read fTilerEvent;
+
+    procedure RequestCSStatus;
   end;
 
   TTilerWebModule = class(TWebModule)
@@ -616,6 +623,8 @@ type
     procedure WebModuleDefaultHandlerAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
     procedure WebModuleTilerRequestTileAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
     procedure WebModuleTilerRequestPointValueAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+    procedure TilerWebModuleRequestStatusAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse;
+      var Handled: Boolean);
     //procedure TilerWebModuleRegisterURLAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
   end;
 
@@ -1980,10 +1989,6 @@ var
   path: TPathData;
   x, y, xPrev, yPrev, xn, yn: Double;
   l: Double;
-//  fillColor: TAlphaColor;
-//  strokeColor: TAlphaColor;
-//  fillColor2: TAlphaColor;
-//  strokeColor2: TAlphaColor;
   bufferExtent: TExtent;
   colors: TGeoColors;
   colors2: TGeoColors;
@@ -1996,10 +2001,6 @@ begin
     bufferExtent := aExtent.Inflate(1.3);
     for isgop in fGeometries do
     begin
-//      fillColor := 0;
-//      strokeColor := 0;
-//      fillColor2 := 0;
-//      strokeColor2 := 0;
       if bufferExtent.Intersects(isgop.Value.fExtent) then
       begin
         if IsNaN(isgop.Value.texture) and IsNaN(isgop.Value.texture2) then
@@ -2019,18 +2020,6 @@ begin
           if IsNaN(isgop.Value.texture)
           then colors := colors2
           else colors := fPalette.ValueToColors(isgop.Value.texture);
-
-//          if Assigned(fFillPalette) then
-//          begin
-//            fillColor := fFillPalette.ValueToColor(isgop.Value.texture);
-//            fillColor2 := fFillPalette.ValueToColor(isgop.Value.texture2);
-//          end;
-//          if Assigned(fOutlinePalette) then
-//          begin
-//            strokeColor := fOutlinePalette.ValueToColor(isgop.Value.texture);
-//            strokeColor2 := fOutlinePalette.ValueToColor(isgop.Value.texture2);
-//          end;
-
           setLength(polygon, 5);
           for part in isgop.Value.fGeometry.parts do
           begin
@@ -2088,10 +2077,6 @@ begin
                   yn := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
 
                   // todo: wrong rotation direction..
-                  //polygon[0].X := xPrev;
-                  //polygon[0].Y := yPrev;
-                  //polygon[1].X := x;
-                  //polygon[1].Y := y;
                   polygon[2].X := x-xn;
                   polygon[2].Y := y-yn;
                   polygon[3].X := xPrev-xn;
@@ -2148,8 +2133,6 @@ begin
               end;
             end;
           end;
-
-
         end;
       end;
     end;
@@ -3156,7 +3139,7 @@ begin
   pngExtent := TExtent.Create;
   pngImage := nil;
   discreteColorsOnStretch := true;
-  // todo: color use!
+  // color use!
   colorRemovedPOI := TAlphaColorRec.Red;
   colorSamePOI := TAlphaColorRec.Gray;
   colorNewPOI := TAlphaColorRec.Green;
@@ -3242,7 +3225,7 @@ begin
             // POIs
             (icehTilerPOIImage shl 3) or wtLengthDelimited:
               begin
-                // todo: load image to poiImages
+                // load image to poiImages
                 stream := TStringStream.Create(aBuffer.bb_read_rawbytestring(aCursor));
                 try
                   poiImages.Add(FMX.Graphics.TBitmap.CreateFromStream(stream));
@@ -3483,6 +3466,7 @@ begin
   try
     inherited Create;
     fMaxEdgeLengthInMeters := aMaxEdgeLengthInMeters;
+    fConnectedServices := TStringList.Create;
     fConnection := TSocketConnection.Create('Tiler', 1, 'USIdle',
       GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
     fConnection.onDisconnect := HandleDisconnect;
@@ -3508,8 +3492,10 @@ begin
     // clear cache except for persistent layers
     ClearCache;
     Log.WriteLn('Cleared non-persistent cache');
+    fWS2IMBEvent := fConnection.subscribe('Sessions.WS2IMB'); // for gettings status from ws2imb services
     fTilerEvent := fConnection.subscribe('Tilers.'+GetFQDN.Replace('.', '_')); // todo: how to specify specific tiler (fqdn?), check
     fTilerEvent.OnEvent.Add(HandleTilerEvent);
+    fTilerEvent.OnString.Add(HandleTilerStatus);
     fTilerEvent.signalEvent(TByteBuffer.bb_tag_double(icehTilerStartup, now));
     Log.WriteLn('Finished startup');
   finally
@@ -3533,6 +3519,7 @@ begin
   inherited;
   FreeAndNil(fDefaultCanvasTriggerLock);
   FreeAndNil(fConnection);
+  FreeAndNil(fConnectedServices);
 end;
 
 function TModel.GenerateTile(aLayerID: Integer; aTimeStamp: TDateTime; const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; const aFileName: string): Integer;
@@ -3677,6 +3664,33 @@ begin
   end;
 end;
 
+procedure TModel.HandleTilerStatus(aEventEntry: TEventEntry; const aString: string);
+var
+  statusElements: TArray<string>;
+  se: Integer;
+  element: TArray<string>;
+  id: string;
+  status: string;
+  info: string;
+begin
+  // process status of service {"id":"<id>","status":"<status>"[,"info":"<extra info>"}
+  id := 'unknown';
+  status := 'unknown';
+  info := '';
+  statusElements := aString.Trim(['{','}']).Split([',']);
+  for se := 0 to length(statusElements)-1 do
+  begin
+    element := statusElements[se].Split(['":"']); // removes " also (one side)
+    if element[0]='"id'
+    then id := element[1].TrimRight(['"'])
+    else if element[0]='"status'
+    then status := element[1].TrimRight(['"'])
+    else if element[0]='"info'
+    then info := ', '+element[1].TrimRight(['"']);
+  end;
+  fConnectedServices.Add(id+': '+status+info);
+end;
+
 procedure TModel.LoadPersistentLayers;
 var
   layerIDs: TStringList;
@@ -3751,6 +3765,12 @@ begin
     if Assigned(layer) and Assigned(layer.DataEvent)
     then layer.WORMLock.EndRead; // unlock layer itself
   end;
+end;
+
+procedure TModel.RequestCSStatus;
+begin
+  fTilerEvent.signalIntString(actionStatus, ''); // respond on same event
+  fWS2IMBEvent.signalIntString(actionStatus, fTilerEvent.eventName); // respond on tiler event
 end;
 
 procedure TModel.SavePersistentLayers;
@@ -3902,6 +3922,47 @@ begin
   end;
 end;
 }
+
+procedure TTilerWebModule.TilerWebModuleRequestStatusAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+var
+  html: string;
+  imbStatus: string;
+  s: string;
+begin
+  model.fConnectedServices.Clear;
+  model.RequestCSStatus;
+
+  // show status of connected services and tiler it self..
+  if model.Connection.connected
+  then imbStatus := 'connected'
+  else imbStatus := 'NOT connected';
+
+  sleep(500); // wait for status reponses to come in
+
+  html :=
+    '<html>' +
+    '<head><title>Tiler status</title></head>' +
+    '<body>'+
+      '<h2>Tiler web service @ '+getFQDN+'</h2>'+
+		  '<ul>'+
+		    '<li>Status: running</li>'+
+		    '<li>IMB connection: '+imbStatus+'</li>'+
+        '<li>Layers: '+model.fLayers.Count.ToString()+'</li>'+
+		  '</ul>'+
+		  '<h3>Connected services</h3>'+
+		  '<ul>';
+
+  for s in model.fConnectedServices
+  do html := html+'<li>'+s+'</li>';
+
+  html := html+
+		  '</ul>'+
+      '<small>@ '+FormatDateTime('yyyy-mm-dd hh:nn', Now)+'</small>'+
+    '</body>'+
+    '</html>';
+  Response.Content := html;
+end;
+
 procedure TTilerWebModule.WebModuleCreate(Sender: TObject);
 var
   c: TCanvasClass;
