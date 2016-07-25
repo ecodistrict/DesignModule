@@ -305,10 +305,11 @@ type
   public
     procedure ReadObjectsDBSVGPaths(aQuery: TDataSet; aDefaultValue: Double);
   public
-    procedure RegisterLayer; virtual;
-    procedure RegisterOnTiler(aPersistent: Boolean; aSliceType: Integer; const aDescription: string; aPalette: TWDPalette; aEdgeLengthInMeters: Double=NaN);
-    procedure RegisterSlice; virtual;
-    // registerLayer -> registerOnTiler -> onTilerInfo -> RegisterSlice + signalObjects via timer
+    procedure RegisterOnTiler(aPersistent: Boolean; aSliceType: Integer; const aDescription: string; aEdgeLengthInMeters: Double=NaN; aPalette: TWDPalette=nil);
+
+    procedure RegisterLayer; virtual; // override to call -> RegisterOnTiler(XX)
+    procedure RegisterSlice; virtual; // override to call -> TTilerLayer.addSliceXX
+    // registerLayer (override) -> registerOnTiler -> onTilerInfo -> RegisterSlice (override -> signalAddSlice) + signalObjects via timer
   end;
 
   TKPI = class(TScenarioElement)
@@ -1865,8 +1866,7 @@ begin
   FreeAndNil(fClients);
   FreeAndNil(fObjects);
   //FreeAndNil(fPalette);
-  //FreeAndNil(fTilerLayer); NOT owned
-  fTilerLayer := nil;
+  FreeAndNil(fTilerLayer);
   FreeAndNil(fPreview);
 end;
 
@@ -1988,10 +1988,10 @@ end;
 
 procedure TLayer.RegisterLayer;
 begin
-  fTilerLayer := nil; // NOT owned so just overwrite, default to not-registering (not enough information)
+  FreeAndNil(fTilerLayer); // default to not-registering (not enough information)
 end;
 
-procedure TLayer.RegisterOnTiler(aPersistent: Boolean; aSliceType: Integer; const aDescription: string; aPalette: TWDPalette; aEdgeLengthInMeters: Double);
+procedure TLayer.RegisterOnTiler(aPersistent: Boolean; aSliceType: Integer; const aDescription: string; aEdgeLengthInMeters: Double; aPalette: TWDPalette);
 //var
 //  payload: TByteBuffer;
 begin
@@ -2008,11 +2008,14 @@ begin
     TByteBuffer.bb_tag_int32(icehTilerRequestNewLayer, aSliceType); // last to trigger new layer request
   fTilerEvent.signalEvent(payload);
   }
-  // NOT owned so just overwrite
-  fTilerLayer := scenario.project.tiler.addLayer(elementID, aSliceType, aPalette);
+  fTilerLayer.Free;
+  // recreate tiler layer definition
+  fTilerLayer := TTilerLayer.Create(scenario.project.Connection, elementID, aSliceType, aPalette);//, -1, '' .addLayer(elementID, aSliceType, aPalette);
+  // add handlers
   fTilerLayer.onTilerInfo := handleTilerInfo;
   fTilerLayer.onRefresh := handleTilerRefresh;
   fTilerLayer.onPreview := handleTilerPreview;
+  // trigger registration
   fTilerLayer.signalRegisterLayer(aDescription, aPersistent, aEdgeLengthInMeters);
 end;
 
@@ -2732,8 +2735,6 @@ procedure TProject.handleTilerStartup(aTiler: TTiler; aStartupTime: TDateTime);
 var
   scenario: TScenario;
 begin
-  // re-register all layers
-  fTiler.layers.Clear;
   for scenario in fScenarios.Values
   do scenario.RegisterLayers;
 end;

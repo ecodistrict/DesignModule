@@ -35,10 +35,10 @@ type
   TTiler = class; // forward
 
   TTilerLayer = class
-  constructor Create(aTiler: TTiler; const aElementID: string; aID: Integer; const aURL: string; aPreview: TPngImage=nil; aSliceType: Integer=-1; aPalette: TWDPalette=nil);
+  constructor Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette=nil; aID: Integer=-1; const aURL: string=''; aPreview: TPngImage=nil);
   destructor Destroy; override;
   private
-    fTiler: TTiler;
+    //fTiler: TTiler;
     fEvent: TEventEntry;
     // send
     fElementID: string;
@@ -69,9 +69,8 @@ type
     property onPreview: TOnPreview read fOnPreview write fOnPreview;
     // signal layer info
     procedure signalRegisterLayer(const aDescription: string; aPersistent: Boolean=False; aEdgeLengthInMeters: Double=NaN);
-    //procedure setPalette(aPalette: TWDPalette);
     // add slice with specific data for slice types
-    procedure signalAddSlice(aPalette: TWDPalette; aTimeStamp: TDateTime=0);
+    procedure signalAddSlice(aPalette: TWDPalette=nil; aTimeStamp: TDateTime=0);
     procedure signalAddPOISlice(const aPOIImages: TArray<TPngImage>; aTimeStamp: TDateTime=0);
     procedure signalAddPNGSlice(aPNG: TPngImage; const aExtent: TWDExtent; aDiscreteColorsOnStretch: Boolean=True; aTimeStamp: TDateTime=0);
     procedure signalAddDiffSlice(
@@ -82,8 +81,8 @@ type
       aColorRemovedPOI, aColorSamePOI, aColorNewPOI: TAlphaRGBPixel;
       aCurrentLayerID, aReferenceLayerID: Integer;
       aCurrentTimeStamp: TDateTime=0; aReferenceTimeStamp: TDateTime=0; aTimeStamp: TDateTime=0);
-    // info on slice
-    //procedure signalPalette(aTimeStamp: TDateTime=0); // update palette
+    // slice properties and data
+    procedure signalPalette(aPalette: TWDPalette; aTimeStamp: TDateTime=0); // update palette
     procedure signalData(const aData: TByteBuffer; aTimeStamp: TDateTime=0);
     // when any slice is build
     procedure signalRequestPreview;
@@ -99,19 +98,17 @@ type
     fEvent: TEventEntry;
     fOnTilerStartup: TOnTilerStartup;
     fOnTilerStatus: TOnTilerStatus;
-    fLayers: TObjectDictionary<string, TTilerLayer>; // owned
     procedure handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleTilerStatus(aEventEntry: TEventEntry; aInt: Integer; const aString: string);
   public
     property event: TEventEntry read fEvent;
-    property layers: TObjectDictionary<string, TTilerLayer> read fLayers;
     property onTilerStartup: TOnTilerStartup read fOnTilerStartup write fOnTilerStartup;
     property onTilerStatus: TOnTilerStatus read fOnTilerStatus write fOnTilerStatus;
-    function addLayer(const aElementID: string; aSliceType: Integer; aPalette: TWDPalette=nil): TTilerLayer;
   end;
 
 function ImageToBytes(aImage: TPngImage): TBytes;
-function CreateImageFromBytes(const aBytes: TBytes): TPngImage;
+function GraphicToBytes(aGraphic: TGraphic): TBytes;
+procedure BytesToImage(const aBytes: TBytes; aImage: TPngImage);
 function ImageToBase64(aImage: TPngImage): string;
 
 implementation
@@ -131,6 +128,20 @@ begin
   end;
 end;
 
+function GraphicToBytes(aGraphic: TGraphic): TBytes;
+var
+  stream: TBytesStream;
+begin
+  stream := TBytesStream.Create;
+  try
+    aGraphic.SaveToStream(stream);
+  	Result := stream.Bytes;
+  finally
+    stream.Free;
+  end;
+end;
+
+{
 function CreateImageFromBytes(const aBytes: TBytes): TPngImage;
 var
   stream: TBytesStream;
@@ -139,6 +150,18 @@ begin
   try
     Result := TPngImage.Create;
     Result.LoadFromStream(stream);
+  finally
+    stream.Free;
+  end;
+end;
+}
+procedure BytesToImage(const aBytes: TBytes; aImage: TPngImage);
+var
+  stream: TBytesStream;
+begin
+  stream := TBytesStream.Create(aBytes);
+  try
+    aImage.LoadFromStream(stream);
   finally
     stream.Free;
   end;
@@ -164,10 +187,9 @@ end;
 
 { TTilerLayer }
 
-constructor TTilerLayer.Create(aTiler: TTiler; const aElementID: string; aID: Integer; const aURL: string; aPreview: TPngImage; aSliceType: Integer; aPalette: TWDPalette);
+constructor TTilerLayer.Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette; aID: Integer; const aURL: string; aPreview: TPngImage);
 begin
   inherited Create;
-  fTiler := aTiler;
   fElementID := aElementID;
   fSliceType := aSliceType;
   fPalette := aPalette;
@@ -181,7 +203,7 @@ begin
   if not Assigned(fPreview)
   then LoadPreviewFromCache();
   // make active
-  fEvent := fTiler.event.connection.subscribe('USIdle.sessions.'+aElementID, False);
+  fEvent := aConnection.subscribe('USIdle.sessions.'+aElementID, False);
   fEvent.OnEvent.Add(handleLayerEvent);
 end;
 
@@ -204,7 +226,6 @@ var
   previewsFolder: string;
 begin
   try
-    // todo:
     while aCursor<aLimit do
     begin
       fieldInfo := aBuffer.bb_read_UInt32(aCursor);
@@ -258,7 +279,8 @@ begin
           begin
             try
               fPreview.Free;
-              fPreview := CreateImageFromBytes(aBuffer.bb_read_tbytes(aCursor));
+              fPreview := TPngImage.Create;
+              BytesToImage(aBuffer.bb_read_tbytes(aCursor), fPreview);
               // cache preview
               previewsFolder := ExtractFilePath(ParamStr(0))+'previews';
               ForceDirectories(previewsFolder);
@@ -412,9 +434,11 @@ begin
     TByteBuffer.bb_tag_double(icehTilerSliceID, aTimeStamp)+
     TByteBuffer.bb_tag_rawbytestring(icehTilerSliceUpdate, aData));
 end;
-{
-procedure TTilerLayer.signalPalette(aTimeStamp: TDateTime);
+
+procedure TTilerLayer.signalPalette(aPalette: TWDPalette; aTimeStamp: TDateTime);
 begin
+  fPalette.Free;
+  fPalette := aPalette;
   if Assigned(fPalette) then
   begin
     fEvent.signalEvent(
@@ -422,7 +446,7 @@ begin
       TByteBuffer.bb_tag_double(icehTilerSliceID, aTimeStamp));
   end;
 end;
-}
+
 procedure TTilerLayer.signalRegisterLayer(const aDescription: string; aPersistent: Boolean; aEdgeLengthInMeters: Double);
 var
   payload: TByteBuffer;
@@ -450,7 +474,7 @@ constructor TTiler.Create(aConnection: TConnection; const aTilerFQDN: string);
 begin
   inherited Create;
   fOnTilerStartup := nil;
-  fLayers := TObjectDictionary<string, TTilerLayer>.Create([doOwnsValues]);
+  //fLayers := TObjectDictionary<string, TTilerLayer>.Create([doOwnsValues]);
   fEvent := aConnection.subscribe('USIdle.Tilers.'+aTilerFQDN.Replace('.', '_'), False);
   fEvent.OnEvent.Add(handleTilerEvent);
   fEvent.OnIntString.Add(handleTilerStatus)
@@ -463,7 +487,7 @@ begin
     fEvent.OnEvent.Remove(handleTilerEvent);
     fEvent := nil;
   end;
-  FreeAndNil(fLayers);
+  //FreeAndNil(fLayers);
   inherited;
 end;
 
@@ -521,10 +545,11 @@ begin
   end;
 end;
 
+{
 function TTiler.addLayer(const aElementID: string; aSliceType: Integer; aPalette: TWDPalette): TTilerLayer;
 begin
-  TMonitor.Enter(fLayers);
-  try
+//  TMonitor.Enter(fLayers);
+//  try
     if not fLayers.TryGetValue(aElementID, Result) then
     begin
       Result := TTilerLayer.Create(self, aElementID, -1, '', nil, aSliceType, aPalette);
@@ -534,5 +559,5 @@ begin
     TMonitor.Exit(fLayers);
   end;
 end;
-
+}
 end.

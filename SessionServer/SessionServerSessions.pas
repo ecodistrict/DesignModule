@@ -107,10 +107,11 @@ type
 
   TUSLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
-    aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aBasicLayer: Boolean=False);
+    aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aMetaLayerEntry: TMetaLayerEntry; aBasicLayer: Boolean=False);
   destructor Destroy; override;
   protected
     fLayerType: Integer;
+    fMetaLayerEntry: TMetaLayerEntry; // ref
     fNewPoiCatID: Integer;
     fPoiCategories: TObjectDictionary<string, TUSPOI>;
   public
@@ -290,7 +291,7 @@ type
 
   TNWBLiveFeedLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription : string; aDefaultLoad: Boolean; aPalette: TWDPalette;
-    aTilerEvent: TEventEntry; aLiveFeedConnection: TIMBConnection; const aShapeFileName: string);
+    {aTilerEvent: TEventEntry; }aLiveFeedConnection: TIMBConnection; const aShapeFileName: string);
   destructor Destroy; override;
   private
     fLiveFeedConnection: TIMBConnection;
@@ -1294,7 +1295,7 @@ begin
   if Assigned(layer) then
   begin
     layer.legendJSON := legendJSON;
-    layer.RegisterOnTiler(False, stGeometry, layer.name, palette);
+    layer.RegisterOnTiler(False, stGeometry, layer.name, NaN, palette);
   end;
 
   // green
@@ -1712,9 +1713,10 @@ end;
 { TUSLayer }
 
 constructor TUSLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-  const aObjectTypes, aGeometryType: string; aLayerType: Integer; aBasicLayer: Boolean);
+  const aObjectTypes, aGeometryType: string; aLayerType: Integer; aMetaLayerEntry: TMetaLayerEntry; aBasicLayer: Boolean);
 begin
   fLayerType := aLayerType;
+  fMetaLayerEntry := aMetaLayerEntry; // ref
   fPoiCategories := TObjectDictionary<string, TUSPOI>.Create([doOwnsValues]);
   fNewPoiCatID := 0;
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, aBasicLayer);
@@ -1723,6 +1725,7 @@ end;
 destructor TUSLayer.Destroy;
 begin
   inherited;
+  fMetaLayerEntry := nil; // ref
   FreeAndNil(fPoiCategories);
 end;
 
@@ -1750,7 +1753,7 @@ var
   poiCat: string;
   usPOI: TUSPOI;
   resourceFolder: string;
-  stream: TBytesStream;
+//  stream: TBytesStream;
 begin
   // register layer with tiler?
   // start query
@@ -1822,7 +1825,9 @@ begin
                     do Log.WriteLn('Exception loading POI image '+resourceFolder+poicat+'_'+poiType+'.png', llError);
                   end;
                   // signal POI image to tiler
-                  fTilerLayer.s
+                  //ImageToBytes(usPOI);
+                  //fTilerLayer.s
+                  {
                   stream  := TBytesStream.Create;
                   try
                     usPOI.picture.Graphic.SaveToStream(stream);
@@ -1830,6 +1835,7 @@ begin
                   finally
                     stream.Free;
                   end;
+                  }
                 end;
               finally
                 objects.Add(oid, TGeometryLayerPOIObject.Create(Self, oid, usPOI.ID, geometryPoint));
@@ -1877,25 +1883,45 @@ begin
 end;
 
 procedure TUSLayer.RegisterSlice;
+var
+  //poiImages: TArray<TPngImage>;
+//  poi: TUSPOI;
+  palette: TWDPalette;
 begin
+  if basicLayer or not Assigned(fMetaLayerEntry)
+  then palette := TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicOutline))
+  else palette := CreatePaletteFromODB(fMetaLayerEntry.LEGEND_DESC, fMetaLayerEntry.odbList, True);;
+
   // todo:
   case fLayerType of
     1: // receptors
-      tilerLayer.signalAddSlice();
+      tilerLayer.signalAddSlice(palette);
     //2:; grid
     3, // buildings
     8: // RS buildings
-      tilerLayer.signalAddSlice();
+      tilerLayer.signalAddSlice(palette);
     4: // road color (VALUE_EXPR) unidirectional
-      tilerLayer.signalAddSlice();
+      tilerLayer.signalAddSlice(palette);
     5: // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
-      tilerLayer.signalAddSlice();
+      tilerLayer.signalAddSlice(palette);
     9: // energy color (VALUE_EXPR) and width (TEXTURE_EXPR)
-      tilerLayer.signalAddSlice();
+      tilerLayer.signalAddSlice(palette);
     11: // points, basic layer
-      tilerLayer.signalAddSlice();
+      tilerLayer.signalAddSlice(palette);
     21: // POI
-      tilerLayer.signalAddPOISlice();
+      begin
+        // todo: does not work like this!!! TPicture <> TPngImage.. order of id..
+        {
+        for poi in fPoiCategories.Values do
+        begin
+          //
+          if poi.ID>=length(poiImages)
+          then setLength(poiImages, poi.ID+1);
+          poiImages[poi.ID] := poi.picture;
+        end;
+        tilerLayer.signalAddPOISlice(poiImages);
+        }
+      end;
   end;
 
 end;
@@ -1997,15 +2023,15 @@ end;
 
 procedure TUSScenario.ReadBasicData;
 
-  procedure AddBasicLayer(const aID, aName, aDescription, aDefaultDomain, aObjectType, aGeometryType, aQuery: string; aLayerType: Integer);
+  procedure AddBasicLayer(const aID, aName, aDescription, aDefaultDomain, aObjectType, aGeometryType, aQuery: string; aLayerType: Integer; aMetaLayerEntry: TMetaLayerEntry);
   var
     layer: TUSLayer;
   begin
     layer := TUSLayer.Create(Self,
       standardIni.ReadString('domains', aObjectType, aDefaultDomain), //  domain
       aID, aName, aDescription, false,
-      TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicOutline)),
-       '"'+aObjectType+'"', aGeometryType , aLayerType, True);
+      //TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicOutline)),
+       '"'+aObjectType+'"', aGeometryType , aLayerType, aMetaLayerEntry, True);
     layer.query := aQuery;
     Layers.Add(layer.ID, layer);
     Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
@@ -2018,7 +2044,7 @@ var
   layer: TUSLayer;
   layerInfo: string;
   layerInfoParts: TArray<string>;
-  palette: TWDPalette;
+  //palette: TWDPalette;
   objectTypes: string;
   geometryType: string;
   indicTableNames: TAllRowsSingleFieldResult;
@@ -2041,54 +2067,54 @@ begin
       begin // always
         AddBasicLayer(
           'road', 'roads', 'roads', 'basic structures', 'road', 'LineString',
-          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4);
+          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4, nil);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_PIPELINES' then
       begin // check count
         if ReturnRecordCount(OraSession, tableName)>0
         then AddBasicLayer(
                'pipeline', 'pipe lines', 'pipe lines', 'basic structures', 'pipe line', 'LineString',
-               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4);
+               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4, nil);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_BUILDING' then
       begin // always
         AddBasicLayer(
           'building', 'buildings', 'buildings', 'basic structures', 'building', 'MultiPolygon',
-          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 3);
+          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 3, nil);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_SCREEN' then
       begin // always
         AddBasicLayer(
           'screen', 'screens', 'screens', 'basic structures', 'screen', 'LineString',
-          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4);
+          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4, nil);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_TRAM' then
       begin // check count
         if ReturnRecordCount(OraSession, tableName)>0
         then AddBasicLayer(
                'tramline', 'tram lines', 'tram lines', 'basic structures', 'tram line', 'LineString',
-               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4);
+               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4, nil);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_BIKEPATH' then
       begin // check count
         if ReturnRecordCount(OraSession, tableName)>0
         then AddBasicLayer(
                'bikepath', 'bike paths', 'bike paths', 'basic structures', 'bike path', 'LineString',
-               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4);
+               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4, nil);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_RAIL' then
       begin // check count
         if ReturnRecordCount(OraSession, tableName)>0
         then AddBasicLayer(
                'railline', 'rail lines', 'rail lines', 'basic structures', 'rail line', 'LineString',
-               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4);
+               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 4, nil);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_INDUSTRY_SRC' then
       begin // check count
         if ReturnRecordCount(OraSession, tableName)>0
         then AddBasicLayer(
                'industrysource', 'industry sources', 'industry sources', 'basic structures', 'industry source', 'Point',
-               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 11);
+               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t', 11, nil);
       end;
       //GENE_NEIGHBORHOOD
       //GENE_RESIDENCE
@@ -2121,7 +2147,7 @@ begin
         layerInfoParts[1] := mlp.Value.LEGEND_DESC;
       end;
 
-      palette := CreatePaletteFromODB(mlp.Value.LEGEND_DESC, mlp.Value.odbList, True);
+      //palette := CreatePaletteFromODB(mlp.Value.LEGEND_DESC, mlp.Value.odbList, True);
 
       case mlp.Value.LAYER_TYPE mod 100 of // i+100 image layer version same as i but ignored by US3D
         1:
@@ -2173,9 +2199,10 @@ begin
           layerInfoParts[1], // name
           mlp.Value.LEGEND_DESC.Replace('~~', '-').replace('\', '-'), // description
           false, //false, // todo: default load
-          palette,
+          //palette,
           objectTypes, geometryType,
-          mlp.Value.LAYER_TYPE mod 100);
+          mlp.Value.LAYER_TYPE mod 100,
+          mlp.Value);
         layer.fLegendJSON := BuildLegendJSON(mlp.Value, layer, lfVertical);
         layer.query := mlp.Value.SQLQuery(fTableprefix);
         Layers.Add(layer.ID, layer);
@@ -2731,12 +2758,12 @@ end;
 { TNWBLiveFeedLayer }
 
 constructor TNWBLiveFeedLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription : string; aDefaultLoad: Boolean;
-  aPalette: TWDPalette; aTilerEvent: TEventEntry; aLiveFeedConnection: TIMBConnection; const aShapeFileName: string);
+  aPalette: TWDPalette; {aTilerEvent: TEventEntry; }aLiveFeedConnection: TIMBConnection; const aShapeFileName: string);
 var
   shape: TGIS_Shape;
   objJSON: string;
 begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aPalette, '"road"', 'LineString', aTilerEvent);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, {aPalette, }'"road"', 'LineString'{, aTilerEvent});
   fLiveFeedConnection := aLiveFeedConnection; // ref
   fObjectsAdded := TNWBObjectList.Create(False); // refs
   fObjectsUpdated := TNWBObjectList.Create(False); // refs
@@ -2909,7 +2936,7 @@ begin
   fObjectsUpdated.lock.BeginWrite;
   try
     for obj in fObjectsUpdated.objects
-    do jsonAdd(json, '"'+string(obj.id)+'"'+':"'+ColorToJSON(palette.ValueToColors((obj as TNWBLiveFeedRoad).fVp).fillColor)+'"');
+    do jsonAdd(json, '"'+string(obj.id)+'"'+':"'+ColorToJSON(fTilerLayer.palette.ValueToColors((obj as TNWBLiveFeedRoad).fVp).fillColor)+'"');
     fObjectsUpdated.objects.Clear;
   finally
     fObjectsUpdated.lock.EndWrite;
@@ -2975,7 +3002,7 @@ end;
 type
   TOldTilerLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aPalette: TWDPalette;
-    const aObjectTypes, aGeometryType: string; aTilerEvent: TEventEntry; aRefreshEvent: TIMBEventEntry; aBasicLayer: Boolean=False);
+    const aObjectTypes, aGeometryType: string; {aTilerEvent: TEventEntry; }aRefreshEvent: TIMBEventEntry; aBasicLayer: Boolean=False);
   destructor Destroy; override;
   private
     fRefreshEvent: TIMBEventEntry;
@@ -2985,9 +3012,9 @@ type
 { TOldTilerLayer }
 
 constructor TOldTilerLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aPalette: TWDPalette;
-    const aObjectTypes, aGeometryType: string; aTilerEvent: TEventEntry; aRefreshEvent: TIMBEventEntry; aBasicLayer: Boolean);
+    const aObjectTypes, aGeometryType: string; {aTilerEvent: TEventEntry; }aRefreshEvent: TIMBEventEntry; aBasicLayer: Boolean);
 begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aPalette, aObjectTypes, aGeometryType, aTilerEvent, aBasicLayer);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, {aPalette, }aObjectTypes, aGeometryType, {aTilerEvent, }aBasicLayer);
   fRefreshEvent := aRefreshEvent;
   fRefreshEvent.OnNormalEvent := HandleRefreshEvent;
 end;
@@ -3019,7 +3046,7 @@ end;
 { TNWBLiveFeedScenario }
 
 procedure addLiveAirLayer(aScenario: TScenario; const aDomain: string; aLayerID: Integer; const aName, aDescription: string;
-  aTilerEvent: TEventEntry; const aAVLFileName: string; aLiveFeedConnection: TIMBConnection);
+  {aTilerEvent: TEventEntry; }const aAVLFileName: string; aLiveFeedConnection: TIMBConnection);
 var
   palette: TWDPalette;
   layer: TLayer;
@@ -3029,10 +3056,13 @@ begin
     palette := CreatePaletteFromODB(aName, ODBFileToODBList(aAVLFileName), True);
     layer := aScenario.AddLayer(
       TOldTilerLayer.Create(aScenario, aDomain, aLayerID.toString, aName, aDescription, False,
-      palette, '"road"', 'tile', aTilerEvent, aLiveFeedConnection.Subscribe('layers.'+aLayerID.ToString)));
+      palette, '"road"', 'tile', {aTilerEvent, }aLiveFeedConnection.Subscribe('layers.'+aLayerID.ToString)));
+    // todo:
+    (*
     layer.objectsTilesID := aLayerID;
     layer.objectsTilesLink := GetSetting(NWBLiveFeedTilesURLSwitch, DefaultNWBLiveFeedTilesURL)+
       '?layer='+aLayerID.ToString+'&zoom={z}&x={x}&y={y}';
+    *)
   end
   else Log.WriteLn('Could not create live air layer: avl '+aAVLFileName+' not found', llError);
 end;
@@ -3047,15 +3077,15 @@ begin
   fLiveFeedConnection := aLiveFeedConnection;
   AddLayer(
     TNWBLiveFeedLayer.Create(Self, NWBTrafficDomain, 'live', 'Live traffic i/c', 'Live traffic feed', True, aPalette,
-    fProject.TilerEvent, fLiveFeedConnection, aShapeFileName));
+    {fProject.TilerEvent, }fLiveFeedConnection, aShapeFileName));
   resourceFolder := ExtractFilePath(ParamStr(0));
   //addLiveAirLayer(Self, AirDomain, 121, 'NOx',  '', fProject.TilerEvent, 'no2.avl', fLiveFeedConnection);
-  addLiveAirLayer(Self, NWBAirDomain, 122, 'PM10', '', fProject.TilerEvent, resourceFolder+'pm10.avl', fLiveFeedConnection);
-  addLiveAirLayer(Self, NWBAirDomain, 123, 'PM25', '', fProject.TilerEvent, resourceFolder+'pm25.avl', fLiveFeedConnection);
+  addLiveAirLayer(Self, NWBAirDomain, 122, 'PM10', '', {fProject.TilerEvent, }resourceFolder+'pm10.avl', fLiveFeedConnection);
+  addLiveAirLayer(Self, NWBAirDomain, 123, 'PM25', '', {fProject.TilerEvent, }resourceFolder+'pm25.avl', fLiveFeedConnection);
   //addLiveAirLayer(Self, AirDomain, 124, 'NO2',  '', fProject.TilerEvent, 'no2.avl',  fLiveFeedConnection);
   //addLiveAirLayer(Self, AirDomain, 132, 'PM10 tot', '', fProject.TilerEvent, 'pm10.avl', fLiveFeedConnection);
   //addLiveAirLayer(Self, AirDomain, 133, 'PM25 tot', '', fProject.TilerEvent, 'pm25.avl', fLiveFeedConnection);
-  addLiveAirLayer(Self, NWBAirDomain, 134, 'NO2',  '', fProject.TilerEvent, resourceFolder+'no2.avl',  fLiveFeedConnection);
+  addLiveAirLayer(Self, NWBAirDomain, 134, 'NO2',  '', {fProject.TilerEvent, }resourceFolder+'no2.avl',  fLiveFeedConnection);
   kpi1 := TKPI.Create(Self, NWBTrafficDomain, 'kpi1', 'kpi1', 'a traffic kpi', false);
   with AddKPI(kpi1) do
   begin
@@ -3116,10 +3146,11 @@ end;
 
 { TNWBLiveFeedProject }
 
-constructor TNWBLiveFeedProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerEventName: string;
+constructor TNWBLiveFeedProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
+  const aProjectID, aProjectName, aTilerFQDN: string;
   aLiveFeedConnection: TIMBConnection; aPalette: TWDPalette; const aShapeFilename: string);
 begin
-  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerEventName, nil, 0, False, False, False, False);
+  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, nil, 0, False, False, False, False);
   {if aSourceEPSG>0
   then fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(aSourceEPSG)
   else }
