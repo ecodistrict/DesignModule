@@ -134,7 +134,7 @@ const
   earthRadius = 6317000; // m
 
 var
-  lock: TOmniMREW;
+  globalModelAndLayersLock: TOmniMREW;
 
 type
   TLatLon = record
@@ -254,7 +254,7 @@ type
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; virtual; abstract;
     procedure GenerateTileUnLock; virtual; abstract;
   public
-    function GenerateTile(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool=nil): Integer; virtual;
+    function GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;{aBitmap: FMX.Graphics.TBitmap; }const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool=nil): Integer; virtual;
   public
     property timeStamp: TDateTime read fTimeStamp;
     function id: string;
@@ -440,17 +440,16 @@ type
   protected
     fCurrentSlice: TSlice; // ref
     fRefSlice: TSlice; // ref
+  protected
+    procedure GenerateTileLock; override;
+    function GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean; override;
+    procedure GenerateTileUnLock; override;
   public
     procedure RemoveChild(aChild: TSlice);
     // for updating data
     procedure BeginUpdate; override;
     procedure EndUpdate; override;
     procedure HandleDiffUpdate; virtual;
-  protected
-    // tile generation
-    procedure GenerateTileLock; override;
-    function GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean; override;
-    procedure GenerateTileUnLock; override;
   public
     // generic diff point value
     function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
@@ -462,6 +461,7 @@ type
   destructor Destroy; override;
   private
     fPalette: TWDPalette; // own
+  protected
   protected
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
@@ -566,7 +566,7 @@ type
     property Slices: TObjectList<TSlice> read fSlices;
     property DataEvent: TEventEntry read fDataEvent;
     property WORMLock: TOmniMREW read fWORMLock;
-    function GenerateTile(aTimeStamp: TDateTime; const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool=nil): Integer;
+    function GenerateTile(aTimeStamp: TDateTime; const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;{aBitmap: FMX.Graphics.TBitmap;} const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool=nil): Integer;
     function PointValue(aTimeStamp: TDateTime; const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double;
     function URL: string;
     function dateTimeRange: string;
@@ -604,7 +604,7 @@ type
     procedure LoadPersistentLayers;
     procedure SavePersistentLayers;
   public
-    function GenerateTile(aLayerID: Integer; aTimeStamp: TDateTime; const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; const aFileName: string): Integer;
+    function GenerateTile(aLayerID: Integer; aTimeStamp: TDateTime; const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;{aBitmap: FMX.Graphics.TBitmap;} const aFileName: string): Integer;
     function PointValue(aLayerID: Integer; aTimeStamp: TDateTime; aLat, aLon: Double): Double;
 
     property defaultCanvasTriggerLock: TCriticalSection read fDefaultCanvasTriggerLock;
@@ -1113,10 +1113,11 @@ begin
   // default no action
 end;
 
-function TSlice.GenerateTile(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
+function TSlice.GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;{aBitmap: FMX.Graphics.TBitmap;} const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
 var
   bitmapFileName: string;
-  stream: TStream;
+  fileStream: TStream;
+  bitmap: FMX.Graphics.TBitmap;
 begin
   //Log.WriteLn('TSlice.GenerateTile');
   Result := HSC_ERROR_NOT_FOUND; // sentinel
@@ -1129,13 +1130,21 @@ begin
     if (aCacheFolder<>'') and FileExists(bitmapFileName) then
     begin
       try
+        fileStream := TFileStream.Create(bitmapFileName, fmOpenRead+fmShareDenyWrite);
+        try
+          aStream.CopyFrom(fileStream, fileStream.Size);
+        finally
+          fileStream.Free;
+        end;
         //Log.WriteLn('loading existing bitmap '+TimeFolder+aFileName);
+        {
         stream := TFileStream.Create(bitmapFileName, fmOpenRead+fmShareDenyWrite);
         try
           aBitMap.LoadFromStream(stream);
         finally
           stream.Free;
         end;
+        }
         //Log.WriteLn('returned existing bitmap '+TimeFolder+aFileName);
         Result := HSC_SUCCESS_OK;
       except
@@ -1147,6 +1156,47 @@ begin
     end
     else
     begin
+      try
+        bitmap := FMX.Graphics.TBitmap.Create(aWidthPixels, aHeightPixels);
+        try
+          if GenerateTileCalc(aExtent, bitmap, (aExtent.XMax-aExtent.XMin)/bitmap.Width, (aExtent.YMax-aExtent.YMin)/bitmap.Height) then
+          begin
+            //Log.WriteLn('generated bitmap '+TimeFolder+aFileName);
+            Result := HSC_SUCCESS_CREATED;
+            if aCacheFolder<>'' then
+            begin
+              // save tile bitmap
+              try
+                //Log.WriteLn('create directory '+ExtractFileDir(bitmapFileName));
+                ForceDirectories(ExtractFileDir(bitmapFileName));
+                //Log.WriteLn('Save bitmap '+bitmapFileName);
+                fileStream := TFileStream.Create(bitmapFileName, fmCreate+fmShareDenyWrite);
+                try
+                  bitmap.SaveToStream(fileStream);
+                finally
+                  fileStream.Free;
+                end;
+              except
+                on E: Exception do
+                begin
+                  Log.WriteLn('Exception saving tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+                end;
+              end;
+            end;
+            // return stream
+            bitmap.SaveToStream(aStream);
+          end
+          else Log.WriteLn('could not calculate tile '+TimeFolder+aFileName, llError);
+        finally
+          bitmap.Free;
+        end;
+      except
+        on E: Exception do
+        begin
+          Log.WriteLn('Exception creating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+        end;
+      end;
+      {
       //Log.WriteLn('generating bitmap '+TimeFolder+aFileName);
       if GenerateTileCalc(aExtent, aBitmap, (aExtent.XMax-aExtent.XMin)/aBitmap.Width, (aExtent.YMax-aExtent.YMin)/aBitmap.Height) then
       begin
@@ -1167,6 +1217,7 @@ begin
         end;
       end
       else Log.WriteLn('could not calculate tile '+TimeFolder+aFileName, llError);
+      }
     end;
   finally
     GenerateTileUnLock;
@@ -2599,7 +2650,6 @@ end;
 
 procedure TDiffSlice.BeginUpdate;
 begin
-  // todo: lock slice
   TMonitor.Enter(Self);
   inherited BeginUpdate;
 end;
@@ -2634,23 +2684,21 @@ end;
 
 procedure TDiffSlice.GenerateTileLock;
 begin
-  (fCurrentSlice as TSliceReceptor).fNetLock.BeginRead;
-  (fRefSlice as TSliceReceptor).fNetLock.BeginRead;
+  fCurrentSlice.GenerateTileLock;
+  fRefSlice.GenerateTileLock;
 end;
 
 function TDiffSlice.GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean;
 begin
   // make sure current and ref are calculated
-  Result :=
-    (fCurrentSlice as TSliceReceptor).GenerateTilePreCalc(aThreadPool);
-  Result := Result and
-    (fRefSlice as TSliceReceptor).GenerateTilePreCalc(aThreadPool);
+  Result := fCurrentSlice.GenerateTilePreCalc(aThreadPool);
+  Result := Result and fRefSlice.GenerateTilePreCalc(aThreadPool);
 end;
 
 procedure TDiffSlice.GenerateTileUnLock;
 begin
-  (fCurrentSlice as TSliceReceptor).fNetLock.EndRead;
-  (fRefSlice as TSliceReceptor).fNetLock.EndRead;
+  fCurrentSlice.GenerateTileUnLock;
+  fRefSlice.GenerateTileUnLock;
 end;
 
 procedure TDiffSlice.HandleDiffUpdate;
@@ -3064,14 +3112,14 @@ begin
   // find slice in specific layer
   if aLayerID<>layerID then
   begin
-    lock.BeginRead;
+    globalModelAndLayersLock.BeginRead;
     try
       if not (Assigned(fModel.fLayers) and fModel.fLayers.TryGetValue(aLayerID, layer))
       then layer := nil;
       if Assigned(layer)
-      then layer.WORMLock.BeginRead; //layer.Lock.Acquire; // lock layer itself inside layers lock
+      then layer.WORMLock.BeginRead; //lock layer itself inside layers lock
     finally
-      lock.EndRead;
+      globalModelAndLayersLock.EndRead;
     end;
     if Assigned(layer) then
     begin
@@ -3083,10 +3131,14 @@ begin
     end
     else Result := nil;
   end
-  else Result := findSlice(aTimeStamp);
+  else
   begin
-    layer := Self;
-    layer.WORMLock.BeginRead;
+    WORMLock.BeginRead;
+    try
+      Result := findSlice(aTimeStamp);
+    finally
+      WORMLock.EndRead;
+    end;
   end;
 end;
 
@@ -3109,13 +3161,13 @@ begin
   else exit(nil);
 end;
 
-function TLayer.GenerateTile(aTimeStamp: TDateTime; const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
+function TLayer.GenerateTile(aTimeStamp: TDateTime; const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;{aBitmap: FMX.Graphics.TBitmap;} const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
 var
   slice: TSlice;
 begin
   slice := findSlice(aTimeStamp);
   if Assigned(slice)
-  then Result := slice.GenerateTile(aExtent, aBitmap, aFileName, aCacheFolder, aThreadPool)
+  then Result := slice.GenerateTile(aExtent, aStream, aWidthPixels, aheightPixels, {aBitmap, }aFileName, aCacheFolder, aThreadPool)
   else
   begin
     if aTimeStamp=0
@@ -3143,7 +3195,7 @@ var
   _layerID: Integer;
   width: UInt32;
   res: Integer;
-  bitmap: FMX.Graphics.TBitmap;
+//  bitmap: FMX.Graphics.TBitmap;
 begin
   try
     timeStamp := 0;
@@ -3314,11 +3366,22 @@ begin
               (icehTilerRequestPreviewImage shl 3) or wtVarInt:
                 begin
                   width := aBuffer.bb_read_uint32(aCursor);
+                  stream := TMemoryStream.Create;
+                  try
+                    res := GenerateTile(0, Self.extent.SquareInMeters, stream, width, width,{bitmap, }'preview.png', model.fCacheFolder);
+                    if (res=HSC_SUCCESS_OK) or (res=HSC_SUCCESS_CREATED)
+                    then aEventEntry.signalEvent(TByteBuffer.bb_tag_bytes(icehTilerPreviewImage, (stream as TMemoryStream).Memory^, stream.Size))
+                    else Log.WriteLn('TLayer.handleDataEvent: could not create bitmap on icehTilerRequestPreviewImage');
+                  finally
+                    stream.Free;
+                  end;
+                  (*
                   bitmap := FMX.Graphics.TBitmap.Create(width, width);
                   try
                     if Assigned(bitmap) then
                     begin
-                      res := GenerateTile(0, Self.extent.SquareInMeters, bitmap, 'preview.png', model.fCacheFolder);
+
+                      res := GenerateTile(0, Self.extent.SquareInMeters, {bitmap, }'preview.png', model.fCacheFolder);
                       if (res=HSC_SUCCESS_OK) or (res=HSC_SUCCESS_CREATED) then
                       begin
                         stream := TMemoryStream.Create;
@@ -3337,9 +3400,10 @@ begin
                   finally
                     bitmap.Free;
                   end;
+                  *)
                 end
             else
-              Log.WriteLn('unknown fields in layer ('+LayerID.ToString+') data: '+(fieldInfo and 7).toString, llWarning);
+              Log.WriteLn('unknown fields in layer ('+LayerID.ToString+') data: '+fieldInfo.toString, llWarning);
               aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
             end;
           end;
@@ -3481,7 +3545,7 @@ end;
 
 constructor TModel.Create(aMaxEdgeLengthInMeters: TDLCoordinate; aThreadCount: Integer);
 begin
-  lock.BeginWrite;
+  globalModelAndLayersLock.BeginWrite;
   try
     inherited Create;
     fMaxEdgeLengthInMeters := aMaxEdgeLengthInMeters;
@@ -3519,7 +3583,7 @@ begin
     fTilerEvent.signalEvent(TByteBuffer.bb_tag_double(icehTilerStartup, now));
     Log.WriteLn('Finished startup');
   finally
-    lock.EndWrite; // enable other methods
+    globalModelAndLayersLock.EndWrite; // enable other methods
   end;
 end;
 
@@ -3529,12 +3593,12 @@ begin
   Log.WriteLn('Stop model');
   FreeAndNil(fThreadPool);
   fConnection.connected := False;
-  lock.BeginWrite;
+  globalModelAndLayersLock.BeginWrite;
   try
     SavePersistentLayers;
     FreeAndNil(fLayers);
   finally
-    lock.EndWrite;
+    globalModelAndLayersLock.EndWrite;
   end;
   inherited;
   FreeAndNil(fDefaultCanvasTriggerLock);
@@ -3542,24 +3606,24 @@ begin
   FreeAndNil(fConnectedServices);
 end;
 
-function TModel.GenerateTile(aLayerID: Integer; aTimeStamp: TDateTime; const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; const aFileName: string): Integer;
+function TModel.GenerateTile(aLayerID: Integer; aTimeStamp: TDateTime; const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;{aBitmap: FMX.Graphics.TBitmap;} const aFileName: string): Integer;
 var
   layer: TLayer;
 begin
   try
     layer := nil;
     try
-      lock.BeginRead;
+      globalModelAndLayersLock.BeginRead;
       try
         if not (Assigned(fLayers) and fLayers.TryGetValue(aLayerID, layer))
         then layer := nil;
         if Assigned(layer)
         then layer.WORMLock.BeginRead; //layer.Lock.Acquire; // lock layer itself inside layers lock
       finally
-        lock.EndRead;
+        globalModelAndLayersLock.EndRead;
       end;
       if Assigned(layer) and Assigned(layer.DataEvent)
-      then Result := layer.GenerateTile(aTimeStamp, aExtent, aBitmap, aFileName, fCacheFolder, fThreadPool)
+      then Result := layer.GenerateTile(aTimeStamp, aExtent, aStream, aWidthPixels, aHeightPixels, {aBitmap, }aFileName, fCacheFolder, fThreadPool)
       else
       begin
         Log.WriteLn('Layer id '+aLayerID.ToString+' not found to generate tile from', llWarning);
@@ -3636,7 +3700,7 @@ begin
             sliceType := aBuffer.bb_read_int32(aCursor);
             if eventName<>'' then
             begin
-              lock.BeginWrite;
+              globalModelAndLayersLock.BeginWrite;
               try
                 if Assigned(fLayers) then
                 begin
@@ -3676,10 +3740,11 @@ begin
                     newLayer.signalTilerInfo;
                     Log.WriteLn('added new layer '+description+' ('+newLayer.LayerID.ToString+') for '+eventName);
                   end;
+                  Log.WriteLn(newLayer.URL, llNormal, 1);
                 end;
                 // else shuting down?
               finally
-                lock.EndWrite;
+                globalModelAndLayersLock.EndWrite;
               end;
             end
             else Log.WriteLn('TModel.HandleTilerEvent: new layer without event name sepcified', llError);
@@ -3743,7 +3808,7 @@ begin
       try
         stream := TFileStream.Create(PersistentLayersDataFileName, fmOpenRead);
         try
-          lock.BeginWrite;
+          globalModelAndLayersLock.BeginWrite;
           try
             for id in layerIDs do
             begin
@@ -3763,7 +3828,7 @@ begin
               end;
             end;
           finally
-            lock.EndWrite;
+            globalModelAndLayersLock.EndWrite;
           end;
         finally
           stream.Free;
@@ -3784,14 +3849,14 @@ var
 begin
   layer := nil;
   try
-    lock.BeginRead;
+    globalModelAndLayersLock.BeginRead;
     try
       if not (Assigned(fLayers) and fLayers.TryGetValue(aLayerID, layer))
       then layer := nil;
       if Assigned(layer)
       then layer.WORMLock.BeginRead; // lock layer itself inside layers lock
     finally
-      lock.EndRead;
+      globalModelAndLayersLock.EndRead;
     end;
     if Assigned(layer) and Assigned(layer.DataEvent)
     then Result := layer.PointValue(aTimeStamp, aLat, aLon, fThreadPool)
@@ -3876,7 +3941,7 @@ begin
 //    '<div>registerd url: '+requestURL+'</div>'+
 //    '<br/><br/>';
   // handle request on model
-  lock.BeginRead;
+  globalModelAndLayersLock.BeginRead;
   try
     if Assigned(model.fLayers) then
     begin
@@ -3917,7 +3982,7 @@ begin
     end
     else html := html+'<div>layers not created (yet)</div';
   finally
-    lock.EndRead;
+    globalModelAndLayersLock.EndRead;
   end;
   html := html+
     '</body>' +
@@ -4068,11 +4133,12 @@ procedure TTilerWebModule.WebModuleTilerRequestTileAction(Sender: TObject; Reque
 var
   extent: TExtent;
   layerID: Integer;
-  bitmap: FMX.Graphics.TBitmap;
+  //bitmap: FMX.Graphics.TBitmap;
   zoomFactor: Integer;
   tileX, tiley: Integer;
   fileName: string;
-  stream: TMemoryStream;
+  //stream: TMemoryStream;
+  stream: TStream;
   s: AnsiString;
   time: string;
   timeStamp: TDateTime;
@@ -4095,6 +4161,7 @@ begin
                        time.Substring(8,2).toInteger, time.Substring(10,2).toInteger, time.Substring(12,2).toInteger, 0)
       else timeStamp := 0;
       //Log.WriteLn('tile request: '+fileName);
+      {
       try
         bitmap := FMX.Graphics.TBitmap.Create(TileSizeX, TileSizeY);
       except
@@ -4104,12 +4171,33 @@ begin
           bitmap := nil;
         end;
       end;
-
+      }
     except
       on E: Exception
       do Log.WriteLn('Exception in WebModuleTilerRequestTileAction, decoding parameters: '+E.Message, llError);
     end;
 
+    // handle request on model
+    stream := TMemoryStream.Create;
+    try
+      Response.StatusCode := model.GenerateTile(layerID, timeStamp, extent, stream, TileSizeX, TileSizeY, fileName);
+      if (Response.StatusCode=HSC_SUCCESS_OK) or (Response.StatusCode=HSC_SUCCESS_CREATED) then
+      begin
+        try
+          stream.Position := 0;
+          setlength(s, stream.Size);
+          Move((stream as TMemoryStream).Memory^, s[1], Length(s));
+          Response.ContentType := 'image/png';
+          Response.RawContent := s;
+        except
+          on E: Exception
+          do Log.WriteLn('Exception in WebModuleTilerRequestTileAction, returning image: '+E.Message, llError);
+        end;
+      end;
+    finally
+      stream.Free;
+    end;
+    {
     try
       if Assigned(bitmap) then
       begin
@@ -4158,6 +4246,7 @@ begin
         do Log.WriteLn('Exception in WebModuleTilerRequestTileAction, bitmap.Free: '+E.Message, llError);
       end;
     end;
+    }
     Handled := True;
   except
     on E: Exception do
@@ -4174,7 +4263,7 @@ var
   maxEdgeLengthInMeters: TDLCoordinate;
   threadCount: Integer;
 initialization
-  lock.Create;
+  globalModelAndLayersLock.Create;
 
   dotFormat.DecimalSeparator := '.';
 

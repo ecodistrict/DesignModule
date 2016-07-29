@@ -58,11 +58,15 @@ namespace WS2IMBSvc
             Lookups.host.Description.Behaviors.Add(smb);
 
             CustomBinding binding = new CustomBinding();
+            // http://www.rauch.io/2015/06/25/all-wcf-timeouts-explained/
+            // https://msdn.microsoft.com/en-us/library/hh924831(v=vs.110).aspx
+            binding.ReceiveTimeout = new TimeSpan(3, 0, 0);
+            binding.SendTimeout = new TimeSpan(3, 0, 0);
             binding.Elements.Add(new ByteStreamMessageEncodingBindingElement());
             HttpTransportBindingElement transport = new HttpTransportBindingElement();
             transport.WebSocketSettings.TransportUsage = WebSocketTransportUsage.Always;
             transport.WebSocketSettings.CreateNotificationOnConnection = true;
-            transport.WebSocketSettings.KeepAliveInterval = new TimeSpan(6, 0, 0); // 6 hours
+            transport.WebSocketSettings.KeepAliveInterval = new TimeSpan(3, 0, 0);
             transport.KeepAliveEnabled = true; // default true?
             binding.Elements.Add(transport);
 

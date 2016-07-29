@@ -150,14 +150,17 @@
         
         // web socket connection
         var ws;
+        var wsLastConnectDateTime;
 
         function wsConnect() {
             ws = new WebSocket(wsBaseURL + '/sessions?session=' + session);
-            ws.onopen = function () {
+            ws.onopen = function (e) {
                 connectionStatus.classList.remove('connection-status-disconnected');
                 connectionStatus.classList.add('connection-status-connected');
                 // todo: remove all basic layers?
                 // todo: remove all non-basic layers?
+                wsLastConnectDateTime = new Date();
+
             };
             ws.onmessage = function (evt) {
                 var message = JSON.parse(evt.data);
@@ -347,8 +350,9 @@
             ws.onclose = function (evt) {
                 connectionStatus.classList.remove('connection-status-connected');
                 connectionStatus.classList.add('connection-status-disconnected');
+                var timeDiff = Math.abs(wsLastConnectDateTime.getTime() - new Date().getTime());
                 if (evt.code && evt.code != 1000)
-                    showUserMessage("disconnected (close " + evt.code + ", " + evt.reason + ")");
+                    showUserMessage("disconnected (close " + evt.code + ", " + evt.reason + ") after " + Math.round(timeDiff/1000)+ " seconds");
             };
         };
 
