@@ -18,6 +18,12 @@
         <Projects Include="EcoDistrictDebugger\EcodistrictDebugger.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="PublishDebugger\PublishDebugger.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="TilerServer\TilerDebugger.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -71,14 +77,32 @@
     <Target Name="EcodistrictDebugger:Make">
         <MSBuild Projects="EcoDistrictDebugger\EcodistrictDebugger.dproj" Targets="Make"/>
     </Target>
+    <Target Name="PublishDebugger">
+        <MSBuild Projects="PublishDebugger\PublishDebugger.dproj"/>
+    </Target>
+    <Target Name="PublishDebugger:Clean">
+        <MSBuild Projects="PublishDebugger\PublishDebugger.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="PublishDebugger:Make">
+        <MSBuild Projects="PublishDebugger\PublishDebugger.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="TilerDebugger">
+        <MSBuild Projects="TilerServer\TilerDebugger.dproj"/>
+    </Target>
+    <Target Name="TilerDebugger:Clean">
+        <MSBuild Projects="TilerServer\TilerDebugger.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TilerDebugger:Make">
+        <MSBuild Projects="TilerServer\TilerDebugger.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger"/>
+        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean"/>
+        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make"/>
+        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
