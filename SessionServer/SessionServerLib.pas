@@ -785,7 +785,7 @@ begin
   if (tilerLayer.URL='') and
      Assigned(fCurrentLayer.tilerLayer) and (fCurrentLayer.tilerLayer.URL<>'') and
      Assigned(fReferenceLayer.tilerLayer) and (fReferenceLayer.tilerLayer.URL<>'')
-  then fTilerLayer.signalRegisterLayer(fCurrentLayer.scenario.project.tiler, 'diff '+fCurrentLayer.Description);
+  then fTilerLayer.signalRegisterLayer(fCurrentLayer.scenario.project.tiler, 'diff-'+fCurrentLayer.Description+'-'+fReferenceLayer.description);
 end;
 
 procedure TDiffLayer.handleTilerInfo(aTilerLayer: TTilerLayer);
@@ -1296,6 +1296,7 @@ begin
               if not fProject.diffLayers.TryGetValue(diffElementID, diffLayer) then
               begin
                 diffLayer := TDiffLayer.Create(diffElementID, layer, refLayer);
+                fProject.diffLayers.Add(diffElementID, diffLayer);
                 // todo:
 
               end;

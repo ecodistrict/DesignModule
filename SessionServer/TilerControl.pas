@@ -288,6 +288,7 @@ destructor TTilerLayer.Destroy;
 begin
   if Assigned(fEvent) then
   begin
+    fEvent.OnEvent.Remove(handleLayerEvent);
     fEvent.unSubscribe();
     fEvent := nil;
   end;
@@ -576,6 +577,7 @@ destructor TTiler.Destroy;
 begin
   if Assigned(fEvent) then
   begin
+    fEvent.OnIntString.remove(handleTilerStatus);
     fEvent.OnEvent.Remove(handleTilerEvent);
     fEvent := nil;
   end;
