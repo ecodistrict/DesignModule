@@ -49,6 +49,7 @@ type
     function BaseTableNoPrefix: string;
     function BuildJoin(const aTablePrefix: string; out aShapePrefix: string): string;
     function SQLQuery(const aTablePrefix:string; xMin: Integer=0; yMin: Integer=0; xMax: Integer=-1; yMax: Integer=-1): string;
+    function diffRange(aFactor: Double): Double;
   end;
 
   TMetaLayer = TObjectDictionary<Integer, TMetaLayerEntry>;
@@ -344,6 +345,40 @@ begin
         end;
       end;
     end;
+  end;
+end;
+
+function TMetaLayerEntry.diffRange(aFactor: Double): Double;
+var
+  odb: TODBRecord;
+  minValue, maxValue: Double;
+begin
+  minValue := NaN;
+  maxValue := NaN;
+  for odb in odbList do
+  begin
+    if not IsNaN(odb.Min) then
+    begin
+      if IsNaN(minValue) or (minValue>odb.Min)
+      then minValue := odb.Min;
+    end;
+    if not IsNaN(odb.Max) then
+    begin
+      if IsNaN(maxValue) or (maxValue<odb.Max)
+      then maxValue := odb.Max;
+    end;
+  end;
+  if IsNaN(minValue) then
+  begin
+    if IsNaN(maxValue)
+    then Result := 100
+    else Result := maxValue/aFactor;
+  end
+  else
+  begin
+    if IsNaN(maxValue)
+    then Result := 100
+    else Result := (maxValue-minValue)/aFactor;
   end;
 end;
 

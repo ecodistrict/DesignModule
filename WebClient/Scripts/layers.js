@@ -58,19 +58,28 @@
                     s2[i2].className = 'layerDetailsSelected';
                 // cur-ref-diff
                 crd.reset(layer != undefined, layer.ref != undefined, layer.diff != undefined, function (e) {
-                    // todo: handle switching between current, refference and difference layer
+                    // handle switching between current, refference and difference layer
                     // todo: only implement for tiles now
                     if (e.srcElement == crd.current) {
-                        if (layer.tileLayer)
+                        if (layer.tileLayer) {
                             layer.tileLayer.setUrl(layer.tiles);
+                            if (layer.legend)
+                                legendControl.createLegend(layer.legend);
+                        }
                     }
                     else if (e.srcElement == crd.reference) {
-                        if (layer.tileLayer)
+                        if (layer.tileLayer) {
                             layer.tileLayer.setUrl(layer.ref.tiles);
+                            if (layer.legend)
+                                legendControl.createLegend(layer.legend);
+                        }
                     }
                     else {
-                        if (layer.tileLayer)
+                        if (layer.tileLayer) {
                             layer.tileLayer.setUrl(layer.diff.tiles);
+                            if (layer.diff.legend)
+                                legendControl.createLegend(layer.diff.legend);
+                        }
                     }
                 });
                 // show legend

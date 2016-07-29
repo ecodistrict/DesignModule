@@ -73,6 +73,15 @@ type
 type
   // urban strategy
 
+  // extra fields in meta_scenarios
+    // published, null,0,1,2
+  // extra fields in meta_layer
+  	// domain, string
+    // published, null,0,1,2,
+    // diffRange, double
+    // title, string, null, ".."
+    // description, string, null, ".."
+
   TUSRoadIC = class(TGeometryLayerObject)
   constructor Create(aLayer: TLayer; const aID: TWDID; aGeometry: TWDGeometry; aValue, aTexture: Double);
   protected
@@ -2177,32 +2186,32 @@ begin
           begin
             objectTypes := '"receptor"';
             geometryType := 'Point';
-            diffRange := 100; // todo:
+            diffRange := mlp.Value.diffRange(10);
           end;
         2:
           begin
             objectTypes := '"grid"';
             geometryType := 'MultiPolygon'; // todo: ?
-            diffRange := 100; // todo:
+            diffRange := mlp.Value.diffRange(10);
           end;
         3, 8:
           begin
             objectTypes := '"building"'; // 3 buildings, 8 RS buildings
             geometryType := 'MultiPolygon';
-            diffRange := 100; // todo:
+            diffRange := mlp.Value.diffRange(10);
           end;
         4,    // road color (VALUE_EXPR)
         5:    // road color (VALUE_EXPR) and width (TEXTURE_EXPR)
           begin
             objectTypes := '"road"';
             geometryType := 'LineString';
-            diffRange := 100; // todo:
+            diffRange := mlp.Value.diffRange(10);
           end;
         9:    // enrg color (VALUE_EXPR) and width (TEXTURE_EXPR)
           begin
             objectTypes := '"energy"';
             geometryType := 'LineString';
-            diffRange := 100; // todo:
+            diffRange := mlp.Value.diffRange(10);
           end;
         11:
           begin

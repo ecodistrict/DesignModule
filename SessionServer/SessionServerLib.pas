@@ -97,6 +97,7 @@ type
     fTilerLayer: TTilerLayer; // owns
     fSendRefreshTimer: TTimer;
     fPreviewRequestTimer: TTimer;
+    fLegendJSON: string;
     function getRefJSON: string;
   protected
     function getElementID: string; override;
@@ -106,6 +107,7 @@ type
   public
     property tilerLayer: TTilerLayer read fTilerLayer;
     property refJSON: string read getRefJSON;
+    property legendJSON: string read fLegendJSON;
     procedure HandleSubLayerInfo(aLayer: TLayer);
   end;
 
@@ -738,6 +740,7 @@ end;
 constructor TDiffLayer.Create(const aElementID: string; aCurrentLayer, aReferenceLayer: TLayer);
 begin
   inherited Create;
+  fLegendJSON := '';
   fCurrentLayer := aCurrentLayer;
   fReferenceLayer := aReferenceLayer;
   fTilerLayer := TTilerLayer.Create(aCurrentLayer.scenario.project.Connection, aElementID, -aCurrentLayer.SliceType);
@@ -778,6 +781,8 @@ end;
 function TDiffLayer.getRefJSON: string;
 begin
   Result := '"id":"'+getElementID+'","tiles":"'+fTilerLayer.URLTimeStamped+'"';
+  if fLegendJSON<>''
+  then Result := Result+',"legend":{'+legendJSON+'}';
 end;
 
 procedure TDiffLayer.HandleSubLayerInfo(aLayer: TLayer);
@@ -786,6 +791,30 @@ begin
      Assigned(fCurrentLayer.tilerLayer) and (fCurrentLayer.tilerLayer.URL<>'') and
      Assigned(fReferenceLayer.tilerLayer) and (fReferenceLayer.tilerLayer.URL<>'')
   then fTilerLayer.signalRegisterLayer(fCurrentLayer.scenario.project.tiler, 'diff-'+fCurrentLayer.Description+'-'+fReferenceLayer.description);
+end;
+
+function BuildDiffLegendJSON(
+  const aTitle: string;
+  aValueLess: Double; const aColorLess, aLabelLess: string;
+  aValueNoChange: Double; const aColorNoChange, aLabelNoChange: string;
+  aValueMore: Double; const aColorMore, aLabelMore: string): string;
+begin
+  Result :=
+    '"scale": {'+
+      '"width": "300px",'+
+      '"title":"'+aTitle+'",'+
+      '"logScale":0,'+
+      '"tickFontSize": "11px",'+
+      '"gradients":['+
+        '{"color":"'+aColorLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+        '{"color":"'+aColorNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+        '{"color":"'+aColorMore+'","position":'+aValueMore.toString(dotFormat)+'}'+
+      '],'+
+      '"labels":['+
+        '{"description":"'+aLabelLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+        '{"description":"'+aLabelNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+        '{"description":"'+aLabelMore+'","position":'+aValueMore.ToString(dotFormat)+'}'+
+      ']}';
 end;
 
 procedure TDiffLayer.handleTilerInfo(aTilerLayer: TTilerLayer);
@@ -799,6 +828,11 @@ begin
     TRampPaletteEntry.Create($FFFFFFFF, 0.0, 'no change'),
     TRampPaletteEntry.Create($FF00FF00, v, 'more')],
     $FFFF0000, 0, $FF00FF00);
+  fLegendJSON := BuildDiffLegendJSON(
+    diffPalette.description,
+    -v, '#00FF00', 'less ('+(-v).ToString(dotFormat)+')',
+    0.0, '#FFFFFF', 'no change (0)',
+    v, '#FF0000', 'more ('+v.ToString(dotFormat)+')');
   aTilerLayer.signalAddDiffSlice(diffPalette, fCurrentLayer.tilerLayer.ID, fReferenceLayer.tilerLayer.ID);
 end;
 
@@ -2812,6 +2846,8 @@ begin
         AddClient(aString);
       end;
     end);
+
+  // todo: start timer for tiler status as a heartbeat
 end;
 
 destructor TProject.Destroy;

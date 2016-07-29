@@ -169,6 +169,7 @@ type
     function Expand(x, y: Double): Boolean; overload;
     function Expand(aExtent: TExtent): Boolean; overload;
     function Intersects(const aExtent: TExtent): Boolean;
+    function Intersection(const aExtent: TExtent): TExtent;
     function Contains(x, y: Double): Boolean;
     function Center: TPointF;
     function Inflate(aFactor: Double): TExtent; overload;
@@ -1015,6 +1016,18 @@ begin
   xMax := xMin+aWidth;
   yMin := y;
   yMax := y+aHeight;
+end;
+
+function TExtentHelper.Intersection(const aExtent: TExtent): TExtent;
+begin
+  if Intersects(aExtent) then
+  begin
+    Result.XMin := Max(Self.XMin, aExtent.XMin);
+    Result.YMin := Max(Self.YMin, aExtent.YMin);
+    Result.XMax := Min(Self.XMax, aExtent.XMax);
+    Result.YMax := Min(Self.YMax, aExtent.YMax);
+  end
+  else Result.Init;
 end;
 
 function TExtentHelper.Intersects(const aExtent: TExtent): Boolean;
@@ -2659,6 +2672,7 @@ begin
   inherited Create(aLayer, aTimeStamp);
   fCurrentSlice := aCurrentSlice;
   fRefSlice := aRefSlice;
+  fMaxExtent := fCurrentSlice.fMaxExtent.Intersection(fRefSlice.fMaxExtent);
 end;
 
 destructor TDiffSlice.Destroy;
