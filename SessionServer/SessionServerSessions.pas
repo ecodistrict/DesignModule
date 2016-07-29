@@ -28,6 +28,8 @@ const
   TilerNameSwitch = 'TilerName';
     DefaultTilerName = 'vps17642.public.cloudvps.com';
 
+  TilerStatusURLSwitch = 'TilerStatusURL';
+
   MaxEdgeLengthInMetersSwitchName = 'MaxEdgeLengthInMeters';
     DefaultMaxEdgeLengthInMeters = 250;
 

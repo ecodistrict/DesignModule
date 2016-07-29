@@ -202,7 +202,7 @@ begin
     fSessionModel, fSessionModel.Connection,
     projectID, projectName,
     tilerName,
-    TilerStatusURLFromTilerName(tilerName),
+    GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
     dbConnection,
     mapView,
     preLoadScenarios);
