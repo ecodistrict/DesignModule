@@ -595,6 +595,7 @@ type
     fConnectedServices: TStringList;
   private
     procedure HandleDisconnect(aConnection: TConnection);
+    procedure HandleException(aConnection: TConnection; aException: Exception);
     procedure HandleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
     procedure HandleTilerStatus(aEventEntry: TEventEntry; const aString: string);
     procedure setURL(const aValue: string);
@@ -1115,6 +1116,7 @@ end;
 function TSlice.GenerateTile(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
 var
   bitmapFileName: string;
+  stream: TStream;
 begin
   //Log.WriteLn('TSlice.GenerateTile');
   Result := HSC_ERROR_NOT_FOUND; // sentinel
@@ -1128,13 +1130,18 @@ begin
     begin
       try
         //Log.WriteLn('loading existing bitmap '+TimeFolder+aFileName);
-        aBitMap.LoadFromFile(bitmapFileName);
+        stream := TFileStream.Create(bitmapFileName, fmOpenRead+fmShareDenyWrite);
+        try
+          aBitMap.LoadFromStream(stream);
+        finally
+          stream.Free;
+        end;
         //Log.WriteLn('returned existing bitmap '+TimeFolder+aFileName);
         Result := HSC_SUCCESS_OK;
       except
         on E: Exception do
         begin
-          Log.WriteLn('Exception loading tile bitmap '+TimeFolder+aFileName, llError);
+          Log.WriteLn('Exception loading tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
         end;
       end;
     end
@@ -1151,7 +1158,12 @@ begin
           //Log.WriteLn('create directory '+ExtractFileDir(bitmapFileName));
           ForceDirectories(ExtractFileDir(bitmapFileName));
           //Log.WriteLn('Save bitmap '+bitmapFileName);
-          aBitmap.SaveToFile(bitmapFileName);
+          stream := TFileStream.Create(bitmapFileName, fmOpenWrite+fmShareExclusive);
+          try
+            aBitmap.SaveToStream(stream);
+          finally
+            stream.Free;
+          end;
         end;
       end
       else Log.WriteLn('could not calculate tile '+TimeFolder+aFileName, llError);
@@ -3133,210 +3145,217 @@ var
   res: Integer;
   bitmap: FMX.Graphics.TBitmap;
 begin
-  timeStamp := 0;
-  palette :=  nil;
-  poiImages := TObjectList<FMX.Graphics.TBitmap>.Create;
-  pngExtent := TExtent.Create;
-  pngImage := nil;
-  discreteColorsOnStretch := true;
-  // color use!
-  colorRemovedPOI := TAlphaColorRec.Red;
-  colorSamePOI := TAlphaColorRec.Gray;
-  colorNewPOI := TAlphaColorRec.Green;
-  currentSlice := nil;
-  refSlice := nil;
-  _layerID := Self.LayerID; // default to this layer
   try
-    // decode data event and send to correct slice (or create slice if not yet exists)
-    WORMLock.BeginRead;
+    timeStamp := 0;
+    palette :=  nil;
+    poiImages := TObjectList<FMX.Graphics.TBitmap>.Create;
+    pngExtent := TExtent.Create;
+    pngImage := nil;
+    discreteColorsOnStretch := true;
+    // color use!
+    colorRemovedPOI := TAlphaColorRec.Red;
+    colorSamePOI := TAlphaColorRec.Gray;
+    colorNewPOI := TAlphaColorRec.Green;
+    currentSlice := nil;
+    refSlice := nil;
+    _layerID := Self.LayerID; // default to this layer
     try
-      // check if layer is still valid
-      if Assigned(DataEvent) then
-      begin
-        slice := nil;
-        while aCursor<aLimit do
+      // decode data event and send to correct slice (or create slice if not yet exists)
+      WORMLock.BeginRead;
+      try
+        // check if layer is still valid
+        if Assigned(DataEvent) then
         begin
-          fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-          case fieldInfo of
-            (icehTilerSliceID shl 3) or wt64Bit:
-              begin
-                timeStamp := aBuffer.bb_read_double(aCursor);
-                slice := findSlice(timeStamp);
-                if not Assigned(slice) then
+          slice := nil;
+          while aCursor<aLimit do
+          begin
+            fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+            case fieldInfo of
+              (icehTilerSliceID shl 3) or wt64Bit:
                 begin
-                  case fSliceType of
-                    stReceptor:
-                      slice := TSliceReceptor.Create(Self, timeStamp, palette.Clone);
-                    stGeometry:
-                      slice := TSliceGeometry.Create(Self, timeStamp, palette.Clone);
-                    stGeometryI:
-                      slice := TSliceGeometryI.Create(Self, timeStamp, palette.Clone);
-                    stGeometryIC:
-                      slice := TSliceGeometryIC.Create(Self, timeStamp, palette.Clone);
-                    stGeometryICLR:
-                      slice := TSliceGeometryICLR.Create(Self, timeStamp, palette.Clone);
-                    stPOI:
-                      slice := TSlicePOI.Create(Self, timeStamp, poiImages.ToArray);
-                    stPNG:
-                      slice := TSlicePNG.Create(Self, timeStamp, pngExtent, pngImage, discreteColorsOnStretch);
-                    stLocation:
-                      slice := TSliceLocation.Create(Self, timeStamp, palette.Clone);
-                    // diff slice types
-                    stDiffReceptor:
-                      slice := TSliceDiffReceptor.Create(Self, timeStamp, currentSlice as TSliceReceptor, refSlice as TSliceReceptor, palette.Clone);
-                    stDiffGeometry:
-                      slice := TSliceDiffGeometry.Create(Self, timeStamp, currentSlice as TSliceGeometry, refSlice as TSliceGeometry, palette.Clone);
-                    stDiffGeometryI:
-                      slice := TSliceDiffGeometryI.Create(Self, timeStamp, currentSlice as TSliceGeometryI, refSlice as TSliceGeometryI, palette.Clone);
-                    stDiffGeometryIC:
-                      slice := TSliceDiffGeometryIC.Create(Self, timeStamp, currentSlice as TSliceGeometryIC, refSlice as TSliceGeometryIC, palette.Clone);
-                    stDiffGeometryICLR:
-                      slice := TSliceDiffGeometryICLR.Create(Self, timeStamp, currentSlice as TSliceGeometryICLR, refSlice as TSliceGeometryICLR, palette.Clone);
-                    stDiffPOI:
-                      slice := TSliceDiffPOI.Create(Self, timeStamp, currentSlice as TSlicePOI, refSlice as TSlicePOI, colorRemovedPOI, colorSamePOI, colorNewPOI);
-                    stDiffPNG:
-                      slice := TSliceDiffPNG.Create(Self, timeStamp, currentSlice as TSlicePNG, refSlice as TSLicePNG);
-                    stDiffLocation:
-                      slice := TSliceDiffLocation.Create(Self, timeStamp, currentSlice as TSliceLocation, refSlice as TSliceLocation, palette.Clone);
+                  timeStamp := aBuffer.bb_read_double(aCursor);
+                  slice := findSlice(timeStamp);
+                  if not Assigned(slice) then
+                  begin
+                    case fSliceType of
+                      stReceptor:
+                        slice := TSliceReceptor.Create(Self, timeStamp, palette.Clone);
+                      stGeometry:
+                        slice := TSliceGeometry.Create(Self, timeStamp, palette.Clone);
+                      stGeometryI:
+                        slice := TSliceGeometryI.Create(Self, timeStamp, palette.Clone);
+                      stGeometryIC:
+                        slice := TSliceGeometryIC.Create(Self, timeStamp, palette.Clone);
+                      stGeometryICLR:
+                        slice := TSliceGeometryICLR.Create(Self, timeStamp, palette.Clone);
+                      stPOI:
+                        slice := TSlicePOI.Create(Self, timeStamp, poiImages.ToArray);
+                      stPNG:
+                        slice := TSlicePNG.Create(Self, timeStamp, pngExtent, pngImage, discreteColorsOnStretch);
+                      stLocation:
+                        slice := TSliceLocation.Create(Self, timeStamp, palette.Clone);
+                      // diff slice types
+                      stDiffReceptor:
+                        slice := TSliceDiffReceptor.Create(Self, timeStamp, currentSlice as TSliceReceptor, refSlice as TSliceReceptor, palette.Clone);
+                      stDiffGeometry:
+                        slice := TSliceDiffGeometry.Create(Self, timeStamp, currentSlice as TSliceGeometry, refSlice as TSliceGeometry, palette.Clone);
+                      stDiffGeometryI:
+                        slice := TSliceDiffGeometryI.Create(Self, timeStamp, currentSlice as TSliceGeometryI, refSlice as TSliceGeometryI, palette.Clone);
+                      stDiffGeometryIC:
+                        slice := TSliceDiffGeometryIC.Create(Self, timeStamp, currentSlice as TSliceGeometryIC, refSlice as TSliceGeometryIC, palette.Clone);
+                      stDiffGeometryICLR:
+                        slice := TSliceDiffGeometryICLR.Create(Self, timeStamp, currentSlice as TSliceGeometryICLR, refSlice as TSliceGeometryICLR, palette.Clone);
+                      stDiffPOI:
+                        slice := TSliceDiffPOI.Create(Self, timeStamp, currentSlice as TSlicePOI, refSlice as TSlicePOI, colorRemovedPOI, colorSamePOI, colorNewPOI);
+                      stDiffPNG:
+                        slice := TSliceDiffPNG.Create(Self, timeStamp, currentSlice as TSlicePNG, refSlice as TSLicePNG);
+                      stDiffLocation:
+                        slice := TSliceDiffLocation.Create(Self, timeStamp, currentSlice as TSliceLocation, refSlice as TSliceLocation, palette.Clone);
+                    end;
+                    WORMLock.EndRead;
+                    try
+                      AddSlice(slice);
+                      //Log.WriteLn('Added slice ('+slice.id+') for layer '+LayerID.ToString, llNormal, 1);
+                    finally
+                      WORMLock.BeginRead;
+                    end;
                   end;
-                  WORMLock.EndRead;
+                end;
+              // diff slices
+              (icehTilerLayer shl 3) or wtVarInt:
+                begin
+                  _layerID := aBuffer.bb_read_int32(aCursor);
+                end;
+              (icehTilerCurrentSlice shl 3) or wt64Bit:
+                begin
+                  timeStamp := aBuffer.bb_read_double(aCursor);
+                  currentSlice := FindSlice(_layerID, timeStamp);
+                end;
+              (icehTilerRefSlice shl 3) or wt64Bit:
+                begin
+                  timeStamp := aBuffer.bb_read_double(aCursor);
+                  refSlice := FindSlice(_layerID, timeStamp);
+                end;
+              // POIs
+              (icehTilerPOIImage shl 3) or wtLengthDelimited:
+                begin
+                  // load image to poiImages
+                  stream := TStringStream.Create(aBuffer.bb_read_rawbytestring(aCursor));
                   try
-                    AddSlice(slice);
+                    poiImages.Add(FMX.Graphics.TBitmap.CreateFromStream(stream));
                   finally
-                    WORMLock.BeginRead;
+                    stream.Free;
                   end;
                 end;
-              end;
-            // diff slices
-            (icehTilerLayer shl 3) or wtVarInt:
-              begin
-                _layerID := aBuffer.bb_read_int32(aCursor);
-              end;
-            (icehTilerCurrentSlice shl 3) or wt64Bit:
-              begin
-                timeStamp := aBuffer.bb_read_double(aCursor);
-                currentSlice := FindSlice(_layerID, timeStamp);
-              end;
-            (icehTilerRefSlice shl 3) or wt64Bit:
-              begin
-                timeStamp := aBuffer.bb_read_double(aCursor);
-                refSlice := FindSlice(_layerID, timeStamp);
-              end;
-            // POIs
-            (icehTilerPOIImage shl 3) or wtLengthDelimited:
-              begin
-                // load image to poiImages
-                stream := TStringStream.Create(aBuffer.bb_read_rawbytestring(aCursor));
-                try
-                  poiImages.Add(FMX.Graphics.TBitmap.CreateFromStream(stream));
-                finally
-                  stream.Free;
-                end;
-              end;
-            (icehTilerPNGExtent shl 3) or wtLengthDelimited:
-              begin
-                size := aBuffer.bb_read_uint64(aCursor);
-                pngExtent.Decode(aBuffer, aCursor, aCursor+size);
-              end;
-            (icehTilerPNGImage shl 3) or wtLengthDelimited:
-              begin
-                // todo: pngImage
-                stream := TStringStream.Create(aBuffer.bb_read_rawbytestring(aCursor));
-                try
-                  pngImage := FMX.Graphics.TBitmap.CreateFromStream(stream);
-                finally
-                  stream.Free;
-                end;
-              end;
-            (icehTilerDiscreteColorsOnStretch shl 3) or wtVarInt: // boolean
-              begin
-                discreteColorsOnStretch := aBuffer.bb_read_bool(aCursor);
-              end;
-            (icehTilerColorRemovedPOI shl 3) or wtVarInt: // cardinal=uint32
-              begin
-                colorRemovedPOI := aBuffer.bb_read_uint32(aCursor);
-              end;
-            (icehTilerColorSamePOI shl 3) or wtVarInt: // cardinal=uint32
-              begin
-                colorSamePOI := aBuffer.bb_read_uint32(aCursor);
-              end;
-            (icehTilerColorNewPOI shl 3) or wtVarInt: // cardinal=uint32
-              begin
-                colorNewPOI := aBuffer.bb_read_uint32(aCursor);
-              end;
-            (icehTilerSliceUpdate shl 3) or wtLengthDelimited:
-              begin
-                if Assigned(slice) then
+              (icehTilerPNGExtent shl 3) or wtLengthDelimited:
                 begin
                   size := aBuffer.bb_read_uint64(aCursor);
-                  slice.BeginUpdate;
+                  pngExtent.Decode(aBuffer, aCursor, aCursor+size);
+                end;
+              (icehTilerPNGImage shl 3) or wtLengthDelimited:
+                begin
+                  // todo: pngImage
+                  stream := TStringStream.Create(aBuffer.bb_read_rawbytestring(aCursor));
                   try
-                    if slice.HandleSliceUpdate(aBuffer, aCursor, aCursor+size) then
-                    begin
-                      // todo: if specified do recalc of data now (triangulate for receptors)?
-                      SignalRefresh(timeStamp);
-                      slice.HandleUpdateOfParents; // todo: is this the correct position or before slice.EndUpdate ?
-                    end;
+                    pngImage := FMX.Graphics.TBitmap.CreateFromStream(stream);
                   finally
-                    slice.EndUpdate;
+                    stream.Free;
                   end;
-                end
-                else aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
-              end;
-            (icehDiscretePalette shl 3) or wtLengthDelimited:
-              begin
-                size := aBuffer.bb_read_uint64(aCursor);
-                palette := TDiscretePalette.Create;
-                palette.Decode(aBuffer, aCursor, aCursor+size);
-                //Log.WriteLn('decoded discrete palette');
-              end;
-            (icehRampPalette shl 3) or wtLengthDelimited:
-              begin
-                size := aBuffer.bb_read_uint64(aCursor);
-                palette := TRampPalette.Create;
-                palette.Decode(aBuffer, aCursor, aCursor+size);
-                //Log.WriteLn('decoded ramp palette');
-              end;
-            (icehTilerRequestPreviewImage shl 3) or wtVarInt:
-              begin
-                width := aBuffer.bb_read_uint32(aCursor);
-                bitmap := FMX.Graphics.TBitmap.Create(width, width);
-                try
-                  if Assigned(bitmap) then
+                end;
+              (icehTilerDiscreteColorsOnStretch shl 3) or wtVarInt: // boolean
+                begin
+                  discreteColorsOnStretch := aBuffer.bb_read_bool(aCursor);
+                end;
+              (icehTilerColorRemovedPOI shl 3) or wtVarInt: // cardinal=uint32
+                begin
+                  colorRemovedPOI := aBuffer.bb_read_uint32(aCursor);
+                end;
+              (icehTilerColorSamePOI shl 3) or wtVarInt: // cardinal=uint32
+                begin
+                  colorSamePOI := aBuffer.bb_read_uint32(aCursor);
+                end;
+              (icehTilerColorNewPOI shl 3) or wtVarInt: // cardinal=uint32
+                begin
+                  colorNewPOI := aBuffer.bb_read_uint32(aCursor);
+                end;
+              (icehTilerSliceUpdate shl 3) or wtLengthDelimited:
+                begin
+                  if Assigned(slice) then
                   begin
-                    res := GenerateTile(0, Self.extent.SquareInMeters, bitmap, 'preview.png', model.fCacheFolder);
-                    if (res=HSC_SUCCESS_OK) or (res=HSC_SUCCESS_CREATED) then
-                    begin
-                      stream := TMemoryStream.Create;
-                      try
-                        bitmap.SaveToStream(stream);
-                        aEventEntry.signalEvent(TByteBuffer.bb_tag_bytes(icehTilerPreviewImage, (stream as TMemoryStream).Memory^, stream.Size));
-                      finally
-                        stream.Free;
+                    size := aBuffer.bb_read_uint64(aCursor);
+                    slice.BeginUpdate;
+                    try
+                      if slice.HandleSliceUpdate(aBuffer, aCursor, aCursor+size) then
+                      begin
+                        // todo: if specified do recalc of data now (triangulate for receptors)?
+                        SignalRefresh(timeStamp);
+                        slice.HandleUpdateOfParents; // todo: is this the correct position or before slice.EndUpdate ?
                       end;
+                    finally
+                      slice.EndUpdate;
                     end;
                   end
-                  else
-                  begin
-                    Log.WriteLn('TLayer.handleDataEvent: could not create bitmap on icehTilerRequestPreviewImage');
-                  end;
-                finally
-                  bitmap.Free;
+                  else aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
                 end;
-              end
-          else
-            aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+              (icehDiscretePalette shl 3) or wtLengthDelimited:
+                begin
+                  size := aBuffer.bb_read_uint64(aCursor);
+                  palette := TDiscretePalette.Create;
+                  palette.Decode(aBuffer, aCursor, aCursor+size);
+                  //Log.WriteLn('decoded discrete palette');
+                end;
+              (icehRampPalette shl 3) or wtLengthDelimited:
+                begin
+                  size := aBuffer.bb_read_uint64(aCursor);
+                  palette := TRampPalette.Create;
+                  palette.Decode(aBuffer, aCursor, aCursor+size);
+                  //Log.WriteLn('decoded ramp palette');
+                end;
+              (icehTilerRequestPreviewImage shl 3) or wtVarInt:
+                begin
+                  width := aBuffer.bb_read_uint32(aCursor);
+                  bitmap := FMX.Graphics.TBitmap.Create(width, width);
+                  try
+                    if Assigned(bitmap) then
+                    begin
+                      res := GenerateTile(0, Self.extent.SquareInMeters, bitmap, 'preview.png', model.fCacheFolder);
+                      if (res=HSC_SUCCESS_OK) or (res=HSC_SUCCESS_CREATED) then
+                      begin
+                        stream := TMemoryStream.Create;
+                        try
+                          bitmap.SaveToStream(stream);
+                          aEventEntry.signalEvent(TByteBuffer.bb_tag_bytes(icehTilerPreviewImage, (stream as TMemoryStream).Memory^, stream.Size));
+                        finally
+                          stream.Free;
+                        end;
+                      end;
+                    end
+                    else
+                    begin
+                      Log.WriteLn('TLayer.handleDataEvent: could not create bitmap on icehTilerRequestPreviewImage');
+                    end;
+                  finally
+                    bitmap.Free;
+                  end;
+                end
+            else
+              Log.WriteLn('unknown fields in layer ('+LayerID.ToString+') data: '+(fieldInfo and 7).toString, llWarning);
+              aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+            end;
           end;
         end;
+      finally
+        if Assigned(DataEvent)
+        then WORMLock.EndRead;
       end;
     finally
-      if Assigned(DataEvent)
-      then WORMLock.EndRead;
+      palette.Free;
+      poiImages.Free;
+      pngImage.Free;
     end;
-  finally
-    palette.Free;
-    poiImages.Free;
-    pngImage.Free;
+  except
+    on e: Exception
+    do Log.WriteLn('exception in TLayer.handleDataEvent: '+e.Message, llError);
   end;
 end;
 
@@ -3470,6 +3489,7 @@ begin
     fConnection := TSocketConnection.Create('Tiler', 1, 'USIdle',
       GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
     fConnection.onDisconnect := HandleDisconnect;
+    fConnection.onException := HandleException;
 
     fDefaultCanvasTriggerLock := TCriticalSection.Create;
 
@@ -3492,7 +3512,7 @@ begin
     // clear cache except for persistent layers
     ClearCache;
     Log.WriteLn('Cleared non-persistent cache');
-    fWS2IMBEvent := fConnection.subscribe('Sessions.WS2IMB'); // for gettings status from ws2imb services
+    fWS2IMBEvent := fConnection.publish('Sessions.WS2IMB'); // for gettings status from ws2imb services
     fTilerEvent := fConnection.subscribe('Tilers.'+GetFQDN.Replace('.', '_')); // todo: how to specify specific tiler (fqdn?), check
     fTilerEvent.OnEvent.Add(HandleTilerEvent);
     fTilerEvent.OnString.Add(HandleTilerStatus);
@@ -3568,6 +3588,11 @@ begin
   end;
 end;
 
+procedure TModel.HandleException(aConnection: TConnection; aException: Exception);
+begin
+  Log.WriteLn('IMB reader thread exception: '+aException.Message, llError);
+end;
+
 procedure TModel.HandleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
 var
   fieldInfo: UInt32;
@@ -3580,87 +3605,92 @@ var
   newLayerID: Integer;
   ilp: TPair<Integer, TLayer>;
 begin
-  // defaults
-  eventName := '';
-  maxEdgeLengthInMeters := fMaxEdgeLengthInMeters;
-  persistent := false;
-  description := '';
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-    case fieldInfo of
-      (icehEventName shl 3) or wtLengthDelimited:
-        begin
-          eventName := aBuffer.bb_read_string(aCursor);
-        end;
-      (icehTilerEdgeLength shl 3) or wt64Bit:
-        begin
-          maxEdgeLengthInMeters := aBuffer.bb_read_double(aCursor);
-        end;
-      (icehTilerPersistent shl 3) or wtVarInt:
-        begin
-          persistent := aBuffer.bb_read_bool(aCursor);
-        end;
-      (icehTilerLayerDescription shl 3) or wtLengthDelimited:
-        begin
-          description := aBuffer.bb_read_string(aCursor);
-        end;
-      (icehTilerRequestNewLayer shl 3) or wtVarInt:
-        begin
-          sliceType := aBuffer.bb_read_int32(aCursor);
-          if eventName<>'' then
+  try
+    // defaults
+    eventName := '';
+    maxEdgeLengthInMeters := fMaxEdgeLengthInMeters;
+    persistent := false;
+    description := '';
+    while aCursor<aLimit do
+    begin
+      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+      case fieldInfo of
+        (icehTilerEventName shl 3) or wtLengthDelimited:
           begin
-            lock.BeginWrite;
-            try
-              if Assigned(fLayers) then
-              begin
-                newLayer := nil;
-                for ilp in fLayers do
+            eventName := aBuffer.bb_read_string(aCursor);
+          end;
+        (icehTilerEdgeLength shl 3) or wt64Bit:
+          begin
+            maxEdgeLengthInMeters := aBuffer.bb_read_double(aCursor);
+          end;
+        (icehTilerPersistent shl 3) or wtVarInt:
+          begin
+            persistent := aBuffer.bb_read_bool(aCursor);
+          end;
+        (icehTilerLayerDescription shl 3) or wtLengthDelimited:
+          begin
+            description := aBuffer.bb_read_string(aCursor);
+          end;
+        (icehTilerRequestNewLayer shl 3) or wtVarInt:
+          begin
+            sliceType := aBuffer.bb_read_int32(aCursor);
+            if eventName<>'' then
+            begin
+              lock.BeginWrite;
+              try
+                if Assigned(fLayers) then
                 begin
-                  if ilp.Value.fDataEvent.eventName.ToLower=eventName.tolower then
+                  newLayer := nil;
+                  for ilp in fLayers do
                   begin
-                    // found existing layer with same event name -> use that after clearing..?
-                    newLayer := ilp.Value;
-                    Break;
+                    if ilp.Value.fDataEvent.eventName.ToLower=eventName.tolower then
+                    begin
+                      // found existing layer with same event name -> use that after clearing..?
+                      newLayer := ilp.Value;
+                      Break;
+                    end;
+                  end;
+                  if Assigned(newLayer) then
+                  begin
+                    // reuse layer, but check slice type
+                    if newLayer.SliceType<>sliceType then
+                    begin
+                      Log.WriteLn(
+                        'Layer '+eventName+' ('+newLayer.fLayerID.ToString+') has different slice type '+
+                        sliceType.ToString+' <> '+newLayer.SliceType.ToString, llError);
+                    end;
+                    newLayer.Clear(maxEdgeLengthInMeters, description, persistent);
+                    newLayer.signalTilerInfo;
+                    Log.WriteLn('re-used existing layer '+description+' ('+newLayer.LayerID.ToString+') for '+eventName);
+                  end
+                  else
+                  begin
+                    newLayerID := 1;
+                    while fLayers.ContainsKey(newLayerID)
+                    do newLayerID := newLayerID+1;
+                    newLayer := TLayer.Create(Self, newLayerID, maxEdgeLengthInMeters, sliceType, description, persistent, eventName);
+                    fLayers.Add(newLayer.fLayerID, newLayer);
+                    if persistent
+                    then newLayer.storePersistencyInfo;
+                      // signal layer id etc. to trigger sending data
+                    newLayer.signalTilerInfo;
+                    Log.WriteLn('added new layer '+description+' ('+newLayer.LayerID.ToString+') for '+eventName);
                   end;
                 end;
-                if Assigned(newLayer) then
-                begin
-                  // reuse layer, but check slice type
-                  if newLayer.SliceType<>sliceType then
-                  begin
-                    Log.WriteLn(
-                      'Layer '+eventName+' ('+newLayer.fLayerID.ToString+') has different slice type '+
-                      sliceType.ToString+' <> '+newLayer.SliceType.ToString, llError);
-                  end;
-                  newLayer.Clear(maxEdgeLengthInMeters, description, persistent);
-                  newLayer.signalTilerInfo;
-                  Log.WriteLn('re-used existing layer '+description+' ('+newLayer.LayerID.ToString+') for '+eventName);
-                end
-                else
-                begin
-                  newLayerID := 1;
-                  while fLayers.ContainsKey(newLayerID)
-                  do newLayerID := newLayerID+1;
-                  newLayer := TLayer.Create(Self, newLayerID, maxEdgeLengthInMeters, sliceType, description, persistent, eventName);
-                  fLayers.Add(newLayer.fLayerID, newLayer);
-                  if persistent
-                  then newLayer.storePersistencyInfo;
-                    // signal layer id etc. to trigger sending data
-                  newLayer.signalTilerInfo;
-                  Log.WriteLn('added new layer '+description+' ('+newLayer.LayerID.ToString+') for '+eventName);
-                end;
+                // else shuting down?
+              finally
+                lock.EndWrite;
               end;
-              // else shuting down?
-            finally
-              lock.EndWrite;
-            end;
-          end
-          else Log.WriteLn('TModel.HandleTilerEvent: new layer without event name sepcified', llError);
-        end;
-    else
-      aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+            end
+            else Log.WriteLn('TModel.HandleTilerEvent: new layer without event name sepcified', llError);
+          end;
+      else
+        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+      end;
     end;
+  except
+    on e: Exception
+    do log.WriteLn('Exception in TModel.HandleTilerEvent: '+e.Message, llError);
   end;
 end;
 
@@ -3673,22 +3703,27 @@ var
   status: string;
   info: string;
 begin
-  // process status of service {"id":"<id>","status":"<status>"[,"info":"<extra info>"}
-  id := 'unknown';
-  status := 'unknown';
-  info := '';
-  statusElements := aString.Trim(['{','}']).Split([',']);
-  for se := 0 to length(statusElements)-1 do
-  begin
-    element := statusElements[se].Split(['":"']); // removes " also (one side)
-    if element[0]='"id'
-    then id := element[1].TrimRight(['"'])
-    else if element[0]='"status'
-    then status := element[1].TrimRight(['"'])
-    else if element[0]='"info'
-    then info := ', '+element[1].TrimRight(['"']);
+  try
+    // process status of service {"id":"<id>","status":"<status>"[,"info":"<extra info>"}
+    id := 'unknown';
+    status := 'unknown';
+    info := '';
+    statusElements := aString.Trim(['{','}']).Split([',']);
+    for se := 0 to length(statusElements)-1 do
+    begin
+      element := statusElements[se].Split(['":"']); // removes " also (one side)
+      if element[0]='"id'
+      then id := element[1].TrimRight(['"'])
+      else if element[0]='"status'
+      then status := element[1].TrimRight(['"'])
+      else if element[0]='"info'
+      then info := ', '+element[1].TrimRight(['"']);
+    end;
+    fConnectedServices.Add(id+': '+status+info);
+  except
+    on e: Exception
+    do log.WriteLn('Exception in TModel.HandleTilerStatus: '+e.Message, llError);
   end;
-  fConnectedServices.Add(id+': '+status+info);
 end;
 
 procedure TModel.LoadPersistentLayers;

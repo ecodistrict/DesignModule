@@ -23,6 +23,7 @@ uses
   LogIMB,
   imb4,
   CommandQueue,
+  TilerControl,
   SessionServerLib,
   SessionServerDB,
   SessionServerSessions,
@@ -161,7 +162,7 @@ begin
   aParameters.Add(TModelParameter.Create(TilerNameSwitch, GetSetting(TilerNameSwitch, DefaultTilerName)));
   aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
   aParameters.Add(TModelParameter.Create(ProjectNameSwitch, projectName));
-  aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, True));
+  aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, GetSetting(PreLoadScenariosSwitch, True)));
 end;
 
 procedure TModel.StartModel(aParameters: TModelParameters);
@@ -173,6 +174,7 @@ var
   projectName: string;
   mapView: TMapView;
   preLoadScenarios: Boolean;
+  tilerName: string;
 begin
   // execute actions needed to stop the model
   WriteLn('Start model');
@@ -195,10 +197,12 @@ begin
   mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
   Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
   preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
+  tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
   project := TUSProject.Create(
     fSessionModel, fSessionModel.Connection,
     projectID, projectName,
-    aParameters.ParameterByName[TilerNameSwitch].ValueAsString,
+    tilerName,
+    TilerStatusURLFromTilerName(tilerName),
     dbConnection,
     mapView,
     preLoadScenarios);

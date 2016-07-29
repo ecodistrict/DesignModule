@@ -353,12 +353,10 @@
         };
 
         function wsSend(obj) {
-            if (ws && ws.readyState && ws.readyState == WebSocket.OPEN) {
-                return ws.send(JSON.stringify(obj));
-            }
-            else {
-                return -1;
-            }
+            if (ws)
+                return ws.readyState && ws.readyState == WebSocket.OPEN ? ws.send(JSON.stringify(obj)) : -1;
+            else
+                return -2;
         };
 
         function wsClose() {

@@ -9,6 +9,7 @@ uses
   StdIni,
   imb4,
   CommandQueue,
+  TilerControl,
   SessionServerLib, SessionServerDB,
   SessionServerSessions,
   System.SysUtils;
@@ -44,7 +45,7 @@ end;
 var
   imbConnection: TConnection;
   sessionModel: TSessionModel;
-  tilerEventName: string;
+  tilerFQDN: string;
   ecodistrictModule: TEcodistrictModule;
 begin
   ecodistrictModule := nil; // sentinel
@@ -58,21 +59,21 @@ begin
         imbConnection.onDisconnect := HandleDisconnect;
         sessionModel := TSessionModel.Create(imbConnection);
         try
-          tilerEventName := GetSetting(TilerEventNameSwitch, DefaultTilerEventName);
-          Log.WriteLn('Tiler event name: '+tilerEventName);
+          tilerFQDN := GetSetting(TilerNameSwitch, DefaultTilerName);
+          Log.WriteLn('Tiler name: '+tilerFQDN);
           // default us
-          //CreateSessionProject(sessionModel, '1234' {'us_schiedam_2016'}, 'Schiedam (2016)', ptUrbanStrategyOracle, tilerEventName, 'us_schiedam_2016/us_schiedam_2016@app-usdata01.tsn.tno.nl/uspsde');
-          //CreateSessionProject(sessionModel, 'us_ws_hc', ptUrbanStrategyOracle, tilerEventName, 'us_ws_hc/us_ws_hc@app-usdata01.tsn.tno.nl/uspsde');
+          //CreateSessionProject(sessionModel, '1234' {'us_schiedam_2016'}, 'Schiedam (2016)', ptUrbanStrategyOracle, tilerFQDN, 'us_schiedam_2016/us_schiedam_2016@app-usdata01.tsn.tno.nl/uspsde');
+          //CreateSessionProject(sessionModel, 'us_ws_hc', ptUrbanStrategyOracle, tilerFQDN, 'us_ws_hc/us_ws_hc@app-usdata01.tsn.tno.nl/uspsde');
 
           // default ecodistrict
-          //CreateSessionProject(sessionModel, '1234'{'ecodistrict'}, 'Ecodistrict - Valencia', ptEcoDistrict, tilerEventName, 'User_Name=ecodistrict;Password=HyDhCpStZQEYrHuagz79;Server=vps17642.public.cloudvps.com;Port=5443;Database=ecodistrict;PGAdvanced=sslmode=require');
-          //CreateSessionProject(sessionModel, '5721de16eae0e0c543f5234f', 'Ecodistrict - Warsaw', ptEcoDistrict, tilerEventName, 'User_Name=postgres;Password=x0mxaJc69J9KAlFNsaDt;Server=vps17642.public.cloudvps.com;Port=5443;Database=Warsaw;PGAdvanced=sslmode=require');
+          //CreateSessionProject(sessionModel, '1234'{'ecodistrict'}, 'Ecodistrict - Valencia', ptEcoDistrict, tilerFQDN, 'User_Name=ecodistrict;Password=HyDhCpStZQEYrHuagz79;Server=vps17642.public.cloudvps.com;Port=5443;Database=ecodistrict;PGAdvanced=sslmode=require');
+          //CreateSessionProject(sessionModel, '5721de16eae0e0c543f5234f', 'Ecodistrict - Warsaw', ptEcoDistrict, tilerFQDN, 'User_Name=postgres;Password=x0mxaJc69J9KAlFNsaDt;Server=vps17642.public.cloudvps.com;Port=5443;Database=Warsaw;PGAdvanced=sslmode=require');
 
           // nwb live feed
-          //CreateSessionProject(sessionModel, '1234'{'rotterdam'}, 'Rotterdam dashboard', ptNWBLiveFeed, tilerEventName, ''); {todo: NWBLiveFeedProjectName}
+          //CreateSessionProject(sessionModel, '1234'{'rotterdam'}, 'Rotterdam dashboard', ptNWBLiveFeed, tilerFQDN, ''); {todo: NWBLiveFeedProjectName}
 
           // ecodistrict module
-          ecodistrictModule := TEcodistrictModule.Create(sessionModel, imbConnection, 'User_Name=postgres;Password=x0mxaJc69J9KAlFNsaDt;Server=vps17642.public.cloudvps.com;Port=5443;Database=Warsaw;PGAdvanced=sslmode=require', tilerEventName);
+          ecodistrictModule := TEcodistrictModule.Create(sessionModel, imbConnection, 'User_Name=postgres;Password=x0mxaJc69J9KAlFNsaDt;Server=vps17642.public.cloudvps.com;Port=5443;Database=Warsaw;PGAdvanced=sslmode=require', tilerFQDN, TilerStatusURLFromTilerName(tilerFQDN));
 
           // inquire existing session and rebuild internal sessions..
           imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(

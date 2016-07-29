@@ -8,12 +8,21 @@ uses
   WorldLegends,
   WorldTilerConsts, // iceh* tiler consts
 
+  Int64Time,
+
   Vcl.graphics,
   Vcl.Imaging.pngimage,
 
   Logger, // after bitmap units (also use log)
 
   IdCoderMIME, // base64
+
+  // web request
+  {$IFDEF WebRequestWinInet}
+  Winapi.WinInet,
+  {$ELSE}
+  IdHTTP,
+  {$ENDIF}
 
   System.Math,
   System.Generics.Collections, System.Generics.Defaults,
@@ -24,6 +33,10 @@ const
 
   actionStatus = 4;
 
+  sepElementID = '$';
+  sepEventName = '.';
+
+  DefaultTilerPort = 4503;
 
 type
   TTilerLayer = class; // forward
@@ -52,6 +65,8 @@ type
     fOnTilerInfo: TOnTilerInfo;
     fOnRefresh: TOnRefresh;
     fOnPreview: TOnPreview;
+    function getURITimeStamp: string;
+    function getURLTimeStamped: string;
     procedure handleLayerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
     function LoadPreviewFromCache(): Boolean;
   public
@@ -61,6 +76,7 @@ type
     property palette: TWDPalette read fPalette;
     property ID: Integer read fID;
     property URL: string read fURL;
+    property URLTimeStamped: string read getURLTimeStamped;
     property preview: TPngImage read fPreview;
     function previewAsBASE64: string;
     // events
@@ -68,7 +84,7 @@ type
     property onRefresh: TOnRefresh read fOnRefresh write fOnRefresh;
     property onPreview: TOnPreview read fOnPreview write fOnPreview;
     // signal layer info
-    procedure signalRegisterLayer(const aDescription: string; aPersistent: Boolean=False; aEdgeLengthInMeters: Double=NaN);
+    procedure signalRegisterLayer(aTiler: TTiler; const aDescription: string; aPersistent: Boolean=False; aEdgeLengthInMeters: Double=NaN);
     // add slice with specific data for slice types
     procedure signalAddSlice(aPalette: TWDPalette=nil; aTimeStamp: TDateTime=0);
     procedure signalAddPOISlice(const aPOIImages: TArray<TPngImage>; aTimeStamp: TDateTime=0);
@@ -92,12 +108,14 @@ type
   TOnTilerStatus = reference to function(aTiler: TTiler): string;
 
   TTiler = class
-  constructor Create(aConnection: TConnection; const aTilerFQDN: string);
+  constructor Create(aConnection: TConnection; const aTilerFQDN, aTilerStatusURL: string);
   destructor Destroy; override;
   private
     fEvent: TEventEntry;
     fOnTilerStartup: TOnTilerStartup;
     fOnTilerStatus: TOnTilerStatus;
+    fTilerStatusURL: string;
+    function getTilerStatus: string;
     procedure handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleTilerStatus(aEventEntry: TEventEntry; aInt: Integer; const aString: string);
   public
@@ -110,6 +128,8 @@ function ImageToBytes(aImage: TPngImage): TBytes;
 function GraphicToBytes(aGraphic: TGraphic): TBytes;
 procedure BytesToImage(const aBytes: TBytes; aImage: TPngImage);
 function ImageToBase64(aImage: TPngImage): string;
+
+function TilerStatusURLFromTilerName(const aTilerName: string; aTilerPort: Integer=DefaultTilerPort): string;
 
 implementation
 
@@ -185,6 +205,63 @@ begin
   else Result := '';
 end;
 
+// http://stackoverflow.com/questions/301546/whats-the-simplest-way-to-call-http-get-url-using-delphi
+
+{$IFDEF WebRequestWinInet}
+function WebRequest(const aURL: string): string;
+var
+  NetHandle: HINTERNET;
+  UrlHandle: HINTERNET;
+  Buffer: array[0..1024] of Char;
+  BytesRead: dWord;
+begin
+  Result := '';
+  NetHandle := InternetOpen('Delphi 5.x', INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
+
+  if Assigned(NetHandle) then
+  begin
+    UrlHandle := InternetOpenUrl(NetHandle, PChar(Url), nil, 0, INTERNET_FLAG_RELOAD, 0);
+
+    if Assigned(UrlHandle) then
+      { UrlHandle valid? Proceed with download }
+    begin
+      FillChar(Buffer, SizeOf(Buffer), 0);
+      repeat
+        Result := Result + Buffer;
+        FillChar(Buffer, SizeOf(Buffer), 0);
+        InternetReadFile(UrlHandle, @Buffer, SizeOf(Buffer), BytesRead);
+      until BytesRead = 0;
+      InternetCloseHandle(UrlHandle);
+    end
+    else
+      { UrlHandle is not valid. Raise an exception. }
+      raise Exception.CreateFmt('Cannot open URL %s', [Url]);
+
+    InternetCloseHandle(NetHandle);
+  end
+  else
+    { NetHandle is not valid. Raise an exception }
+    raise Exception.Create('Unable to initialize Wininet');
+end;
+{$ELSE}
+function WebRequest(const aURL: string): string;
+var
+  lHTTP: TIdHTTP;
+begin
+  lHTTP := TIdHTTP.Create;
+  try
+    Result := lHTTP.Get(aURL);
+  finally
+    lHTTP.Free;
+  end;
+end;
+{$ENDIF}
+
+function TilerStatusURLFromTilerName(const aTilerName: string; aTilerPort: Integer): string;
+begin
+  Result := 'http://'+aTilerName+':'+aTilerPort.ToString+'/TilerWebService.dll/status';
+end;
+
 { TTilerLayer }
 
 constructor TTilerLayer.Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette; aID: Integer; const aURL: string; aPreview: TPngImage);
@@ -203,7 +280,7 @@ begin
   if not Assigned(fPreview)
   then LoadPreviewFromCache();
   // make active
-  fEvent := aConnection.subscribe('USIdle.sessions.'+aElementID, False);
+  fEvent := aConnection.subscribe('USIdle.Sessions.TileLayers.'+aElementID.Replace(sepElementID, sepEventName), False);
   fEvent.OnEvent.Add(handleLayerEvent);
 end;
 
@@ -217,6 +294,18 @@ begin
   FreeAndNil(fPreview);
   FreeAndNil(fPalette);
   inherited;
+end;
+
+function TTilerLayer.getURITimeStamp: string;
+begin
+  Result := NowUTCInt64.ToString();
+end;
+
+function TTilerLayer.getURLTimeStamped: string;
+begin
+  if fURL<>''
+  then Result := fURL+'&ts='+getURITimeStamp
+  else Result := '';
 end;
 
 procedure TTilerLayer.handleLayerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
@@ -447,12 +536,12 @@ begin
   end;
 end;
 
-procedure TTilerLayer.signalRegisterLayer(const aDescription: string; aPersistent: Boolean; aEdgeLengthInMeters: Double);
+procedure TTilerLayer.signalRegisterLayer(aTiler: TTiler; const aDescription: string; aPersistent: Boolean; aEdgeLengthInMeters: Double);
 var
   payload: TByteBuffer;
 begin
   payload :=
-    TByteBuffer.bb_tag_string(icehEventName, fEvent.eventName);
+    TByteBuffer.bb_tag_string(icehTilerEventName, fEvent.eventName);
   if not IsNaN(aEdgeLengthInMeters)
   then payload := Payload+
     TByteBuffer.bb_tag_double(icehTilerEdgeLength, aEdgeLengthInMeters);
@@ -460,7 +549,7 @@ begin
     TByteBuffer.bb_tag_string(icehTilerLayerDescription, aDescription)+
     TByteBuffer.bb_tag_bool(icehTilerPersistent, aPersistent)+
     TByteBuffer.bb_tag_int32(icehTilerRequestNewLayer, fSliceType); // last to trigger new layer request
-  fEvent.signalEvent(payload);
+  aTiler.event.signalEvent(payload);
 end;
 
 procedure TTilerLayer.signalRequestPreview;
@@ -470,14 +559,17 @@ end;
 
 { TTiler }
 
-constructor TTiler.Create(aConnection: TConnection; const aTilerFQDN: string);
+constructor TTiler.Create(aConnection: TConnection; const aTilerFQDN, aTilerStatusURL: string);
 begin
   inherited Create;
   fOnTilerStartup := nil;
+  fTilerStatusURL := aTilerStatusURL;
   //fLayers := TObjectDictionary<string, TTilerLayer>.Create([doOwnsValues]);
   fEvent := aConnection.subscribe('USIdle.Tilers.'+aTilerFQDN.Replace('.', '_'), False);
   fEvent.OnEvent.Add(handleTilerEvent);
-  fEvent.OnIntString.Add(handleTilerStatus)
+  fEvent.OnIntString.Add(handleTilerStatus);
+  // start tiler web service
+  getTilerStatus;
 end;
 
 destructor TTiler.Destroy;
@@ -489,6 +581,11 @@ begin
   end;
   //FreeAndNil(fLayers);
   inherited;
+end;
+
+function TTiler.getTilerStatus: string;
+begin
+  Result := WebRequest(fTilerStatusURL);
 end;
 
 procedure TTiler.handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
@@ -545,19 +642,4 @@ begin
   end;
 end;
 
-{
-function TTiler.addLayer(const aElementID: string; aSliceType: Integer; aPalette: TWDPalette): TTilerLayer;
-begin
-//  TMonitor.Enter(fLayers);
-//  try
-    if not fLayers.TryGetValue(aElementID, Result) then
-    begin
-      Result := TTilerLayer.Create(self, aElementID, -1, '', nil, aSliceType, aPalette);
-      fLayers.Add(aElementID, Result);
-    end;
-  finally
-    TMonitor.Exit(fLayers);
-  end;
-end;
-}
 end.

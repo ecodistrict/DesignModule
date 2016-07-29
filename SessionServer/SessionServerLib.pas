@@ -36,6 +36,8 @@ const
   colorBasicOutline = $3388FF or $FF000000;
   colorBasicFill = $B5C6DD or $FF000000;
 
+  //DefaultDiffRange = 100.0;
+
 type
   TDistanceLatLon = record
     m_per_deg_lat: Double;
@@ -65,39 +67,58 @@ type
     property JSON: string read getJSON;
   end;
 
-  TScenarioElement = class; // forward
-
   TSessionModel = class; // forward
 
-  TDiffLayer = class
-  constructor Create(const aElementID: string; aSliceType: Integer; aCurrentTilerID, aReferenceTilerID: Integer; aPalette: TWDPalette; aTilerEvent: TEventEntry);
+  TClient = class; // forward
+
+  TClientSubscribable = class
+  constructor Create;
+  destructor Destroy; override;
   private
-    fElementID: string;
-    fObjectsTilesID: Integer; // set from tiler
-    fObjectsTilesLink: string; // set from tiler
-    fSliceType: Integer;
-    fCurrentTilerID: Integer;
-    fReferenceTilerID: Integer;
-    fPalette: TWDPalette;
-    //fTilerEvent: TEventEntry;
+    fClients: TObjectList<TClient>; // refs, lock with TMonitor
+  protected
+    function getElementID: string; virtual; abstract;
+  public
+    property clients: TObjectList<TClient> read fClients; // refs, lock with TMonitor
+    property elementID: string read getElementID;
+  public
+    function HandleClientSubscribe(aClient: TClient): Boolean; virtual;
+    function HandleClientUnsubscribe(aClient: TClient): Boolean; virtual;
+    procedure HandleFirstSubscriber; virtual;
+    procedure HandleLastSubscriber; virtual;
+  end;
+
+  TDiffLayer = class(TClientSubscribable)
+  constructor Create(const aElementID: string; aCurrentLayer, aReferenceLayer: TLayer);
+  destructor Destroy; override;
+  private
+    fCurrentLayer: TLayer;
+    fReferenceLayer: TLayer;
+    fTilerLayer: TTilerLayer; // owns
+    fSendRefreshTimer: TTimer;
+    fPreviewRequestTimer: TTimer;
     function getRefJSON: string;
   protected
-    function uniqueObjectsTilesLink: string;
+    function getElementID: string; override;
+    procedure handleTilerInfo(aTilerLayer: TTilerLayer);
+    procedure handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
+    procedure handleTilerPreview(aTilerLayer: TTilerLayer);
   public
+    property tilerLayer: TTilerLayer read fTilerLayer;
     property refJSON: string read getRefJSON;
+    procedure HandleSubLayerInfo(aLayer: TLayer);
   end;
 
   TClient = class
   constructor Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
   destructor Destroy; override;
   private
-    fSubscribedElements: TObjectList<TScenarioElement>; // ref, use TMonitor to lock
+    fSubscribedElements: TObjectList<TClientSubscribable>; // ref, use TMonitor to lock
     fProject: TProject; // ref
     fCurrentScenario: TScenario; // ref
     fRefScenario: TScenario; // ref
     fClientID: string;
     fClientEvent: TEventEntry;
-    fDiffLayers: TDictionary<string, TDiffLayer>; // ref
 
     function getSessionModel: TSessionModel;
 
@@ -114,9 +135,12 @@ type
     procedure SendSelectionEnabled();
     procedure SendMeasuresEnabled();
     procedure SendMeasuresHistoryEnabled();
+
+    procedure addClient(aElement: TClientSubscribable);
+    procedure removeClient(aElement: TClientSubscribable);
   public
     property sessionModel: TSessionModel read getSessionModel;
-    property subscribedElements: TObjectList<TScenarioElement> read fSubscribedElements; // ref, use TMonitor to lock
+    property subscribedElements: TObjectList<TClientSubscribable> read fSubscribedElements; // ref, use TMonitor to lock
     property clientID: string read fClientID;
 
     procedure signalString(const aString: string);
@@ -124,13 +148,13 @@ type
     procedure SendRefresh(const aElementID, aTimeStamp, aObjectsTilesLink: string);
     procedure SendPreview(const aElementID, aPreviewBASE64: string);
 
-    procedure HandleElementRemove(aElement: TScenarioElement);
+    procedure HandleElementRemove(aElement: TClientSubscribable);
     procedure HandleScenarioRemove(aScenario: TScenario);
 
     procedure HandleClientCommand(const aJSONString: string);
   end;
 
-  TScenarioElement = class
+  TScenarioElement = class(TClientSubscribable)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
   destructor Destroy; override;
   protected
@@ -140,12 +164,10 @@ type
     fName: string;
     fDescription: string;
     fDefaultLoad: Boolean;
-    //
-    fClients: TObjectList<TClient>; // refs, lock with TMonitor
 //    fOutputEvent: TEventEntry;
   protected
     function getJSON: string; virtual;
-    function getElementID: string;
+    function getElementID: string; override;
   public
     property scenario: TScenario read fScenario;
     property domain: string read fDomain;
@@ -154,14 +176,10 @@ type
     property description: string read fDescription;
     property defaultLoad: Boolean read fDefaultLoad;
     //
-    property clients: TObjectList<TClient> read fClients; // refs, lock with TMonitor
 //    property outputEvent: TEventEntry read fOutputEvent;
     //
     property JSON: string read getJSON;
     property elementID: string read getElementID;
-  public
-    procedure HandleClientSubscribe(aClient: TClient); virtual;
-    procedure HandleClientUnsubscribe(aClient: TClient); virtual;
   end;
 
   TLayerObject = class
@@ -239,41 +257,35 @@ type
 
   TLayer = class(TScenarioElement)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-    const aObjectTypes, aGeometryType: string; aBasicLayer: Boolean=False);
+    const aObjectTypes, aGeometryType: string; aDiffRange: Double; aBasicLayer: Boolean=False);
   destructor Destroy; override;
   private
-//    fSliceType: Integer;
 //    fPalette: TWDPalette; // owns
 //    fPOIImages: TArray<TPngImage>;
     fObjects: TObjectDictionary<TWDID, TLayerObject>; // owns
     fGeometryType: string;
     fObjectsLock: TOmniMREW;
     fBasicLayer: Boolean;
-    fPreview: TPngImage;// TPicture;//TBitmap;
+    fDependentDiffLayers: TObjectList<TDiffLayer>; // refs
+    fDiffRange: Double;
+    //fPreview: TPngImage;// TPicture;//TBitmap;
     fObjectTypes: string;
     fPreviewRequestTimer: TTimer;
+    fSendRefreshTimer: TTImer;
   protected
     fLegendJSON: string;
     fQuery: string;
     fTilerLayer: TTilerLayer;
-    //fObjectsTilesID: Integer;
-    //fObjectsTilesLink: string;
-    //fTilerEvent: TEventEntry;
-    //fSliceType: Integer;
-    //useTiles: Boolean;
     function getJSON: string; override;
     function getObjectsJSON: string; virtual;
     function getPreviewBASE64: string; virtual;
     function getRefJSON: string; virtual;
-    //procedure handleOutputEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer); virtual;
     procedure signalObjects(aSender: TObject); virtual;
-    //procedure handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
-    procedure signalTilerRequestPreview(aTimer: TTImer);
+
     procedure handleTilerInfo(aTilerLayer: TTilerLayer);
   	procedure handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
   	procedure handleTilerPreview(aTilerLayer: TTilerLayer);
   public
-    //property palette: TWDPalette read fPalette;
     property objects: TObjectDictionary<TWDID, TLayerObject> read fObjects;
     property geometryType: string read fGeometryType;
     property objectsLock: TOmniMREW read fObjectsLock;
@@ -285,12 +297,11 @@ type
     property objectTypes: string read fObjectTypes;
     property legendJSON: string read fLegendJSON write fLegendJSON;
     property query: string read fQuery write fQuery; // r/w
-    //property objectsTilesID: Integer read fObjectsTilesID write fObjectsTilesID;
-    //property objectsTilesLink: string read fObjectsTilesLink write fObjectsTilesLink;
-    //property slicetype: Integer read fSliceType; // set by registerOnTiler
     property tilerLayer: TTilerLayer read fTilerLayer;
-
     property refJSON: string read getRefJSON;
+    property diffRange: Double read fDiffRange;
+    function uniqueObjectsTilesLink: string;
+    function SliceType: Integer; virtual;
   public
     function FindObject(const aID: TWDID; out aObject: TLayerObject): Boolean;
     procedure AddObject(aObject: TLayerObject);
@@ -301,7 +312,6 @@ type
     function findNearestObject(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double; var aDistance: Double): TLayerObject;
     function findObjectsInCircle(const aDistanceLatLon: TDistanceLatLon; aX, aY, aRadius: Double; var aObjectsJSON: string): Integer;
     function findObjectsInGeometry(const aGeometryExtent: TWDExtent; aGeometry: TWDGeometry; var aObjectsJSON: string): Integer;
-    function uniqueObjectsTilesLink: string;
   public
     procedure ReadObjectsDBSVGPaths(aQuery: TDataSet; aDefaultValue: Double);
   public
@@ -310,6 +320,9 @@ type
     procedure RegisterLayer; virtual; // override to call -> RegisterOnTiler(XX)
     procedure RegisterSlice; virtual; // override to call -> TTilerLayer.addSliceXX
     // registerLayer (override) -> registerOnTiler -> onTilerInfo -> RegisterSlice (override -> signalAddSlice) + signalObjects via timer
+
+    procedure addDiffLayer(aDiffLayer: TDiffLayer);
+    procedure removeDiffLayer(aDiffLayer: TDiffLayer);
   end;
 
   TKPI = class(TScenarioElement)
@@ -371,7 +384,7 @@ type
     property zoom: Integer read fZoom;
   end;
 
-  TScenario = class
+  TScenario = class(TClientSubscribable)
   constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
   destructor Destroy; override;
   protected
@@ -383,9 +396,8 @@ type
     fLayers: TObjectDictionary<string, TLayer>; // owns
     fKPIs: TObjectDictionary<string, TKPI>; // owns
     fCharts: TObjectDictionary<string, TChart>; // owns
-    fClients: TObjectList<TClient>; // refs, lock with TMonitor
     fAddbasicLayers: Boolean;
-    function getElementID: string;
+    function getElementID: string; override;
     function selectLayersOnCategories(const aSelectedCategories: TArray<string>; aLayers: TList<TLayer>): Boolean;
   public
     property project: TProject read fProject;
@@ -393,11 +405,9 @@ type
     property name: string read fName write fName;
     property description: string read fDescription write fDescription;
     property mapView: TMapView read fMapView write fMapView;
-    property elementID: string read getElementID;
     property Layers: TObjectDictionary<string, TLayer> read fLayers;
     property KPIs: TObjectDictionary<string, TKPI> read fKPIs;
     property Charts: TObjectDictionary<string, TChart> read fCharts;
-    property clients: TObjectList<TClient> read fClients; // refs, lock with TMonitor
     property addBasicLayers: Boolean read fAddBasicLayers;
     procedure ReadBasicData(); virtual;
     procedure RegisterLayers;
@@ -405,9 +415,6 @@ type
     function AddLayer(aLayer: TLayer): TLayer;
     function AddKPI(aKPI: TKPI): TKPI;
     function AddChart(aChart: TChart): TChart;
-  public
-    procedure HandleClientSubscribe(aClient: TClient); virtual;
-    procedure HandleClientUnsubscribe(aClient: TClient); virtual;
   public
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; virtual;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; virtual;
@@ -475,7 +482,7 @@ type
   end;
 
   TProject = class
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN: string;
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
     aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean);
   destructor Destroy; override;
   private
@@ -619,11 +626,6 @@ begin
   Result := Result+'}';
 end;
 
-function URITimeStamp: string;
-begin
-  Result := NowUTCInt64.ToString();
-end;
-
 function ZoomLevelFromDeltaLon(aDeltaLon: Double): Integer;
 begin
   try
@@ -661,29 +663,188 @@ begin
   Result := sqrt(sqr(m_per_deg_lat * aDeltaLat) + sqr(m_per_deg_lon * aDeltaLon));
 end;
 
-{ TDiffLayer }
-
-constructor TDiffLayer.Create(const aElementID: string; aSliceType: Integer; aCurrentTilerID, aReferenceTilerID: Integer; aPalette: TWDPalette; aTilerEvent: TEventEntry);
+{ TClientSubscribable }
+
+constructor TClientSubscribable.Create;
 begin
   inherited Create;
-  fElementID := aElementID;
-  fObjectsTilesID := -1;
-  fObjectsTilesLink := '';
-  fSliceType := aSliceType;
-  fCurrentTilerID := aCurrentTilerID;
-  fReferenceTilerID := aReferenceTilerID;
-  fPalette := aPalette;
-  //fTilerEvent := aTilerEvent; // todo: convert
+  fClients := TObjectList<TClient>.Create(False); // refs
+end;
+
+destructor TClientSubscribable.Destroy;
+var
+  client: TClient;
+begin
+  TMonitor.Enter(fClients);
+  try
+    for client in fClients
+    do client.HandleElementRemove(Self);
+  finally
+    TMonitor.Exit(fClients);
+  end;
+  FreeAndNil(fClients);
+  inherited;
+end;
+
+function TClientSubscribable.HandleClientSubscribe(aClient: TClient): Boolean;
+begin
+  TMonitor.Enter(fClients);
+  try
+    if fClients.IndexOf(aClient)<0 then
+    begin
+      fClients.Add(aClient);
+      if fClients.Count=1
+      then HandleFirstSubscriber;
+      Result := True;
+    end
+    else Result := False;
+  finally
+    TMonitor.Exit(fClients);
+  end;
+end;
+
+function TClientSubscribable.HandleClientUnsubscribe(aClient: TClient): Boolean;
+var
+  i: Integer;
+begin
+  TMonitor.Enter(fClients);
+  try
+    i := fClients.IndexOf(aClient);
+    if i>=0 then
+    begin
+      fClients.Delete(i);
+      if fClients.Count=0
+      then HandleLastSubscriber;
+      Result := True;
+    end
+    else Result := False;
+  finally
+    TMonitor.Exit(fClients);
+  end;
+end;
+
+procedure TClientSubscribable.HandleFirstSubscriber;
+begin
+  // default no action
+end;
+
+procedure TClientSubscribable.HandleLastSubscriber;
+begin
+  // default no action
+end;
+
+{ TDiffLayer }
+
+constructor TDiffLayer.Create(const aElementID: string; aCurrentLayer, aReferenceLayer: TLayer);
+begin
+  inherited Create;
+  fCurrentLayer := aCurrentLayer;
+  fReferenceLayer := aReferenceLayer;
+  fTilerLayer := TTilerLayer.Create(aCurrentLayer.scenario.project.Connection, aElementID, -aCurrentLayer.SliceType);
+  // todo:
+  fTilerLayer.onTilerInfo := handleTilerInfo;
+  fTilerLayer.onRefresh := handleTilerRefresh;
+  fTilerLayer.onPreview := handleTilerPreview;
+  //
+  fPreviewRequestTimer := aCurrentLayer.scenario.project.Timers.SetTimer(
+    procedure(aTimer: TTImer)
+    begin
+      Log.WriteLn('triggered preview timer for '+elementID);
+      fTilerLayer.signalRequestPreview;
+    end);
+  fSendRefreshTimer := aCurrentLayer.scenario.project.Timers.CreateInactiveTimer;
+  fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*30);
+
+  fCurrentLayer.addDiffLayer(Self);
+  fReferenceLayer.addDiffLayer(Self);
+  HandleSubLayerInfo(nil); // if both layers are known on tiler we can start registering now
+end;
+
+destructor TDiffLayer.Destroy;
+begin
+  fCurrentLayer.removeDiffLayer(Self);
+  fReferenceLayer.removeDiffLayer(Self);
+  FreeAndNil(fTilerLayer); // owns
+  inherited;
+  fCurrentLayer := nil; // ref
+  fReferenceLayer := nil; // ref
+end;
+
+function TDiffLayer.getElementID: string;
+begin
+  Result := fTilerLayer.elementID;
 end;
 
 function TDiffLayer.getRefJSON: string;
 begin
-  Result := '"tiles":"'+uniqueObjectsTilesLink+'"';
+  Result := '"id":"'+getElementID+'","tiles":"'+fTilerLayer.URLTimeStamped+'"';
 end;
 
-function TDiffLayer.uniqueObjectsTilesLink: string;
+procedure TDiffLayer.HandleSubLayerInfo(aLayer: TLayer);
 begin
-  Result := fObjectsTilesLink+'&ts='+URITimeStamp;
+  if (tilerLayer.URL='') and
+     Assigned(fCurrentLayer.tilerLayer) and (fCurrentLayer.tilerLayer.URL<>'') and
+     Assigned(fReferenceLayer.tilerLayer) and (fReferenceLayer.tilerLayer.URL<>'')
+  then fTilerLayer.signalRegisterLayer(fCurrentLayer.scenario.project.tiler, 'diff '+fCurrentLayer.Description);
+end;
+
+procedure TDiffLayer.handleTilerInfo(aTilerLayer: TTilerLayer);
+var
+  diffPalette: TWDPalette;
+  v: Double;
+begin
+  v := fCurrentLayer.diffRange;
+  diffPalette := TRampPalette.Create('difference', [
+    TRampPaletteEntry.Create($FFFF0000, -v, 'less'),
+    TRampPaletteEntry.Create($FFFFFFFF, 0.0, 'no change'),
+    TRampPaletteEntry.Create($FF00FF00, v, 'more')],
+    $FFFF0000, 0, $FF00FF00);
+  aTilerLayer.signalAddDiffSlice(diffPalette, fCurrentLayer.tilerLayer.ID, fReferenceLayer.tilerLayer.ID);
+end;
+
+procedure TDiffLayer.handleTilerPreview(aTilerLayer: TTilerLayer);
+var
+  pvBASE64: string;
+  client: TClient;
+begin
+  if Assigned(fTilerLayer) then
+  begin
+    pvBASE64 := fTilerLayer.previewAsBASE64;
+    // layer clients
+    TMonitor.Enter(clients);
+    try
+      for client in clients
+      do client.SendPreview(elementID, pvBASE64);
+    finally
+      TMonitor.Exit(clients);
+    end;
+  end;
+end;
+
+procedure TDiffLayer.handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
+begin
+  // refresh preview also
+  fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*5),
+    procedure(aTimer: TTimer)
+    var
+      timeStampStr: string;
+      tiles: string;
+      client: TClient;
+    begin
+      if aTimeStamp<>0
+      then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
+      else timeStampStr := '';
+      // signal refresh to layer client
+      tiles := fTilerLayer.URLTimeStamped;
+      TMonitor.Enter(clients);
+      try
+        for client in clients
+        do client.SendRefresh(elementID, timeStampStr, tiles); // todo: extra processing needed?
+      finally
+        TMonitor.Exit(clients);
+      end;
+    end);
+  fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10);
 end;
 
 { TClientDomain }
@@ -711,20 +872,33 @@ begin
   else Result := '';
 end;
 
+procedure TClient.addClient(aElement: TClientSubscribable);
+begin
+  if Assigned(aElement) then
+  begin
+    TMonitor.Enter(fSubscribedElements);
+    try
+      if fSubscribedElements.IndexOf(aElement)<0
+      then fSubscribedElements.Add(aElement);
+    finally
+      TMonitor.Exit(fSubscribedElements);
+    end;
+    aElement.HandleClientSubscribe(Self);
+  end;
+end;
+
 constructor TClient.Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
 begin
   inherited Create;
-  fSubscribedElements := TObjectList<TScenarioElement>.Create(False);
-  fDiffLayers := TDictionary<string, TDiffLayer>.Create;
+  fSubscribedElements := TObjectList<TClientSubscribable>.Create(False);
   fProject := aProject;
   fClientID := aClientID;
   fCurrentScenario := aCurrentScenario;
   fRefScenario := aRefScenario;
-  if Assigned(fCurrentScenario)
-  then fCurrentScenario.HandleClientSubscribe(Self);
-  if Assigned(fRefScenario) then
+  addClient(fCurrentScenario);
+  addClient(fRefScenario);
+  if Assigned(fCurrentScenario) and Assigned(fRefScenario) then
   begin
-    fRefScenario.HandleClientSubscribe(Self);
     // todo: create list diff layers, charts and kpis
   end;
   fClientEvent := fProject.fConnection.publish(aClientID, False);
@@ -773,7 +947,7 @@ end;
 
 destructor TClient.Destroy;
 var
-  se: TScenarioElement;
+  se: TClientSubscribable;
 begin
   if Assigned(fClientEvent) then
   begin
@@ -781,17 +955,6 @@ begin
     fClientEvent.unSubscribe;
     fClientEvent.unPublish;
     fClientEvent := nil;
-  end;
-  // todo: free diff layers etc.
-  if Assigned(fCurrentScenario)  then
-  begin
-    fCurrentScenario.HandleClientUnsubscribe(Self);
-    fCurrentScenario := nil;
-  end;
-  if Assigned(fRefScenario)  then
-  begin
-    fRefScenario.HandleClientUnsubscribe(Self);
-    fRefScenario := nil;
   end;
   TMonitor.Enter(fSubscribedElements);
   try
@@ -801,8 +964,8 @@ begin
     TMonitor.Exit(fSubscribedElements);
   end;
   FreeAndNil(fSubscribedElements);
-  // todo: unsubscribe diff layers..
-  FreeAndNil(fDiffLayers);
+  fCurrentScenario := nil;
+  fRefScenario := nil;
   inherited;
 end;
 
@@ -812,39 +975,6 @@ begin
 end;
 
 procedure TClient.HandleClientCommand(const aJSONString: string);
-
-  procedure addClient(aElement: TScenarioElement);
-  begin
-    if Assigned(aElement) then
-    begin
-      TMonitor.Enter(fSubscribedElements);
-      try
-        if fSubscribedElements.IndexOf(aElement)<0
-        then fSubscribedElements.Add(aElement);
-      finally
-        TMonitor.Exit(fSubscribedElements);
-      end;
-      aElement.HandleClientSubscribe(Self);
-    end;
-  end;
-
-  procedure removeClient(aElement: TScenarioElement);
-  var
-    i: Integer;
-  begin
-    if Assigned(aElement) then
-    begin
-      TMonitor.Enter(fSubscribedElements);
-      try
-        i := fSubscribedElements.IndexOf(aElement);
-        if i>=0
-        then fSubscribedElements.Delete(i);
-      finally
-        TMonitor.Exit(fSubscribedElements);
-      end;
-      aElement.HandleClientUnsubscribe(Self);
-    end;
-  end;
 
   procedure selectObjects(aSelectObjects: TJSONValue);
   var
@@ -945,11 +1075,11 @@ var
   scenarioID: string;
   userid: string;
   scenario: TScenario;
-  diffLayerID: string;
-  diffLayer: TDiffLayer;
-  ilp: TPair<string, TLayer>;
-  refLayer: TLayer;
-  diffPalette: TWDPalette;
+//  diffLayerID: string;
+//  diffLayer: TDiffLayer;
+//  ilp: TPair<string, TLayer>;
+//  refLayer: TLayer;
+//  diffPalette: TWDPalette;
 begin
   try
     if Assigned(fProject) and Assigned(fClientEvent) then
@@ -982,8 +1112,9 @@ begin
                   userid := (jsonPair.JsonValue as TJSONObject).GetValue<string>('userid');
                   if fProject.scenarios.TryGetValue(scenarioID, scenario) then
                   begin
+                    removeClient(fCurrentScenario);
                     fCurrentScenario := scenario;
-                    fCurrentScenario.HandleClientSubscribe(Self);
+                    addClient(fCurrentScenario);
                     Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
                     // retry
                     SendSession();
@@ -1002,35 +1133,29 @@ begin
                   jsonValue := (jsonPair.JsonValue as TJSONObject).Values['currentScenario'];
                   if Assigned(jsonValue) then
                   begin
+                    removeClient(fCurrentScenario);
                     scenarioID := jsonValue.Value;
                     if not fProject.scenarios.TryGetValue(scenarioID, scenario)
                     then scenario := fProject.ReadScenario(scenarioID);
-                    if Assigned(fCurrentScenario)
-                    then fCurrentScenario.HandleClientUnsubscribe(Self);
                     fCurrentScenario := scenario;
-                    if Assigned(fCurrentScenario) then
-                    begin
-                      fCurrentScenario.HandleClientSubscribe(Self);
-                      Log.WriteLn('client switched scenario to '+fCurrentScenario.elementID);
-                    end
+                    addClient(fCurrentScenario);
+                    if Assigned(fCurrentScenario)
+                    then Log.WriteLn('client switched scenario to '+fCurrentScenario.elementID)
                     else Log.WriteLn('client switched scenario to NONE');
                   end;
                   jsonValue := (jsonPair.JsonValue as TJSONObject).Values['referenceScenario'];
                   if Assigned(jsonValue) then
                   begin
+                    removeClient(fRefScenario);
                     scenarioID := jsonValue.Value;
                     if not fProject.scenarios.TryGetValue(scenarioID, scenario)
-                    then scenario := fProject.ReadScenario(scenarioID);
-                    if Assigned(fRefScenario) then
-                    begin
-                      fRefScenario.HandleClientUnsubscribe(Self);
-                      // todo: clear list of diff layers, charts and kpis -> not..
-                    end;
+                    then scenario := fProject.ReadScenario(scenarioID{, fCurrentScenario});
                     fRefScenario := scenario;
-                    if Assigned(fRefScenario) then
-                    begin
-                      fRefScenario.HandleClientSubscribe(Self);
-                      Log.WriteLn('client switched ref scenario to '+fRefScenario.elementID);
+                    addClient(fRefScenario);
+                    if Assigned(fRefScenario)
+                    then Log.WriteLn('client switched ref scenario to '+fRefScenario.elementID)
+                    else Log.WriteLn('client switched ref scenario to NONE');
+                    {
                       // todo: create list diff layers, charts and kpis
                       if Assigned(fCurrentScenario) then
                       begin
@@ -1041,14 +1166,12 @@ begin
                             diffLayerID := fProject.diffElementID(ilp.Value, refLayer);
                             TMonitor.Enter(fProject.diffLayers);
                             try
-                              if not fProject.diffLayers.ContainsKey(diffLayerID) then
+                              if not fProject.diffLayers.TryGetValue(diffLayerID, diffLayer) then
                               begin
-//                                diffPalette := TDiscretePalette.Create('diff', [], TGeoColors.Create());
-//                                diffLayer := TDiffLayer.Create(diffLayerID, ilp.Value.sliceType, ilp.value.objectsTilesID, refLayer.objectsTilesID, diffPalette, fProject.TilerEvent);
-                                // link to tiler
-
-                                //fProject.diffLayers.Add(diffLayerID, diffLayer);
+                                diffLayer := TDiffLayer.Create(diffLayerID, ilp.Value, refLayer);
+                                fProject.diffLayers.Add(diffLayerID, diffLayer);
                               end;
+                              addClient(diffLayer);
                             finally
                               TMonitor.Exit(fProject.diffLayers);
                             end;
@@ -1056,7 +1179,8 @@ begin
                         end;
                       end;
                     end
-                    else Log.WriteLn('client switched ref scenario to NONE');
+                    else
+                    }
                   end;
                   SendDomains('updatedomains');
                   UpdateSession();
@@ -1076,7 +1200,7 @@ begin
   end;
 end;
 
-procedure TClient.HandleElementRemove(aElement: TScenarioElement);
+procedure TClient.HandleElementRemove(aElement: TClientSubscribable);
 var
   i: Integer;
 begin
@@ -1108,6 +1232,24 @@ begin
   else Result := '';
 end;
 
+procedure TClient.removeClient(aElement: TClientSubscribable);
+var
+  i: Integer;
+begin
+  if Assigned(aElement) then
+  begin
+    TMonitor.Enter(fSubscribedElements);
+    try
+      i := fSubscribedElements.IndexOf(aElement);
+      if i>=0
+      then fSubscribedElements.Delete(i);
+    finally
+      TMonitor.Exit(fSubscribedElements);
+    end;
+    aElement.HandleClientUnsubscribe(Self);
+  end;
+end;
+
 function compareLayerNames(const aLayer1, aLayer2: TLayer): Integer;
 begin
   Result := AnsiCompareText(aLayer1.name, aLayer2.name);
@@ -1126,6 +1268,7 @@ var
   locLayers: TList<TLayer>;
   refLayer: TLayer;
   diffLayer: TDiffLayer;
+  diffElementID: string;
 begin
   if Assigned(fRefScenario)
   then Log.WriteLn('TClient.SendDomains ('+aPrefix+'), ref scenario '+fRefScenario.fID)
@@ -1149,9 +1292,14 @@ begin
             begin
               // todo: full JSON for ref and diff, to include legend?
               JSON := JSON+',"ref":{'+refLayer.refJSON+'}';
-              // todo: add diff layer
-              if fProject.diffLayers.TryGetValue(fProject.diffElementID(layer, refLayer), diffLayer)
-              then JSON := JSON+',"diff":{'+diffLayer.refJSON+'}';
+              diffElementID :=  fProject.diffElementID(layer, refLayer);
+              if not fProject.diffLayers.TryGetValue(diffElementID, diffLayer) then
+              begin
+                diffLayer := TDiffLayer.Create(diffElementID, layer, refLayer);
+                // todo:
+
+              end;
+              JSON := JSON+',"diff":{'+diffLayer.refJSON+'}';
             end
             else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref layer for '+layer.ID);
           end;
@@ -1371,27 +1519,16 @@ begin
   fDescription := aDescription;
   fDefaultLoad := aDefaultLoad;
   //
-  fClients := TObjectList<TClient>.Create(False); // refs
 //  fOutputEvent := fScenario.Project.Connection.publish(fScenario.Project.ProjectEvent.eventName+'.'+fScenario.ID+'.'+ID, false);
 end;
 
 destructor TScenarioElement.Destroy;
-var
-  client: TClient;
 begin
 //  if Assigned(fOutputEvent) then
 //  begin
 //    fOutputEvent.unPublish;
 //    fOutputEvent := nil;
 //  end;
-  TMonitor.Enter(fClients);
-  try
-    for client in fClients
-    do client.HandleElementRemove(Self);
-  finally
-    TMonitor.Exit(fClients);
-  end;
-  FreeAndNil(fClients);
   inherited;
 end;
 
@@ -1405,36 +1542,11 @@ end;
 function TScenarioElement.getJSON: string;
 begin
   Result :=
-    '"domain": "'+domain+'",'+
-    '"id": "'+getElementID+'",'+
-    '"name": "'+name+'",'+
-    '"description": "'+description+'",'+
-    '"default": '+Ord(defaultLoad).ToString;
-end;
-
-procedure TScenarioElement.HandleClientSubscribe(aClient: TClient);
-begin
-  TMonitor.Enter(fClients);
-  try
-    if fClients.IndexOf(aClient)<0
-    then fClients.Add(aClient);
-  finally
-    TMonitor.Exit(fClients);
-  end;
-end;
-
-procedure TScenarioElement.HandleClientUnsubscribe(aClient: TClient);
-var
-  i: Integer;
-begin
-  TMonitor.Enter(fClients);
-  try
-    i := fClients.IndexOf(aClient);
-    if i>=0
-    then fClients.Delete(i);
-  finally
-    TMonitor.Exit(fClients);
-  end;
+    '"domain":"'+domain+'",'+
+    '"id":"'+getElementID+'",'+
+    '"name":"'+name+'",'+
+    '"description":"'+description+'",'+
+    '"default":'+Ord(defaultLoad).ToString;
 end;
 
 { TLayerObject }
@@ -1777,6 +1889,20 @@ end;
 
 { TLayer }
 
+procedure TLayer.addDiffLayer(aDiffLayer: TDiffLayer);
+var
+  i: Integer;
+begin
+  TMonitor.Enter(fDependentDiffLayers);
+  try
+    i := fDependentDiffLayers.IndexOf(aDiffLayer);
+    if i<0
+    then fDependentDiffLayers.Add(aDiffLayer);
+  finally
+    TMonitor.Exit(fDependentDiffLayers);
+  end;
+end;
+
 procedure TLayer.AddObject(aObject: TLayerObject);
 begin
   fObjectsLock.BeginWrite;
@@ -1808,18 +1934,20 @@ begin
 end;
 
 constructor TLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-  const aObjectTypes, aGeometryType: string; aBasicLayer: Boolean=False);
-var
-  previewFileName: string;
-  previewsFolder: string;
+  const aObjectTypes, aGeometryType: string; aDiffRange: Double; aBasicLayer: Boolean=False);
+//var
+//  previewFileName: string;
+//  previewsFolder: string;
 begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad);
   //fPalette := aPalette;
   fObjectTypes := aObjectTypes;
   fGeometryType := aGeometryType;
+  fDiffRange := aDiffRange;
   fBasicLayer := aBasicLayer;
   fObjects := TObjectDictionary<TWDID, TLayerObject>.Create([doOwnsValues]);
   fObjectsLock.Create;
+  fDependentDiffLayers := TObjectList<TDiffLayer>.Create(False);
   fLegendJSON := '';
   fQuery := '';
   //fObjectsTilesID := -1;
@@ -1830,6 +1958,7 @@ begin
 //  fTilerEvent.OnEvent.Add(HandleTilerEvent);
 //  fTilerEvent.subscribe;
   // check fro preview image
+  {
   previewsFolder := ExtractFilePath(ParamStr(0))+'previews';
   previewFileName := previewsFolder+'\'+elementID+'.png';
   try
@@ -1845,7 +1974,15 @@ begin
       Log.WriteLn('Exception creating preview image for '+elementID+': '+e.Message, llError);
     end;
   end;
-  fPreviewRequestTimer := scenario.project.Timers.SetTimer(signalTilerRequestPreview);
+  }
+  fPreviewRequestTimer := scenario.project.Timers.SetTimer(
+    procedure (aTimer: TTImer)
+    begin
+      Log.WriteLn('triggered preview timer for '+elementID);
+      fTilerLayer.signalRequestPreview;
+    end);
+  fSendRefreshTimer := scenario.project.Timers.CreateInactiveTimer;// SetTimer(handleLayerRefresh);
+  fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*30);
 //  fOutputEvent.OnEvent.Add(handleOutputEvent);
 //  fOutputEvent.Subscribe;
 end;
@@ -1862,12 +1999,12 @@ begin
 //    fOutputEvent.OnEvent.Remove(handleOutputEvent);
 //    fOutputEvent := nil;
 //  end;
-  inherited;
-  FreeAndNil(fClients);
-  FreeAndNil(fObjects);
-  //FreeAndNil(fPalette);
   FreeAndNil(fTilerLayer);
-  FreeAndNil(fPreview);
+  inherited;
+  FreeAndNil(fObjects);
+  FreeAndNil(fDependentDiffLayers);
+  //FreeAndNil(fPalette);
+  //FreeAndNil(fPreview);
 end;
 
 function TLayer.ExtractObject(aObject: TLayerObject): TLayerObject;
@@ -1998,7 +2135,7 @@ begin
   {
   fSliceType := aSliceType;
   payload :=
-    TByteBuffer.bb_tag_string(icehEventName, fOutputEvent.eventName);
+    TByteBuffer.bb_tag_string(icehTilerEventName, fOutputEvent.eventName);
   if not IsNaN(aEdgeLengthInMeters)
   then payload := Payload+
     TByteBuffer.bb_tag_double(icehTilerEdgeLength, aEdgeLengthInMeters);
@@ -2016,12 +2153,26 @@ begin
   fTilerLayer.onRefresh := handleTilerRefresh;
   fTilerLayer.onPreview := handleTilerPreview;
   // trigger registration
-  fTilerLayer.signalRegisterLayer(aDescription, aPersistent, aEdgeLengthInMeters);
+  fTilerLayer.signalRegisterLayer(scenario.project.tiler, aDescription, aPersistent, aEdgeLengthInMeters);
 end;
 
 procedure TLayer.RegisterSlice;
 begin
   // default no action
+end;
+
+procedure TLayer.removeDiffLayer(aDiffLayer: TDiffLayer);
+var
+  i: Integer;
+begin
+  TMonitor.Enter(fDependentDiffLayers);
+  try
+    i := fDependentDiffLayers.IndexOf(aDiffLayer);
+    if i>=0
+    then fDependentDiffLayers.Delete(i);
+  finally
+    TMonitor.Exit(fDependentDiffLayers);
+  end;
 end;
 
 procedure TLayer.RemoveObject(aObject: TLayerObject);
@@ -2070,17 +2221,15 @@ begin
   end;
 end;
 
-procedure TLayer.signalTilerRequestPreview(aTimer: TTImer);
+function TLayer.SliceType: Integer;
 begin
-  Log.WriteLn('triggered preview timer for '+elementID);
-  fTilerLayer.signalRequestPreview;
-  //fOutputEvent.signalEvent(TByteBuffer.bb_tag_uint32(icehTilerRequestPreviewImage, PreviewImageWidth));
+  Result := stGeometry; // default
 end;
 
 function TLayer.uniqueObjectsTilesLink: string;
 begin
-  if Assigned(fTilerLayer) and (fTilerLayer.URL<>'')
-  then Result := fTilerLayer.URL+'&ts='+URITimeStamp
+  if Assigned(fTilerLayer)
+  then Result := fTilerLayer.URLTimeStamped
   else Result := '';
 end;
 
@@ -2110,26 +2259,15 @@ begin
 end;
 
 function TLayer.getPreviewBASE64: string;
-var
-  ms: TMemoryStream;
 begin
-  if Assigned(fPreview) then
-  begin
-    ms := TMemoryStream.Create;
-    try
-      fPreview.SaveToStream(ms);
-      ms.Position := 0;
-      Result := 'data:image/png;base64,'+TIdEncoderMIME.EncodeStream(ms);
-    finally
-      ms.Free;
-    end;
-  end
+  if Assigned(fTilerLayer)
+  then Result := fTilerLayer.previewAsBASE64
   else Result := '';
 end;
 
 function TLayer.getRefJSON: string;
 begin
-  Result := '"tiles":"'+uniqueObjectsTilesLink+'"';
+  Result := '"id":"'+getElementID+'","tiles":"'+uniqueObjectsTilesLink+'"';
   if objects.Count<=MaxDirectSendObjectCount
   then Result := Result+',"objects": '+objectsJSON;
 end;
@@ -2162,9 +2300,18 @@ begin
 end;
 }
 procedure TLayer.handleTilerInfo(aTilerLayer: TTilerLayer);
+var
+  dl: TDiffLayer;
 begin
   RegisterSlice;
   AddCommandToQueue(Self, Self.signalObjects);
+  TMonitor.Enter(fDependentDiffLayers);
+  try
+    for dl in fDependentDiffLayers
+    do dl.HandleSubLayerInfo(Self);
+  finally
+    TMonitor.Exit(fDependentDiffLayers);
+  end;
 end;
 
 procedure TLayer.handleTilerPreview(aTilerLayer: TTilerLayer);
@@ -2176,7 +2323,7 @@ begin
   // layer clients
   TMonitor.Enter(clients);
   try
-    for client in fClients
+    for client in clients
     do client.SendPreview(elementID, pvBASE64);
   finally
     TMonitor.Exit(clients);
@@ -2195,37 +2342,40 @@ begin
 end;
 
 procedure TLayer.handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
-var
-  timeStampStr: string;
-  tiles: string;
-  client: TClient;
 begin
-  if aTimeStamp<>0
-  then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
-  else timeStampStr := '';
-  // todo: start refresh timer
-  // signal refresh to layer client
-  tiles := uniqueObjectsTilesLink;
-  TMonitor.Enter(clients);
-  try
-    for client in clients
-    do client.SendRefresh(elementID, timeStampStr, tiles);
-  finally
-    TMonitor.Exit(clients);
-  end;
-  // signal refresh to scenario client
-  TMonitor.Enter(fScenario.clients);
-  try
-    for client in fScenario.clients do
-    begin
-      if not clients.Contains(client)
-      then client.SendRefresh(elementID, timeStampStr, tiles);
-    end;
-  finally
-    TMonitor.Exit(fScenario.clients);
-  end;
   // refresh preview also
-  fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneMinute/6);
+  fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*5),
+    procedure(aTimer: TTimer)
+    var
+      timeStampStr: string;
+      tiles: string;
+      client: TClient;
+    begin
+      if aTimeStamp<>0
+      then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
+      else timeStampStr := '';
+      // signal refresh to layer client
+      tiles := uniqueObjectsTilesLink;
+      TMonitor.Enter(clients);
+      try
+        for client in clients
+        do client.SendRefresh(elementID, timeStampStr, tiles);
+      finally
+        TMonitor.Exit(clients);
+      end;
+      // signal refresh to scenario client
+      TMonitor.Enter(fScenario.clients);
+      try
+        for client in fScenario.clients do
+        begin
+          if not clients.Contains(client)
+          then client.SendRefresh(elementID, timeStampStr, tiles);
+        end;
+      finally
+        TMonitor.Exit(fScenario.clients);
+      end;
+    end);
+  fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10);
 end;
 
 { KPI }
@@ -2379,27 +2529,16 @@ begin
   fLayers := TObjectDictionary<string,TLayer>.Create([doOwnsValues]);
   fKPIs := TObjectDictionary<string, TKPI>.Create([doOwnsValues]);
   fCharts := TObjectDictionary<string, TChart>.Create([doOwnsValues]);
-  fClients := TObjectList<TClient>.Create(False); // refs
   fAddbasicLayers := aAddbasicLayers;
   ReadBasicData;
 end;
 
 destructor TScenario.Destroy;
-var
-  client: TClient;
 begin
-  TMonitor.Enter(fClients);
-  try
-    for client in fClients
-    do client.HandleScenarioRemove(Self);
-  finally
-    TMonitor.Exit(fClients);
-  end;
-  FreeAndNil(fClients);
+  inherited;
   FreeAndNil(fLayers);
   FreeAndNil(fKPIs);
   FreeAndNil(fCharts);
-  inherited;
 end;
 
 function TScenario.getElementID: string;
@@ -2407,31 +2546,6 @@ begin
   Result := ID;
   if Assigned(fProject)
   then Result := fProject.fProjectID+sepElementID+Result;
-end;
-
-procedure TScenario.HandleClientSubscribe(aClient: TClient);
-begin
-  TMonitor.Enter(fClients);
-  try
-    if fClients.IndexOf(aClient)<0
-    then fClients.Add(aClient);
-  finally
-    TMonitor.Exit(fClients);
-  end;
-end;
-
-procedure TScenario.HandleClientUnsubscribe(aClient: TClient);
-var
-  i: Integer;
-begin
-  TMonitor.Enter(fClients);
-  try
-    i := fClients.IndexOf(aClient);
-    if i>=0
-    then fClients.Delete(i);
-  finally
-    TMonitor.Exit(fClients);
-  end;
 end;
 
 procedure TScenario.ReadBasicData;
@@ -2651,7 +2765,7 @@ begin
 end;
 
 constructor TProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
-  const aProjectID, aProjectName, aTilerFQDN: string; aDBConnection: TCustomConnection;
+  const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
   aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean{; aSourceEPSG: Integer});
 begin
   inherited  Create;
@@ -2670,7 +2784,7 @@ begin
   fProjectID := aProjectID;
   fProjectName := aProjectName;
   fProjectDescription := ''; // default no description set, set by property..
-  fTiler := TTiler.Create(aConnection, aTilerFQDN);
+  fTiler := TTiler.Create(aConnection, aTilerFQDN, aTilerStatusURL);
   fTiler.onTilerStartup := handleTilerStartup;
 //  fTilerEvent := aConnection.publish(aTilerEventName, False);
   fDBConnection := aDBConnection;
@@ -2718,7 +2832,18 @@ end;
 
 function TProject.diffElementID(aCurrent, aReference: TScenarioElement): string;
 begin
-  Result := 'diff|'+aCurrent.elementID+'|'+aReference.elementID;
+  if aCurrent.scenario.project.projectID=aReference.scenario.project.projectID then
+  begin
+    if aCurrent.scenario.ID=aReference.scenario.ID
+    then Result := aCurrent.scenario.project.ProjectID+sepElementID+aCurrent.scenario.ID+sepElementID+aCurrent.ID+'-'+aReference.ID+'|diff'
+    else
+    begin
+      if aCurrent.ID=aReference.ID
+      then Result := aCurrent.scenario.project.ProjectID+sepElementID+aCurrent.scenario.ID+'-'+aReference.scenario.ID+sepElementID+aCurrent.ID+'|diff'
+      else Result := aCurrent.scenario.project.ProjectID+sepElementID+aCurrent.scenario.ID+sepElementID+aCurrent.ID+'-'+aReference.scenario.ID+sepElementID+aReference.ID+'|diff';
+    end;
+  end
+  else Result := aCurrent.elementID+'-'+aReference.elementID+'-diff';
 end;
 
 function TProject.getMeasuresJSON: string;
@@ -2747,7 +2872,7 @@ end;
 procedure TProject.SendPreview;
 var
   client: TClient;
-  se: TScenarioElement;
+  se: TClientSubscribable;
   preview: string;
 begin
   Log.WriteLn('Sending preview to clients connected to project '+Self.ProjectName);
@@ -2782,7 +2907,7 @@ end;
 procedure TProject.SendRefresh;
 var
   client: TClient;
-  se: TScenarioElement;
+  se: TClientSubscribable;
   tiles: string;
 begin
   Log.WriteLn('Sending refresh to clients connected to project '+Self.ProjectName);
@@ -2824,7 +2949,7 @@ begin
   begin
     fMeasuresEnabled := aValue;
     // update session info for all connected clients
-    for client in fClients
+    for client in clients
     do client.SendMeasuresEnabled;
   end;
 end;
@@ -2837,7 +2962,7 @@ begin
   begin
     fMeasuresHistoryEnabled := aValue;
     // update session info for all connected clients
-    for client in fClients
+    for client in clients
     do client.SendMeasuresHistoryEnabled;
   end;
 end;
@@ -2863,7 +2988,7 @@ begin
   begin
     fSelectionEnabled := aValue;
     // update session info for all connected clients
-    for client in fClients
+    for client in clients
     do client.SendSelectionEnabled;
   end;
 end;
@@ -2876,7 +3001,7 @@ begin
   begin
     fTimeSlider := aValue;
     // update session info for all connected clients
-    for client in fClients
+    for client in clients
     do client.SendTimeSlider;
   end;
 end;

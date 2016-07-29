@@ -62,6 +62,8 @@ namespace WS2IMBSvc
             HttpTransportBindingElement transport = new HttpTransportBindingElement();
             transport.WebSocketSettings.TransportUsage = WebSocketTransportUsage.Always;
             transport.WebSocketSettings.CreateNotificationOnConnection = true;
+            transport.WebSocketSettings.KeepAliveInterval = new TimeSpan(6, 0, 0); // 6 hours
+            transport.KeepAliveEnabled = true; // default true?
             binding.Elements.Add(transport);
 
             var endPoint = Lookups.host.AddServiceEndpoint(typeof(IWebSocketsServer), binding, "");

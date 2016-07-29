@@ -55,28 +55,38 @@ type
   TTimerPool = class; // forward
 
   TTimer = class
-  constructor Create(aTimerPool: TTimerPool; aOnTimer: TOnTimer; aDueTime: THighResTicks; aRepeatDelta: THighResTicks=hrtNoRepeat);
+  constructor Create(aTimerPool: TTimerPool; aOnTimer: TOnTimer; aDueTime: THighResTicks; aRepeatDelta: THighResTicks=hrtNoRepeat; aMaxPostponeDelta: THighResTicks=hrtDisabled);
   private
     fTimerPool: TTimerPool; // ref
     fOnTimer: TOnTimer;
     fDueTime: THighResTicks;
     fRepeatDelta: THighResTicks;
     fLastFired: THighResTicks;
+    fFirstPostpone: THighResTicks;
+    fMaxPostponeDelta: THighResTicks;
     function getDueTimeDelta: THighResTicks;
-    procedure setDueTimeDelta(const aValue: THighResTicks);
+    procedure setDueTimeDelta(aValue: THighResTicks);
     procedure setDueTime(aValue: THighResTicks);
-    procedure setRepeatDelta(const aValue: THighResTicks);
+    procedure setRepeatDelta(aValue: THighResTicks);
+    procedure setMaxPostponeDelta(aValue: THighResTicks);
     procedure HandleTimerEvent(aNow: THighResTicks);
     function getEnabled: Boolean;
-    procedure setEnabled(const aValue: Boolean);
+    procedure setEnabled(aValue: Boolean);
   public
     property TimerPool: TTimerPool read fTimerPool;
+    property OnTimer: TOnTimer read fOnTimer;
+    property Enabled: Boolean read getEnabled write setEnabled;
+    // manipulate next firing
     property DueTime: THighResTicks read fDueTime write setDueTime;
     property DueTimeDelta: THighResTicks read getDueTimeDelta write setDueTimeDelta;
-    property OnTimer: TOnTimer read fOnTimer;
+    // set repeat firing (defaults to no repeat)
     property RepeatDelta: THighResTicks read fRepeatDelta write setRepeatDelta;
-    property Enabled: Boolean read getEnabled write setEnabled;
+    property MaxPostponeDelta: THighResTicks read fMaxPostponeDelta write setMaxPostponeDelta;
+    property FirstPostpone: THighResTicks read fFirstPostpone;
+    // cancel timer
     procedure Cancel;
+    // use lambda
+    procedure Arm(aDueTimeDelta: THighResTicks; aOnTimer: TOnTimer);
   end;
 
   TTimers = TObjectList<TTimer>;
@@ -95,8 +105,10 @@ type
     procedure Execute; override;
     procedure TerminatedSet; override;
   public
+    // create a timer with given spec
     function SetTimer(aOnTimer: TOnTimer; aDueTime: THighResTicks=hrtDisabled; aRepeatDelta: THighResTicks=hrtNoRepeat): TTimer;
     function SetTimerDelta(aOnTimer: TOnTimer; aDueTimeDelta: THighResTicks; aRepeatDelta: THighResTicks=hrtNoRepeat): TTimer;
+    function CreateInactiveTimer(): TTimer;
     procedure CancelTimer(var aTimer: TTimer);
   end;
 
@@ -105,9 +117,10 @@ function hrtFrequency: THighResTicks;
 function hrtNow: THighResTicks;
 
 function HRT2DateTime(aHighResTicks: THighResTicks): TDateTime;
-function HRT2MilliSeconds(aHighResTicks: THighResTicks): THighResTicks;
-function MilliSeconds2HRT(aMilliseconds: Int64): THighResTicks;
 function DateTimeDelta2HRT(aDateTimeDelta: TDateTime): THighResTicks;
+
+function HRT2MilliSeconds(aHighResTicks: THighResTicks): Int64;
+function MilliSeconds2HRT(aMilliseconds: Int64): THighResTicks;
 
 implementation
 
@@ -141,6 +154,11 @@ begin
   Result := aHighResTicks*hrtResolution;
 end;
 
+function DateTimeDelta2HRT(aDateTimeDelta: TDateTime): THighResTicks;
+begin
+  Result := Round((aDateTimeDelta/dtOneSecond)*hrtFrequency);
+end;
+
 function HRT2MilliSeconds(aHighResTicks: THighResTicks): Int64;
 begin
   Result := Round(1000.0*aHighResTicks/hrtFrequency);
@@ -149,11 +167,6 @@ end;
 function MilliSeconds2HRT(aMilliseconds: Int64): THighResTicks;
 begin
   Result := Round((aMilliseconds/1000.0)*hrtFrequency);
-end;
-
-function DateTimeDelta2HRT(aDateTimeDelta: TDateTime): THighResTicks;
-begin
-  Result := Round((aDateTimeDelta/dtOneSecond)*hrtFrequency);
 end;
 
 { TOmniMREW }
@@ -219,6 +232,14 @@ end;
 
 { TTimer }
 
+procedure TTimer.Arm(aDueTimeDelta: THighResTicks; aOnTimer: TOnTimer);
+begin
+  fOnTimer := aOnTimer;
+  if Assigned(fTimerPool)
+  then fTimerPool.updateDueTime(Self, hrtNow+aDueTimeDelta)
+  else fDueTime := hrtNow+aDueTimeDelta;
+end;
+
 procedure TTimer.Cancel;
 begin
   if Assigned(fTimerPool)
@@ -226,13 +247,15 @@ begin
   else fDueTime := hrtDisabled;
 end;
 
-constructor TTimer.Create(aTimerPool: TTimerPool; aOnTimer: TOnTimer; aDueTime: THighResTicks; aRepeatDelta: THighResTicks);
+constructor TTimer.Create(aTimerPool: TTimerPool; aOnTimer: TOnTimer; aDueTime, aRepeatDelta, aMaxPostponeDelta: THighResTicks);
 begin
   inherited Create;
   fTimerPool := aTimerPool;
   fDueTime := aDueTime;
   fOnTimer := aOnTimer;
   fRepeatDelta := aRepeatDelta;
+  fFirstPostpone := hrtDisabled;
+  fMaxPostponeDelta := aMaxPostponeDelta;
 end;
 
 function TTimer.getDueTimeDelta: THighResTicks;
@@ -250,6 +273,7 @@ begin
   if Assigned(OnTimer)
   then OnTimer(Self);
   fLastFired := aNow;
+  fFirstPostpone := hrtDisabled;
   if fRepeatDelta>0
   then fDueTime := fDueTime+fRepeatDelta // to enable missed events
   else fDueTime := hrtDisabled; // to disable next event
@@ -265,12 +289,12 @@ begin
   end;
 end;
 
-procedure TTimer.setDueTimeDelta(const aValue: THighResTicks);
+procedure TTimer.setDueTimeDelta(aValue: THighResTicks);
 begin
   setDueTime(hrtNow+aValue);
 end;
 
-procedure TTimer.setEnabled(const aValue: Boolean);
+procedure TTimer.setEnabled(aValue: Boolean);
 begin
   if aValue<>Enabled then
   begin
@@ -284,7 +308,16 @@ begin
   end;
 end;
 
-procedure TTimer.setRepeatDelta(const aValue: THighResTicks);
+procedure TTimer.setMaxPostponeDelta(aValue: THighResTicks);
+begin
+  if fMaxPostponeDelta<>aValue then
+  begin
+    fMaxPostponeDelta := aValue;
+    fTimerPool.updateDueTime(Self, fDueTime);
+  end;
+end;
+
+procedure TTimer.setRepeatDelta(aValue: THighResTicks);
 begin
   if fRepeatDelta<>aValue then
   begin
@@ -340,6 +373,12 @@ begin
         Result := 0;
     end));
   inherited Create(False);
+end;
+
+function TTimerPool.CreateInactiveTimer: TTimer;
+begin
+  Result := TTimer.Create(Self, nil, hrtDisabled);
+  addTimer(Result);
 end;
 
 destructor TTimerPool.Destroy;
@@ -418,11 +457,21 @@ begin
 end;
 
 procedure TTimerPool.updateDueTime(aTimer: TTimer; aDueTime: THighResTicks);
+var
+  _now: THighResTicks;
 begin
   if Assigned(fTimers) then
   begin
     fTimersLock.BeginWrite;
     try
+      if aTimer.fMaxPostponeDelta<>hrtDisabled then
+      begin
+        _now := hrtNow;
+        if aTimer.fFirstPostpone=hrtDisabled
+        then aTimer.fFirstPostpone := _now
+        else if aTimer.fFirstPostpone+aTimer.fMaxPostponeDelta<_now
+        then aTimer.HandleTimerEvent(_now); // fire now, will set fDueTime but will be overwritten in next statement
+      end;
       aTimer.fDueTime := aDueTime;
       if fTimers.Count>1
       then fTimers.Sort; // todo: expensive

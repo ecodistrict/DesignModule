@@ -7,6 +7,7 @@ uses
   StdIni,
   imb4,
   CommandQueue,
+  TilerControl,
   SessionServerLib, SessionServerDB,
   SessionServerSessions,
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.SvcMgr, Vcl.Dialogs;
@@ -26,7 +27,7 @@ type
   private
     fIMBConnection: TConnection;
     fPublishingModel: TSessionModel;
-    fTilerEventName: string;
+    fTilerFQDNName: string;
     fEcodistrictModule: TEcodistrictModule;
     procedure HandleDisconnect(aConnection: TConnection);
     procedure HandleException(aConnection: TConnection; aException: Exception);
@@ -111,7 +112,7 @@ begin
   Log.WriteLn('Publishing server started imb4');
   fPublishingModel := TSessionModel.Create(fIMBConnection);
   Log.WriteLn('Publishing server started publishing model');
-  fTilerEventName := GetSetting(TilerEventNameSwitch, DefaultTilerEventName);
+  fTilerFQDNName := GetSetting(TilerNameSwitch, DefaultTilerName);
   try
     // default us
     //CreateSessionProject(fPublishingModel, 'us_schiedam_2016', 'Schiedam (2016)', ptUrbanStrategyOracle, fTilerEventName, 'us_schiedam_2016/us_schiedam_2016@app-usdata01.tsn.tno.nl/uspsde');
@@ -129,13 +130,16 @@ begin
     //Log.WriteLn('Publishing server started rotterdam dashboard project');
 
     // ecodistrict module
-    fEcodistrictModule := TEcodistrictModule.Create(fPublishingModel, fIMBConnection,
+    fEcodistrictModule := TEcodistrictModule.Create(
+      fPublishingModel,
+      fIMBConnection,
       'User_Name='+GetSetting('EcoDBUserName', 'postgres')+';'+
       'Password='+GetSetting('EcoDBPassword', 'x0mxaJc69J9KAlFNsaDt')+';'+
       'Server='+GetSetting('EcoDBServer', 'vps17642.public.cloudvps.com')+';'+
       'Port='+GetSetting('EcoDBPort', '5443')+';'+
       'Database='+GetSetting('EcoDBDatabase', 'Warsaw')+';'+
-      'PGAdvanced=sslmode=require', fTilerEventName);
+      'PGAdvanced=sslmode=require',
+      fTilerFQDNName, TilerStatusURLFromTilerName(fTilerFQDNName));
     Log.WriteLn('Publishing server started ecodistrict module');
 
     // inquire existing session and rebuild internal sessions..
