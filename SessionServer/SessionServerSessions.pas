@@ -62,6 +62,8 @@ const
 
   UseScenarioHierarchySwitch = 'UseScenarioHierarchy';
 
+  EcodistrictConnectStringSwitchName = 'EcodistrictConnectString';
+
 type
   TProjectType = (
     ptUrbanStrategyOracle,

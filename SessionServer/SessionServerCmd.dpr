@@ -61,19 +61,20 @@ begin
         try
           tilerFQDN := GetSetting(TilerNameSwitch, DefaultTilerName);
           Log.WriteLn('Tiler name: '+tilerFQDN);
-          // default us
-          //CreateSessionProject(sessionModel, '1234' {'us_schiedam_2016'}, 'Schiedam (2016)', ptUrbanStrategyOracle, tilerFQDN, 'us_schiedam_2016/us_schiedam_2016@app-usdata01.tsn.tno.nl/uspsde');
-          //CreateSessionProject(sessionModel, 'us_ws_hc', ptUrbanStrategyOracle, tilerFQDN, 'us_ws_hc/us_ws_hc@app-usdata01.tsn.tno.nl/uspsde');
-
-          // default ecodistrict
-          //CreateSessionProject(sessionModel, '1234'{'ecodistrict'}, 'Ecodistrict - Valencia', ptEcoDistrict, tilerFQDN, 'User_Name=ecodistrict;Password=HyDhCpStZQEYrHuagz79;Server=vps17642.public.cloudvps.com;Port=5443;Database=ecodistrict;PGAdvanced=sslmode=require');
-          //CreateSessionProject(sessionModel, '5721de16eae0e0c543f5234f', 'Ecodistrict - Warsaw', ptEcoDistrict, tilerFQDN, 'User_Name=postgres;Password=x0mxaJc69J9KAlFNsaDt;Server=vps17642.public.cloudvps.com;Port=5443;Database=Warsaw;PGAdvanced=sslmode=require');
-
           // nwb live feed
           //CreateSessionProject(sessionModel, '1234'{'rotterdam'}, 'Rotterdam dashboard', ptNWBLiveFeed, tilerFQDN, ''); {todo: NWBLiveFeedProjectName}
 
           // ecodistrict module
-          ecodistrictModule := TEcodistrictModule.Create(sessionModel, imbConnection, 'User_Name=postgres;Password=x0mxaJc69J9KAlFNsaDt;Server=vps17642.public.cloudvps.com;Port=5443;Database=Warsaw;PGAdvanced=sslmode=require', tilerFQDN, TilerStatusURLFromTilerName(tilerFQDN));
+          ecodistrictModule := TEcodistrictModule.Create(
+            sessionModel,
+            imbConnection,
+            'User_Name='+GetSetting('EcoDBUserName', '')+';'+
+            'Password='+GetSetting('EcoDBPassword', '')+';'+
+            'Server='+GetSetting('EcoDBServer', '')+';'+
+            'Port='+GetSetting('EcoDBPort', '5432')+';'+
+            'Database='+GetSetting('EcoDBDatabase', 'Warsaw')+';'+
+            'PGAdvanced=sslmode=require',
+            tilerFQDN, TilerStatusURLFromTilerName(tilerFQDN));
 
           // inquire existing session and rebuild internal sessions..
           imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(
@@ -83,8 +84,6 @@ begin
               p: TProject;
             begin
               // find project with client
-              // aString = 'USIdle.Sessions.WS2IMB.1234.uuid:ac1ab9e5-4db9-4f03-ae05-b4558b0f0f8c;id=14'
-              // project.fProjectEvent.eventname = 'USIdle.Sessions.WS2IMB.1234'
               for p in sessionModel.Projects do
               begin
                 projectEventPrefix := p.ProjectEvent.eventName+'.';

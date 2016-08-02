@@ -219,7 +219,13 @@ var
 begin
   try
     InitPG;
-    dbConnectString := 'User_Name=postgres;Password=x0mxaJc69J9KAlFNsaDt;Server=vps17642.public.cloudvps.com;Port=5443;Database=Warsaw;PGAdvanced=sslmode=require';
+    dbConnectString :=
+      'User_Name='+GetSetting('EcoDBUserName', '')+';'+
+      'Password='+GetSetting('EcoDBPassword', '')+';'+
+      'Server='+GetSetting('EcoDBServer', '')+';'+
+      'Port='+GetSetting('EcoDBPort', '')+';'+
+      'Database='+GetSetting('EcoDBDatabase', '')+';'+
+      'PGAdvanced=sslmode=require';
     dbConnection := TFDConnection.Create(nil);
     try
       SetPGConnection(dbConnection as TFDConnection, dbConnectString);

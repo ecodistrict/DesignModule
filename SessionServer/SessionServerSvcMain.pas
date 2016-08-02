@@ -114,17 +114,6 @@ begin
   Log.WriteLn('Publishing server started publishing model');
   fTilerFQDNName := GetSetting(TilerNameSwitch, DefaultTilerName);
   try
-    // default us
-    //CreateSessionProject(fPublishingModel, 'us_schiedam_2016', 'Schiedam (2016)', ptUrbanStrategyOracle, fTilerEventName, 'us_schiedam_2016/us_schiedam_2016@app-usdata01.tsn.tno.nl/uspsde');
-    //CreateSessionProject(fPublishingModel, 'us_ws_hc', ptUrbanStrategyOracle, tilerEventName, 'us_ws_hc/us_ws_hc@app-usdata01.tsn.tno.nl/uspsde');
-
-    // default ecodistrict
-    //CreateSessionProject(fPublishingModel, 'ecodistrict', 'Ecodistrict - Warsaw', ptEcoDistrict, fTilerEventName,
-    //  StandardIni.ReadString('projects', 'ecodistrict', 'User_Name=ecodistrict;Password=HyDhCpStZQEYrHuagz79;Server=vps17642.public.cloudvps.com;Port=5443;Database=ecodistrict;PGAdvanced=sslmode=require'));
-    //CreateSessionProject(fPublishingModel, 'ecodistrict', 'Ecodistrict - Warsaw', ptEcoDistrict, fTilerEventName,
-    //  StandardIni.ReadString('projects', 'ecodistrict', 'User_Name=postgres;Password=x0mxaJc69J9KAlFNsaDt;Server=vps17642.public.cloudvps.com;Port=5443;Database=Warsaw;PGAdvanced=sslmode=require'));
-    //Log.WriteLn('Publishing server started ecodistrict project');
-
     // nwb live feed
     //CreateSessionProject(fPublishingModel, 'rotterdam', 'Rotterdam dashboard', ptNWBLiveFeed, fTilerEventName, ''); {todo: NWBLiveFeedProjectName}
     //Log.WriteLn('Publishing server started rotterdam dashboard project');
@@ -133,11 +122,11 @@ begin
     fEcodistrictModule := TEcodistrictModule.Create(
       fPublishingModel,
       fIMBConnection,
-      'User_Name='+GetSetting('EcoDBUserName', 'postgres')+';'+
-      'Password='+GetSetting('EcoDBPassword', 'x0mxaJc69J9KAlFNsaDt')+';'+
-      'Server='+GetSetting('EcoDBServer', 'vps17642.public.cloudvps.com')+';'+
-      'Port='+GetSetting('EcoDBPort', '5443')+';'+
-      'Database='+GetSetting('EcoDBDatabase', 'Warsaw')+';'+
+      'User_Name='+GetSetting('EcoDBUserName', '')+';'+
+      'Password='+GetSetting('EcoDBPassword', '')+';'+
+      'Server='+GetSetting('EcoDBServer', '')+';'+
+      'Port='+GetSetting('EcoDBPort', '')+';'+
+      'Database='+GetSetting('EcoDBDatabase', '')+';'+
       'PGAdvanced=sslmode=require',
       fTilerFQDNName, TilerStatusURLFromTilerName(fTilerFQDNName));
     Log.WriteLn('Publishing server started ecodistrict module');
