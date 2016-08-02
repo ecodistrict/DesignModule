@@ -151,6 +151,8 @@ type
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aQuery: string): string; overload; override;
+
+    //function selectObjectsProperties(aClient: TClient; const aSelectedCategories, aSelectedObjects: TArray<string>): string; overrride;
   end;
 
   TUSDBScenario = class
@@ -222,13 +224,31 @@ type
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aQuery: string): string; overload; override;
+
+    function selectObjectsProperties(aClient: TClient; const aSelectedCategories, aSelectedObjects: TArray<string>): string; override;
+  end;
+
+  TEcodistrictObjectProperty = class
+    category: string;
+    propertyName: string;
+    propertyType: string;
+    selection: string;
+    fieldName: string;
+    tableName: string;
+    keyFieldName: string;
+    editable: Boolean;
   end;
 
   TEcodistrictProject = class(TProject)
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
+    aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean);
+  destructor Destroy; override;
   protected
+    fObjectProperties: TObjectList<TEcodistrictObjectProperty>;
     procedure ReadObjects(aSender: TObject);
     function getMeasuresJSON: string; override;
     function ReadSchemaNames: TArray<string>;
+    procedure ReadObjectProperties;
   public
     function ReadScenario(const aID: string): TScenario; override;
     procedure ReadBasicData(); override;
@@ -1238,7 +1258,7 @@ begin
     query.Connection := fDBConnection as TFDConnection;
     // todo: * will not pin order of fields !
     query.SQL.Text :=
-      'SELECT * '+
+      'SELECT object_id, returntype, request, query, module '+
 			'FROM public.dm_queries';
     query.open();
     try
@@ -1555,7 +1575,51 @@ begin
   end;
 end;
 
+function TEcodistrictScenario.selectObjectsProperties(aClient: TClient; const aSelectedCategories, aSelectedObjects: TArray<string>): string;
+// todo: implement
+var
+  layers: TList<TLayer>;
+  l: TLayer;
+begin
+  Result := '';
+  layers := TList<TLayer>.Create;
+  try
+    if selectLayersOnCategories(aSelectedCategories, layers) then
+    begin
+      // find aSelectedObjects in layers and get properties
+      for l in layers do
+      begin
+//        if Result<>''
+//        then Result := Result+',';
+//        Result := Result+'{"id":"'++'",'++'}';
+        // get properties per category
+
+      end;
+    end;
+    // todo: else warning?
+
+    if Result<>''
+    then Result := '"selectedObjectsProperties":{"objects":['+Result+']}';
+  finally
+    layers.Free;
+  end;
+end;
+
 { TEcodistrictProject }
+
+constructor TEcodistrictProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
+  aTilerStatusURL: string; aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled,
+  aMeasuresHistoryEnabled, aAddBasicLayers: Boolean);
+begin
+  inherited;
+  fObjectProperties := TObjectList<TEcodistrictObjectProperty>.Create;
+end;
+
+destructor TEcodistrictProject.Destroy;
+begin
+  FreeAndNil(fObjectProperties);
+  inherited;
+end;
 
 function TEcodistrictProject.getMeasuresJSON: string;
 begin
@@ -1613,9 +1677,46 @@ begin
   ReadObjects(sl);
   fCurrentScenario.Layers.Add(sl.ID, sl);
   }
+  ReadObjectProperties;
   schemaNames := ReadSchemaNames();
   for schemaName in schemaNames
   do readScenario(schemaName);
+end;
+
+procedure TEcodistrictProject.ReadObjectProperties;
+var
+  query: TFDQuery;
+  op: TEcodistrictObjectProperty;
+begin
+//  if not (fDBConnection as TFDConnection).Ping
+//  then Log.WriteLn('TEcodistrictProject.ReadObjects: ping of database returned false', llError);
+
+  query := TFDQuery.Create(nil);
+  try
+    query.Connection := fDBConnection as TFDConnection;
+    query.SQL.Text :=
+      'SELECT category, propertyName, propertyType, selection, fieldName, tablename, keyfieldname, editable '+
+      'FROM dm_objectproperties';
+    query.Execute();
+    query.First;
+    while not query.Eof do
+    begin
+      //query.Fields[0].
+      op := TEcodistrictObjectProperty.Create;
+      op.category := query.Fields[0].AsString;
+      op.propertyName := query.Fields[1].AsString;
+      op.propertyType := query.Fields[2].AsString;
+      op.selection := query.Fields[3].AsString;
+      op.fieldName := query.Fields[4].AsString;
+      op.tableName := query.Fields[5].AsString;
+      op.keyFieldName := query.Fields[6].AsString;
+      op.editable := query.Fields[7].AsBoolean;
+      fObjectProperties.Add(op);
+      query.Next;
+    end;
+  finally
+    query.Free;
+  end;
 end;
 
 procedure TEcodistrictProject.ReadObjects(aSender: TObject);

@@ -418,9 +418,12 @@ type
     function AddKPI(aKPI: TKPI): TKPI;
     function AddChart(aChart: TChart): TChart;
   public
+    // select objects
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; virtual;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; virtual;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aQuery: string): string; overload; virtual;
+    // select object properties
+    function selectObjectsProperties(aClient: TClient; const aSelectedCategories, aSelectedObjects: TArray<string>): string; virtual;
   end;
 
   TScenarioLink = class
@@ -1010,6 +1013,108 @@ end;
 
 procedure TClient.HandleClientCommand(const aJSONString: string);
 
+  function isObject(aJSONObject: TJSONObject; const aObjectName: string; var aJSONPair: TJSONPair): Boolean;
+  begin
+    aJSONPair := aJSONObject.Get(aObjectName);
+    Result := Assigned(aJSONPair);
+  end;
+
+  function isObjectValue(aJSONObject: TJSONObject; const aValueName: string; var aJSONValue: TJSONValue): Boolean;
+  begin
+    aJSONValue := aJSONObject.Values[aValueName];
+    Result := Assigned(aJSONValue);
+  end;
+
+  procedure login(aJSONObject: TJSONObject);
+  var
+    scenarioID: string;
+    userid: string;
+    scenario: TScenario;
+  begin
+    scenarioID := aJSONObject.GetValue<string>('scenario');
+    if scenarioID<>'' then
+    begin
+      userid := aJSONObject.GetValue<string>('userid');
+      if fProject.scenarios.TryGetValue(scenarioID, scenario) then
+      begin
+        removeClient(fCurrentScenario);
+        fCurrentScenario := scenario;
+        addClient(fCurrentScenario);
+        Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
+        // retry
+        SendSession();
+        //SendMeasures(); // todo:?
+        SendDomains('domains');
+      end
+      else Log.WriteLn('could not connect to scenario '+scenarioID+' user '+userid, llError);
+    end;
+  end;
+
+  procedure selectScenario(aJSONObject: TJSONObject);
+  var
+    scenarioID: string;
+    scenario: TScenario;
+    jsonValue: TJSONValue;
+    //  diffLayerID: string;
+    //  diffLayer: TDiffLayer;
+    //  ilp: TPair<string, TLayer>;
+    //  refLayer: TLayer;
+    //  diffPalette: TWDPalette;
+  begin
+    if isObjectValue(aJSONObject, 'currentScenario', jsonValue) then
+    begin
+      removeClient(fCurrentScenario);
+      scenarioID := jsonValue.Value;
+      if not fProject.scenarios.TryGetValue(scenarioID, scenario)
+      then scenario := fProject.ReadScenario(scenarioID);
+      fCurrentScenario := scenario;
+      addClient(fCurrentScenario);
+      if Assigned(fCurrentScenario)
+      then Log.WriteLn('client switched scenario to '+fCurrentScenario.elementID)
+      else Log.WriteLn('client switched scenario to NONE');
+    end;
+    if isObjectValue(aJSONObject, 'referenceScenario', jsonValue) then
+    begin
+      removeClient(fRefScenario);
+      scenarioID := jsonValue.Value;
+      if not fProject.scenarios.TryGetValue(scenarioID, scenario)
+      then scenario := fProject.ReadScenario(scenarioID{, fCurrentScenario});
+      fRefScenario := scenario;
+      addClient(fRefScenario);
+      if Assigned(fRefScenario)
+      then Log.WriteLn('client switched ref scenario to '+fRefScenario.elementID)
+      else Log.WriteLn('client switched ref scenario to NONE');
+      {
+        // todo: create list diff layers, charts and kpis
+        if Assigned(fCurrentScenario) then
+        begin
+          for ilp in fCurrentScenario.Layers do
+          begin
+            if fRefScenario.Layers.TryGetValue(ilp.Key, refLayer) then
+            begin
+              diffLayerID := fProject.diffElementID(ilp.Value, refLayer);
+              TMonitor.Enter(fProject.diffLayers);
+              try
+                if not fProject.diffLayers.TryGetValue(diffLayerID, diffLayer) then
+                begin
+                  diffLayer := TDiffLayer.Create(diffLayerID, ilp.Value, refLayer);
+                  fProject.diffLayers.Add(diffLayerID, diffLayer);
+                end;
+                addClient(diffLayer);
+              finally
+                TMonitor.Exit(fProject.diffLayers);
+              end;
+            end;
+          end;
+        end;
+      end
+      else
+      }
+    end;
+    SendDomains('updatedomains');
+    UpdateSession();
+  end;
+
   procedure selectObjects(aSelectObjects: TJSONValue);
   var
     t: string;
@@ -1102,18 +1207,35 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     end;
   end;
 
+  procedure selectObjectsProperties(aSelectObjectsProperties: TJSONValue);
+  var
+    sca: TJSONArray;
+    sc: TArray<string>;
+    i: Integer;
+    so: TArray<string>;
+    resp: string;
+  begin
+    // selectCategories
+    sca := aSelectObjectsProperties.getValue<TJSONArray>('selectedCategories');
+    setLength(sc, sca.count);
+    for i := 0 to sca.count-1
+    do sc[i] := sca.Items[i].Value;
+    // selectedObjects
+    sca := aSelectObjectsProperties.getValue<TJSONArray>('selectedObjects');
+    setLength(so, sca.count);
+    for i := 0 to sca.count-1
+    do so[i] := sca.Items[i].Value;
+    if Assigned(fCurrentScenario) then
+    begin
+      resp := fCurrentScenario.selectObjectsProperties(Self, sc, so);
+      if resp<>''
+      then signalString(resp);
+    end;
+  end;
+
 var
   jsonObject: TJSONObject;
   jsonPair: TJSONPair;
-  jsonValue: TJSONValue;
-  scenarioID: string;
-  userid: string;
-  scenario: TScenario;
-//  diffLayerID: string;
-//  diffLayer: TDiffLayer;
-//  ilp: TPair<string, TLayer>;
-//  refLayer: TLayer;
-//  diffPalette: TWDPalette;
 begin
   try
     if Assigned(fProject) and Assigned(fClientEvent) then
@@ -1122,108 +1244,20 @@ begin
       // process message
       jsonObject := TJSONObject.ParseJSONValue(aJSONString) as TJSONObject;
       try
-        jsonPair := jsonObject.Get('subscribe');
-        if Assigned(jsonPair)
+        if isObject(jsonObject, 'subscribe', jsonPair)
         then addClient(sessionModel.FindElement(jsonPair.JsonValue.Value))
-        else
-        begin
-          jsonPair := jsonObject.Get('unsubscribe');
-          if Assigned(jsonPair)
-          then removeClient(sessionModel.FindElement(jsonPair.JsonValue.Value))
-          else
-          begin
-            jsonPair := jsonObject.Get('selectObjects');
-            if Assigned(jsonPair)
-            then selectObjects(jsonPair.JsonValue)
-            else
-            begin
-              jsonPair := jsonObject.Get('login');
-              if Assigned(jsonPair) then
-              begin
-                scenarioID := (jsonPair.JsonValue as TJSONObject).GetValue<string>('scenario');
-                if scenarioID<>'' then
-                begin
-                  userid := (jsonPair.JsonValue as TJSONObject).GetValue<string>('userid');
-                  if fProject.scenarios.TryGetValue(scenarioID, scenario) then
-                  begin
-                    removeClient(fCurrentScenario);
-                    fCurrentScenario := scenario;
-                    addClient(fCurrentScenario);
-                    Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
-                    // retry
-                    SendSession();
-                    //SendMeasures(); // todo:?
-                    SendDomains('domains');
-
-                  end
-                  else Log.WriteLn('could not connect to scenario '+scenarioID+' user '+userid, llError);
-                end;
-              end
-              else
-              begin
-                jsonPair := jsonObject.Get('selectScenario');
-                if Assigned(jsonPair) then
-                begin
-                  jsonValue := (jsonPair.JsonValue as TJSONObject).Values['currentScenario'];
-                  if Assigned(jsonValue) then
-                  begin
-                    removeClient(fCurrentScenario);
-                    scenarioID := jsonValue.Value;
-                    if not fProject.scenarios.TryGetValue(scenarioID, scenario)
-                    then scenario := fProject.ReadScenario(scenarioID);
-                    fCurrentScenario := scenario;
-                    addClient(fCurrentScenario);
-                    if Assigned(fCurrentScenario)
-                    then Log.WriteLn('client switched scenario to '+fCurrentScenario.elementID)
-                    else Log.WriteLn('client switched scenario to NONE');
-                  end;
-                  jsonValue := (jsonPair.JsonValue as TJSONObject).Values['referenceScenario'];
-                  if Assigned(jsonValue) then
-                  begin
-                    removeClient(fRefScenario);
-                    scenarioID := jsonValue.Value;
-                    if not fProject.scenarios.TryGetValue(scenarioID, scenario)
-                    then scenario := fProject.ReadScenario(scenarioID{, fCurrentScenario});
-                    fRefScenario := scenario;
-                    addClient(fRefScenario);
-                    if Assigned(fRefScenario)
-                    then Log.WriteLn('client switched ref scenario to '+fRefScenario.elementID)
-                    else Log.WriteLn('client switched ref scenario to NONE');
-                    {
-                      // todo: create list diff layers, charts and kpis
-                      if Assigned(fCurrentScenario) then
-                      begin
-                        for ilp in fCurrentScenario.Layers do
-                        begin
-                          if fRefScenario.Layers.TryGetValue(ilp.Key, refLayer) then
-                          begin
-                            diffLayerID := fProject.diffElementID(ilp.Value, refLayer);
-                            TMonitor.Enter(fProject.diffLayers);
-                            try
-                              if not fProject.diffLayers.TryGetValue(diffLayerID, diffLayer) then
-                              begin
-                                diffLayer := TDiffLayer.Create(diffLayerID, ilp.Value, refLayer);
-                                fProject.diffLayers.Add(diffLayerID, diffLayer);
-                              end;
-                              addClient(diffLayer);
-                            finally
-                              TMonitor.Exit(fProject.diffLayers);
-                            end;
-                          end;
-                        end;
-                      end;
-                    end
-                    else
-                    }
-                  end;
-                  SendDomains('updatedomains');
-                  UpdateSession();
-                end;
-                // rest
-              end;
-            end;
-          end;
-        end;
+        else if isObject(jsonObject, 'unsubscribe', jsonPair)
+        then removeClient(sessionModel.FindElement(jsonPair.JsonValue.Value))
+        else if isObject(jsonObject, 'selectObjects', jsonPair)
+        then selectObjects(jsonPair.JsonValue)
+        else if isObject(jsonObject, 'login', jsonPair)
+        then login(jsonPair.JsonValue as TJSONObject)
+        else if isObject(jsonObject, 'selectScenario', jsonPair)
+        then selectScenario(jsonPair.JsonValue as TJSONObject)
+        else if isObject(jsonObject, 'selectObjectsProperties', jsonPair)
+        then selectObjectsProperties(jsonPair.JsonValue)
+        else ;
+        // rest
       finally
         jsonObject.Free;
       end;
@@ -2642,6 +2676,11 @@ begin
 end;
 
 function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aQuery: string): string;
+begin
+  Result := '';
+end;
+
+function TScenario.selectObjectsProperties(aClient: TClient; const aSelectedCategories, aSelectedObjects: TArray<string>): string;
 begin
   Result := '';
 end;
