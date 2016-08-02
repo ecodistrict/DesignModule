@@ -224,7 +224,7 @@ function addBasicLayer(layer) {
     else if (layer.tiles) 
         thisLayer = L.tileLayer(layer.tiles, { id: layer.name });
     // else.. add other types of layers
-    if (thislayer != null) {
+    if (thisLayer != null) {
         layerControl.addOverlay(thisLayer, layer.name);
         if (layer.default && layer.default == 1) {
             thisLayer.addTo(map);
