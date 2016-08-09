@@ -63,6 +63,7 @@
                     if (e.srcElement == crd.current) {
                         if (layer.tileLayer) {
                             layer.tileLayer.setUrl(layer.tiles);
+                            layer.tileLayer.idShowing = layer.id;
                             if (layer.legend)
                                 legendControl.createLegend(layer.legend);
                         }
@@ -70,6 +71,7 @@
                     else if (e.srcElement == crd.reference) {
                         if (layer.tileLayer) {
                             layer.tileLayer.setUrl(layer.ref.tiles);
+                            layer.tileLayer.idShowing = layer.ref.id;
                             if (layer.legend)
                                 legendControl.createLegend(layer.legend);
                         }
@@ -77,6 +79,7 @@
                     else {
                         if (layer.tileLayer) {
                             layer.tileLayer.setUrl(layer.diff.tiles);
+                            layer.tileLayer.idShowing = layer.diff.id;
                             if (layer.diff.legend)
                                 legendControl.createLegend(layer.diff.legend);
                         }
@@ -128,6 +131,7 @@ function addLayerToMap(layer, opacity) {
         tileLayer.addTo(map);
         wsSend({ subscribe: layer.id });
         layer.tileLayer = tileLayer;
+        layer.tileLayer.idShowing = layer.id;
         layer.geoJsonLayer = undefined;
         return tileLayer._leaflet_id;
     }
@@ -155,6 +159,8 @@ function addLayerToMap(layer, opacity) {
 function updateTilesLayerOnMap(aElementID, aTilesURL) {
     for (var mlid in map._layers) {
         var layer = map._layers[mlid];
+        // todo: check ref or diff IDs also..
+
         if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == aElementID) {
             var domainLayer = layer.domainLayer;
             if (domainLayer.tiles != aTilesURL || !layer.redraw) {
@@ -180,7 +186,6 @@ function updateTilesLayerOnMap(aElementID, aTilesURL) {
                     if (layer.tiles) {
                         //layer.setUrl
                     }
-                    
                 }
             }
         }

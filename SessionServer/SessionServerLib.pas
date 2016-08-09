@@ -148,6 +148,8 @@ type
     procedure signalString(const aString: string);
 
     procedure SendRefresh(const aElementID, aTimeStamp, aObjectsTilesLink: string);
+    procedure SendRefreshRef(const aElementID, aTimeStamp, aRef: string);
+    procedure SendRefreshDiff(const aElementID, aTimeStamp, aDiff: string);
     procedure SendPreview(const aElementID, aPreviewBASE64: string);
 
     procedure HandleElementRemove(aElement: TClientSubscribable);
@@ -529,6 +531,7 @@ type
     function getMeasuresJSON: string; virtual;
     function ReadScenario(const aID: string): TScenario; virtual;
     procedure handleTilerStartup(aTiler: TTiler; aStartupTime: TDateTime);
+    procedure timerTilerStatusAsHeartbeat(aTimer: TTimer);
   public
     function AddClient(const aClientID: string): TClient;
     procedure ReadBasicData(); virtual; abstract;
@@ -876,7 +879,7 @@ begin
       TMonitor.Enter(clients);
       try
         for client in clients
-        do client.SendRefresh(elementID, timeStampStr, tiles); // todo: extra processing needed?
+        do client.SendRefresh(elementID {fCurrentLayer.elementID}, timeStampStr, tiles); // todo: extra processing needed?
       finally
         TMonitor.Exit(clients);
       end;
@@ -1480,6 +1483,17 @@ end;
 procedure TClient.SendRefresh(const aElementID, aTimeStamp, aObjectsTilesLink: string);
 begin
   signalString('{"refresh":"'+aElementID+'","timestamp":"'+aTimeStamp+'","tiles":"'+aObjectsTilesLink+'"}');
+end;
+
+procedure TClient.SendRefreshDiff(const aElementID, aTimeStamp, aDiff: string);
+begin
+  signalString('{"refresh":"'+aElementID+'","timestamp":"'+aTimeStamp+'","diff":{'+aDiff+'}}');
+end;
+
+procedure TClient.SendRefreshRef(const aElementID, aTimeStamp, aRef: string);
+begin
+  // todo: how te see that a layer is a ref layer for this client?
+  signalString('{"refresh":"'+aElementID+'","timestamp":"'+aTimeStamp+'","ref":{'+aRef+'}}');
 end;
 
 procedure TClient.SendSelectionEnabled;
@@ -2887,6 +2901,8 @@ begin
     end);
 
   // todo: start timer for tiler status as a heartbeat
+  if aTilerStatusURL<>''
+  then timers.SetTimer(timerTilerStatusAsHeartbeat, hrtNow+DateTimeDelta2HRT(dtOneHour), DateTimeDelta2HRT(dtOneHour))
 end;
 
 destructor TProject.Destroy;
@@ -3080,6 +3096,12 @@ begin
     for client in clients
     do client.SendTimeSlider;
   end;
+end;
+
+procedure TProject.timerTilerStatusAsHeartbeat(aTimer: TTimer);
+begin
+  // request status from tiler as a heartbeat (keep IIS isapi module a live)
+  fTiler.getTilerStatus;
 end;
 
 { TModel }

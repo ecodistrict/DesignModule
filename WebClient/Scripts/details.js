@@ -133,12 +133,27 @@
         if (this._layers) {
             for (var layerName in this._layers) {
                 var layer = this._layers[layerName];
+                // check current, reference and diff layer for element id
                 if (layer.id == aElementID) {
                     if (layer.tiles != aTilesURL) {
                         layer.tiles = aTilesURL;
                         // only reload layer if not showing the objects directly (ie is using tiles)
                         if (!layer.objects)
                             changed = true;
+                    }
+                }
+                else if (layer.ref && layer.ref.id == aElementID) {
+                    if (layer.ref.tiles != aTilesURL) {
+                        layer.ref.tiles = aTilesURL;
+                        // only reload layer if not showing the objects directly (ie is using tiles)
+                        if (!layer.ref.objects)
+                            changed = true;
+                    }
+                }
+                else if (layer.diff && layer.diff.id == aElementID) {
+                    if (layer.diff.tiles != aTilesURL) {
+                        layer.diff.tiles = aTilesURL;
+                        changed = true; // diff always through tiler, no layer.diff.objects checking needed
                     }
                 }
             }

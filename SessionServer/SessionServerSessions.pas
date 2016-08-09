@@ -642,7 +642,7 @@ var
   jsonList: TJSONObject;
   jsonIterator: TJSONArrayEnumerator;
   jsonKpi: TJSONValue;
-  attr_value: string;
+  //attr_value: string;
   dataguid: string;
   thisguid: string;
   dataquery: TDMQuery;
@@ -661,6 +661,7 @@ var
   DataEvent: TEventEntry;
   _variantName: string;
   _variantDescription: string;
+  _SQL: string;
 //  _caseTitle: string;
 //  _caseDescription: string;
 begin
@@ -889,73 +890,82 @@ begin
                 begin
                   if (dataquery.module.Contains(_moduleId)) then
                   begin
-                    query := TFDQuery.Create(nil);
-                    try
-                      Log.WriteLn(datafield, llNormal, 1);
-                      Log.WriteLn(dataquery.SQL, llNormal, 1);
-                      query.Connection := fDBConnection as TFDConnection;
-//insert variables into query
-                      dataquery.SQL:= ReplaceStr(dataquery.SQL,'{case_id}', EcoDistrictSchemaId(_caseId)); // todo (HC): should this not be schema_id? or not being used at all in a query?
-//end variables insert
-                      query.SQL.Text :=  'SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''; ' + dataquery.SQL;
-                      query.Open();
+                    //(fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
+                    //try
+                      query := TFDQuery.Create(nil);
                       try
-                        query.First;
-                        if dataquery.ReturnType='INT' then
-                        begin
-                          if not query.Eof then
+                        Log.WriteLn(datafield, llNormal, 1);
+                        query.Connection := fDBConnection as TFDConnection;
+  //insert variables into query
+                        _SQL:= ReplaceStr(dataquery.SQL,'{case_id}', EcoDistrictSchemaId(_caseId)); // todo (HC): should this not be schema_id? or not being used at all in a query?
+  //end variables insert
+                        _SQL := 'SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''; ' + _SQL;
+                        Log.WriteLn(_SQL, llNormal, 1);
+                        query.SQL.Text := _SQL;
+                        query.Open();
+                        try
+                          query.First;
+                          if dataquery.ReturnType='INT' then
                           begin
-//                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
-//                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsInteger.toString()+'"';
-                            jsonDataResponse.AddPair(datafield,query.Fields[0].AsInteger.toString());
-                          end;
-                        end
-                        else
-                        if dataquery.ReturnType='FLOAT' then
-                        begin
-                          if not query.Eof then
-                          begin
-//                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
-//                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsFloat.toString()+'"';
-                            jsonDataResponse.AddPair(datafield,query.Fields[0].AsFloat.toString());
-                          end;
-                        end
-                        else
-                        if dataquery.ReturnType='GEOJSON' then
-                        begin
-
-                        end
-                        else
-                        if dataquery.ReturnType='LIST' then
-                        begin
-                          jsonList:=TJSONObject.Create;
-                          dataguid:='';
-//we expect the query to return: attr_gml_id, attr_name, string_value, double_value, int_value
-                          while not query.Eof do
-                          begin
-                            thisguid:=query.FieldByName('attr_gml_id').AsString;
-                            if (dataguid<>thisguid) then
+                            if not query.Eof then
                             begin
-                              if dataguid='' then
-                              begin
-                                dataguid:=thisguid;
-                              end;
-                              jsonList.AddPair('gml_id', thisguid);
+  //                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
+  //                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsInteger.toString()+'"';
+                              jsonDataResponse.AddPair(datafield,query.Fields[0].AsInteger.toString());
                             end;
-                            if not query.FieldByName('string_value').IsNull then attr_value:='"'+query.FieldByName('string_value').AsString+'"';
-                            if not query.FieldByName('double_value').IsNull then attr_value:=query.FieldByName('double_value').AsString;
-                            if not query.FieldByName('int_value').IsNull then attr_value:=query.FieldByName('int_value').AsString;
-                            jsonList.AddPair(query.FieldByName('attr_name').AsString, attr_value);
-                            query.Next;
+                          end
+                          else
+                          if dataquery.ReturnType='FLOAT' then
+                          begin
+                            if not query.Eof then
+                            begin
+  //                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
+  //                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsFloat.toString()+'"';
+                              jsonDataResponse.AddPair(datafield,query.Fields[0].AsFloat.toString());
+                            end;
+                          end
+                          else
+                          if dataquery.ReturnType='GEOJSON' then
+                          begin
+
+                          end
+                          else
+                          if dataquery.ReturnType='LIST' then
+                          begin
+                            jsonList:=TJSONObject.Create;
+                            dataguid:='';
+  //we expect the query to return: attr_gml_id, attr_name, string_value, double_value, int_value
+                            while not query.Eof do
+                            begin
+                              thisguid:=query.FieldByName('attr_gml_id').AsString;
+                              if (dataguid<>thisguid) then
+                              begin
+                                if dataguid='' then
+                                begin
+                                  dataguid:=thisguid;
+                                end;
+                                jsonList.AddPair('gml_id', thisguid);
+                              end;
+                              if not query.FieldByName('string_value').IsNull
+                              then jsonList.AddPair(query.FieldByName('attr_name').AsString, query.FieldByName('string_value').AsString)
+                              else if not query.FieldByName('double_value').IsNull
+                              then jsonList.AddPair(query.FieldByName('attr_name').AsString, TJSONNumber.Create(StrToFloat(query.FieldByName('double_value').AsString, dotFormat)))
+                              else if not query.FieldByName('int_value').IsNull
+                              then jsonList.AddPair(query.FieldByName('attr_name').AsString, TJSONNumber.Create(query.FieldByName('int_value').AsLargeInt));
+                              //jsonList.AddPair(query.FieldByName('attr_name').AsString, attr_value);
+                              query.Next;
+                            end;
+                            jsonDataResponse.AddPair(datafield,jsonList);
                           end;
-                          jsonDataResponse.AddPair(datafield,jsonList);
+                        finally
+                          query.Close;
                         end;
                       finally
-                        query.Close;
+                        query.Free;
                       end;
-                    finally
-                      query.Free;
-                    end;
+                    //finally
+                    //  (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
+                    //end;
                   end;
                 end;
               end;
@@ -1697,8 +1707,8 @@ begin
     query.SQL.Text :=
       'SELECT category, propertyName, propertyType, selection, fieldName, tablename, keyfieldname, editable '+
       'FROM dm_objectproperties';
-    query.Execute();
-    query.First;
+    query.Open();
+    query.First();
     while not query.Eof do
     begin
       //query.Fields[0].
@@ -1712,7 +1722,7 @@ begin
       op.keyFieldName := query.Fields[6].AsString;
       op.editable := query.Fields[7].AsBoolean;
       fObjectProperties.Add(op);
-      query.Next;
+      query.Next();
     end;
   finally
     query.Free;

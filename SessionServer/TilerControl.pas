@@ -115,13 +115,13 @@ type
     fOnTilerStartup: TOnTilerStartup;
     fOnTilerStatus: TOnTilerStatus;
     fTilerStatusURL: string;
-    function getTilerStatus: string;
     procedure handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleTilerStatus(aEventEntry: TEventEntry; aInt: Integer; const aString: string);
   public
     property event: TEventEntry read fEvent;
     property onTilerStartup: TOnTilerStartup read fOnTilerStartup write fOnTilerStartup;
     property onTilerStatus: TOnTilerStatus read fOnTilerStatus write fOnTilerStatus;
+    function getTilerStatus: string;
   end;
 
 function ImageToBytes(aImage: TPngImage): TBytes;
