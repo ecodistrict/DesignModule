@@ -18,12 +18,9 @@ using System.ServiceModel.Dispatcher;
 using System.Web;
 using IMB;
 
-// netsh http add iplisten ipaddress=0.0.0.0:4052
+// netsh http add iplisten ipaddress=0.0.0.0:8080
 
-// netsh http add urlacl url=http://+:4502/sessions user=vps17642\cornelissenja
-// netsh http add urlacl url=http://+:4502/sessions user=duopenotti\johan
-
-// netsh http add urlacl url=http://+:4502/sessions user="NT AUTHORITY\NETWORK SERVICE" ?? -> no, has to run under local system
+// netsh http add urlacl url=http://+:8080/sessions user=vps17642\cornelissenja
 
 // install as windows service: installutil.exe in dotnet folder (C:\Windows\Microsoft.NET\Framework\vx.x.xxxxx)
 // installutil.exe <path>\WS2IMBSvc.exe
@@ -33,8 +30,7 @@ namespace WS2IMBSvc
 {
     public partial class WS2IMBService : ServiceBase
     {
-        //const string WebSocketUrl = "http://vps17642.public.cloudvps.com:4502/sessions";
-        string WebSocketUrl = Properties.Settings.Default.WebSocketUrl; // "http://localhost:4502/sessions";
+        string WebSocketUrl = Properties.Settings.Default.WebSocketUrl; // "http://localhost:8080/sessions";
         string IMBHub = Properties.Settings.Default.IMBHub; // "vps17642.public.cloudvps.com";
 
         const string IMBModelName = "WS2IMB";
