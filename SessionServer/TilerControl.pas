@@ -259,7 +259,7 @@ end;
 
 function TilerStatusURLFromTilerName(const aTilerName: string; aTilerPort: Integer): string;
 begin
-  Result := 'http://'+aTilerName+':'+aTilerPort.ToString+'/TilerWebService.dll/status';
+  Result := 'http://'+aTilerName+'/tiler/TilerWebService.dll/status';
 end;
 
 { TTilerLayer }
