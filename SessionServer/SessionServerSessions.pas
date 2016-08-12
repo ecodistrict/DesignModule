@@ -890,8 +890,8 @@ begin
                 begin
                   if (dataquery.module.Contains(_moduleId)) then
                   begin
-                    //(fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
-                    //try
+                    (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
+                    try
                       query := TFDQuery.Create(nil);
                       try
                         Log.WriteLn(datafield, llNormal, 1);
@@ -899,7 +899,7 @@ begin
   //insert variables into query
                         _SQL:= ReplaceStr(dataquery.SQL,'{case_id}', EcoDistrictSchemaId(_caseId)); // todo (HC): should this not be schema_id? or not being used at all in a query?
   //end variables insert
-                        _SQL := 'SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''; ' + _SQL;
+                        //_SQL := 'SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''; ' + _SQL;
                         Log.WriteLn(_SQL, llNormal, 1);
                         query.SQL.Text := _SQL;
                         query.Open();
@@ -911,7 +911,7 @@ begin
                             begin
   //                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
   //                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsInteger.toString()+'"';
-                              jsonDataResponse.AddPair(datafield,query.Fields[0].AsInteger.toString());
+                              jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsInteger));
                             end;
                           end
                           else
@@ -921,7 +921,7 @@ begin
                             begin
   //                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
   //                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsFloat.toString()+'"';
-                              jsonDataResponse.AddPair(datafield,query.Fields[0].AsFloat.toString());
+                              jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsFloat));
                             end;
                           end
                           else
@@ -963,9 +963,9 @@ begin
                       finally
                         query.Free;
                       end;
-                    //finally
-                    //  (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
-                    //end;
+                    finally
+                      (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
+                    end;
                   end;
                 end;
               end;

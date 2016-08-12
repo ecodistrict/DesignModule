@@ -8,6 +8,7 @@ uses
   StdIni,
   Logger, LogConsole, LogFile,
   imb4,
+  WorldDataCode,
   WorldTilerConsts,
   System.Math, System.Classes, System.SysUtils;
 
@@ -35,12 +36,156 @@ var
   timeStamp: TDateTime;
   id: Integer;
   url: string;
+  _layerID: Integer;
+  discreteColorsOnStretch: Boolean;
+  colorRemovedPOI: UInt32;
+  colorSamePOI: UInt32;
+  colorNewPOI: UInt32;
+  width: UInt32;
 begin
   try
     while aCursor<aLimit do
     begin
       fieldInfo := aBuffer.bb_read_UInt32(aCursor);
       case fieldInfo of
+        // publisher sending
+        (icehTilerSliceID shl 3) or wt64Bit:
+          begin
+            timeStamp := aBuffer.bb_read_double(aCursor);
+            Log.WriteLn('slice ('+FormatDateTime('yyyy-mm-dd hh:nn:ss', timeStamp)+')');//+fSlicetype.toString);
+            {
+            slice := findSlice(timeStamp);
+            if not Assigned(slice) then
+            begin
+              case fSliceType of
+                stReceptor:
+                  slice := TSliceReceptor.Create(Self, timeStamp, palette.Clone);
+                stGeometry:
+                  slice := TSliceGeometry.Create(Self, timeStamp, palette.Clone);
+                stGeometryI:
+                  slice := TSliceGeometryI.Create(Self, timeStamp, palette.Clone);
+                stGeometryIC:
+                  slice := TSliceGeometryIC.Create(Self, timeStamp, palette.Clone);
+                stGeometryICLR:
+                  slice := TSliceGeometryICLR.Create(Self, timeStamp, palette.Clone);
+                stPOI:
+                  slice := TSlicePOI.Create(Self, timeStamp, poiImages.ToArray);
+                stPNG:
+                  slice := TSlicePNG.Create(Self, timeStamp, pngExtent, pngImage, discreteColorsOnStretch);
+                stLocation:
+                  slice := TSliceLocation.Create(Self, timeStamp, palette.Clone);
+                // diff slice types
+                stDiffReceptor:
+                  slice := TSliceDiffReceptor.Create(Self, timeStamp, currentSlice as TSliceReceptor, refSlice as TSliceReceptor, palette.Clone);
+                stDiffGeometry:
+                  slice := TSliceDiffGeometry.Create(Self, timeStamp, currentSlice as TSliceGeometry, refSlice as TSliceGeometry, palette.Clone);
+                stDiffGeometryI:
+                  slice := TSliceDiffGeometryI.Create(Self, timeStamp, currentSlice as TSliceGeometryI, refSlice as TSliceGeometryI, palette.Clone);
+                stDiffGeometryIC:
+                  slice := TSliceDiffGeometryIC.Create(Self, timeStamp, currentSlice as TSliceGeometryIC, refSlice as TSliceGeometryIC, palette.Clone);
+                stDiffGeometryICLR:
+                  slice := TSliceDiffGeometryICLR.Create(Self, timeStamp, currentSlice as TSliceGeometryICLR, refSlice as TSliceGeometryICLR, palette.Clone);
+                stDiffPOI:
+                  slice := TSliceDiffPOI.Create(Self, timeStamp, currentSlice as TSlicePOI, refSlice as TSlicePOI, colorRemovedPOI, colorSamePOI, colorNewPOI);
+                stDiffPNG:
+                  slice := TSliceDiffPNG.Create(Self, timeStamp, currentSlice as TSlicePNG, refSlice as TSLicePNG);
+                stDiffLocation:
+                  slice := TSliceDiffLocation.Create(Self, timeStamp, currentSlice as TSliceLocation, refSlice as TSliceLocation, palette.Clone);
+              end;
+              WORMLock.EndRead;
+              try
+                AddSlice(slice);
+                //Log.WriteLn('Added slice ('+slice.id+') for layer '+LayerID.ToString, llNormal, 1);
+              finally
+                WORMLock.BeginRead;
+              end;
+            end;
+            }
+          end;
+        // diff slices
+        (icehTilerLayer shl 3) or wtVarInt:
+          begin
+            _layerID := aBuffer.bb_read_int32(aCursor);
+            Log.WriteLn('layer id '+_layerID.toString);
+          end;
+        (icehTilerCurrentSlice shl 3) or wt64Bit:
+          begin
+            timeStamp := aBuffer.bb_read_double(aCursor);
+            Log.WriteLn('cur slice '+_layerID.toString+' ('+FormatDateTime('yyyy-mm-dd hh:nn:ss', timeStamp)+')');
+          end;
+        (icehTilerRefSlice shl 3) or wt64Bit:
+          begin
+            timeStamp := aBuffer.bb_read_double(aCursor);
+            Log.WriteLn('ref slice '+_layerID.toString+' ('+FormatDateTime('yyyy-mm-dd hh:nn:ss', timeStamp)+')');
+          end;
+        // POIs
+        (icehTilerPOIImage shl 3) or wtLengthDelimited:
+          begin
+            // load image to poiImages
+            aBuffer.bb_read_rawbytestring(aCursor);
+            Log.WriteLn('load image to poiImages');
+          end;
+        (icehTilerPNGExtent shl 3) or wtLengthDelimited:
+          begin
+            aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+            //size := aBuffer.bb_read_uint64(aCursor);
+            //pngExtent.Decode(aBuffer, aCursor, aCursor+size);
+            Log.WriteLn('load png extent');
+          end;
+        (icehTilerPNGImage shl 3) or wtLengthDelimited:
+          begin
+            // pngImage
+            aBuffer.bb_read_rawbytestring(aCursor);
+            Log.WriteLn('load png image');
+          end;
+        (icehTilerDiscreteColorsOnStretch shl 3) or wtVarInt: // boolean
+          begin
+            discreteColorsOnStretch := aBuffer.bb_read_bool(aCursor);
+            Log.WriteLn('discreteColorsOnStretch: '+discreteColorsOnStretch.ToString);
+          end;
+        (icehTilerColorRemovedPOI shl 3) or wtVarInt: // cardinal=uint32
+          begin
+            colorRemovedPOI := aBuffer.bb_read_uint32(aCursor);
+            Log.WriteLn('colorRemovedPOI: '+colorRemovedPOI.ToString);
+          end;
+        (icehTilerColorSamePOI shl 3) or wtVarInt: // cardinal=uint32
+          begin
+            colorSamePOI := aBuffer.bb_read_uint32(aCursor);
+            Log.WriteLn('colorSamePOI: '+colorSamePOI.ToString);
+          end;
+        (icehTilerColorNewPOI shl 3) or wtVarInt: // cardinal=uint32
+          begin
+            colorNewPOI := aBuffer.bb_read_uint32(aCursor);
+            Log.WriteLn('colorNewPOI: '+colorNewPOI.ToString);
+          end;
+        (icehTilerSliceUpdate shl 3) or wtLengthDelimited:
+          begin
+            aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+            Log.WriteLn('Slice update');
+          end;
+        (icehDiscretePalette shl 3) or wtLengthDelimited:
+          begin
+            aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+//            size := aBuffer.bb_read_uint64(aCursor);
+//            palette := TDiscretePalette.Create;
+//            palette.Decode(aBuffer, aCursor, aCursor+size);
+            Log.WriteLn('decoded discrete palette');
+          end;
+        (icehRampPalette shl 3) or wtLengthDelimited:
+          begin
+            aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+//            size := aBuffer.bb_read_uint64(aCursor);
+//            palette := TRampPalette.Create;
+//            palette.Decode(aBuffer, aCursor, aCursor+size);
+            Log.WriteLn('decoded ramp palette');
+          end;
+        (icehTilerRequestPreviewImage shl 3) or wtVarInt:
+          begin
+            width := aBuffer.bb_read_uint32(aCursor);
+            Log.WriteLn('request preview image, width: '+width.toString);
+          end;
+
+        // tiler response
         (icehTilerID shl 3) or wtVarInt:
           begin
             id := aBuffer.bb_read_int32(aCursor);
@@ -62,6 +207,7 @@ begin
             aBuffer.bb_read_tbytes(aCursor);
             log.WriteLn('preview image');
           end;
+
         // skip dedicated handler fields
         (icehIntString shl 3) or wtVarInt,
         (icehIntStringPayload shl 3) or wtLengthDelimited,
