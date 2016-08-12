@@ -657,6 +657,9 @@ var
   _eventId: string;
   _kpiId: string;
   _kpiValueList: TJSONArray;
+  _kpi_type: string;
+  _gml_id: string;
+  _kpi_value: string;
   _variantId: string;
   DataEvent: TEventEntry;
   _variantName: string;
@@ -998,31 +1001,30 @@ begin
               else
               begin
                 if Assigned(jsonObject.GetValue('kpiValueList')) then _kpiValueList := jsonObject.getValue<TJSONArray>('kpiValueList') else _kpiValueList:=nil;
-                jsonIterator :=TJSONArrayEnumerator.Create(_kpiValueList);
-                while jsonIterator.MoveNext do
+                if Assigned(_kpiValueList) then
                 begin
-                  jsonKpi:=jsonIterator.GetCurrent
-                end;
-(*
-                query := TFDQuery.Create(nil);
-                try
-                  query.Connection := fDBConnection as TFDConnection;
-//insert variables into query
-//                  dataquery.SQL:= ReplaceStr(dataquery.SQL,'{case_id}', EcoDistrictSchemaId(_caseId)); // todo (HC): should this not be schema_id? or not being used at all in a query?
-//end variables insert
-                  query.SQL.Text :=  'SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''; ' +
-                                    'DELETE';
-                  query.Open();
-                  try
-                    query.First;
-                  finally
-                    query.Close;
+                  jsonIterator :=_kpiValueList.GetEnumerator;
+                  while jsonIterator.MoveNext do
+                  begin
+                    jsonKpi:=jsonIterator.Current;
+                    _kpi_type:=jsonKpi.GetValue<string>('type', 'None');
+                    _gml_id:=jsonKpi.GetValue<string>('gml_id', 'None');
+                    _kpi_value:=jsonKpi.GetValue<string>('kpiValue', 'None');
+//                    if Assigned(jsonKpi.GetValue<string>('type'),'None') then _kpi_type := jsonObject.getValue<string>('type') else _kpi_type:='None';
+//                    if Assigned(jsonKpi.GetValue('gml_id')) then _gml_id := jsonObject.getValue<string>('gml_id') else _gml_id:='None';
+//                    if Assigned(jsonKpi.GetValue('kpiValue')) then _kpi_value := jsonObject.getValue<string>('kpiValue') else _kpi_value:='None';
+                    (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
+                    try
+// SQL delete from kpi_results where kpi_type=... and gml_id= and kpi_id =
+                      (fDBConnection as TFDConnection).ExecSQL('DELETE FROM kpi_results WHERE kpi_type='''+_kpi_type+''' AND gml_id='''+_gml_id+''' AND kpi_id='''+_kpiId+''';');
+// SQL insert into kpi_results (kpi_type, kpi_id, gml_id, kpi_value) values ()
+                      (fDBConnection as TFDConnection).ExecSQL('INSERT INTO kpi_results (kpi_type, kpi_id, gml_id, kpi_value) VALUES ('''+_kpi_type+''', '''+_kpiId+''', '''+_gml_id+''','''+_kpi_value+''');');
+                    finally
+                      (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
+                      _status := 'Success - data added to the database';
+                    end;
                   end;
-
-                finally
-                  query.Free;
                 end;
-*)
               end;
             end
             else _status := 'failed - no kpiId found in request';
