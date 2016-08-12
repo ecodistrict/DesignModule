@@ -2299,32 +2299,32 @@ begin
           begin
             objectTypes := '"receptor"';
             geometryType := 'Point';
-            diffRange := mlp.Value.diffRange(10);
+            diffRange := mlp.Value.diffRange*0.3;
           end;
         2:
           begin
             objectTypes := '"grid"';
             geometryType := 'MultiPolygon'; // todo: ?
-            diffRange := mlp.Value.diffRange(10);
+            diffRange := mlp.Value.diffRange*0.3;
           end;
         3, 8:
           begin
             objectTypes := '"building"'; // 3 buildings, 8 RS buildings
             geometryType := 'MultiPolygon';
-            diffRange := mlp.Value.diffRange(10);
+            diffRange := mlp.Value.diffRange*0.3;
           end;
         4,    // road color (VALUE_EXPR)
         5:    // road color (VALUE_EXPR) and width (TEXTURE_EXPR)
           begin
             objectTypes := '"road"';
             geometryType := 'LineString';
-            diffRange := mlp.Value.diffRange(10);
+            diffRange := mlp.Value.diffRange*0.3;
           end;
         9:    // enrg color (VALUE_EXPR) and width (TEXTURE_EXPR)
           begin
             objectTypes := '"energy"';
             geometryType := 'LineString';
-            diffRange := mlp.Value.diffRange(10);
+            diffRange := mlp.Value.diffRange*0.3;
           end;
         11:
           begin

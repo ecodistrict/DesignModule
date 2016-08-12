@@ -2734,7 +2734,7 @@ begin
   begin
     cur := fCurrentSlice.PointValue(aLat, aLon, aThreadPool);
     ref := fRefSlice.PointValue(aLat, aLon, aThreadPool);
-    if cur.IsNan or ref.IsNan
+    if IsNaN(cur) or IsNaN(ref)
     then Result := NaN
     else Result := cur-ref;
   end
@@ -2804,10 +2804,14 @@ begin
               begin
                 x := aExtent.XMin+(col+0.5)*aPixelWidth;
                 cur := (fCurrentSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorCur, x, y, NaN);
-                ref := (fRefSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorRef, x, y, NaN);
-                if cur.IsNan or ref.IsNan
-                then data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor)
-                else data.SetPixel(col, row, fPalette.ValueToColors(cur-ref).fillColor);
+                if not IsNaN(cur) then
+                begin
+                  ref := (fRefSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorRef, x, y, NaN);
+                  if not IsNaN(ref)
+                  then data.SetPixel(col, row, fPalette.ValueToColors(cur-ref).fillColor)
+                  else data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor);
+                end
+                else data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor);
               end;
             end
             else
@@ -2816,10 +2820,14 @@ begin
               begin
                 x := aExtent.XMin+(col+0.5)*aPixelWidth;
                 cur := (fCurrentSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorCur, x, y, NaN);
-                ref := (fRefSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorRef, x, y, NaN);
-                if cur.IsNan or ref.IsNan
-                then data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor)
-                else data.SetPixel(col, row, fPalette.ValueToColors(cur-ref).fillColor);
+                if not IsNaN(cur) then
+                begin
+                  ref := (fRefSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorRef, x, y, NaN);
+                  if not IsNaN(ref)
+                  then data.SetPixel(col, row, fPalette.ValueToColors(cur-ref).fillColor)
+                  else data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor);
+                end
+                else data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor);
               end;
             end;
           end;

@@ -12,6 +12,7 @@ uses
   System.Math,
   System.Classes,
   System.SysUtils,
+  System.Generics.Defaults,
   System.Generics.Collections;
 
 type
@@ -49,7 +50,7 @@ type
     function BaseTableNoPrefix: string;
     function BuildJoin(const aTablePrefix: string; out aShapePrefix: string): string;
     function SQLQuery(const aTablePrefix:string; xMin: Integer=0; yMin: Integer=0; xMax: Integer=-1; yMax: Integer=-1): string;
-    function diffRange(aFactor: Double): Double;
+    function diffRange: Double;
   end;
 
   TMetaLayer = TObjectDictionary<Integer, TMetaLayerEntry>;
@@ -348,11 +349,46 @@ begin
   end;
 end;
 
-function TMetaLayerEntry.diffRange(aFactor: Double): Double;
+{
+function compareDiffValues(aValue1, aValue2: Double): Integer;
+begin
+  if aValue1=aValue2
+  then Result := 0
+  else if aValue1<aValue2
+  then Result := -1
+  else Result := 1;
+end;
+}
+
+function TMetaLayerEntry.diffRange: Double;
 var
   odb: TODBRecord;
-  minValue, maxValue: Double;
+  values: TList<double>;
+
+  procedure addValue(aValue: Double);
+  begin
+    if not IsNaN(aValue)
+    then values.Add(aValue);
+  end;
+
 begin
+  values := TList<double>.Create;//(TComparer<Double>.Construct(compareDiffValues));
+  try
+    for odb in odbList do
+    begin
+      addValue(odb.Min);
+      addValue(odb.Max);
+    end;
+    values.Sort;
+    // remove first and last value to remove large ranges on the edge off legends
+    values.Delete(0);
+    values.Delete(values.Count-1);
+    // use difference highest-lowest/aFactor
+    Result := Abs(values[values.count-1]-values[0]);
+  finally
+    values.Free;
+  end;
+  {
   minValue := NaN;
   maxValue := NaN;
   for odb in odbList do
@@ -380,6 +416,7 @@ begin
     then Result := 100
     else Result := (maxValue-minValue)/aFactor;
   end;
+  }
 end;
 
 function TMetaLayerEntry.SQLQuery(const aTablePrefix:string; xMin, yMin, xMax, yMax: Integer): string;
