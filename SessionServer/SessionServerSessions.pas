@@ -659,7 +659,7 @@ var
   _kpiValueList: TJSONArray;
   _kpi_type: string;
   _gml_id: string;
-  _kpi_value: string;
+  _kpi_value: double;
   _variantId: string;
   DataEvent: TEventEntry;
   _variantName: string;
@@ -1009,16 +1009,13 @@ begin
                     jsonKpi:=jsonIterator.Current;
                     _kpi_type:=jsonKpi.GetValue<string>('type', 'None');
                     _gml_id:=jsonKpi.GetValue<string>('gml_id', 'None');
-                    _kpi_value:=jsonKpi.GetValue<string>('kpiValue', 'None');
-//                    if Assigned(jsonKpi.GetValue<string>('type'),'None') then _kpi_type := jsonObject.getValue<string>('type') else _kpi_type:='None';
-//                    if Assigned(jsonKpi.GetValue('gml_id')) then _gml_id := jsonObject.getValue<string>('gml_id') else _gml_id:='None';
-//                    if Assigned(jsonKpi.GetValue('kpiValue')) then _kpi_value := jsonObject.getValue<string>('kpiValue') else _kpi_value:='None';
+                    _kpi_value:=jsonKpi.GetValue<double>('kpiValue', 'None');
                     (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
                     try
 // SQL delete from kpi_results where kpi_type=... and gml_id= and kpi_id =
                       (fDBConnection as TFDConnection).ExecSQL('DELETE FROM kpi_results WHERE kpi_type='''+_kpi_type+''' AND gml_id='''+_gml_id+''' AND kpi_id='''+_kpiId+''';');
 // SQL insert into kpi_results (kpi_type, kpi_id, gml_id, kpi_value) values ()
-                      (fDBConnection as TFDConnection).ExecSQL('INSERT INTO kpi_results (kpi_type, kpi_id, gml_id, kpi_value) VALUES ('''+_kpi_type+''', '''+_kpiId+''', '''+_gml_id+''','''+_kpi_value+''');');
+                      (fDBConnection as TFDConnection).ExecSQL('INSERT INTO kpi_results (kpi_type, kpi_id, gml_id, kpi_value) VALUES ('''+_kpi_type+''', '''+_kpiId+''', '''+_gml_id+''','+_kpi_value+');');
                     finally
                       (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
                       _status := 'Success - data added to the database';
