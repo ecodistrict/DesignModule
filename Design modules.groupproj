@@ -24,10 +24,7 @@
         <Projects Include="TilerServer\TilerDebugger.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="PublishDebugger\PublishGetData.dproj">
-            <Dependencies/>
-        </Projects>
-        <Projects Include="SessionServer\EcoTestQuery.dproj">
+        <Projects Include="..\..\Test\TestEcoIntFout\TestEcoIntFout.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -101,32 +98,23 @@
     <Target Name="TilerDebugger:Make">
         <MSBuild Projects="TilerServer\TilerDebugger.dproj" Targets="Make"/>
     </Target>
-    <Target Name="PublishGetData">
-        <MSBuild Projects="PublishDebugger\PublishGetData.dproj"/>
+    <Target Name="TestEcoIntFout">
+        <MSBuild Projects="..\..\Test\TestEcoIntFout\TestEcoIntFout.dproj"/>
     </Target>
-    <Target Name="PublishGetData:Clean">
-        <MSBuild Projects="PublishDebugger\PublishGetData.dproj" Targets="Clean"/>
+    <Target Name="TestEcoIntFout:Clean">
+        <MSBuild Projects="..\..\Test\TestEcoIntFout\TestEcoIntFout.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="PublishGetData:Make">
-        <MSBuild Projects="PublishDebugger\PublishGetData.dproj" Targets="Make"/>
-    </Target>
-    <Target Name="EcoTestQuery">
-        <MSBuild Projects="SessionServer\EcoTestQuery.dproj"/>
-    </Target>
-    <Target Name="EcoTestQuery:Clean">
-        <MSBuild Projects="SessionServer\EcoTestQuery.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="EcoTestQuery:Make">
-        <MSBuild Projects="SessionServer\EcoTestQuery.dproj" Targets="Make"/>
+    <Target Name="TestEcoIntFout:Make">
+        <MSBuild Projects="..\..\Test\TestEcoIntFout\TestEcoIntFout.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;PublishGetData;EcoTestQuery"/>
+        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;TestEcoIntFout"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;PublishGetData:Clean;EcoTestQuery:Clean"/>
+        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;TestEcoIntFout:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;PublishGetData:Make;EcoTestQuery:Make"/>
+        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;TestEcoIntFout:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
