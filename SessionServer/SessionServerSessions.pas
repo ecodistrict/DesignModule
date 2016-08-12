@@ -640,6 +640,7 @@ var
 //  dataresponse: string;
   jsonDataResponse: TJSONObject;
   jsonList: TJSONObject;
+  jsonArray: TJSONArray;
   jsonIterator: TJSONArrayEnumerator;
   jsonKpi: TJSONValue;
   //attr_value: string;
@@ -1009,13 +1010,13 @@ begin
                     jsonKpi:=jsonIterator.Current;
                     _kpi_type:=jsonKpi.GetValue<string>('type', 'None');
                     _gml_id:=jsonKpi.GetValue<string>('gml_id', 'None');
-                    _kpi_value:=jsonKpi.GetValue<double>('kpiValue', 'None');
+                    _kpi_value:=jsonKpi.GetValue<double>('kpiValue', 0);
                     (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
                     try
 // SQL delete from kpi_results where kpi_type=... and gml_id= and kpi_id =
                       (fDBConnection as TFDConnection).ExecSQL('DELETE FROM kpi_results WHERE kpi_type='''+_kpi_type+''' AND gml_id='''+_gml_id+''' AND kpi_id='''+_kpiId+''';');
 // SQL insert into kpi_results (kpi_type, kpi_id, gml_id, kpi_value) values ()
-                      (fDBConnection as TFDConnection).ExecSQL('INSERT INTO kpi_results (kpi_type, kpi_id, gml_id, kpi_value) VALUES ('''+_kpi_type+''', '''+_kpiId+''', '''+_gml_id+''','+_kpi_value+');');
+                      (fDBConnection as TFDConnection).ExecSQL('INSERT INTO kpi_results (kpi_type, kpi_id, gml_id, kpi_value) VALUES ('''+_kpi_type+''', '''+_kpiId+''', '''+_gml_id+''','+_kpi_value.ToString()+');');
                     finally
                       (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
                       _status := 'Success - data added to the database';
@@ -1048,7 +1049,36 @@ begin
               end
               else
               begin
-
+                (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
+                try
+                  jsonArray:=TJSONArray.Create;
+                  query := TFDQuery.Create(nil);
+                  try
+                    query.Connection := fDBConnection as TFDConnection;
+                    query.SQL.Text := 'SELECT id, kpi_id, gml_id, kpi_value, kpi_type FROM kpi_results WHERE kpi_id='''+_kpiId+'''';
+                    query.Open();
+                    try
+                      query.First;
+                      while not query.Eof do
+                      begin
+                        jsonList:=TJSONObject.Create; // will be owned by the JSON Array, so do not free!
+                        jsonList.AddPair('kpi_id', query.FieldByName('kpi_id').AsString);
+                        jsonList.AddPair('gml_id', query.FieldByName('gml_id').AsString);
+                        jsonList.AddPair('kpi_type', query.FieldByName('kpi_type').AsString);
+                        jsonList.AddPair('kpi_value', TJSONNumber.Create(StrToFloat(query.FieldByName('kpi_value').AsString, dotFormat)));
+                        jsonArray.Add(jsonList);
+                      end;
+                    finally
+                      query.Close;
+                    end;
+                  finally
+                    query.Free;
+                  end;
+                  jsonResponse.AddPair('kpiValue', jsonArray);
+                finally
+                  (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
+                  _status := 'Success - data added to the database';
+                end;
               end;
             end
             else _status := 'failed - no kpiId found in request';
@@ -1070,6 +1100,7 @@ begin
         Log.WriteLn('HandleDataEvent: unknown type/method: '+_type+', method: '+_method,llWarning);
       end;
     end;
+    FreeAndNil(jsonResponse);
   except
     on e: exception
     do log.WriteLn('exception in TEcodistrictModule.HandleDataEvent: '+e.Message, llError);
