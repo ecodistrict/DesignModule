@@ -75,14 +75,14 @@ The server supports 3 access methods
 - a default handler that shows a status page of all registered layers and IMB event the server is controlled by
 - /tiles: request a tile `/tiles?layer=<id>&zoom=<zoomlevel>&x=<tile-x-index>&y=<tile-y-index>[&time=<yyyymmddhhmmss>]`
 - /point: request a value at a specific location `/point?layer=<id>&lat=<latitude>&lon=<longitude>[&time=<yyyymmddhhmmss>]` where lat and lon are in wgs84 degrees (float)
-
+- /status: a status page that shows connected services
 
 
 
 ## Testing <a name="testing"></a>
 
-- link to main page design module [http://vps17642.public.cloudvps.com:4501](http://vps17642.public.cloudvps.com:4501 "main page design module")
-- link to web socket page [http://vps17642.public.cloudvps.com:4502/sessions](http://vps17642.public.cloudvps.com:4502/sessions "test page web socket connection")
-- link to the default tiler server [http://vps17642.public.cloudvps.com:4503/](http://vps17642.public.cloudvps.com:4503/ "tiler default page")
-
+- link to main page design module [http://vps17642.public.cloudvps.com](http://vps17642.public.cloudvps.com "main page design module")
+- link to web socket page [http://vps17642.public.cloudvps.com:8080/sessions](http://vps17642.public.cloudvps.com:8080/sessions "test page web socket connection")
+- link to the default tiler server [http://vps17642.public.cloudvps.com/tiler/TilerWebService.dll](http://vps17642.public.cloudvps.com/tiler/TilerWebService.dll "tiler default page")
+- link to the tiler server status [http://vps17642.public.cloudvps.com/tiler/TilerWebService.dll/status](http://vps17642.public.cloudvps.com/tiler/TilerWebService.dll/status "tiler default page")
 
