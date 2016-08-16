@@ -26,6 +26,10 @@ using IMB;
 // installutil.exe <path>\WS2IMBSvc.exe
 // this will install the dotnet assembly as a windows service
 
+// web socket service under iis
+// http://www.codemag.com/article/1210051
+// https://msdn.microsoft.com/en-us/library/aa751792(v=vs.110).aspx
+
 namespace WS2IMBSvc
 {
     public partial class WS2IMBService : ServiceBase

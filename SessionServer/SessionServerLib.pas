@@ -36,8 +36,6 @@ const
   colorBasicOutline = $3388FF or $FF000000;
   colorBasicFill = $B5C6DD or $FF000000;
 
-  //DefaultDiffRange = 100.0;
-
 type
   TDistanceLatLon = record
     m_per_deg_lat: Double;
@@ -827,18 +825,22 @@ procedure TDiffLayer.handleTilerInfo(aTilerLayer: TTilerLayer);
 var
   diffPalette: TWDPalette;
   v: Double;
+  title: string;
 begin
   v := fCurrentLayer.diffRange;
-  diffPalette := TRampPalette.Create('difference', [
+  title := 'difference';
+  if Assigned(fCurrentLayer.tilerLayer) and Assigned(fCurrentLayer.tilerLayer.palette)
+  then title := title+', '+fCurrentLayer.tilerLayer.palette.description;
+  diffPalette := TRampPalette.Create(title, [
     TRampPaletteEntry.Create($FFFF0000, -v, 'less'),
     TRampPaletteEntry.Create($FFFFFFFF, 0.0, 'no change'),
     TRampPaletteEntry.Create($FF00FF00, v, 'more')],
     $FFFF0000, 0, $FF00FF00);
   fLegendJSON := BuildDiffLegendJSON(
     diffPalette.description,
-    -v, '#00FF00', 'less ('+(-v).ToString(dotFormat)+')',
+    -v, '#00FF00', (-v).ToString(dotFormat),
     0.0, '#FFFFFF', 'no change (0)',
-    v, '#FF0000', 'more ('+v.ToString(dotFormat)+')');
+    v, '#FF0000', v.ToString(dotFormat));
   aTilerLayer.signalAddDiffSlice(diffPalette, fCurrentLayer.tilerLayer.ID, fReferenceLayer.tilerLayer.ID);
 end;
 
@@ -2927,12 +2929,12 @@ begin
   if aCurrent.scenario.project.projectID=aReference.scenario.project.projectID then
   begin
     if aCurrent.scenario.ID=aReference.scenario.ID
-    then Result := aCurrent.scenario.project.ProjectID+sepElementID+aCurrent.scenario.ID+sepElementID+aCurrent.ID+'-'+aReference.ID+'|diff'
+    then Result := aCurrent.scenario.project.ProjectID+sepElementID+aCurrent.scenario.ID+sepElementID+aCurrent.ID+'-'+aReference.ID+'-diff'
     else
     begin
       if aCurrent.ID=aReference.ID
-      then Result := aCurrent.scenario.project.ProjectID+sepElementID+aCurrent.scenario.ID+'-'+aReference.scenario.ID+sepElementID+aCurrent.ID+'|diff'
-      else Result := aCurrent.scenario.project.ProjectID+sepElementID+aCurrent.scenario.ID+sepElementID+aCurrent.ID+'-'+aReference.scenario.ID+sepElementID+aReference.ID+'|diff';
+      then Result := aCurrent.scenario.project.ProjectID+sepElementID+aCurrent.scenario.ID+'-'+aReference.scenario.ID+sepElementID+aCurrent.ID+'-diff'
+      else Result := aCurrent.scenario.project.ProjectID+sepElementID+aCurrent.scenario.ID+sepElementID+aCurrent.ID+'-'+aReference.scenario.ID+sepElementID+aReference.ID+'-diff';
     end;
   end
   else Result := aCurrent.elementID+'-'+aReference.elementID+'-diff';

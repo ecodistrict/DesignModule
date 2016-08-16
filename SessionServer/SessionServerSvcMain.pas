@@ -128,7 +128,8 @@ begin
       'Port='+GetSetting('EcoDBPort', '')+';'+
       'Database='+GetSetting('EcoDBDatabase', '')+';'+
       'PGAdvanced=sslmode=require',
-      fTilerFQDNName, TilerStatusURLFromTilerName(fTilerFQDNName));
+      fTilerFQDNName,
+      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(fTilerFQDNName)));
     Log.WriteLn('Publishing server started ecodistrict module');
 
     // inquire existing session and rebuild internal sessions..

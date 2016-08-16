@@ -74,7 +74,8 @@ begin
             'Port='+GetSetting('EcoDBPort', '5432')+';'+
             'Database='+GetSetting('EcoDBDatabase', 'Warsaw')+';'+
             'PGAdvanced=sslmode=require',
-            tilerFQDN, TilerStatusURLFromTilerName(tilerFQDN));
+            tilerFQDN,
+            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)));
 
           // inquire existing session and rebuild internal sessions..
           imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(

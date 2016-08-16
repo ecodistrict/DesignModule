@@ -3,6 +3,7 @@ unit TilerControl;
 interface
 
 uses
+  StdIni,
   imb4,
   WorldDataCode,
   WorldLegends,
@@ -327,14 +328,28 @@ begin
         (icehTilerURL shl 3) or wtLengthDelimited:
           begin
             fURL := aBuffer.bb_read_string(aCursor);
-            if Assigned(fOnTilerInfo)
-            then fOnTilerInfo(self); // -> AddCommandToQueue(Self, Self.signalObjects);
+            if Assigned(fOnTilerInfo) then
+            begin
+              try
+                fOnTilerInfo(self); // -> AddCommandToQueue(Self, Self.signalObjects);
+              except
+                on e: Exception
+                do Log.WriteLn('Exception TTilerLayer.handleLayerEvent handling OnTilerInfo: '+e.Message, llError);
+              end;
+            end;
           end;
         (icehTilerRefresh shl 3) or wt64Bit:
           begin
             timeStamp := aBuffer.bb_read_double(aCursor);
-            if Assigned(fOnRefresh)
-            then fOnRefresh(self, timeStamp);
+            if Assigned(fOnRefresh) then
+            begin
+              try
+                fOnRefresh(self, timeStamp);
+              except
+                on e: Exception
+                do Log.WriteLn('Exception TTilerLayer.handleLayerEvent handling OnRefresh: '+e.Message, llError);
+              end;
+            end;
             {
             if timeStamp<>0
             then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', timeStamp)
@@ -375,8 +390,15 @@ begin
               previewsFolder := ExtractFilePath(ParamStr(0))+'previews';
               ForceDirectories(previewsFolder);
               fPreview.SaveToFile(previewsFolder+'\'+elementID+'.png');
-              if Assigned(fOnPreview)
-              then fOnPreview(self);
+              if Assigned(fOnPreview) then
+              begin
+                try
+                  fOnPreview(self);
+                except
+                  on E: Exception
+              		do Log.WriteLn('Exception TTilerLayer.handleLayerEvent handling OnPreview: '+e.Message, llError);
+                end;
+              end;
               { ->
               pvBASE64 := previewBASE64;
               // layer clients
@@ -567,8 +589,10 @@ begin
   fTilerStatusURL := aTilerStatusURL;
   //fLayers := TObjectDictionary<string, TTilerLayer>.Create([doOwnsValues]);
   fEvent := aConnection.subscribe('USIdle.Tilers.'+aTilerFQDN.Replace('.', '_'), False);
-  fEvent.OnEvent.Add(handleTilerEvent);
-  fEvent.OnIntString.Add(handleTilerStatus);
+  if not fEvent.OnEvent.Contains(handleTilerEvent)
+  then fEvent.OnEvent.Add(handleTilerEvent);
+  if not fEvent.OnIntString.Contains(handleTilerStatus)
+  then fEvent.OnIntString.Add(handleTilerStatus);
   // start tiler web service
   getTilerStatus;
 end;
