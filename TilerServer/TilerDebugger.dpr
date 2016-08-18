@@ -279,7 +279,7 @@ begin
             if eventName<>'' then
             begin
               layerEvent := aEventEntry.connection.subscribe(eventName, False);
-              if layerEvent.OnEvent.IndexOf(handleLayerEvent)<0
+              if layerEvent.OnEvent.Count=0
               then layerEvent.OnEvent.Add(handleLayerEvent);
               log.WriteLn('register new layer '+eventName);
               log.WriteLn('slice type: '+sliceType.ToString, llNormal, 1);
@@ -331,7 +331,7 @@ begin
         then e := aEventEntry.connection.subscribe(aString, False)
         else e := aEventEntry;
         // start listening for status replies on specified event entry
-        if e.OnString.IndexOf(handleTilerStatusReply)<0
+        if e.OnString.Count=0
         then e.OnString.Add(handleTilerStatusReply);
       end;
   end;

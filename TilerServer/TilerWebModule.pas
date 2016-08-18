@@ -4236,7 +4236,7 @@ begin
   then imbStatus := 'connected'
   else imbStatus := 'NOT connected';
 
-  sleep(500); // wait for status reponses to come in
+  sleep(2000); // wait for status reponses to come in
 
   html :=
     '<html>' +

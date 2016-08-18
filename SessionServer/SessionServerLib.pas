@@ -748,11 +748,7 @@ begin
   fCurrentLayer := aCurrentLayer;
   fReferenceLayer := aReferenceLayer;
   fTilerLayer := TTilerLayer.Create(aCurrentLayer.scenario.project.Connection, aElementID, -aCurrentLayer.SliceType);
-  // todo:
-  fTilerLayer.onTilerInfo := handleTilerInfo;
-  fTilerLayer.onRefresh := handleTilerRefresh;
-  fTilerLayer.onPreview := handleTilerPreview;
-  //
+  // create timers
   fPreviewRequestTimer := aCurrentLayer.scenario.project.Timers.SetTimer(
     procedure(aTimer: TTImer)
     begin
@@ -761,7 +757,10 @@ begin
     end);
   fSendRefreshTimer := aCurrentLayer.scenario.project.Timers.CreateInactiveTimer;
   fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*30);
-
+  // add event handlers
+  fTilerLayer.onTilerInfo := handleTilerInfo;
+  fTilerLayer.onRefresh := handleTilerRefresh;
+  fTilerLayer.onPreview := handleTilerPreview;
   fCurrentLayer.addDiffLayer(Self);
   fReferenceLayer.addDiffLayer(Self);
   HandleSubLayerInfo(nil); // if both layers are known on tiler we can start registering now
@@ -860,6 +859,7 @@ begin
     finally
       TMonitor.Exit(clients);
     end;
+    Log.WriteLn('send diff preview on '+elementID);
   end;
 end;
 
@@ -2424,6 +2424,7 @@ begin
   finally
     TMonitor.Exit(fScenario.clients);
   end;
+  Log.WriteLn('send normal preview on '+elementID);
 end;
 
 procedure TLayer.handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);

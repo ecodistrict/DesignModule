@@ -280,7 +280,7 @@ begin
   // try to load preview from cache
   if not Assigned(fPreview)
   then LoadPreviewFromCache();
-  // make active
+  // define layer event name and make active
   fEvent := aConnection.subscribe('USIdle.Sessions.TileLayers.'+aElementID.Replace(sepElementID, sepEventName), False);
   fEvent.OnEvent.Add(handleLayerEvent);
 end;
