@@ -70,8 +70,8 @@
         var session = getParameterByName('session', ''); 
         if (session == '') {
             //session = '1234'; // default test session
-            //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
-            session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
+            session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
+            //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
@@ -213,8 +213,10 @@
                 }
                 else if (message.refresh) {
                     var elementID = message.refresh;
-                    if (message.tiles && message.tiles != '')
+                    if (message.tiles && message.tiles != '') {
                         detailsControl.updateTilesURL(elementID, message.tiles);
+                        // todo: if basic layer -> check and update that url!
+                    }
                     else if (message.preview)
                         detailsControl.updatePreview(elementID, message.preview);
                     else {

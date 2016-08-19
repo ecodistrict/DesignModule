@@ -290,7 +290,6 @@ type
       geometrytype text,
       defaultload integer,
       basiclayer integer,
-      schema text,
       sql text,
       tablename text,
       idfieldname text,
@@ -370,9 +369,9 @@ type
     property DIQueries: TDictionary<string, TDIQuery> read getDIQueries;
     property DIObjectProperties: TObjectList<TDIObjectProperty> read getDIObjectProperties;
     // (re-)read items
-    procedure ReadDMQueries;
-    procedure ReadDIQueries;
-    procedure ReadDIObjectProperties;
+    function ReadDMQueries: Boolean;
+    function ReadDIQueries: Boolean;
+    function ReadDIObjectProperties: Boolean;
 
     function ReadScenario(const aID: string): TScenario; override;
     procedure ReadBasicData(); override;
@@ -664,7 +663,7 @@ function TEcodistrictScenario.AddLayerFromTable(const aDomain, aID, aName, aDesc
 begin
   Result := TEcodistrictLayer.Create(self, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, 2, aPalette, aLegendJSON, aBasicLayer);
   try
-    Result.query := PGSVGPathsQuery('"'+aSchema+'".'+aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName);
+    Result.query := PGSVGPathsQuery('"'+aSchema+'".'+aTableName.Replace('{case_id}', aSchema), aIDFieldName, aGeometryFieldName, aDataFieldName);
     //AddCommandToQueue(sl, Self.ReadObjects);
     (fProject as TEcodistrictProject).ReadObjects(Result);
     // todo: other palette types..?
@@ -678,19 +677,76 @@ begin
   end;
 end;
 
+function CreateBasicPalette: TWDPalette;
+begin
+  Result := TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicFill, colorBasicOutline));
+end;
+
 procedure TEcodistrictScenario.ReadBasicData;
 var
   schema: string;
-  entries: TPaletteDiscreteEntryArray;
-  layer: TLayer;
+  //entries: TPaletteDiscreteEntryArray;
+  //layer: TLayer;
+  //query: string;
   palette: TWDPalette;
   legendJSON: string;
-  query: string;
+  iqp: TPair<string, TDIQuery>;
+  jsonPalette: TJSONValue;
 begin
   // read ecodistrict data
   if fID=fProject.ProjectID
   then schema := EcoDistrictSchemaId(fID)
   else schema := EcoDistrictSchemaId(fProject.ProjectID, fID);
+
+  // todo: build layers from di_queries
+
+  for iqp in (project as TEcodistrictProject).DIQueries do
+  begin
+    jsonPalette := TJSONObject.ParseJSONValue(iqp.Value.palettejson);
+    if Assigned(jsonPalette) then
+    begin
+      case jsonPalette.GetValue<Integer>('palettetype', 0) of
+        wdkPaletteDiscrete:
+          begin
+            palette := TDiscretePalette.CreateFromJSON(iqp.Value.palettejson);
+            if iqp.Value.legendjson<>''
+            then legendJSON := iqp.Value.legendjson
+            else legendJSON := BuildDiscreteLegendJSON(palette as TDiscretePalette, TLegendFormat.lfVertical); // todo: parameterize
+          end;
+        wdkPaletteRamp:
+          begin
+            palette := TRampPalette.CreateFromJSON(iqp.Value.palettejson);
+            legendJSON := iqp.Value.legendjson;
+          end;
+      else
+        palette := CreateBasicPalette;
+        legendJSON := iqp.Value.legendjson;
+      end;
+    end
+    else
+    begin
+      palette := CreateBasicPalette;
+      legendJSON := iqp.Value.legendjson;
+    end;
+    if iqp.Value.tablename<>'' then
+    begin
+      AddLayerFromTable(
+        iqp.Value.domain, iqp.key,  iqp.Value.name, iqp.Value.description, iqp.Value.objecttypes, iqp.Value.geometrytype,
+        iqp.Value.defaultload=1, iqp.Value.basiclayer=1,
+        schema, iqp.Value.tablename, iqp.Value.idfieldname, iqp.Value.geometryfieldname, iqp.Value.datafieldname,
+        iqp.Value.layertype, palette, legendJSON);
+    end
+    else
+    begin
+      AddLayerFromQuery(
+        iqp.Value.domain, iqp.key,  iqp.Value.name, iqp.Value.description, iqp.Value.objecttypes, iqp.Value.geometrytype,
+        iqp.Value.defaultload=1, iqp.Value.basiclayer=1,
+        schema, iqp.Value.sql,
+        iqp.Value.layertype, palette, legendJSON);
+    end;
+  end;
+
+  (*
   // buildings              -> v
   //AddLayerFromTable('basic structures', 'buildings', 'buildings', 'basic buildings', '"building"', 'MultiPolygon', false, True, schema, 'bldg_building', 'attr_gml_id', 'bldg_lod1multisurface_value');
   AddLayerFromTable('basic structures', 'building',  'buildings', 'basic buildings',    '"building"',   'MultiPolygon', false, True, schema, '"bldg_building"', 'attr_gml_id', 'bldg_lod0footprint_value', '', stGeometry, nil, '');
@@ -712,30 +768,8 @@ begin
 
   layer := AddLayerFromTable('General', 'Buildings',  'Buildings', 'Buildings', '"building"', 'MultiPolygon', false,
     false, schema, '"bldg_building"', 'attr_gml_id', 'bldg_lod0footprint_value', '1 as value', stGeometry, palette, legendJSON);
-//  if Assigned(layer) then
-//  begin
-//    layer.legendJSON := legendJSON;
-//    layer.RegisterOnTiler(False, stGeometry, layer.name, NaN, palette);
-//  end;
-
   // general, roads
-  {
-  setLength(entries, 1);
-  with entries[0] do begin colors:=TGeoColors.Create($FFD9D9D9); minValue:=0; maxValue:=2; description:='Buildings'; end;
-  palette := TDiscretePalette.Create('Buildings', entries, TGeoColors.Create(TAlphaColors.Red and not TAlphaColors.Alpha));
-  legendJSON := BuildDiscreteLegendJSON(palette as TDiscretePalette, TLegendFormat.lfVertical); // todo: parameterize
-
-  layer := AddLayerFromTable('General', 'Buildings',  'Buildings', 'Buildings',    '"building"',   'MultiPolygon', false,
-    false, schema, '"bldg_building"', 'attr_gml_id', 'bldg_lod0footprint_value', '1 as value', NaN);
-  if Assigned(layer) then
-  begin
-    layer.legendJSON := legendJSON;
-    layer.RegisterOnTiler(False, stGeometry, layer.name, NaN, palette);
-  end;
-  }
-
   // Green, trees
-
   // Green, rest
   setLength(entries, 4);
   with entries[0] do begin colors:=TGeoColors.Create($FF92D050); minValue:=0; maxValue:=2; description:='Grass area'; end;
@@ -756,11 +790,11 @@ begin
 
   layer := AddLayerFromQuery('Green', 'GreenRest',  'Green', 'Green', '"building,grass,water,parking"', 'MultiPolygon', false,
     false, schema, query, stGeometry, palette, legendJSON);
-  
+
   // Mobility
   //Area used for parking: FFF79646
   //PArking spaces: outer: FFF79646 inner: FFFFFF99
-              
+
   // Dimosim
   //Heating: FFFF0000
   //Cooling: FF8DB4E2
@@ -779,8 +813,7 @@ begin
   layer := AddLayerFromTable('Energy', 'BuildingEnergyEfficiency', 'Energy efficiency', 'Energy efficiency improvement factor', '"building"', 'MultiPolygon', false,
     false, schema, 'bldg_building join "'+schema+'".bldg_building_energylabel on attr_gml_id=id',
     'attr_gml_id', 'bldg_lod0footprint_value', 'kwh_m2_year', stGeometry, palette, legendJSON);
-
-  // green
+  *)
   (*
   setLength(entries, 5);
   with entries[0] do begin color:=$FF92D050; minValue:=0; maxValue:=1; description:='Grass area'; end;
@@ -859,8 +892,6 @@ begin
   // trees 5/10/.. meter layers
 
   // energy label color -> kevins ppt
-
-
 
 end;
 
@@ -1060,7 +1091,10 @@ begin
 end;
 
 function TEcodistrictProject.getMeasuresJSON: string;
+var
+  schema: string;
 begin
+  schema := EcoDistrictSchemaId(projectID);
   Result := FDReadJSON(
     fDBConnection as TFDConnection,
     'select array_to_json(array_agg(row_to_json(categories)))::text as categories '+
@@ -1071,10 +1105,10 @@ begin
           'select typology as measure, '+
           '(select array_to_json(array_agg(row_to_json(actions))) as actions from '+
             '(select cat||id as id, application as action, objecttype as objecttypes, benefits as description '+
-            'from measures m '+
+            'from '+schema+'.di_measures m '+
             'where m.id>=0 and m.category=j.category and m.typology=j.typology '+
             'order by id) as actions) '+
-          'from measures j '+
+          'from '+schema+'.di_measures j '+
           'group by category, typology '+
           'having category=c.category '+
         ') as typologies '+
@@ -1147,7 +1181,7 @@ begin
   do readScenario(schemaName);
 end;
 
-procedure TEcodistrictProject.ReadDIObjectProperties;
+function TEcodistrictProject.ReadDIObjectProperties: Boolean;
 var
   query: TFDQuery;
   op: TDIObjectProperty;
@@ -1160,32 +1194,41 @@ begin
     query.SQL.Text :=
       'SELECT category, propertyName, propertyType, selection, fieldName, tablename, keyfieldname, editable '+
       'FROM '+EcoDistrictSchemaId(projectId)+'.di_objectproperties';
-    query.Open();
-    query.First();
-    while not query.Eof do
-    begin
-      //query.Fields[0].
-      op := TDIObjectProperty.Create;
-      try
-        op.category := query.Fields[0].AsString;
-        op.propertyName := query.Fields[1].AsString;
-        op.propertyType := query.Fields[2].AsString;
-        op.selection := query.Fields[3].AsString;
-        op.fieldName := query.Fields[4].AsString;
-        op.tableName := query.Fields[5].AsString;
-        op.keyFieldName := query.Fields[6].AsString;
-        op.editable := query.Fields[7].AsBoolean;
-      finally
-        fDIObjectProperties.Add(op);
+    try
+      query.Open();
+      query.First();
+      while not query.Eof do
+      begin
+        //query.Fields[0].
+        op := TDIObjectProperty.Create;
+        try
+          op.category := query.Fields[0].AsString;
+          op.propertyName := query.Fields[1].AsString;
+          op.propertyType := query.Fields[2].AsString;
+          op.selection := query.Fields[3].AsString;
+          op.fieldName := query.Fields[4].AsString;
+          op.tableName := query.Fields[5].AsString;
+          op.keyFieldName := query.Fields[6].AsString;
+          op.editable := query.Fields[7].AsBoolean;
+        finally
+          fDIObjectProperties.Add(op);
+        end;
+        query.Next();
       end;
-      query.Next();
+      Result := True;
+    except
+      on e: exception do
+      begin
+        log.WriteLn('exception in TEcodistrictProject.ReadDIObjectProperties: '+e.Message, llError);
+        Result := False;
+      end;
     end;
   finally
     query.Free;
   end;
 end;
 
-procedure TEcodistrictProject.ReadDIQueries;
+function TEcodistrictProject.ReadDIQueries: Boolean;
 var
   query: TFDQuery;
   DIQuery: TDIQuery;
@@ -1203,8 +1246,8 @@ begin
         'layertype, '+ // integer
         'palettejson, legendjson '+ // text
 			'FROM '+EcoDistrictSchemaId(projectID)+'.di_queries';
-    query.open();
     try
+      query.open();
       query.First;
       while not query.Eof do
       begin
@@ -1227,16 +1270,20 @@ begin
         fDIQueries.Add(DIQuery.id, DIQuery);
         query.Next;
       end;
+      Result := True;
     except
-      on e: exception
-      do log.WriteLn('exception in TEcodistrictProject.ReadDIQueries: '+e.Message, llError);
+      on e: exception do
+      begin
+        log.WriteLn('exception in TEcodistrictProject.ReadDIQueries: '+e.Message, llError);
+        Result := False;
+      end;
     end;
   finally
     query.Free;
   end;
 end;
 
-procedure TEcodistrictProject.ReadDMQueries;
+function TEcodistrictProject.ReadDMQueries: Boolean;
 var
   query: TFDQuery;
   DMQuery: TDMQuery;
@@ -1250,8 +1297,8 @@ begin
     query.SQL.Text :=
       'SELECT object_id, returntype, request, query, module '+
 			'FROM '+EcoDistrictSchemaId(projectID)+'.dm_queries';
-    query.open();
     try
+      query.open();
       query.First;
       while not query.Eof do
       begin
@@ -1261,9 +1308,13 @@ begin
         fDMQueries.Add(query.Fields[2].AsString,DMQuery);
         query.Next;
       end;
+      Result := True;
     except
-      on e: exception
-      do log.WriteLn('exception in TEcodistrictProject.ReadDMQueries: '+e.Message, llError);
+      on e: exception do
+      begin
+        log.WriteLn('exception in TEcodistrictProject.ReadDMQueries: '+e.Message, llError);
+        Result := False;
+      end;
     end;
   finally
     query.Free;
@@ -1280,7 +1331,7 @@ begin
   query := TFDQuery.Create(nil);
   try
     query.Connection := fDBConnection as TFDConnection;
-    query.SQL.Text := (aSender as TLayer).query;
+    query.SQL.Text := (aSender as TLayer).query; //+' limit 100'; // todo: remove limit!!
     (aSender as TLayer).ReadObjectsDBSVGPaths(query, NaN);
     (aSender as TLayer).RegisterLayer;
 
@@ -1380,11 +1431,8 @@ function TEcodistrictModule.forceReadOfDIObjectProperties(const aCaseId: string)
 var
   project: TProject;
 begin
-  if fProjects.TryGetValue(aCaseId, project) then
-  begin
-    (project as TEcodistrictProject).ReadDIObjectProperties;
-    Result := True;
-  end
+  if fProjects.TryGetValue(aCaseId, project)
+  then Result := (project as TEcodistrictProject).ReadDIObjectProperties
   else Result := False;
 end;
 
@@ -1392,11 +1440,8 @@ function TEcodistrictModule.forceReadOfDIQueries(const aCaseId: string): Boolean
 var
   project: TProject;
 begin
-  if fProjects.TryGetValue(aCaseId, project) then
-  begin
-    (project as TEcodistrictProject).ReadDIQueries;
-    Result := True;
-  end
+  if fProjects.TryGetValue(aCaseId, project)
+  then Result := (project as TEcodistrictProject).ReadDIQueries
   else Result := False;
 end;
 
@@ -1404,11 +1449,8 @@ function TEcodistrictModule.forceReadOfDMQueries(const aCaseId: string): Boolean
 var
   project: TProject;
 begin
-  if fProjects.TryGetValue(aCaseId, project) then
-  begin
-    (project as TEcodistrictProject).ReadDMQueries;
-    Result := True;
-  end
+  if fProjects.TryGetValue(aCaseId, project)
+  then Result := (project as TEcodistrictProject).ReadDMQueries
   else Result := False;
 end;
 
@@ -2082,7 +2124,7 @@ begin
           begin
             if forceReadOfDMQueries(_caseId)
             then _status := 'Success - read queries'
-            else _status := 'failed - case not loaded to read queries for';
+            else _status := 'failed - case not loaded to read dm-queries for or no queries found';
             jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
             DataEvent.signalString(JSONresponse.ToString);
           end
@@ -2091,7 +2133,7 @@ begin
           begin
             if forceReadOfDIQueries(_caseId)
             then _status := 'Success - read queries'
-            else _status := 'failed - case not loaded to read queries for';
+            else _status := 'failed - case not loaded to read di-queries for or no queries found';
             jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
             DataEvent.signalString(JSONresponse.ToString);
           end
@@ -2100,7 +2142,7 @@ begin
           begin
             if forceReadOfDIObjectProperties(_caseId)
             then _status := 'Success - read queries'
-            else _status := 'failed - case not loaded to read queries for';
+            else _status := 'failed - case not loaded to read di-object-properties for or no properties found';
             jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
             DataEvent.signalString(JSONresponse.ToString);
           end
