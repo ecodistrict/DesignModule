@@ -24,7 +24,10 @@
         <Projects Include="TilerServer\TilerDebugger.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\..\Test\TestEcoIntFout\TestEcoIntFout.dproj">
+        <Projects Include="EcoRestApi\EcoRestApi.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="TilerServer\TilerStatus.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -98,23 +101,32 @@
     <Target Name="TilerDebugger:Make">
         <MSBuild Projects="TilerServer\TilerDebugger.dproj" Targets="Make"/>
     </Target>
-    <Target Name="TestEcoIntFout">
-        <MSBuild Projects="..\..\Test\TestEcoIntFout\TestEcoIntFout.dproj"/>
+    <Target Name="EcoRestApi">
+        <MSBuild Projects="EcoRestApi\EcoRestApi.dproj"/>
     </Target>
-    <Target Name="TestEcoIntFout:Clean">
-        <MSBuild Projects="..\..\Test\TestEcoIntFout\TestEcoIntFout.dproj" Targets="Clean"/>
+    <Target Name="EcoRestApi:Clean">
+        <MSBuild Projects="EcoRestApi\EcoRestApi.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="TestEcoIntFout:Make">
-        <MSBuild Projects="..\..\Test\TestEcoIntFout\TestEcoIntFout.dproj" Targets="Make"/>
+    <Target Name="EcoRestApi:Make">
+        <MSBuild Projects="EcoRestApi\EcoRestApi.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="TilerStatus">
+        <MSBuild Projects="TilerServer\TilerStatus.dproj"/>
+    </Target>
+    <Target Name="TilerStatus:Clean">
+        <MSBuild Projects="TilerServer\TilerStatus.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TilerStatus:Make">
+        <MSBuild Projects="TilerServer\TilerStatus.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;TestEcoIntFout"/>
+        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;TilerStatus"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;TestEcoIntFout:Clean"/>
+        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;TilerStatus:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;TestEcoIntFout:Make"/>
+        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;TilerStatus:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
