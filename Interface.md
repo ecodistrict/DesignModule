@@ -33,15 +33,15 @@ Elements and actions in the user interface
 
 ## Connection to server <a name="connection"></a>
 
-The web interface uses a web socket connection to execute command, exchange data and state information with the servers. All communication over the web socket is in (GEO-)JSON. A large part of the web interface works as a visualization engine controller by the server via GEO-JSON commands. 
+The web interface uses a web socket connection to execute commands, exchange data and state information with the servers. All communication over the web socket is in (GEO-)JSON. A large part of the web interface works as a visualization engine controller by the server via (GEO-)JSON commands. 
 
-The state of the connection to the web socket is visualized with an icon left of the project name. The color of the icon changes to reflect a connected (green) and disconnected (red) session. A click on the icon toggle the the state from connected to disconnected or tries to reconnect to the server. When a disruption of the connection is noticed the icon is changed accordingly and temporarily a message is show in a red rounded square in the right upper corner of the interface.
+The state of the connection to the web socket is visualized with an icon left of the project name. The colour of the icon changes to reflect a connected (green) and disconnected (red) session. A click on the icon toggle the the state from connected to disconnected or tries to reconnect to the server. When a disruption of the connection is noticed the icon is changed accordingly and temporarily a message is show in a red rounded square in the right upper corner of the interface.
 
 The connection to the server is matched by a unique client object on the server side indirectly connected to the specific web socket of this session. A project and a current and reference variant are linked to this client object on the server side. Projects, and variants within projects, are managed in a pool and are shared over the different connected clients.
 
 ## Project <a name="project"></a>
 
-The current project is selected through the url calling the web interface main page. The parameter session=<session-id>$<variant-id>$<user-id> is parsed and passed via the connected web socket to connect to the active project on the server side.
+The current project is selected through the URL calling the web interface main page. The parameter session=<session-id>$<variant-id>$<user-id> is parsed and passed via the connected web socket to connect to the active project on the server side.
 
 The name of the connected project is always visible in the upper part of the interface. If selecting of variants is enabled from the server side a right click on the project name shows all available variants and options to select reference variants. Change the selections to select a different variant and reference for this connection/session.
 
@@ -86,7 +86,7 @@ There can be only one base map selected at a time. It is the layer shown on the 
  
 ## Basic layers <a name="basiclayers"></a>
 
-All object categories with a geo location can be viewed as a basic layer that only shows location without any coloring via a legend. These layers can be switched on and off to make selection of objects easier. 
+All object categories with a geo-location can be viewed as a basic layer that only shows location without any colouring via a legend. These layers can be switched on and off to make selection of objects easier. 
 
 ## Domains <a name="domains"></a>
 
