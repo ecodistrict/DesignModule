@@ -599,6 +599,7 @@ type
     procedure HandleException(aConnection: TConnection; aException: Exception);
     procedure HandleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
     procedure HandleTilerStatus(aEventEntry: TEventEntry; const aString: string);
+    procedure HandleTilerStatusRequest(aEventEntry: TEventEntry; aInt: Integer; const aString: string);
     procedure setURL(const aValue: string);
     procedure ClearCache;
   private
@@ -1255,15 +1256,8 @@ var
 begin
   TMonitor.Enter(fParentSlices);
   try
-    for parent in fParentSlices do
-    begin
-      parent.BeginUpdate;
-      try
-        parent.HandleDiffUpdate;
-      finally
-        parent.EndUpdate;
-      end;
-    end;
+    for parent in fParentSlices
+    do parent.HandleDiffUpdate;
   finally
     TMonitor.Exit(fParentSlices);
   end;
@@ -2663,7 +2657,8 @@ end;
 
 procedure TDiffSlice.BeginUpdate;
 begin
-  TMonitor.Enter(Self);
+  // todo: effective no locking needed for diff slice
+  //TMonitor.Enter(Self);
   inherited BeginUpdate;
 end;
 
@@ -2696,8 +2691,9 @@ end;
 
 procedure TDiffSlice.EndUpdate;
 begin
+  // todo: effective no locking needed for diff slice
   inherited EndUpdate;
-  TMonitor.Exit(Self);
+  //TMonitor.Exit(Self);
 end;
 
 procedure TDiffSlice.GenerateTileLock;
@@ -2743,16 +2739,11 @@ end;
 
 procedure TDiffSlice.RemoveChild(aChild: TSlice);
 begin
-  BeginUpdate;
-  try
-    if fCurrentSlice=aChild
-    then fCurrentSlice := nil;
-    if fRefSlice=aChild
-    then fRefSlice := nil;
-    HandleDiffUpdate;
-  finally
-    EndUpdate;
-  end;
+  if fCurrentSlice=aChild
+  then fCurrentSlice := nil;
+  if fRefSlice=aChild
+  then fRefSlice := nil;
+  HandleDiffUpdate;
 end;
 
 { TSliceDiffReceptor }
@@ -3540,11 +3531,12 @@ begin
                       begin
                         // todo: if specified do recalc of data now (triangulate for receptors)?
                         SignalRefresh(timeStamp);
-                        slice.HandleUpdateOfParents; // todo: is this the correct position or before slice.EndUpdate ?
+
                       end;
                     finally
                       slice.EndUpdate;
                     end;
+                    slice.HandleUpdateOfParents; // todo: is this the correct position or before slice.EndUpdate ?
                   end
                   else aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
                 end;
@@ -3751,6 +3743,7 @@ begin
     fConnectedServices := TStringList.Create;
     fConnection := TSocketConnection.Create('Tiler', 1, 'USIdle',
       GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
+
     fConnection.onDisconnect := HandleDisconnect;
     fConnection.onException := HandleException;
 
@@ -3779,6 +3772,7 @@ begin
     fTilerEvent := fConnection.subscribe('Tilers.'+GetFQDN.Replace('.', '_')); // todo: how to specify specific tiler (fqdn?), check
     fTilerEvent.OnEvent.Add(HandleTilerEvent);
     fTilerEvent.OnString.Add(HandleTilerStatus);
+    fTilerEvent.OnIntString.Add(HandleTilerStatusRequest);
     fTilerEvent.signalEvent(TByteBuffer.bb_tag_double(icehTilerStartup, now));
     Log.WriteLn('Finished startup');
   finally
@@ -3817,7 +3811,7 @@ begin
         if not (Assigned(fLayers) and fLayers.TryGetValue(aLayerID, layer))
         then layer := nil;
         if Assigned(layer)
-        then layer.WORMLock.BeginRead; //layer.Lock.Acquire; // lock layer itself inside layers lock
+        then layer.WORMLock.BeginRead; // lock layer itself inside layers lock
       finally
         globalModelAndLayersLock.EndRead;
       end;
@@ -3987,6 +3981,30 @@ begin
   except
     on e: Exception
     do log.WriteLn('Exception in TModel.HandleTilerStatus: '+e.Message, llError);
+  end;
+end;
+
+procedure TModel.HandleTilerStatusRequest(aEventEntry: TEventEntry; aInt: Integer; const aString: string);
+var
+  e: TEventEntry;
+  status: string;
+begin
+  case aInt of
+    actionStatus:
+      begin
+        if aString<>''
+        then e := aEventEntry.connection.publish(aString, False)
+        else e := aEventEntry;
+        try
+          if e.connection.connected
+          then status := 'connected'
+          else status := 'NOT connected';
+          e.signalString('{"id":"'+aEventEntry.connection.ModelName+'","status":"'+status+'"}');
+        finally
+          if aString<>''
+          then e.unPublish();
+        end;
+      end;
   end;
 end;
 
@@ -4188,39 +4206,6 @@ begin
     '</html>';
   Response.Content := html;
 end;
-{
-procedure TTilerWebModule.TilerWebModuleRegisterURLAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
-var
-  newURL: string;
-  html: string;
-begin
-  try
-    newURL := Request.QueryFields.Values[rpNewURL];
-    model.URL := newURL;
-    html :=
-      '<html>' +
-      '<head><title>Tiler</title></head>' +
-      '<body>TilerWebService<br/><br/>';
-    html := html+
-      //'<div><a href="'+newURL+'">set tiler url to '+newURL+'</a></div>';
-      '<div>set tiler url to '+newURL+'</div>'+
-      '<div><a href="'+string(Request.URL)+'">back</a></div>';
-    html := html+
-      '</body>' +
-      '</html>';
-    Response.Content := html;
-    Handled := True;
-  except
-    on E: Exception do
-    begin
-      Log.WriteLn('Exception in TilerWebModuleRegisterURLAction '+newURL+': '+E.Message, llError);
-      Response.StatusCode := HSC_ERROR_BADREQUEST;
-      Response.ContentType := 'text/plain';
-      Response.Content := 'Exception during registering URL '+newURL+' : '+E.Message;
-    end;
-  end;
-end;
-}
 
 procedure TTilerWebModule.TilerWebModuleRequestStatusAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
 var
@@ -4332,11 +4317,9 @@ procedure TTilerWebModule.WebModuleTilerRequestTileAction(Sender: TObject; Reque
 var
   extent: TExtent;
   layerID: Integer;
-  //bitmap: FMX.Graphics.TBitmap;
   zoomFactor: Integer;
   tileX, tiley: Integer;
   fileName: string;
-  //stream: TMemoryStream;
   stream: TStream;
   s: AnsiString;
   time: string;
@@ -4359,18 +4342,6 @@ begin
                        time.Substring(0,4).toInteger, time.Substring(4,2).toInteger, time.Substring(6,2).toInteger,
                        time.Substring(8,2).toInteger, time.Substring(10,2).toInteger, time.Substring(12,2).toInteger, 0)
       else timeStamp := 0;
-      //Log.WriteLn('tile request: '+fileName);
-      {
-      try
-        bitmap := FMX.Graphics.TBitmap.Create(TileSizeX, TileSizeY);
-      except
-        on E: Exception do
-        begin
-          Log.WriteLn('Exception in WebModuleTilerRequestTileAction, TBitmap.Create: '+E.Message, llError);
-          bitmap := nil;
-        end;
-      end;
-      }
     except
       on E: Exception
       do Log.WriteLn('Exception in WebModuleTilerRequestTileAction, decoding parameters: '+E.Message, llError);
@@ -4396,56 +4367,6 @@ begin
     finally
       stream.Free;
     end;
-    {
-    try
-      if Assigned(bitmap) then
-      begin
-        // handle request on model
-        Response.StatusCode := model.GenerateTile(layerID, timeStamp, extent, bitmap, fileName);
-        if (Response.StatusCode=HSC_SUCCESS_OK) or (Response.StatusCode=HSC_SUCCESS_CREATED) then
-        begin
-          try
-            // save to web response
-            stream := TMemoryStream.Create;
-            try
-              bitmap.SaveToStream(stream);
-              stream.Position := 0;
-              setlength(s, stream.Size);
-              Move(stream.Memory^, s[1], Length(s));
-              Response.ContentType := 'image/png';
-              Response.RawContent := s;
-            finally
-              stream.Free;
-            end;
-          except
-            on E: Exception
-            do Log.WriteLn('Exception in WebModuleTilerRequestTileAction, returning image: '+E.Message, llError);
-          end;
-        end
-        else
-        begin
-          try
-            Response.ContentType := 'text/plain';
-            Response.Content :=
-              'the requested tile could not be found or generated: '+
-              zoomFactor.ToString()+': '+tileX.ToString+' x '+tileY.ToString+' (time '+time+')';
-            Log.WriteLn('could not generate file '+fileName, llWarning);
-          except
-            on E: Exception
-            do Log.WriteLn('Exception in WebModuleTilerRequestTileAction, returning error code on tile generation: '+E.Message, llError);
-          end;
-        end;
-      end;
-      //else Log.WriteLn('TTilerWebModule.WebModuleTilerRequestTileAction: Could not create bitmap', llError);
-    finally
-      try
-        bitmap.Free;
-      except
-        on E: Exception
-        do Log.WriteLn('Exception in WebModuleTilerRequestTileAction, bitmap.Free: '+E.Message, llError);
-      end;
-    end;
-    }
     Handled := True;
   except
     on E: Exception do

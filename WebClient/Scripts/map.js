@@ -29,6 +29,8 @@ var overlayLayers = {
 var map = L.map('map', {
     center: [getParameterByName('lat', 52.08606), getParameterByName('lon', 5.17689)],
     zoom: getParameterByName('zoom', 11),
+    maxZoom: 18,
+    minZoom: 2,
     layers: [baseMapLayerGrayScale],
     contextmenu: true,
     contextmenuWidth: 140,
@@ -44,7 +46,7 @@ var map = L.map('map', {
 });
 
 function showCoordinates(e) {
-    alert(e.latlng); // todo: change to nicer view? or remove
+    alert(e.latlng+" (zoom:"+map._zoom+")"); // todo: change to nicer view? or remove
 }
 
 function deselectObjects(e) {

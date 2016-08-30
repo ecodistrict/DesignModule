@@ -488,7 +488,8 @@ type
 
   TProject = class
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean);
+    aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+    aMaxNearestObjectDistanceInMeters: Integer);
   destructor Destroy; override;
   private
     fMapView: TMapView;
@@ -503,6 +504,7 @@ type
     fProjectID: string;
     fProjectName: string;
     fProjectDescription: string;
+    fMaxNearestObjectDistanceInMeters: Integer;
     fTiler: TTiler;
     //fTilerEvent: TEventEntry;
     fDBConnection: TCustomConnection; // owns
@@ -539,6 +541,7 @@ type
     property ProjectName: string read fProjectName write setProjectName;
     property ProjectDescription: string read fProjectDescription write setProjectDescription;
     property ProjectEvent: TEventEntry read fProjectEvent;
+    property maxNearestObjectDistanceInMeters: Integer read fMaxNearestObjectDistanceInMeters;
     //property TilerEvent: TEventEntry read fTilerEvent;
     property tiler: TTiler read fTiler;
     property Timers: TTimerPool read fTimers;
@@ -801,23 +804,30 @@ function BuildDiffLegendJSON(
   aValueLess: Double; const aColorLess, aLabelLess: string;
   aValueNoChange: Double; const aColorNoChange, aLabelNoChange: string;
   aValueMore: Double; const aColorMore, aLabelMore: string): string;
+var
+  jsonTitle: TJSONString;
 begin
-  Result :=
-    '"scale": {'+
-      '"width": "300px",'+
-      '"title":"'+aTitle+'",'+
-      '"logScale":0,'+
-      '"tickFontSize": "11px",'+
-      '"gradients":['+
-        '{"color":"'+aColorLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
-        '{"color":"'+aColorNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
-        '{"color":"'+aColorMore+'","position":'+aValueMore.toString(dotFormat)+'}'+
-      '],'+
-      '"labels":['+
-        '{"description":"'+aLabelLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
-        '{"description":"'+aLabelNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
-        '{"description":"'+aLabelMore+'","position":'+aValueMore.ToString(dotFormat)+'}'+
-      ']}';
+  jsonTitle := TJSONString.Create(aTitle);
+  try
+    Result :=
+      '"scale": {'+
+        '"width": "300px",'+
+        '"title":'+jsonTitle.ToJSON+','+
+        '"logScale":0,'+
+        '"tickFontSize": "11px",'+
+        '"gradients":['+
+          '{"color":"'+aColorLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+          '{"color":"'+aColorNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+          '{"color":"'+aColorMore+'","position":'+aValueMore.toString(dotFormat)+'}'+
+        '],'+
+        '"labels":['+
+          '{"description":"'+aLabelLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+          '{"description":"'+aLabelNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+          '{"description":"'+aLabelMore+'","position":'+aValueMore.ToString(dotFormat)+'}'+
+        ']}';
+  finally
+    jsonTitle.Free;
+  end;
 end;
 
 procedure TDiffLayer.handleTilerInfo(aTilerLayer: TTilerLayer);
@@ -829,12 +839,12 @@ begin
   v := fCurrentLayer.diffRange;
   title := 'difference';
   if Assigned(fCurrentLayer.tilerLayer) and Assigned(fCurrentLayer.tilerLayer.palette)
-  then title := title+', '+fCurrentLayer.tilerLayer.palette.description;
+  then title := title+', '+FormatLegendDescription(fCurrentLayer.tilerLayer.palette.description);
   diffPalette := TRampPalette.Create(title, [
-    TRampPaletteEntry.Create($FFFF0000, -v, 'less'),
+    TRampPaletteEntry.Create($FF00FF00, -v, 'less'),
     TRampPaletteEntry.Create($FFFFFFFF, 0.0, 'no change'),
-    TRampPaletteEntry.Create($FF00FF00, v, 'more')],
-    $FFFF0000, 0, $FF00FF00);
+    TRampPaletteEntry.Create($FFFF0000, v, 'more')],
+    $FF00FF00, 0, $FFFF0000);
   fLegendJSON := BuildDiffLegendJSON(
     diffPalette.description,
     -v, '#00FF00', (-v).ToString(dotFormat),
@@ -1373,6 +1383,7 @@ begin
                 // todo:
 
               end;
+              // todo: temp removed for testing
               JSON := JSON+',"diff":{'+diffLayer.refJSON+'}';
             end
             else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref layer for '+layer.ID);
@@ -2857,7 +2868,8 @@ end;
 
 constructor TProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
-  aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean{; aSourceEPSG: Integer});
+  aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+  aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
 begin
   inherited  Create;
   fTimeSlider := aTimeSlider;
@@ -2875,6 +2887,7 @@ begin
   fProjectID := aProjectID;
   fProjectName := aProjectName;
   fProjectDescription := ''; // default no description set, set by property..
+  fMaxNearestObjectDistanceInMeters := aMaxNearestObjectDistanceInMeters;
   fTiler := TTiler.Create(aConnection, aTilerFQDN, aTilerStatusURL);
   fTiler.onTilerStartup := handleTilerStartup;
 //  fTilerEvent := aConnection.publish(aTilerEventName, False);

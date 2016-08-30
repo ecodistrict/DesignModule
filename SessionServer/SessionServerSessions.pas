@@ -34,6 +34,9 @@ const
   MaxEdgeLengthInMetersSwitchName = 'MaxEdgeLengthInMeters';
     DefaultMaxEdgeLengthInMeters = 250;
 
+  MaxNearestObjectDistanceInMetersSwitch = 'MaxNearestObjectDistanceInMeters';
+    DefaultMaxNearestObjectDistanceInMeters = 50;
+
   // NWB
   NWBLiveFeedProjectName = 'NWBLiveFeed';
   NWBLiveFeedRemoteHostSwitch = 'NWBLiveFeedRemoteHost';
@@ -188,7 +191,7 @@ type
 
   TUSProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean{; aSourceEPSG: Integer});
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
   destructor Destroy; override;
   private
     fUSDBScenarios: TObjectDictionary<Integer, TUSDBScenario>;
@@ -349,7 +352,8 @@ type
 
   TEcodistrictProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean);
+    aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+    aMaxNearestObjectDistanceInMeters: Integer);
   destructor Destroy; override;
   private
     function getDMQueries: TDictionary<string, TDMQuery>;
@@ -378,7 +382,8 @@ type
   end;
 
   TEcodistrictModule = class
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aConnectString, aTilerFQDN, aTilerStatusURL: string);
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aConnectString, aTilerFQDN, aTilerStatusURL: string;
+    aMaxNearestObjectDistanceInMeters: Integer);
   destructor Destroy; override;
   private
     fSessionModel: TSessionModel;
@@ -392,6 +397,7 @@ type
     fModuleEvent: TEventEntry;
     fCaseVariantManagementEvent: TEventEntry;
     fProjects: TDictionary<string, TProject>;
+    fMaxNearestObjectDistanceInMeters: Integer;
 
     function SchemaExists(aSchemaName: string): boolean;
     function SchemaCreate(aSchemaName: string; aFromSchemaName: string = 'public'): boolean;
@@ -492,7 +498,7 @@ type
 
   TNWBLiveFeedProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aLiveFeedConnection: TIMBConnection{IMB3}; aPalette: TWDPalette; const aShapeFilename: string);
+    aLiveFeedConnection: TIMBConnection{IMB3}; aPalette: TWDPalette; const aShapeFilename: string; aMaxNearestObjectDistanceInMeters: Integer);
   private
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
   public
@@ -503,7 +509,7 @@ type
 
 
 function CreateSessionProject(aSessionModel: TSessionModel; const aProjectID, aProjectName: string; aProjectType: TProjectType;
-  const aTilerFQDN, aTilerStatusURL, aConnectString: string): TProject;
+  const aTilerFQDN, aTilerStatusURL, aConnectString: string; aMaxNearestObjectDistanceInMeters: Integer): TProject;
 
 implementation
 
@@ -965,7 +971,7 @@ begin
         for l in layers do
         begin
           o := l.findNearestObject(dist, aX, aY, nearestObjectDistanceInMeters);
-          if assigned(o) then
+          if assigned(o) and (nearestObjectDistanceInMeters<fProject.maxNearestObjectDistanceInMeters) then
           begin
             nearestObjectLayer := l;
             nearestObject := o;
@@ -1073,7 +1079,7 @@ end;
 
 constructor TEcodistrictProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
   aTilerStatusURL: string; aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled,
-  aMeasuresHistoryEnabled, aAddBasicLayers: Boolean);
+  aMeasuresHistoryEnabled, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
 begin
   inherited;
   fDIObjectProperties := nil; // TObjectList<TDIObjectProperty>.Create;
@@ -1245,7 +1251,8 @@ begin
         'sql, tablename, idfieldname, geometryfieldname, datafieldname, '+ // text
         'layertype, '+ // integer
         'palettejson, legendjson '+ // text
-			'FROM '+EcoDistrictSchemaId(projectID)+'.di_queries';
+			'FROM '+EcoDistrictSchemaId(projectID)+'.di_queries '+
+      'WHERE defaultload >= 0'; // only load layers where default load >= 0 to make disabling layers easier
     try
       query.open();
       query.First;
@@ -1396,7 +1403,8 @@ end;
 
 { TEcodistrictModule }
 
-constructor TEcodistrictModule.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aConnectString, aTilerFQDN, aTilerStatusURL: string);
+constructor TEcodistrictModule.Create(aSessionModel: TSessionModel; aConnection: TConnection;
+  const aConnectString, aTilerFQDN, aTilerStatusURL: string; aMaxNearestObjectDistanceInMeters: Integer);
 begin
   // publish to dashboard
   // subscribe to modules
@@ -1408,6 +1416,7 @@ begin
   fTilerFQDN := aTilerFQDN;
   fTilerStatusURL := aTilerStatusURL;
   fProjects := TDictionary<string, TProject>.Create;//([doOwnsValues]);
+  fMaxNearestObjectDistanceInMeters := aMaxNearestObjectDistanceInMeters;
   InitPG;
   fDBConnection := TFDConnection.Create(nil);
   SetPGConnection(fDBConnection as TFDConnection, fConnectString);
@@ -1459,7 +1468,7 @@ begin
   // load the case as project
   if not fProjects.TryGetValue(aCaseId, Result) then
   begin
-    Result := CreateSessionProject(fSessionModel, aCaseId, '', ptEcoDistrict, fTilerFQDN, fTilerStatusURL, fConnectString);
+    Result := CreateSessionProject(fSessionModel, aCaseId, '', ptEcoDistrict, fTilerFQDN, fTilerStatusURL, fConnectString, fMaxNearestObjectDistanceInMeters);
     fProjects.Add(aCaseId, Result);
   end;
   //else already loaded
@@ -2639,46 +2648,6 @@ end;
 { TUSScenario }
 
 function TUSScenario.BuildLegendJSON(aMetaLayerEntry: TMetaLayerEntry; aLayer: TUSLayer; aLegendFormat: TLegendFormat): string;
-
-  function FormatLegendDescription(const aDescription: string): string;
-  var
-    p: integer;
-    i: Integer;
-    s: string;
-    v: Integer;
-  begin
-    Result := aDescription;
-    p := Pos('~~', Result);
-    while p<>0 do
-    begin
-      if (p>1) then
-      begin
-        Delete(Result, p, 2);
-        if Result[p-1]<>'-'
-        then Insert(' ', Result, p);
-      end
-      else
-      begin
-        Delete(Result, p, 2);
-        Insert(' ', Result, p);
-      end;
-      p := Pos('~~', Result);
-    end;
-    i := 1;
-    while i<Length(Result) do
-    begin
-      if (Result[i]='\') and (Result[i+1]<>'\') then
-      begin
-        s := Copy(Result, i+1, 3);
-        //v := (Ord(s[1])-Ord('0'))*8*8+(Ord(s[2])-Ord('0'))*8+(Ord(s[3])-Ord('0'));
-        v := StrToIntDef(s, 32);
-        Delete(Result, i, 4);
-        Insert(Chr(v), Result, i);
-      end;
-      i := i+1;
-    end;
-  end;
-
 var
   i: Integer;
 begin
@@ -3133,7 +3102,7 @@ end;
 { TUSProject }
 
 constructor TUSProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-  aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean);
+  aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
 var
   SourceEPSGstr: string;
   SourceEPSG: Integer;
@@ -3151,7 +3120,7 @@ begin
   end
   else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   fPreLoadScenarios := aPreLoadScenarios;
-  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, 0, False, False, False, addBasicLayers); //1, True, True, True);
+  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, 0, False, False, False, addBasicLayers, aMaxNearestObjectDistanceInMeters); //1, True, True, True);
 end;
 
 destructor TUSProject.Destroy;
@@ -3868,9 +3837,9 @@ end;
 
 constructor TNWBLiveFeedProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-  aLiveFeedConnection: TIMBConnection; aPalette: TWDPalette; const aShapeFilename: string);
+  aLiveFeedConnection: TIMBConnection; aPalette: TWDPalette; const aShapeFilename: string; aMaxNearestObjectDistanceInMeters: Integer);
 begin
-  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, nil, 0, False, False, False, False);
+  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, nil, 0, False, False, False, False, aMaxNearestObjectDistanceInMeters);
   {if aSourceEPSG>0
   then fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(aSourceEPSG)
   else }
@@ -3893,7 +3862,8 @@ end;
 
 { utils }
 
-function CreateSessionProject(aSessionModel: TSessionModel; const aProjectID, aProjectName: string; aProjectType: TProjectType; const aTilerFQDN, aTilerStatusURL, aConnectString: string): TProject;
+function CreateSessionProject(aSessionModel: TSessionModel; const aProjectID, aProjectName: string; aProjectType: TProjectType;
+  const aTilerFQDN, aTilerStatusURL, aConnectString: string; aMaxNearestObjectDistanceInMeters: Integer): TProject;
 var
   dbConnection: TCustomConnection;
   palette: TWDPalette;
@@ -3905,7 +3875,7 @@ begin
         (dbConnection as TOraSession).ConnectString := aConnectString;
         dbConnection.Open;
         Result := TUSProject.Create(aSessionModel, aSessionModel.Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
-          dbConnection, TMapView.Create(51.919775, 4.403763 {51.914852, 4.394151}, 13), false);
+          dbConnection, TMapView.Create(51.919775, 4.403763 {51.914852, 4.394151}, 13), false, aMaxNearestObjectDistanceInMeters);
         aSessionModel.Projects.Add(Result);
       end;
     ptEcoDistrict:
@@ -3913,7 +3883,7 @@ begin
         InitPG;
         dbConnection := TFDConnection.Create(nil);
         SetPGConnection(dbConnection as TFDConnection, aConnectString);
-        Result := TEcodistrictProject.Create(aSessionModel, aSessionModel.Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, dbConnection, 0, True, True, True, True);
+        Result := TEcodistrictProject.Create(aSessionModel, aSessionModel.Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, dbConnection, 0, True, True, True, True, aMaxNearestObjectDistanceInMeters);
         aSessionModel.Projects.Add(Result);
       end;
     ptNWBLiveFeed:
@@ -3933,7 +3903,8 @@ begin
             aSessionModel.Connection.ModelName, aSessionModel.Connection.ModelID,
             getSetting(NWBLiveFeedPrefixSwitch, DefaultNWBLiveFeedPrefix)),
           palette,
-          getSetting(NWBLiveFeedShapeFileNameSwitch, DefaultNWBLiveFeedShapeFileName));
+          getSetting(NWBLiveFeedShapeFileNameSwitch, DefaultNWBLiveFeedShapeFileName),
+          aMaxNearestObjectDistanceInMeters);
         aSessionModel.Projects.Add(Result);
       end
   else

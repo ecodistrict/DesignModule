@@ -62,7 +62,8 @@ begin
           tilerFQDN := GetSetting(TilerNameSwitch, DefaultTilerName);
           Log.WriteLn('Tiler name: '+tilerFQDN);
           // nwb live feed
-          //CreateSessionProject(sessionModel, '1234'{'rotterdam'}, 'Rotterdam dashboard', ptNWBLiveFeed, tilerFQDN, ''); {todo: NWBLiveFeedProjectName}
+//          CreateSessionProject(sessionModel, '1234'{'rotterdam'}, 'Rotterdam dashboard', ptNWBLiveFeed, tilerFQDN, '', '',
+//            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters)); {todo: NWBLiveFeedProjectName}
 
           // ecodistrict module
           ecodistrictModule := TEcodistrictModule.Create(
@@ -75,7 +76,8 @@ begin
             'Database='+GetSetting('EcoDBDatabase', 'Warsaw')+';'+
             'PGAdvanced=sslmode=require',
             tilerFQDN,
-            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)));
+            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
 
           // inquire existing session and rebuild internal sessions..
           imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(

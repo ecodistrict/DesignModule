@@ -205,7 +205,8 @@ begin
     GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
     dbConnection,
     mapView,
-    preLoadScenarios);
+    preLoadScenarios,
+    GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
   fSessionModel.Projects.Add(project);
 
   // for now

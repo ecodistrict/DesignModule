@@ -129,7 +129,8 @@ begin
       'Database='+GetSetting('EcoDBDatabase', '')+';'+
       'PGAdvanced=sslmode=require',
       fTilerFQDNName,
-      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(fTilerFQDNName)));
+      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(fTilerFQDNName)),
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
     Log.WriteLn('Publishing server started ecodistrict module');
 
     // inquire existing session and rebuild internal sessions..
