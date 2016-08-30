@@ -1,3 +1,4 @@
+
 url to web server that hosts client app
 pass project in client app url
 client app connects to websocket, sends project and aquires client id
