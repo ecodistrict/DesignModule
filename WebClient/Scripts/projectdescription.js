@@ -7,9 +7,15 @@ L.control.projectDescription.showScenarios = function () {
         var div = modalDialogCreate('Scenarios', 'choose the active and the reference scenario');
         div.style.width = '800px';
         div.style.margin = '5% auto';
+        
         // build dialog form
         var f = div.appendChild(document.createElement('form'));
         f.id = 'selectScenariosForm';
+        var height = window.innerHeight - 200;
+        //set max-height and scrollbars if window is small
+        f.style.maxHeight = '' + height + 'px';
+        f.style.overflow = "auto";
+        window.addEventListener("resize", calculateSize);
 
         var rb2 = f.appendChild(document.createElement('input'));
         rb2.className = 'selectReferenceScenarioRadio';
@@ -54,6 +60,24 @@ L.control.projectDescription.showScenarios = function () {
         modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
     }
 };
+
+function calculateSize() {
+    var div = document.getElementById("selectScenariosForm")
+
+    //check if element still excists otherwise remove the eventlistener
+    if (div == null)
+    {
+        window.removeEventListener("resize", calculateSize);
+        return;
+    }
+
+    //get the current window height
+    var height = window.innerHeight - 200;
+
+    //set max-height and scrollbars if window is small but not too small
+    div.style.maxHeight = "" + height + 'px';
+    div.style.overflow = "auto";
+}
 
 function selectRefScenario(e) {
     var referenceScenario = e.currentTarget.defaultReference;

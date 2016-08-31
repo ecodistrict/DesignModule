@@ -17,8 +17,8 @@
     margin-left: 0;
     /*padding: 0; */
     /*margin: 0; */
-    max-height: 300px; /* todo: adjust to height screen */
-    overflow-y:scroll;
+    /*max-height: 300px; /* todo: adjust to height screen */
+    /*overflow-y:scroll;*/
 }
 
 .selectScenarioLI {
