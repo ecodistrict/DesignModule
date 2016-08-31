@@ -237,6 +237,8 @@ type
     property radius: Double read fRadius write fRadius;
   end;
 
+  TGenerateTileStatus = (gtsFailed, gtsOk, gtsRestart);
+
   TSlice = class
   constructor Create(aLayer: TLayer; aTimeStamp: TDateTime=0);
   destructor Destroy; override;
@@ -246,25 +248,30 @@ type
     fTimeStamp: TDateTime;
     fDataVersion: Integer;
     fMaxExtent: TExtent;
+    fTileLock: TOmniMREW;
+    fDataLock: TOmniMREW;
   protected
     function TimeFolder: string;
   protected
     // tile generation
-    procedure GenerateTileLock; virtual; abstract;
+    //procedure GenerateTileLock; virtual; abstract;
+    function doGenerateTilePreCalc: Boolean; virtual;
     function GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean; virtual;
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; virtual; abstract;
-    procedure GenerateTileUnLock; virtual; abstract;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; virtual; abstract;
+    //procedure GenerateTileUnLock; virtual; abstract;
+    function getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus; virtual;
   public
-    function GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;{aBitmap: FMX.Graphics.TBitmap; }const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool=nil): Integer; virtual;
+    function GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer; const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool=nil): Integer; virtual;
+    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; virtual;
   public
     property timeStamp: TDateTime read fTimeStamp;
     function id: string;
-    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; virtual;
     // updating data
     procedure BeginUpdate; virtual;
     procedure EndUpdate; virtual;
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; virtual;
     procedure HandleUpdateOfParents;
+    procedure AddParent(aParent: TDiffSlice);
     procedure RemoveParent(aParent: TDiffSlice);
   public
     procedure Load(aStream: TStream); virtual; // todo: abstract;
@@ -278,19 +285,19 @@ type
   private
     fPalette: TWDPalette; // own
     fNet: TDLNet; // own
-    fNetTriangulateLock: TCriticalSection;
-    fNetLock: TOmniMREW; // TCriticalSection;
   protected
     // tile generation
-    procedure GenerateTileLock; override;
+    //procedure GenerateTileLock; override;
+    function doGenerateTilePreCalc: Boolean; override;
     function GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean; override;
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
-    procedure GenerateTileUnLock; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    //procedure GenerateTileUnLock; override;
+    function getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus; override;
   public
-    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
+//    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
     // for updating data
     procedure BeginUpdate; override;
-    procedure EndUpdate; override;
+//    procedure EndUpdate; override;
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
   end;
 
@@ -310,23 +317,22 @@ type
     fGeometries: TObjectDictionary<TWDID, TSliceGeometryObject>;
   protected
     // tile generation
-    procedure GenerateTileLock; override;
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
-    procedure GenerateTileUnLock; override;
+    //procedure GenerateTileLock; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    //procedure GenerateTileUnLock; override;
+    function getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus; override;
   public
-    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
     // for updating data
-    procedure BeginUpdate; override;
-    procedure EndUpdate; override;
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
   end;
 
   TSliceGeometryI = class(TSliceGeometry)
   protected
     // tile generation
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
-  public
-    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    function getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus; override;
+//  public
+//    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
   end;
 
   TSliceGeometryIC = class(TSliceOutLineFill)
@@ -337,14 +343,13 @@ type
     fGeometries: TObjectDictionary<TWDID, TSliceGeometryICObject>;
   protected
     // tile generation
-    procedure GenerateTileLock; override;
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
-    procedure GenerateTileUnLock; override;
+    //procedure GenerateTileLock; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    //procedure GenerateTileUnLock; override;
+    function getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus; override;
   public
-    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
+//    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
     // for updating data
-    procedure BeginUpdate; override;
-    procedure EndUpdate; override;
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
   end;
 
@@ -356,14 +361,13 @@ type
     fGeometries: TObjectDictionary<TWDID, TSliceGeometryICLRObject>;
   protected
     // tile generation
-    procedure GenerateTileLock; override;
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
-    procedure GenerateTileUnLock; override;
+    //procedure GenerateTileLock; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    //procedure GenerateTileUnLock; override;
+    function getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus; override;
   public
-    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
+//    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
     // for updating data
-    procedure BeginUpdate; override;
-    procedure EndUpdate; override;
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
   end;
 
@@ -383,15 +387,13 @@ type
     // todo: zoom handler
   protected
     // tile generation
-    procedure GenerateTileLock; override;
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
-    procedure GenerateTileUnLock; override;
+    //procedure GenerateTileLock; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    //procedure GenerateTileUnLock; override;
   public
     property Images: TObjectList<FMX.Graphics.TBitmap> read fImages;
     // no PointValue
     // for updating data
-    procedure BeginUpdate; override;
-    procedure EndUpdate; override;
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
   end;
 
@@ -405,14 +407,12 @@ type
     fDiscreteColorsOnStretch: Boolean;
   protected
     // tile generation
-    procedure GenerateTileLock; override;
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
-    procedure GenerateTileUnLock; override;
+    //procedure GenerateTileLock; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    //procedure GenerateTileUnLock; override;
   public
     // no PointValue
     // for updating data
-    procedure BeginUpdate; override;
-    procedure EndUpdate; override;
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
   end;
 
@@ -424,14 +424,13 @@ type
     fLocations: TObjectDictionary<TWDID, TSliceLocationObject>;
   protected
     // tile generation
-    procedure GenerateTileLock; override;
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
-    procedure GenerateTileUnLock; override;
+    //procedure GenerateTileLock; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    //procedure GenerateTileUnLock; override;
+    function getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus; override;
   public
-    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
+//    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
     // for updating data
-    procedure BeginUpdate; override;
-    procedure EndUpdate; override;
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
   end;
 
@@ -442,18 +441,19 @@ type
     fCurrentSlice: TSlice; // ref
     fRefSlice: TSlice; // ref
   protected
-    procedure GenerateTileLock; override;
-    function GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean; override;
-    procedure GenerateTileUnLock; override;
+    //procedure GenerateTileLock; override;
+    //function GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean; override;
+    //procedure GenerateTileUnLock; override;
+  public
+    function GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer; const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool=nil): Integer; override;
+    function getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus; override;
   public
     procedure RemoveChild(aChild: TSlice);
     // for updating data
-    procedure BeginUpdate; override;
-    procedure EndUpdate; override;
     procedure HandleDiffUpdate; virtual;
-  public
+//  public
     // generic diff point value
-    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
+//    function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; override;
   end;
 
   TSliceDiffReceptor = class(TDiffSlice)
@@ -465,7 +465,7 @@ type
   protected
   protected
     // tile generation
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
   end;
 
   TSliceDiffOutLineFill = class(TDiffSlice)
@@ -481,7 +481,7 @@ type
   constructor Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer); overload;
   protected
     // tile generation
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
   end;
 
   TSliceDiffGeometryI = class(TSliceDiffOutLineFill)
@@ -489,7 +489,7 @@ type
   constructor Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer); overload;
   protected
     // tile generation
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
   end;
 
   TSliceDiffGeometryIC = class(TSliceDiffOutLineFill)
@@ -497,7 +497,7 @@ type
   constructor Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer); overload;
   protected
     // tile generation
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
   end;
 
   TSliceDiffGeometryICLR = class(TSliceDiffOutLineFill)
@@ -505,7 +505,7 @@ type
   constructor Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer); overload;
   protected
     // tile generation
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
   end;
 
   TSliceDiffPOI = class(TDiffSlice)
@@ -519,7 +519,7 @@ type
     fColorNewPOI: TAlphaRGBPixel;
   protected
     // tile generation
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
   end;
 
   TSliceDiffPNG = class(TDiffSlice)
@@ -528,7 +528,7 @@ type
   destructor Destroy; override;
   protected
     // tile generation
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
   end;
 
   TSliceDiffLocation = class(TSliceDiffOutLineFill)
@@ -536,7 +536,7 @@ type
   constructor Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer); overload;
   protected
     // tile generation
-    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean; override;
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
   end;
 
   TModel = class; // forward
@@ -761,6 +761,46 @@ begin
   until (aZoomFactor=0) or ((aX=x2) and (aY=y2));
 end;
 
+function getFQDN: string;
+var
+  nSize: DWORD;
+begin
+  nSize := 0;
+  GetComputerNameEx(ComputerNameDnsFullyQualified, nil, nSize);
+  setLength(Result, nSize);
+  if GetComputerNameEx(ComputerNameDnsFullyQualified, PChar(Result), nSize) then
+  begin
+    // strip terminating 0
+    while Result.EndsWith(#0)
+    do Result := Result.Substring(0, Length(Result)-1);
+  end
+  else Result := '';
+end;
+
+procedure deleteDirectory(const aDirectoryName: string);
+var
+  path: string;
+  F: TSearchRec;
+begin
+  path := IncludeTrailingPathDelimiter(aDirectoryName);
+  if FindFirst(path+'*.*', faAnyFile, F) = 0 then
+  begin
+    try
+      repeat
+        if (F.Attr and faDirectory) <> 0 then
+        begin
+          if (F.Name <> '.') and (F.Name <> '..')
+          then deleteDirectory(path+F.Name);
+        end
+        else DeleteFile(path+F.Name);
+      until FindNext(F) <> 0;
+    finally
+      FindClose(F);
+    end;
+    RemoveDir(aDirectoryName);
+  end;
+end;
+
 { TOmniMREW }
 
 // copy of BeginWrite
@@ -870,11 +910,6 @@ begin
 end;
 
 { TSessionExtent }
-
-//function TExtentHelper.AsStringInt: string;
-//begin
-//  Result := IntToStr(Round(xMin))+' x '+IntToStr(Round(yMin))+' - '+IntToStr(Round(xMax))+' x '+IntToStr(Round(yMax))
-//end;
 
 function TExtentHelper.Center: TPointF;
 begin
@@ -1091,8 +1126,19 @@ end;
 
 { TSlice }
 
+procedure TSlice.AddParent(aParent: TDiffSlice);
+begin
+  TMonitor.Enter(fParentSlices);
+  try
+    fParentSlices.Add(aParent);
+  finally
+    TMonitor.Exit(fParentSlices);
+  end;
+end;
+
 procedure TSlice.BeginUpdate;
 begin
+  fDataLock.BeginWrite;
   fDataVersion := fDataVersion+1; // trigger new set of tiles in cache
 end;
 
@@ -1104,6 +1150,8 @@ begin
   fTimeStamp := aTimeStamp;
   fDataVersion := 0;
   fMaxExtent := TExtent.Create;
+  fTileLock.Create;
+  fDataLock.Create;
 end;
 
 destructor TSlice.Destroy;
@@ -1122,9 +1170,14 @@ begin
   inherited;
 end;
 
+function TSlice.doGenerateTilePreCalc: Boolean;
+begin
+  Result := False; // default no pre calc needed
+end;
+
 procedure TSlice.EndUpdate;
 begin
-  // default no action
+  fDataLock.EndWrite;
 end;
 
 function TSlice.GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;{aBitmap: FMX.Graphics.TBitmap;} const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
@@ -1132,14 +1185,101 @@ var
   bitmapFileName: string;
   fileStream: TStream;
   bitmap: FMX.Graphics.TBitmap;
+  status: TGenerateTileStatus;
 begin
-  //Log.WriteLn('TSlice.GenerateTile');
   Result := HSC_ERROR_NOT_FOUND; // sentinel
+  status  := gtsRestart; // sentinel
+  repeat
+    // pre calc phase, potentially write lock of tile -> only when not avoidable
+    if doGenerateTilePreCalc then
+    begin
+      fTileLock.BeginWrite;
+      try
+        GenerateTilePreCalc(aThreadPool);
+      finally
+        fTileLock.EndWrite;
+      end;
+    end;
+    // tile generation phase, max read lock of tile
+    fTileLock.BeginRead;
+    try
+      bitmapFileName := aCacheFolder+TimeFolder+aFileName;
+      // try cache first
+      if (aCacheFolder<>'') and FileExists(bitmapFileName) then
+      begin
+        try
+          fileStream := TFileStream.Create(bitmapFileName, fmOpenRead+fmShareDenyWrite);
+          try
+            aStream.CopyFrom(fileStream, fileStream.Size);
+          finally
+            fileStream.Free;
+          end;
+          Result := HSC_SUCCESS_OK;
+          status := gtsOk;
+        except
+          on E: Exception do
+          begin
+            Log.WriteLn('Exception loading tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+            //Result := HSC_ERROR_NOT_FOUND; // sentinel
+          end;
+        end;
+      end
+      else
+      begin
+        try
+          bitmap := FMX.Graphics.TBitmap.Create(aWidthPixels, aHeightPixels);
+          try
+            status := GenerateTileCalc(aExtent, bitmap, (aExtent.XMax-aExtent.XMin)/bitmap.Width, (aExtent.YMax-aExtent.YMin)/bitmap.Height);
+            if status=gtsOk then
+            begin
+              if aCacheFolder<>'' then
+              begin
+                // save tile bitmap
+                try
+                  ForceDirectories(ExtractFileDir(bitmapFileName));
+                  fileStream := TFileStream.Create(bitmapFileName, fmCreate+fmShareExclusive);
+                  try
+                    bitmap.SaveToStream(fileStream);
+                  finally
+                    fileStream.Free;
+                  end;
+                except
+                  on E: Exception do
+                  begin
+                    Log.WriteLn('Exception saving tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+                  end;
+                end;
+              end;
+              // return stream
+              bitmap.SaveToStream(aStream);
+              Result := HSC_SUCCESS_CREATED;
+              status := gtsOk;
+            end
+            else
+            begin
+              if status=gtsFailed
+              then Log.WriteLn('could not calculate tile '+TimeFolder+aFileName, llError)
+              else Log.WriteLn('retry on calculating tile '+TimeFolder+aFileName, llWarning);
+            end;
+          finally
+            bitmap.Free;
+          end;
+        except
+          on E: Exception do
+          begin
+            Log.WriteLn('Exception creating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+          end;
+        end;
+      end;
+    finally
+      fTileLock.EndRead;
+    end;
+  until status<>gtsRestart;
+  {
   GenerateTileLock;
   try
-    //Log.WriteLn('TSlice.GenerateTile before GenerateTilePreCalc');
     GenerateTilePreCalc(aThreadPool);
-    //Log.WriteLn('TSlice.GenerateTile after GenerateTilePreCalc');
+
     bitmapFileName := aCacheFolder+TimeFolder+aFileName;
     if (aCacheFolder<>'') and FileExists(bitmapFileName) then
     begin
@@ -1150,16 +1290,6 @@ begin
         finally
           fileStream.Free;
         end;
-        //Log.WriteLn('loading existing bitmap '+TimeFolder+aFileName);
-        {
-        stream := TFileStream.Create(bitmapFileName, fmOpenRead+fmShareDenyWrite);
-        try
-          aBitMap.LoadFromStream(stream);
-        finally
-          stream.Free;
-        end;
-        }
-        //Log.WriteLn('returned existing bitmap '+TimeFolder+aFileName);
         Result := HSC_SUCCESS_OK;
       except
         on E: Exception do
@@ -1175,15 +1305,12 @@ begin
         try
           if GenerateTileCalc(aExtent, bitmap, (aExtent.XMax-aExtent.XMin)/bitmap.Width, (aExtent.YMax-aExtent.YMin)/bitmap.Height) then
           begin
-            //Log.WriteLn('generated bitmap '+TimeFolder+aFileName);
             Result := HSC_SUCCESS_CREATED;
             if aCacheFolder<>'' then
             begin
               // save tile bitmap
               try
-                //Log.WriteLn('create directory '+ExtractFileDir(bitmapFileName));
                 ForceDirectories(ExtractFileDir(bitmapFileName));
-                //Log.WriteLn('Save bitmap '+bitmapFileName);
                 fileStream := TFileStream.Create(bitmapFileName, fmCreate+fmShareDenyWrite);
                 try
                   bitmap.SaveToStream(fileStream);
@@ -1210,37 +1337,23 @@ begin
           Log.WriteLn('Exception creating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
         end;
       end;
-      {
-      //Log.WriteLn('generating bitmap '+TimeFolder+aFileName);
-      if GenerateTileCalc(aExtent, aBitmap, (aExtent.XMax-aExtent.XMin)/aBitmap.Width, (aExtent.YMax-aExtent.YMin)/aBitmap.Height) then
-      begin
-        //Log.WriteLn('generated bitmap '+TimeFolder+aFileName);
-        Result := HSC_SUCCESS_CREATED;
-        if aCacheFolder<>'' then
-        begin
-          // save tile bitmap
-          //Log.WriteLn('create directory '+ExtractFileDir(bitmapFileName));
-          ForceDirectories(ExtractFileDir(bitmapFileName));
-          //Log.WriteLn('Save bitmap '+bitmapFileName);
-          stream := TFileStream.Create(bitmapFileName, fmOpenWrite+fmShareExclusive);
-          try
-            aBitmap.SaveToStream(stream);
-          finally
-            stream.Free;
-          end;
-        end;
-      end
-      else Log.WriteLn('could not calculate tile '+TimeFolder+aFileName, llError);
-      }
     end;
   finally
     GenerateTileUnLock;
   end;
+  }
 end;
 
 function TSlice.GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean;
 begin
   Result := True; // asume OK
+end;
+
+function TSlice.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
+begin
+  // defaults
+  aValue := NaN;
+  Result := gtsFailed;
 end;
 
 function TSlice.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
@@ -1276,8 +1389,29 @@ begin
 end;
 
 function TSlice.PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool): Double;
+var
+  status: TGenerateTileStatus;
 begin
-  Result := NaN;
+  Result := NaN; // sentinel
+  status  := gtsRestart; // sentinel
+  repeat
+    // pre calc phase, potentially write lock of tile -> only when not avoidable
+    if doGenerateTilePreCalc then
+    begin
+      fTileLock.BeginWrite;
+      try
+        GenerateTilePreCalc(aThreadPool);
+      finally
+        fTileLock.EndWrite;
+      end;
+    end;
+    // value phase
+    status := getDataValueAtPoint(aLat, aLon, Result);
+    if status=gtsRestart
+    then Log.WriteLn('retry on point value '+TimeFolder+': lat='+aLat.ToString+', lon='+aLon.ToString, llWarning)
+    else if status=gtsFailed
+    then Log.WriteLn('could not calculate point value '+TimeFolder+': lat='+aLat.ToString+', lon='+aLon.ToString, llError);
+  until status<>gtsRestart;
 end;
 
 procedure TSlice.RemoveParent(aParent: TDiffSlice);
@@ -1307,25 +1441,24 @@ begin
   inherited Create(aLayer, aTimeStamp);
   fPalette := aPalette;
   fNet := TDLNet.Create;
-  fNetLock.Create;
-  fNetTriangulateLock := TCriticalSection.Create;
+  //fNetLock.Create;
 end;
 
-procedure TSliceReceptor.GenerateTileLock;
-begin
-  fNetLock.BeginRead;
-end;
+//procedure TSliceReceptor.GenerateTileLock;
+//begin
+//  fNetLock.BeginRead;
+//end;
 
 // returns true if the net is triangulated
 function TSliceReceptor.GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean;
 var
   distLatLon: TDistanceLatLon;
 begin
-  fNetTriangulateLock.Acquire;
-  try
-    // check if triangles need to be calculated
-    if not Assigned(fNet.Triangles) then
-    begin
+  // check if triangles need to be calculated
+  if not Assigned(fNet.Triangles) then
+  begin
+    fDataLock.BeginWrite;
+    try
       Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': triangulating '+fNet.Points.Count.ToString+' points');
       // use first point as reference for max edge length
       if fNet.Points.Count>0 then
@@ -1336,18 +1469,32 @@ begin
         Result := True;
       end
       else Result := False;
+    finally
+      fDataLock.EndWrite;
+    end;
+  end
+  else Result := True;
+end;
+
+function TSliceReceptor.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
+begin
+  fDataLock.BeginRead;
+  try
+    if Assigned(fNet.Triangles) then
+    begin
+      aValue := fNet.PointToValue(TDLPoint.Create(aLon, aLat), NaN);
+      Result := gtsOk;
     end
-    else Result := True;
+    else Result := gtsRestart;
   finally
-    fNetTriangulateLock.Release;
+    fDataLock.EndRead;
   end;
 end;
 
 procedure TSliceReceptor.BeginUpdate;
 begin
-  fNetLock.BeginWrite;
-  fNet.AbortTriangulation;
   inherited BeginUpdate;
+  fNet.AbortTriangulation;
 end;
 
 constructor TSliceReceptor.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
@@ -1361,22 +1508,27 @@ destructor TSliceReceptor.Destroy;
 begin
   FreeAndNil(fPalette);
   FreeAndNil(fNet);
-  FreeAndNil(fNetTriangulateLock);
+  //FreeAndNil(fNetTriangulateLock);
   inherited;
 end;
 
-procedure TSliceReceptor.GenerateTileUnLock;
+function TSliceReceptor.doGenerateTilePreCalc: Boolean;
 begin
-  fNetLock.EndRead;
+  Result := not Assigned(fNet.Triangles);
 end;
 
-procedure TSliceReceptor.EndUpdate;
-begin
-  inherited EndUpdate;
-  fNetLock.EndWrite;
-end;
+//procedure TSliceReceptor.GenerateTileUnLock;
+//begin
+//  fNetLock.EndRead;
+//end;
 
-function TSliceReceptor.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+//procedure TSliceReceptor.EndUpdate;
+//begin
+//  inherited EndUpdate;
+//  fNetLock.EndWrite;
+//end;
+
+function TSliceReceptor.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   data: FMX.Graphics.TBitmapData;
   triangleCursor: TDLTriangle;
@@ -1384,48 +1536,52 @@ var
   col: Integer;
   x, y: TDLCoordinate;
 begin
-  Result := False; // sentinel
+  Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
   begin
-//    if Assigned(aBitmap)
-//    then Log.WriteLn('TSliceReceptor.GenerateTileCalc: map bitmap')
-//    else Log.WriteLn('TSliceReceptor.GenerateTileCalc: bitmap=nil', llError);
-    if aBitmap.Map(TMapAccess.Write, data) then
-    begin
-      try
-//        Log.WriteLn('TSliceReceptor.GenerateTileCalc: mapped bitmap');
-        if Assigned(data.data) then
+    fDataLock.BeginRead;
+    try
+      if Assigned(fNet.Triangles) then
+      begin
+        if aBitmap.Map(TMapAccess.Write, data) then
         begin
-//          Log.WriteLn('generate tile from net');
-          triangleCursor := nil;
-          for row := 0 to aBitmap.Height-1 do
-          begin
-            y := aExtent.YMax-(row+0.5)*aPixelHeight;
-            if (row mod 2)=0 then
+          try
+            if Assigned(data.data) then
             begin
-              for col := 0 to aBitmap.Width-1 do
+              triangleCursor := nil;
+              for row := 0 to aBitmap.Height-1 do
               begin
-                x := aExtent.XMin+(col+0.5)*aPixelWidth;
-                data.SetPixel(col, row, fPalette.ValueToColors(fNet.ValueAtPoint(triangleCursor, x, y, NaN)).fillColor);
+                y := aExtent.YMax-(row+0.5)*aPixelHeight;
+                if (row mod 2)=0 then
+                begin
+                  for col := 0 to aBitmap.Width-1 do
+                  begin
+                    x := aExtent.XMin+(col+0.5)*aPixelWidth;
+                    data.SetPixel(col, row, fPalette.ValueToColors(fNet.ValueAtPoint(triangleCursor, x, y, NaN)).fillColor);
+                  end;
+                end
+                else
+                begin
+                  for col := aBitmap.Width-1 downto 0 do
+                  begin
+                    x := aExtent.XMin+(col+0.5)*aPixelWidth;
+                    data.SetPixel(col, row, fPalette.ValueToColors(fNet.ValueAtPoint(triangleCursor, x, y, NaN)).fillColor);
+                  end;
+                end;
               end;
+              Result := gtsOk; //HSC_SUCCESS_CREATED;
             end
-            else
-            begin
-              for col := aBitmap.Width-1 downto 0 do
-              begin
-                x := aExtent.XMin+(col+0.5)*aPixelWidth;
-                data.SetPixel(col, row, fPalette.ValueToColors(fNet.ValueAtPoint(triangleCursor, x, y, NaN)).fillColor);
-              end;
-            end;
+            else Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': data=nil out of map bitmap', llError);
+          finally
+            aBitmap.Unmap(data);
           end;
-          Result := True; //HSC_SUCCESS_CREATED;
         end
-        else Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': data=nil out of map bitmap', llError);
-      finally
-        aBitmap.Unmap(data);
-      end;
-    end
-    else Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': could not map bitmap', llWarning);
+        else Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': could not map bitmap', llWarning);
+      end
+      else Result := gtsRestart;
+    finally
+      fDataLock.EndRead;
+    end;
   end
   else Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': no palette defined', llError);
 end;
@@ -1439,75 +1595,68 @@ var
   value: Double;
   i: Integer;
 begin
-  Result := True; // trigger refresh
-  value := NaN;
-  id := '';
-  point := TWDGeometryPoint.Create;
+  BeginUpdate;
   try
-    while aCursor<aLimit do
-    begin
-      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-      case fieldInfo of
-        //(icehSliceID shl 3) or wt64Bit:
-        (icehObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aBuffer.bb_read_rawbytestring(aCursor);
-            // find point
-            i := fNet.Points.IndexOf(StrToIntDef(string(id), -1));
-            if i<0
-            then fNet.Points.Add(TDLPoint.Create(point.x, point.y, value, StrToIntDef(string(id), -1)))
-            else
+    Result := True; // trigger refresh
+    value := NaN;
+    id := '';
+    point := TWDGeometryPoint.Create;
+    try
+      while aCursor<aLimit do
+      begin
+        fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+        case fieldInfo of
+          //(icehSliceID shl 3) or wt64Bit:
+          (icehObjectID shl 3) or wtLengthDelimited:
             begin
-              if not IsNaN(point.x) then
+              id := aBuffer.bb_read_rawbytestring(aCursor);
+              // find point
+              i := fNet.Points.IndexOf(StrToIntDef(string(id), -1));
+              if i<0
+              then fNet.Points.Add(TDLPoint.Create(point.x, point.y, value, StrToIntDef(string(id), -1)))
+              else
               begin
-                fNet.Points[i].x  := point.x;
-                fNet.Points[i].y  := point.y;
-                point.x := NaN;
-              end;
-              if not IsNaN(value) then
-              begin
-                fNet.Points[i].Value := value;
-                value := NaN;
+                if not IsNaN(point.x) then
+                begin
+                  fNet.Points[i].x  := point.x;
+                  fNet.Points[i].y  := point.y;
+                  point.x := NaN;
+                end;
+                if not IsNaN(value) then
+                begin
+                  fNet.Points[i].Value := value;
+                  value := NaN;
+                end;
               end;
             end;
-          end;
-        (icehTilerValue shl 3) or wt64Bit:
-          begin
-            value := aBuffer.bb_read_double(aCursor);
-          end;
-        (icehTilerGeometryPoint shl 3) or wtLengthDelimited:
-          begin
-            len := aBuffer.bb_read_uint64(aCursor);
-            point.Decode(aBuffer, aCursor, aCursor+len);
-            if fMaxExtent.IsEmpty
-            then fMaxExtent.Init(point.x, point.y)
-            else fMaxExtent.Expand(point.x, point.y);
-          end;
-        (icehNoObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aBuffer.bb_read_rawbytestring(aCursor);
-            i := fNet.Points.IndexOf(StrToIntDef(string(id), -1));
-            if i>=0
-            then fNet.Points.Delete(i);
-          end;
-      else
-        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+          (icehTilerValue shl 3) or wt64Bit:
+            begin
+              value := aBuffer.bb_read_double(aCursor);
+            end;
+          (icehTilerGeometryPoint shl 3) or wtLengthDelimited:
+            begin
+              len := aBuffer.bb_read_uint64(aCursor);
+              point.Decode(aBuffer, aCursor, aCursor+len);
+              if fMaxExtent.IsEmpty
+              then fMaxExtent.Init(point.x, point.y)
+              else fMaxExtent.Expand(point.x, point.y);
+            end;
+          (icehNoObjectID shl 3) or wtLengthDelimited:
+            begin
+              id := aBuffer.bb_read_rawbytestring(aCursor);
+              i := fNet.Points.IndexOf(StrToIntDef(string(id), -1));
+              if i>=0
+              then fNet.Points.Delete(i);
+            end;
+        else
+          aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+        end;
       end;
+    finally
+      point.Free;
     end;
   finally
-    point.Free;
-  end;
-end;
-
-function TSliceReceptor.PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool): Double;
-begin
-  fNetLock.BeginRead;
-  try
-    if GenerateTilePreCalc(aThreadPool)
-    then Result := fNet.PointToValue(TDLPoint.Create(aLon, aLat), NaN)
-    else Result := NaN;
-  finally
-    fNetLock.EndRead;
+    EndUpdate;
   end;
 end;
 
@@ -1598,12 +1747,6 @@ begin
   fGeometries := TObjectDictionary<TWDID, TSliceGeometryObject>.Create([doOwnsValues]);
 end;
 
-procedure TSliceGeometry.BeginUpdate;
-begin
-  TMonitor.Enter(fGeometries);
-  inherited BeginUpdate;
-end;
-
 constructor TSliceGeometry.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
 begin
   Create(aLayer, 0, nil);
@@ -1617,13 +1760,7 @@ begin
   inherited;
 end;
 
-procedure TSliceGeometry.EndUpdate;
-begin
-  inherited EndUpdate;
-  TMonitor.Exit(fGeometries);
-end;
-
-function TSliceGeometry.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceGeometry.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   isgop: TPair<TWDID, TSliceGeometryObject>;
   polygon: TPolygon;
@@ -1657,18 +1794,43 @@ begin
   finally
     aBitmap.Canvas.EndScene;
   end;
-  Result := True;
+  Result := gtsOk;
 end;
 
-procedure TSliceGeometry.GenerateTileLock;
+function TSliceGeometry.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
+var
+  isgop: TPair<TWDID, TSliceGeometryObject>;
 begin
-  TMonitor.Enter(fgeometries);
+  fDataLock.BeginRead;
+  try
+    for isgop in fGeometries do
+    begin
+      if isgop.Value.extent.Contains(aLon, aLat) then
+      begin
+        // test geometry, exit(isgop.Value) if within
+        if isgop.Value.fGeometry.PointInFirstPart(aLon, aLat) then
+        begin
+          aValue := isgop.Value.value;
+          exit(gtsOk);
+        end;
+      end;
+    end;
+    aValue := NaN;
+    exit(gtsFailed);
+  finally
+    fDataLock.EndRead;
+  end;
 end;
 
-procedure TSliceGeometry.GenerateTileUnLock;
-begin
-  TMonitor.Exit(fgeometries);
-end;
+//procedure TSliceGeometry.GenerateTileLock;
+//begin
+//  TMonitor.Enter(fgeometries);
+//end;
+
+//procedure TSliceGeometry.GenerateTileUnLock;
+//begin
+//  TMonitor.Exit(fgeometries);
+//end;
 
 function TSliceGeometry.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
 var
@@ -1679,158 +1841,114 @@ var
   sgo: TSliceGeometryObject;
   value: Double;
 begin
-  Result := True; // trigger refresh
-  id := '';
-  value := NaN;
-  geometry := nil;
+  BeginUpdate;
   try
-    while aCursor<aLimit do
-    begin
-      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-      case fieldInfo of
-        (icehObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aBuffer.bb_read_rawbytestring(aCursor);
-            if fGeometries.TryGetValue(id, sgo) then
+    Result := True; // trigger refresh
+    id := '';
+    value := NaN;
+    geometry := nil;
+    try
+      while aCursor<aLimit do
+      begin
+        fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+        case fieldInfo of
+          (icehObjectID shl 3) or wtLengthDelimited:
             begin
-              if Assigned(geometry) then
+              id := aBuffer.bb_read_rawbytestring(aCursor);
+              if fGeometries.TryGetValue(id, sgo) then
               begin
-                // assume geometry not changed..
+                if Assigned(geometry) then
+                begin
+                  // assume geometry not changed..
+                  geometry := nil;
+                end;
+                if not IsNaN(value) then
+                begin
+                  sgo.value := value;
+                  value := NaN;
+                end;
+              end
+              else
+              begin
+                sgo := TSliceGeometryObject.Create(geometry, value);
+                if fMaxExtent.IsEmpty
+                then fMaxExtent := sgo.extent
+                else fMaxExtent.Expand(sgo.extent);
+                fGeometries.Add(id, sgo);
                 geometry := nil;
-              end;
-              if not IsNaN(value) then
-              begin
-                sgo.value := value;
                 value := NaN;
               end;
-            end
-            else
-            begin
-              sgo := TSliceGeometryObject.Create(geometry, value);
-              if fMaxExtent.IsEmpty
-            	then fMaxExtent := sgo.extent
-              else fMaxExtent.Expand(sgo.extent);
-              fGeometries.Add(id, sgo);
-              geometry := nil;
-              value := NaN;
             end;
-          end;
-        (icehTilerValue shl 3) or wt64Bit:
-          begin
-            value := aBuffer.bb_read_double(aCursor);
-          end;
-        (icehTilerGeometry shl 3) or wtLengthDelimited:
-          begin
-            geometry.Free;
-            geometry := TWDGeometry.Create;
-            len := aBuffer.bb_read_uint64(aCursor);
-            geometry.Decode(aBuffer, aCursor, aCursor+len);
-          end;
-        (icehNoObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aBuffer.bb_read_rawbytestring(aCursor);
-            fGeometries.Remove(id);
-          end;
-      else
-        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+          (icehTilerValue shl 3) or wt64Bit:
+            begin
+              value := aBuffer.bb_read_double(aCursor);
+            end;
+          (icehTilerGeometry shl 3) or wtLengthDelimited:
+            begin
+              geometry.Free;
+              geometry := TWDGeometry.Create;
+              len := aBuffer.bb_read_uint64(aCursor);
+              geometry.Decode(aBuffer, aCursor, aCursor+len);
+            end;
+          (icehNoObjectID shl 3) or wtLengthDelimited:
+            begin
+              id := aBuffer.bb_read_rawbytestring(aCursor);
+              fGeometries.Remove(id);
+            end;
+        else
+          aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+        end;
       end;
+    finally
+      geometry.Free;
     end;
   finally
-    geometry.Free;
+    EndUpdate;
   end;
-end;
-
-function TSliceGeometry.PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool): Double;
-var
-  isgop: TPair<TWDID, TSliceGeometryObject>;
-begin
-  for isgop in fGeometries do
-  begin
-    if isgop.Value.extent.Contains(aLon, aLat) then
-    begin
-      // test geometry, exit(isgop.Value) if within
-      if isgop.Value.fGeometry.PointInFirstPart(aLon, aLat)
-      then exit(isgop.Value.value);
-    end;
-  end;
-  exit(NaN);
 end;
 
 { TSliceGeometryI }
 
-function TSliceGeometryI.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceGeometryI.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
-  cc: TCanvasClass;
   isgop: TPair<TWDID, TSliceGeometryObject>;
   path: TPathData;
-  _canvas: TCanvas;
 begin
-  //Log.WriteLn('TSliceGeometryI.GenerateTileCalc');
-  fLayer.Model.defaultCanvasTriggerLock.Acquire;
+  aBitmap.Canvas.BeginScene;
   try
-    cc := TCanvasManager.DefaultCanvas;
-//    if not Assigned(cc)
-//    then Log.WriteLn('Could not create default canvas class', llError)
-//    else Log.WriteLn('Default canvas class created');
-    //cc.createfrombitmap
+    aBitmap.Canvas.Clear(0);
+    aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+    fDataLock.BeginRead;
     try
-      //aBitmap.CopyToNewReference;
-      {
+      for isgop in fGeometries do
       begin
-        CopyToNewReference;
-
-        FCanvas := CanvasClass.CreateFromBitmap(Self);
-      end;
-      Result := FCanvas;
-      }
-      _canvas := aBitmap.Canvas;
-    except
-     on E:Exception do
-     begin
-       Log.WriteLn('Exception in aBitmap.Canvas: '+E.StackTrace+': '+E.Message, llError);
-       _canvas := nil;
-     end;
-    end;
-//    if not Assigned(_canvas)
-//    then Log.WriteLn('Could not create canvas', llError)
-//    else Log.WriteLn('Canvas created');
-  finally
-    fLayer.Model.defaultCanvasTriggerLock.Release;
-  end;
-  //Log.WriteLn('TSliceGeometryI.GenerateTileCalc 2');
-
-  _canvas.BeginScene;
-  try
-    //Log.WriteLn('TSliceGeometryI.GenerateTileCalc _canvas.BeginScene');
-    _canvas.Clear(0);
-    _canvas.Fill.Kind := TBrushKind.Solid;
-    //Log.WriteLn('TSliceGeometryI.GenerateTileCalc process geometries');
-    for isgop in fGeometries do
-    begin
-      if aExtent.Intersects(isgop.Value.fExtent) then
-      begin
-        path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
-        try
-          if Assigned(fPalette)
-          then _canvas.Stroke.Color := fPalette.ValueToColors(isgop.Value.value).mainColor
-          else _canvas.Stroke.Color := TAlphaColorRec.Blue or TAlphaColorRec.Alpha;
-          _canvas.StrokeThickness := 2; // todo: default width?
-          _canvas.DrawPath(path, 1);
-        finally
-          path.Free;
+        if aExtent.Intersects(isgop.Value.fExtent) then
+        begin
+          path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
+          try
+            if Assigned(fPalette)
+            then aBitmap.Canvas.Stroke.Color := fPalette.ValueToColors(isgop.Value.value).mainColor
+            else aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Blue or TAlphaColorRec.Alpha;
+            aBitmap.Canvas.StrokeThickness := 2; // todo: default width?
+            aBitmap.Canvas.DrawPath(path, 1);
+          finally
+            path.Free;
+          end;
         end;
       end;
+    finally
+      fDataLock.EndRead;
     end;
   finally
-    _canvas.EndScene;
+    aBitmap.Canvas.EndScene;
   end;
-  Result := True;
+  Result := gtsOk;
 end;
 
-function TSliceGeometryI.PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool): Double;
+function TSliceGeometryI.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
 begin
-  // todo:
-  Result := NaN;
+  aValue := NaN;
+  Result := gtsFailed;
 end;
 
 { TSliceGeometryIC }
@@ -1839,12 +1957,6 @@ constructor TSliceGeometryIC.Create(aLayer: TLayer; aTimeStamp: TDateTime; aPale
 begin
   inherited Create(aLayer, aTimeStamp, aPalette);
   fGeometries := TObjectDictionary<TWDID, TSliceGeometryICObject>.Create([doOwnsValues]);
-end;
-
-procedure TSliceGeometryIC.BeginUpdate;
-begin
-  TMonitor.Enter(fGeometries);
-  inherited BeginUpdate;
 end;
 
 constructor TSliceGeometryIC.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
@@ -1860,13 +1972,7 @@ begin
   inherited;
 end;
 
-procedure TSliceGeometryIC.EndUpdate;
-begin
-  inherited EndUpdate;
-  TMonitor.Exit(fGeometries);
-end;
-
-function TSliceGeometryIC.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceGeometryIC.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   isgop: TPair<TWDID, TSliceGeometryICObject>;
   polygon: TPolygon;
@@ -1885,53 +1991,64 @@ begin
     aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
     capacityFactor := 1/(100000*Abs(aExtent.YMax-aExtent.YMin)); // todo: determine based on center of slice extent?
     bufferExtent := aExtent.Inflate(1.3);
-    for isgop in fGeometries do
-    begin
-      if bufferExtent.Intersects(isgop.Value.fExtent) then
+    fDataLock.BeginRead;
+    try
+      for isgop in fGeometries do
       begin
-        colors := fPalette.ValueToColors(isgop.Value.texture);
-        aBitmap.Canvas.Stroke.Color := colors.mainColor;
-
-        // geometry is multi line, create polygons to right with width based on capacity
-        setLength(polygon, 5); // will auto close so only 4 points needed
-        for part in isgop.Value.fGeometry.parts do
+        if bufferExtent.Intersects(isgop.Value.fExtent) then
         begin
-          x := NaN;
-          for point in part.points do
+          colors := fPalette.ValueToColors(isgop.Value.texture);
+          aBitmap.Canvas.Stroke.Color := colors.mainColor;
+
+          // geometry is multi line, create polygons to right with width based on capacity
+          setLength(polygon, 5); // will auto close so only 4 points needed
+          for part in isgop.Value.fGeometry.parts do
           begin
-            // recalc coordinates relative to extent and in pixels
-            xPrev := x;
-            yPrev := y;
-            x := (point.X-aExtent.XMin)/aPixelWidth;
-            y := (aExtent.YMax-point.Y)/aPixelHeight;
-            if not IsNaN(xPrev) then
+            x := NaN;
+            for point in part.points do
             begin
-              aBitmap.Canvas.StrokeThickness := isgop.Value.value*capacityFactor;
-              if colors.fillColor<>0
-              then aBitmap.Canvas.DrawLine(TPointF.Create(xPrev, yPrev), TPointF.Create(x,y), 1);
-              if colors.outlineColor<>0
-              then aBitmap.Canvas.DrawPolygon(polygon, 1);
+              // recalc coordinates relative to extent and in pixels
+              xPrev := x;
+              yPrev := y;
+              x := (point.X-aExtent.XMin)/aPixelWidth;
+              y := (aExtent.YMax-point.Y)/aPixelHeight;
+              if not IsNaN(xPrev) then
+              begin
+                aBitmap.Canvas.StrokeThickness := isgop.Value.value*capacityFactor;
+                if colors.fillColor<>0
+                then aBitmap.Canvas.DrawLine(TPointF.Create(xPrev, yPrev), TPointF.Create(x,y), 1);
+                if colors.outlineColor<>0
+                then aBitmap.Canvas.DrawPolygon(polygon, 1);
+              end;
             end;
           end;
-        end;
 
+        end;
       end;
+    finally
+      fDataLock.EndRead;
     end;
   finally
     aBitmap.Canvas.EndScene;
   end;
-  Result := True;
+  Result := gtsOk;
 end;
 
-procedure TSliceGeometryIC.GenerateTileLock;
+function TSliceGeometryIC.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
 begin
-  TMonitor.Enter(fGeometries);
+  aValue := NaN;
+  Result := gtsFailed;
 end;
 
-procedure TSliceGeometryIC.GenerateTileUnLock;
-begin
-  TMonitor.Exit(fGeometries);
-end;
+//procedure TSliceGeometryIC.GenerateTileLock;
+//begin
+//  TMonitor.Enter(fGeometries);
+//end;
+
+//procedure TSliceGeometryIC.GenerateTileUnLock;
+//begin
+//  TMonitor.Exit(fGeometries);
+//end;
 
 function TSliceGeometryIC.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
 var
@@ -1943,76 +2060,75 @@ var
   value: Double;
   texture: Double;
 begin
-  Result := True; // trigger refresh
-  id := '';
-  value := NaN;
-  texture := NaN;
-  geometry := nil;
+  BeginUpdate;
   try
-    while aCursor<aLimit do
-    begin
-      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-      case fieldInfo of
-        (icehObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aBuffer.bb_read_rawbytestring(aCursor);
-            if fGeometries.TryGetValue(id, sgo) then
+    Result := True; // trigger refresh
+    id := '';
+    value := NaN;
+    texture := NaN;
+    geometry := nil;
+    try
+      while aCursor<aLimit do
+      begin
+        fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+        case fieldInfo of
+          (icehObjectID shl 3) or wtLengthDelimited:
             begin
-              if Assigned(geometry) then
+              id := aBuffer.bb_read_rawbytestring(aCursor);
+              if fGeometries.TryGetValue(id, sgo) then
               begin
-                // assume geometry not changed..
+                if Assigned(geometry) then
+                begin
+                  // assume geometry not changed..
+                  geometry := nil;
+                end;
+                if not IsNaN(value) then
+                begin
+                  sgo.value := value;
+                  value := NaN;
+                end;
+              end
+              else
+              begin
+                sgo := TSliceGeometryICObject.Create(geometry, value, texture);
+                if fMaxExtent.IsEmpty
+                then fMaxExtent := sgo.extent
+                else fMaxExtent.Expand(sgo.extent);
+                fGeometries.Add(id, sgo);
                 geometry := nil;
-              end;
-              if not IsNaN(value) then
-              begin
-                sgo.value := value;
                 value := NaN;
               end;
-            end
-            else
-            begin
-              sgo := TSliceGeometryICObject.Create(geometry, value, texture);
-              if fMaxExtent.IsEmpty
-            	then fMaxExtent := sgo.extent
-              else fMaxExtent.Expand(sgo.extent);
-              fGeometries.Add(id, sgo);
-              geometry := nil;
-              value := NaN;
             end;
-          end;
-        (icehTilerValue shl 3) or wt64Bit:
-          begin
-            value := aBuffer.bb_read_double(aCursor);
-          end;
-        (icehTilerTexture shl 3) or wt64Bit:
-          begin
-            texture := aBuffer.bb_read_double(aCursor);
-          end;
-        (icehTilerGeometry shl 3) or wtLengthDelimited:
-          begin
-            geometry.Free;
-            geometry := TWDGeometry.Create;
-            len := aBuffer.bb_read_uint64(aCursor);
-            geometry.Decode(aBuffer, aCursor, aCursor+len);
-          end;
-        (icehNoObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aBuffer.bb_read_rawbytestring(aCursor);
-            fGeometries.Remove(id);
-          end;
-      else
-        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+          (icehTilerValue shl 3) or wt64Bit:
+            begin
+              value := aBuffer.bb_read_double(aCursor);
+            end;
+          (icehTilerTexture shl 3) or wt64Bit:
+            begin
+              texture := aBuffer.bb_read_double(aCursor);
+            end;
+          (icehTilerGeometry shl 3) or wtLengthDelimited:
+            begin
+              geometry.Free;
+              geometry := TWDGeometry.Create;
+              len := aBuffer.bb_read_uint64(aCursor);
+              geometry.Decode(aBuffer, aCursor, aCursor+len);
+            end;
+          (icehNoObjectID shl 3) or wtLengthDelimited:
+            begin
+              id := aBuffer.bb_read_rawbytestring(aCursor);
+              fGeometries.Remove(id);
+            end;
+        else
+          aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+        end;
       end;
+    finally
+      geometry.Free;
     end;
   finally
-    geometry.Free;
+    EndUpdate;
   end;
-end;
-
-function TSliceGeometryIC.PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool): Double;
-begin
-  // todo:
-  Result := NaN;
 end;
 
 { TSliceGeometryICLR }
@@ -2021,12 +2137,6 @@ constructor TSliceGeometryICLR.Create(aLayer: TLayer; aTimeStamp: TDateTime; aPa
 begin
   inherited Create(aLayer, aTimeStamp, aPalette);
   fGeometries := TObjectDictionary<TWDID, TSliceGeometryICLRObject>.Create([doOwnsValues]);
-end;
-
-procedure TSliceGeometryICLR.BeginUpdate;
-begin
-  TMonitor.Enter(fGeometries);
-  inherited BeginUpdate;
 end;
 
 constructor TSliceGeometryICLR.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
@@ -2042,13 +2152,7 @@ begin
   inherited;
 end;
 
-procedure TSliceGeometryICLR.EndUpdate;
-begin
-  inherited EndUpdate;
-  TMonitor.Exit(fGeometries);
-end;
-
-function TSliceGeometryICLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceGeometryICLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   isgop: TPair<TWDID, TSliceGeometryICLRObject>;
   polygon: TPolygon;
@@ -2069,135 +2173,138 @@ begin
     aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
     capacityFactor := 0.001/Abs(aExtent.YMax-aExtent.YMin);
     bufferExtent := aExtent.Inflate(1.3);
-    for isgop in fGeometries do
-    begin
-      if bufferExtent.Intersects(isgop.Value.fExtent) then
+    fDataLock.BeginRead;
+    try
+      for isgop in fGeometries do
       begin
-        if IsNaN(isgop.Value.texture) and IsNaN(isgop.Value.texture2) then
-        begin // both values are NaN -> draw small black line
-          path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
-          try
-            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
-            aBitmap.Canvas.StrokeThickness := 1;
-            aBitmap.Canvas.DrawPath(path, 1);
-          finally
-            path.Free;
-          end;
-        end
-        else
+        if bufferExtent.Intersects(isgop.Value.fExtent) then
         begin
-          colors2 := fPalette.ValueToColors(isgop.Value.texture2);
-          if IsNaN(isgop.Value.texture)
-          then colors := colors2
-          else colors := fPalette.ValueToColors(isgop.Value.texture);
-          setLength(polygon, 5);
-          for part in isgop.Value.fGeometry.parts do
+          if IsNaN(isgop.Value.texture) and IsNaN(isgop.Value.texture2) then
+          begin // both values are NaN -> draw small black line
+            path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
+            try
+              aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
+              aBitmap.Canvas.StrokeThickness := 1;
+              aBitmap.Canvas.DrawPath(path, 1);
+            finally
+              path.Free;
+            end;
+          end
+          else
           begin
-            x := NaN;
-            for point in part.points do
+            colors2 := fPalette.ValueToColors(isgop.Value.texture2);
+            if IsNaN(isgop.Value.texture)
+            then colors := colors2
+            else colors := fPalette.ValueToColors(isgop.Value.texture);
+            setLength(polygon, 5);
+            for part in isgop.Value.fGeometry.parts do
             begin
-              // recalc coordinates relative to extent
-              xPrev := x;
-              yPrev := y;
-              x := (point.X-aExtent.XMin)/aPixelWidth;
-              y := (aExtent.YMax-point.Y)/aPixelHeight;
-              if not IsNaN(xPrev) then
+              x := NaN;
+              for point in part.points do
               begin
-                xn := y-yPrev;
-                yn := xPrev-x;
-                // normalize..
-                l := sqrt((xn*xn)+(yn*yn));
-
-                if not (IsNaN(isgop.Value.value) or IsNaN(isgop.Value.value2)) then
+                // recalc coordinates relative to extent
+                xPrev := x;
+                yPrev := y;
+                x := (point.X-aExtent.XMin)/aPixelWidth;
+                y := (aExtent.YMax-point.Y)/aPixelHeight;
+                if not IsNaN(xPrev) then
                 begin
-                  // add polygon to the right for x,y x2,y2
-                  xn := {(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-                  yn := {(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
-
-                  polygon[0].X := xPrev;
-                  polygon[0].Y := yPrev;
-                  polygon[1].X := x;
-                  polygon[1].Y := y;
-                  polygon[2].X := x+xn;
-                  polygon[2].Y := y+yn;
-                  polygon[3].X := xPrev+xn;
-                  polygon[3].Y := yPrev+yn;
-                  polygon[4].X := xPrev;
-                  polygon[4].Y := yPrev;
-
-                  // draw
-                  if colors.fillColor<>0  then
-                  begin
-                    aBitmap.Canvas.Fill.Color := colors.fillColor;
-                    aBitmap.Canvas.FillPolygon(polygon, 1);
-                  end;
-                  if colors.outlineColor<>0 then
-                  begin
-                    aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-                    aBitmap.Canvas.DrawPolygon(polygon, 1);
-                  end;
-
-                  //left
-                  // add polygon to the left for x,y x2,y2
-                  xn := yPrev-y;
-                  yn := x-xPrev;
+                  xn := y-yPrev;
+                  yn := xPrev-x;
                   // normalize..
                   l := sqrt((xn*xn)+(yn*yn));
-                  xn := {(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-                  yn := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
 
-                  // todo: wrong rotation direction..
-                  polygon[2].X := x-xn;
-                  polygon[2].Y := y-yn;
-                  polygon[3].X := xPrev-xn;
-                  polygon[3].Y := yPrev-yn;
-                  // draw left
-                  if colors2.fillColor<>0 then
+                  if not (IsNaN(isgop.Value.value) or IsNaN(isgop.Value.value2)) then
                   begin
-                    aBitmap.Canvas.Fill.Color := colors2.fillColor;
-                    aBitmap.Canvas.FillPolygon(polygon, 1);
-                  end;
-                  if colors2.outlineColor<>0 then
-                  begin
-                    aBitmap.Canvas.Stroke.Color := colors2.outlineColor;
-                    aBitmap.Canvas.DrawPolygon(polygon, 1);
-                  end;
-                end
-                else
-                begin
-                  // draw centered line around path with capacity as width
-                  if IsNaN(isgop.Value.value) then
-                  begin
-                    xn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-                    yn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+                    // add polygon to the right for x,y x2,y2
+                    xn := {(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
+                    yn := {(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+
+                    polygon[0].X := xPrev;
+                    polygon[0].Y := yPrev;
+                    polygon[1].X := x;
+                    polygon[1].Y := y;
+                    polygon[2].X := x+xn;
+                    polygon[2].Y := y+yn;
+                    polygon[3].X := xPrev+xn;
+                    polygon[3].Y := yPrev+yn;
+                    polygon[4].X := xPrev;
+                    polygon[4].Y := yPrev;
+
+                    // draw
+                    if colors.fillColor<>0  then
+                    begin
+                      aBitmap.Canvas.Fill.Color := colors.fillColor;
+                      aBitmap.Canvas.FillPolygon(polygon, 1);
+                    end;
+                    if colors.outlineColor<>0 then
+                    begin
+                      aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+                      aBitmap.Canvas.DrawPolygon(polygon, 1);
+                    end;
+
+                    //left
+                    // add polygon to the left for x,y x2,y2
+                    xn := yPrev-y;
+                    yn := x-xPrev;
+                    // normalize..
+                    l := sqrt((xn*xn)+(yn*yn));
+                    xn := {(1+}isgop.Value.value*capacityFactor{)}*xn/l;
+                    yn := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
+
+                    // todo: wrong rotation direction..
+                    polygon[2].X := x-xn;
+                    polygon[2].Y := y-yn;
+                    polygon[3].X := xPrev-xn;
+                    polygon[3].Y := yPrev-yn;
+                    // draw left
+                    if colors2.fillColor<>0 then
+                    begin
+                      aBitmap.Canvas.Fill.Color := colors2.fillColor;
+                      aBitmap.Canvas.FillPolygon(polygon, 1);
+                    end;
+                    if colors2.outlineColor<>0 then
+                    begin
+                      aBitmap.Canvas.Stroke.Color := colors2.outlineColor;
+                      aBitmap.Canvas.DrawPolygon(polygon, 1);
+                    end;
                   end
                   else
                   begin
-                    xn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-                    yn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*yn/l;
-                  end;
+                    // draw centered line around path with capacity as width
+                    if IsNaN(isgop.Value.value) then
+                    begin
+                      xn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
+                      yn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+                    end
+                    else
+                    begin
+                      xn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*xn/l;
+                      yn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*yn/l;
+                    end;
 
-                  polygon[0].X := xPrev-xn;
-                  polygon[0].Y := yPrev-yn;
-                  polygon[1].X := x-xn;
-                  polygon[1].Y := y-yn;
-                  polygon[2].X := x+xn;
-                  polygon[2].Y := y+yn;
-                  polygon[3].X := xPrev+xn;
-                  polygon[3].Y := yPrev+yn;
-                  polygon[4].X := xPrev-xn;
-                  polygon[4].Y := yPrev-yn;
+                    polygon[0].X := xPrev-xn;
+                    polygon[0].Y := yPrev-yn;
+                    polygon[1].X := x-xn;
+                    polygon[1].Y := y-yn;
+                    polygon[2].X := x+xn;
+                    polygon[2].Y := y+yn;
+                    polygon[3].X := xPrev+xn;
+                    polygon[3].Y := yPrev+yn;
+                    polygon[4].X := xPrev-xn;
+                    polygon[4].Y := yPrev-yn;
 
-                  // draw
-                  if colors.fillColor<>0 then
-                  begin
-                    aBitmap.Canvas.Fill.Color := colors.fillColor;
-                    aBitmap.Canvas.FillPolygon(polygon, 1);
-                  end;
-                  if colors.outlineColor<>0 then
-                  begin
-                    aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-                    aBitmap.Canvas.DrawPolygon(polygon, 1);
+                    // draw
+                    if colors.fillColor<>0 then
+                    begin
+                      aBitmap.Canvas.Fill.Color := colors.fillColor;
+                      aBitmap.Canvas.FillPolygon(polygon, 1);
+                    end;
+                    if colors.outlineColor<>0 then
+                    begin
+                      aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+                      aBitmap.Canvas.DrawPolygon(polygon, 1);
+                    end;
                   end;
                 end;
               end;
@@ -2205,22 +2312,30 @@ begin
           end;
         end;
       end;
+    finally
+      fDataLock.EndRead;
     end;
   finally
     aBitmap.Canvas.EndScene;
   end;
-  Result := True;
+  Result := gtsOk;
 end;
 
-procedure TSliceGeometryICLR.GenerateTileLock;
+function TSliceGeometryICLR.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
 begin
-  TMonitor.Enter(fGeometries);
+  aValue := NaN;
+  Result := gtsFailed;
 end;
 
-procedure TSliceGeometryICLR.GenerateTileUnLock;
-begin
-  TMonitor.Exit(fGeometries);
-end;
+//procedure TSliceGeometryICLR.GenerateTileLock;
+//begin
+//  TMonitor.Enter(fGeometries);
+//end;
+
+//procedure TSliceGeometryICLR.GenerateTileUnLock;
+//begin
+//  TMonitor.Exit(fGeometries);
+//end;
 
 function TSliceGeometryICLR.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
 var
@@ -2234,86 +2349,85 @@ var
   value2: Double;
   texture2: Double;
 begin
-  Result := True; // trigger refresh
-  id := '';
-  value := NaN;
-  value2 := NaN;
-  texture := NaN;
-  texture2 := NaN;
-  geometry := nil;
+  BeginUpdate;
   try
-    while aCursor<aLimit do
-    begin
-      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-      case fieldInfo of
-        (icehObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aBuffer.bb_read_rawbytestring(aCursor);
-            if fGeometries.TryGetValue(id, sgo) then
+    Result := True; // trigger refresh
+    id := '';
+    value := NaN;
+    value2 := NaN;
+    texture := NaN;
+    texture2 := NaN;
+    geometry := nil;
+    try
+      while aCursor<aLimit do
+      begin
+        fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+        case fieldInfo of
+          (icehObjectID shl 3) or wtLengthDelimited:
             begin
-              if Assigned(geometry) then
+              id := aBuffer.bb_read_rawbytestring(aCursor);
+              if fGeometries.TryGetValue(id, sgo) then
               begin
-                // assume geometry not changed..
+                if Assigned(geometry) then
+                begin
+                  // assume geometry not changed..
+                  geometry := nil;
+                end;
+                if not IsNaN(value) then
+                begin
+                  sgo.value := value;
+                  value := NaN;
+                end;
+              end
+              else
+              begin
+                sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
+                if fMaxExtent.IsEmpty
+                then fMaxExtent := sgo.extent
+                else fMaxExtent.Expand(sgo.extent);
+                fGeometries.Add(id, sgo);
                 geometry := nil;
-              end;
-              if not IsNaN(value) then
-              begin
-                sgo.value := value;
                 value := NaN;
               end;
-            end
-            else
-            begin
-              sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
-              if fMaxExtent.IsEmpty
-            	then fMaxExtent := sgo.extent
-              else fMaxExtent.Expand(sgo.extent);
-              fGeometries.Add(id, sgo);
-              geometry := nil;
-              value := NaN;
             end;
-          end;
-        (icehTilerValue shl 3) or wt64Bit:
-          begin
-            value := aBuffer.bb_read_double(aCursor);
-          end;
-        (icehTilerTexture shl 3) or wt64Bit:
-          begin
-            texture := aBuffer.bb_read_double(aCursor);
-          end;
-        (icehTilerValue2 shl 3) or wt64Bit:
-          begin
-            value2 := aBuffer.bb_read_double(aCursor);
-          end;
-        (icehTilerTexture2 shl 3) or wt64Bit:
-          begin
-            texture2 := aBuffer.bb_read_double(aCursor);
-          end;
-        (icehTilerGeometry shl 3) or wtLengthDelimited:
-          begin
-            geometry.Free;
-            geometry := TWDGeometry.Create;
-            len := aBuffer.bb_read_uint64(aCursor);
-            geometry.Decode(aBuffer, aCursor, aCursor+len);
-          end;
-        (icehNoObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aBuffer.bb_read_rawbytestring(aCursor);
-            fGeometries.Remove(id);
-          end;
-      else
-        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+          (icehTilerValue shl 3) or wt64Bit:
+            begin
+              value := aBuffer.bb_read_double(aCursor);
+            end;
+          (icehTilerTexture shl 3) or wt64Bit:
+            begin
+              texture := aBuffer.bb_read_double(aCursor);
+            end;
+          (icehTilerValue2 shl 3) or wt64Bit:
+            begin
+              value2 := aBuffer.bb_read_double(aCursor);
+            end;
+          (icehTilerTexture2 shl 3) or wt64Bit:
+            begin
+              texture2 := aBuffer.bb_read_double(aCursor);
+            end;
+          (icehTilerGeometry shl 3) or wtLengthDelimited:
+            begin
+              geometry.Free;
+              geometry := TWDGeometry.Create;
+              len := aBuffer.bb_read_uint64(aCursor);
+              geometry.Decode(aBuffer, aCursor, aCursor+len);
+            end;
+          (icehNoObjectID shl 3) or wtLengthDelimited:
+            begin
+              id := aBuffer.bb_read_rawbytestring(aCursor);
+              fGeometries.Remove(id);
+            end;
+        else
+          aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+        end;
       end;
+    finally
+      geometry.Free;
     end;
   finally
-    geometry.Free;
+    EndUpdate;
   end;
-end;
-
-function TSliceGeometryICLR.PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool): Double;
-begin
-  // todo:
-  Result := NaN;
 end;
 
 { TSlicePOI }
@@ -2325,12 +2439,6 @@ begin
   fPOIs := TDictionary<Integer, TPOI>.Create;
   // todo: copy images to fImages
 
-end;
-
-procedure TSlicePOI.BeginUpdate;
-begin
-  TMonitor.Enter(fPOIs);
-  inherited BeginUpdate;
 end;
 
 constructor TSlicePOI.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
@@ -2347,29 +2455,23 @@ begin
   inherited;
 end;
 
-procedure TSlicePOI.EndUpdate;
-begin
-  inherited EndUpdate;
-  TMonitor.Exit(fPOIs);
-end;
-
-function TSlicePOI.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSlicePOI.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 begin
   // todo:
   // have to draw pois on neighbouring tiles because of pissible overlap of image,
   // calculating bigger extent from image size is hard..?
-  Result := False;
+  Result := gtsOk;
 end;
 
-procedure TSlicePOI.GenerateTileLock;
-begin
-  TMonitor.Enter(fImages);
-end;
+//procedure TSlicePOI.GenerateTileLock;
+//begin
+//  TMonitor.Enter(fImages);
+//end;
 
-procedure TSlicePOI.GenerateTileUnLock;
-begin
-  TMonitor.Exit(fImages);
-end;
+//procedure TSlicePOI.GenerateTileUnLock;
+//begin
+//  TMonitor.Exit(fImages);
+//end;
 
 function TSlicePOI.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
 begin
@@ -2388,12 +2490,6 @@ begin
   fDiscreteColorsOnStretch := aDiscreteColorsOnStretch;
 end;
 
-procedure TSlicePNG.BeginUpdate;
-begin
-  TMonitor.Enter(fImage);
-  inherited BeginUpdate;
-end;
-
 constructor TSlicePNG.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
 begin
   inherited Create(aLayer); // we can call inherited create because there are no must-initialize fields
@@ -2407,20 +2503,14 @@ begin
   inherited;
 end;
 
-procedure TSlicePNG.EndUpdate;
-begin
-  inherited EndUpdate;
-  TMonitor.Exit(fImage);
-end;
-
-function TSlicePNG.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSlicePNG.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   data: FMX.Graphics.TBitmapData;
   //row: Integer;
   //col: Integer;
   //x, y: TDLCoordinate;
 begin
-  Result := False; // sentinel
+  Result := gtsFailed; // sentinel
   if aBitmap.Map(TMapAccess.Write, data) then
   begin
     try
@@ -2452,7 +2542,7 @@ begin
           end;
         end;
         *)
-        Result := True; //HSC_SUCCESS_CREATED;
+        Result := gtsOk; //HSC_SUCCESS_CREATED;
       end
       else Log.WriteLn('png layer '+fLayer.LayerID.ToString+': data=nil out of map bitmap', llError);
     finally
@@ -2462,15 +2552,15 @@ begin
   else Log.WriteLn('png layer '+fLayer.LayerID.ToString+': could not map bitmap', llWarning);
 end;
 
-procedure TSlicePNG.GenerateTileLock;
-begin
-  TMonitor.Enter(fImage);
-end;
+//procedure TSlicePNG.GenerateTileLock;
+//begin
+//  TMonitor.Enter(fImage);
+//end;
 
-procedure TSlicePNG.GenerateTileUnLock;
-begin
-  TMonitor.Exit(fImage);
-end;
+//procedure TSlicePNG.GenerateTileUnLock;
+//begin
+//  TMonitor.Exit(fImage);
+//end;
 
 function TSlicePNG.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
 begin
@@ -2480,12 +2570,6 @@ begin
 end;
 
 { TSliceLocation }
-
-procedure TSliceLocation.BeginUpdate;
-begin
-  TMonitor.Enter(fLocations);
-  inherited BeginUpdate;
-end;
 
 constructor TSliceLocation.Create(aLayer: TLayer; aTimeStamp: TDateTime; aPalette: TWDPalette);
 begin
@@ -2505,13 +2589,7 @@ begin
   inherited;
 end;
 
-procedure TSliceLocation.EndUpdate;
-begin
-  inherited EndUpdate;
-  TMonitor.Exit(fLocations);
-end;
-
-function TSliceLocation.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceLocation.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   isgop: TPair<TWDID, TSliceLocationObject>;
   point: TPointF;
@@ -2548,18 +2626,43 @@ begin
   finally
     aBitmap.Canvas.EndScene;
   end;
-  Result := True;
+  Result := gtsOk;
 end;
 
-procedure TSliceLocation.GenerateTileLock;
+function TSliceLocation.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
+var
+  isgop: TPair<TWDID, TSliceLocationObject>;
 begin
-  TMonitor.Enter(fLocations);
+  fDataLock.BeginRead;
+  try
+    for isgop in fLocations do
+    begin
+      if isgop.Value.extent.Contains(aLon, aLat) then
+      begin
+        // test geometry, exit(isgop.Value) if within
+        if isgop.Value.extent.Contains(aLon, aLat) then
+        begin
+          aValue := isgop.Value.value;
+          exit(gtsOk);
+        end;
+      end;
+    end;
+    aValue := NaN;
+    exit(gtsFailed);
+  finally
+    fDataLock.EndRead;
+  end;
 end;
 
-procedure TSliceLocation.GenerateTileUnLock;
-begin
-  TMonitor.Exit(fLocations);
-end;
+//procedure TSliceLocation.GenerateTileLock;
+//begin
+//  TMonitor.Enter(fLocations);
+//end;
+
+//procedure TSliceLocation.GenerateTileUnLock;
+//begin
+//  TMonitor.Exit(fLocations);
+//end;
 
 function TSliceLocation.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
 var
@@ -2571,96 +2674,78 @@ var
   value: Double;
   radius: Double;
 begin
-  Result := True; // trigger refresh
-  id := '';
-  value := NaN;
-  radius := 3; // todo: default radius
-  geometry := nil;
+  BeginUpdate;
   try
-    while aCursor<aLimit do
-    begin
-      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-      case fieldInfo of
-        (icehObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aBuffer.bb_read_rawbytestring(aCursor);
-            if fLocations.TryGetValue(id, sgo) then
+    Result := True; // trigger refresh
+    id := '';
+    value := NaN;
+    radius := 3; // todo: default radius
+    geometry := nil;
+    try
+      while aCursor<aLimit do
+      begin
+        fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+        case fieldInfo of
+          (icehObjectID shl 3) or wtLengthDelimited:
             begin
-              if Assigned(geometry) then
+              id := aBuffer.bb_read_rawbytestring(aCursor);
+              if fLocations.TryGetValue(id, sgo) then
               begin
-                // assume geometry not changed..
+                if Assigned(geometry) then
+                begin
+                  // assume geometry not changed..
+                  geometry := nil;
+                end;
+                if not IsNaN(value) then
+                begin
+                  sgo.value := value;
+                  value := NaN;
+                end;
+              end
+              else
+              begin
+                sgo := TSliceLocationObject.Create(geometry, value, radius);
+                if fMaxExtent.IsEmpty
+                then fMaxExtent := sgo.extent
+                else fMaxExtent.Expand(sgo.extent);
+                fLocations.Add(id, sgo);
                 geometry := nil;
-              end;
-              if not IsNaN(value) then
-              begin
-                sgo.value := value;
                 value := NaN;
               end;
-            end
-            else
-            begin
-              sgo := TSliceLocationObject.Create(geometry, value, radius);
-              if fMaxExtent.IsEmpty
-            	then fMaxExtent := sgo.extent
-              else fMaxExtent.Expand(sgo.extent);
-              fLocations.Add(id, sgo);
-              geometry := nil;
-              value := NaN;
             end;
-          end;
-        (icehTilerValue shl 3) or wt64Bit:
-          begin
-            value := aBuffer.bb_read_double(aCursor);
-          end;
-        (icehTilerLocationRadius shl 3) or wt64Bit:
-          begin
-            radius := aBuffer.bb_read_double(aCursor);
-          end;
-        (icehTilerGeometryPoint shl 3) or wtLengthDelimited:
-          begin
-            geometry.Free;
-            geometry := TWDGeometryPoint.Create;
-            len := aBuffer.bb_read_uint64(aCursor);
-            geometry.Decode(aBuffer, aCursor, aCursor+len);
-          end;
-        (icehNoObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aBuffer.bb_read_rawbytestring(aCursor);
-            fLocations.Remove(id);
-          end;
-      else
-        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+          (icehTilerValue shl 3) or wt64Bit:
+            begin
+              value := aBuffer.bb_read_double(aCursor);
+            end;
+          (icehTilerLocationRadius shl 3) or wt64Bit:
+            begin
+              radius := aBuffer.bb_read_double(aCursor);
+            end;
+          (icehTilerGeometryPoint shl 3) or wtLengthDelimited:
+            begin
+              geometry.Free;
+              geometry := TWDGeometryPoint.Create;
+              len := aBuffer.bb_read_uint64(aCursor);
+              geometry.Decode(aBuffer, aCursor, aCursor+len);
+            end;
+          (icehNoObjectID shl 3) or wtLengthDelimited:
+            begin
+              id := aBuffer.bb_read_rawbytestring(aCursor);
+              fLocations.Remove(id);
+            end;
+        else
+          aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+        end;
       end;
+    finally
+      geometry.Free;
     end;
   finally
-    geometry.Free;
+    EndUpdate;
   end;
-end;
-
-function TSliceLocation.PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool): Double;
-var
-  isgop: TPair<TWDID, TSliceLocationObject>;
-begin
-  for isgop in fLocations do
-  begin
-    if isgop.Value.extent.Contains(aLon, aLat) then
-    begin
-      // test geometry, exit(isgop.Value) if within
-      if isgop.Value.extent.Contains(aLon, aLat)
-      then exit(isgop.Value.value);
-    end;
-  end;
-  exit(NaN);
 end;
 
 { TDiffSlice }
-
-procedure TDiffSlice.BeginUpdate;
-begin
-  // todo: effective no locking needed for diff slice
-  //TMonitor.Enter(Self);
-  inherited BeginUpdate;
-end;
 
 constructor TDiffSlice.Create(aLayer: TLayer; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSlice);
 begin
@@ -2668,8 +2753,8 @@ begin
   fCurrentSlice := aCurrentSlice;
   fRefSlice := aRefSlice;
   fMaxExtent := fCurrentSlice.fMaxExtent.Intersection(fRefSlice.fMaxExtent);
-  fCurrentSlice.fParentSlices.Add(self);
-  fRefSlice.fParentSlices.Add(self);
+  fCurrentSlice.AddParent(self);
+  fRefSlice.AddParent(self);
   // send refresh if both cur and ref are already ok after this follow updates of cur and ref
   aLayer.signalRefresh(aTimeStamp);
 end;
@@ -2689,52 +2774,173 @@ begin
   inherited;
 end;
 
-procedure TDiffSlice.EndUpdate;
+//procedure TDiffSlice.GenerateTileLock;
+//begin
+//  fCurrentSlice.GenerateTileLock;
+//  fRefSlice.GenerateTileLock;
+//end;
+
+function TDiffSlice.GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer; const aFileName,
+  aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
+var
+  bitmapFileName: string;
+  fileStream: TStream;
+  bitmap: FMX.Graphics.TBitmap;
+  status: TGenerateTileStatus;
 begin
-  // todo: effective no locking needed for diff slice
-  inherited EndUpdate;
-  //TMonitor.Exit(Self);
+  Result := HSC_ERROR_NOT_FOUND; // sentinel
+  status  := gtsRestart; // sentinel
+  repeat
+    // pre calc phase, potentially write lock of tile -> only when not avoidable
+    if fCurrentSlice.doGenerateTilePreCalc then
+    begin
+      fCurrentSlice.fTileLock.BeginWrite;
+      try
+        fCurrentSlice.GenerateTilePreCalc(aThreadPool);
+      finally
+        fCurrentSlice.fTileLock.EndWrite;
+      end;
+    end;
+    if fRefSlice.doGenerateTilePreCalc then
+    begin
+      fRefSlice.fTileLock.BeginWrite;
+      try
+        fRefSlice.GenerateTilePreCalc(aThreadPool);
+      finally
+        fRefSlice.fTileLock.EndWrite;
+      end;
+    end;
+    // tile generation phase, max read lock of tile
+    fTileLock.BeginRead;
+    fCurrentSlice.fTileLock.BeginRead;
+    fRefSlice.fTileLock.BeginRead;
+    try
+      bitmapFileName := aCacheFolder+TimeFolder+aFileName;
+      // try cache first
+      if (aCacheFolder<>'') and FileExists(bitmapFileName) then
+      begin
+        try
+          fileStream := TFileStream.Create(bitmapFileName, fmOpenRead+fmShareDenyWrite);
+          try
+            aStream.CopyFrom(fileStream, fileStream.Size);
+          finally
+            fileStream.Free;
+          end;
+          Result := HSC_SUCCESS_OK;
+          status := gtsOk;
+        except
+          on E: Exception do
+          begin
+            Log.WriteLn('Exception loading tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+            //Result := HSC_ERROR_NOT_FOUND; // sentinel
+          end;
+        end;
+      end
+      else
+      begin
+        try
+          bitmap := FMX.Graphics.TBitmap.Create(aWidthPixels, aHeightPixels);
+          try
+            status := GenerateTileCalc(aExtent, bitmap, (aExtent.XMax-aExtent.XMin)/bitmap.Width, (aExtent.YMax-aExtent.YMin)/bitmap.Height);
+            if status=gtsOk then
+            begin
+              if aCacheFolder<>'' then
+              begin
+                // save tile bitmap
+                try
+                  ForceDirectories(ExtractFileDir(bitmapFileName));
+                  fileStream := TFileStream.Create(bitmapFileName, fmCreate+fmShareExclusive);
+                  try
+                    bitmap.SaveToStream(fileStream);
+                  finally
+                    fileStream.Free;
+                  end;
+                except
+                  on E: Exception do
+                  begin
+                    Log.WriteLn('Exception saving tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+                  end;
+                end;
+              end;
+              // return stream
+              bitmap.SaveToStream(aStream);
+              Result := HSC_SUCCESS_CREATED;
+              status := gtsOk;
+            end
+            else
+            begin
+              if status=gtsFailed
+              then Log.WriteLn('could not calculate tile '+TimeFolder+aFileName, llError)
+              else Log.WriteLn('retry on calculating tile '+TimeFolder+aFileName, llWarning);
+            end;
+          finally
+            bitmap.Free;
+          end;
+        except
+          on E: Exception do
+          begin
+            Log.WriteLn('Exception creating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+          end;
+        end;
+      end;
+    finally
+      fTileLock.EndRead;
+      fCurrentSlice.fTileLock.EndRead;
+      fRefSlice.fTileLock.EndRead;
+    end;
+  until status<>gtsRestart;
 end;
 
-procedure TDiffSlice.GenerateTileLock;
-begin
-  fCurrentSlice.GenerateTileLock;
-  fRefSlice.GenerateTileLock;
-end;
-
-function TDiffSlice.GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean;
-begin
-  // make sure current and ref are calculated
-  Result := fCurrentSlice.GenerateTilePreCalc(aThreadPool);
-  Result := Result and fRefSlice.GenerateTilePreCalc(aThreadPool);
-end;
-
-procedure TDiffSlice.GenerateTileUnLock;
-begin
-  fCurrentSlice.GenerateTileUnLock;
-  fRefSlice.GenerateTileUnLock;
-end;
-
-procedure TDiffSlice.HandleDiffUpdate;
-begin
-  // todo: action?
-  fLayer.signalRefresh(timeStamp);
-end;
-
-function TDiffSlice.PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool): Double;
+function TDiffSlice.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
 var
   cur: Double;
   ref: Double;
 begin
   if Assigned(fCurrentSlice) and Assigned(fRefSlice) then
   begin
-    cur := fCurrentSlice.PointValue(aLat, aLon, aThreadPool);
-    ref := fRefSlice.PointValue(aLat, aLon, aThreadPool);
-    if IsNaN(cur) or IsNaN(ref)
-    then Result := NaN
-    else Result := cur-ref;
+    fCurrentSlice.fDataLock.BeginRead;
+    fRefSlice.fDataLock.BeginRead;
+    try
+      Result := fCurrentSlice.getDataValueAtPoint(aLat, aLon, cur);
+      if Result=gtsOk then 
+      begin
+        Result := fRefSlice.getDataValueAtPoint(aLat, aLon, ref);
+        if Result=gtsOk then
+        begin
+          if IsNaN(cur) or IsNaN(ref)
+          then aValue := NaN
+          else aValue := cur-ref;
+        end;
+      end;
+    finally
+      fCurrentSlice.fDataLock.EndRead;
+      fRefSlice.fDataLock.EndRead;
+    end;
   end
-  else Result := NaN;
+  else
+  begin
+    aValue := NaN;
+    Result := gtsFailed;
+  end;
+end;
+
+//function TDiffSlice.GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean;
+//begin
+  // make sure current and ref are calculated
+//  Result := fCurrentSlice.GenerateTilePreCalc(aThreadPool);
+//  Result := Result and fRefSlice.GenerateTilePreCalc(aThreadPool);
+//end;
+
+//procedure TDiffSlice.GenerateTileUnLock;
+//begin
+//  fCurrentSlice.GenerateTileUnLock;
+//  fRefSlice.GenerateTileUnLock;
+//end;
+
+procedure TDiffSlice.HandleDiffUpdate;
+begin
+  // todo: action?
+  fLayer.signalRefresh(timeStamp);
 end;
 
 procedure TDiffSlice.RemoveChild(aChild: TSlice);
@@ -2767,7 +2973,7 @@ begin
   FreeAndNil(fPalette);
 end;
 
-function TSliceDiffReceptor.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceDiffReceptor.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   data: FMX.Graphics.TBitmapData;
   triangleCursorCur, triangleCursorRef: TDLTriangle;
@@ -2776,7 +2982,7 @@ var
   x, y: TDLCoordinate;
   cur, ref: Double;
 begin
-  Result := False; // sentinel
+  Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
   begin
     if aBitmap.Map(TMapAccess.Write, data) then
@@ -2786,43 +2992,50 @@ begin
         begin
           triangleCursorCur := nil;
           triangleCursorRef := nil;
-          for row := 0 to aBitmap.Height-1 do
-          begin
-            y := aExtent.YMax-(row+0.5)*aPixelHeight;
-            if (row mod 2)=0 then
+          fCurrentSlice.fDataLock.BeginRead;
+          fRefSlice.fDataLock.BeginRead;
+          try
+            for row := 0 to aBitmap.Height-1 do
             begin
-              for col := 0 to aBitmap.Width-1 do
+              y := aExtent.YMax-(row+0.5)*aPixelHeight;
+              if (row mod 2)=0 then
               begin
-                x := aExtent.XMin+(col+0.5)*aPixelWidth;
-                cur := (fCurrentSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorCur, x, y, NaN);
-                if not IsNaN(cur) then
+                for col := 0 to aBitmap.Width-1 do
                 begin
-                  ref := (fRefSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorRef, x, y, NaN);
-                  if not IsNaN(ref)
-                  then data.SetPixel(col, row, fPalette.ValueToColors(cur-ref).fillColor)
+                  x := aExtent.XMin+(col+0.5)*aPixelWidth;
+                  cur := (fCurrentSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorCur, x, y, NaN);
+                  if not IsNaN(cur) then
+                  begin
+                    ref := (fRefSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorRef, x, y, NaN);
+                    if not IsNaN(ref)
+                    then data.SetPixel(col, row, fPalette.ValueToColors(cur-ref).fillColor)
+                    else data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor);
+                  end
                   else data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor);
-                end
-                else data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor);
-              end;
-            end
-            else
-            begin
-              for col := aBitmap.Width-1 downto 0 do
+                end;
+              end
+              else
               begin
-                x := aExtent.XMin+(col+0.5)*aPixelWidth;
-                cur := (fCurrentSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorCur, x, y, NaN);
-                if not IsNaN(cur) then
+                for col := aBitmap.Width-1 downto 0 do
                 begin
-                  ref := (fRefSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorRef, x, y, NaN);
-                  if not IsNaN(ref)
-                  then data.SetPixel(col, row, fPalette.ValueToColors(cur-ref).fillColor)
+                  x := aExtent.XMin+(col+0.5)*aPixelWidth;
+                  cur := (fCurrentSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorCur, x, y, NaN);
+                  if not IsNaN(cur) then
+                  begin
+                    ref := (fRefSlice as TSliceReceptor).fNet.ValueAtPoint(triangleCursorRef, x, y, NaN);
+                    if not IsNaN(ref)
+                    then data.SetPixel(col, row, fPalette.ValueToColors(cur-ref).fillColor)
+                    else data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor);
+                  end
                   else data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor);
-                end
-                else data.SetPixel(col, row, fPalette.ValueToColors(NaN).fillColor);
+                end;
               end;
             end;
+          finally
+            fCurrentSlice.fDataLock.EndRead;
+            fRefSlice.fDataLock.EndRead;
           end;
-          Result := True;
+          Result := gtsOk;
         end
         else Log.WriteLn('diff receptor layer '+fLayer.LayerID.ToString+': data=nil out of map bitmap', llError);
       finally
@@ -2869,10 +3082,10 @@ begin
 
 end;
 
-function TSliceDiffGeometry.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceDiffGeometry.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 begin
   // todo: implement
-  Result := False;
+  Result := gtsFailed;
 end;
 
 { TSliceDiffGeometryI }
@@ -2888,10 +3101,10 @@ begin
   // todo: create from byte buffer
 end;
 
-function TSliceDiffGeometryI.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceDiffGeometryI.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 begin
   // todo: implement
-  Result := False;
+  Result := gtsFailed;
 end;
 
 { TSliceDiffGeometryIC }
@@ -2907,10 +3120,10 @@ begin
   // todo: create from byte buffer
 end;
 
-function TSliceDiffGeometryIC.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceDiffGeometryIC.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 begin
   // todo: implement
-  Result := False;
+  Result := gtsFailed;
 end;
 
 { TSliceDiffGeometryICLR }
@@ -2926,7 +3139,7 @@ begin
   // todo: create from byte buffer
 end;
 
-function TSliceDiffGeometryICLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceDiffGeometryICLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   isgop: TPair<TWDID, TSliceGeometryICLRObject>;
   polygon: TPolygon;
@@ -2949,148 +3162,152 @@ begin
     capacityFactor := 0.001/Abs(aExtent.YMax-aExtent.YMin);
     bufferExtent := aExtent.Inflate(1.3);
     // todo: we are missing out on objects in ref but not in cur
-    for isgop in (fCurrentSlice as TSliceGeometryICLR).fGeometries do
-    begin
-      // get reference gheometry object
-      if not (fRefSlice as TSliceGeometryICLR).fGeometries.TryGetValue(isgop.Key, refObj)
-      then refObj := nil;
-
-      if bufferExtent.Intersects(isgop.Value.fExtent) then
+    fCurrentSlice.fDataLock.BeginRead;
+    fRefSlice.fDataLock.BeginRead;
+    try
+      for isgop in (fCurrentSlice as TSliceGeometryICLR).fGeometries do
       begin
-        if IsNaN(isgop.Value.texture) and IsNaN(isgop.Value.texture2) then
-        begin // both values are NaN -> draw small black line
-          path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
-          try
-            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
-            aBitmap.Canvas.StrokeThickness := 1;
-            aBitmap.Canvas.DrawPath(path, 1);
-          finally
-            path.Free;
-          end;
-        end
-        else
+        // get reference gheometry object
+        if not (fRefSlice as TSliceGeometryICLR).fGeometries.TryGetValue(isgop.Key, refObj)
+        then refObj := nil;
+
+        if bufferExtent.Intersects(isgop.Value.fExtent) then
         begin
-          // todo: add smart code for combinations of refObj=nil, texture values being NaN etc.
-          if Assigned(refObj) and not IsNaN(refObj.texture2) then
-          begin
-            colors2 := fPalette.ValueToColors(isgop.Value.texture2-refObj.texture2);
-            if IsNaN(isgop.Value.texture)
-            then colors := colors2
-            else colors := fPalette.ValueToColors(isgop.Value.texture-refObj.texture);
+          if IsNaN(isgop.Value.texture) and IsNaN(isgop.Value.texture2) then
+          begin // both values are NaN -> draw small black line
+            path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
+            try
+              aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
+              aBitmap.Canvas.StrokeThickness := 1;
+              aBitmap.Canvas.DrawPath(path, 1);
+            finally
+              path.Free;
+            end;
           end
           else
           begin
-            colors2 := TGeoColors.Create(TAlphaColorRec.Black or TAlphaColorRec.Alpha, TAlphaColorRec.Black or TAlphaColorRec.Alpha);
-            colors := colors2;
-          end;
-          setLength(polygon, 5);
-          for part in isgop.Value.fGeometry.parts do
-          begin
-            x := NaN;
-            for point in part.points do
+            // todo: add smart code for combinations of refObj=nil, texture values being NaN etc.
+            if Assigned(refObj) and not IsNaN(refObj.texture2) then
             begin
-              // recalc coordinates relative to extent
-              xPrev := x;
-              yPrev := y;
-              x := (point.X-aExtent.XMin)/aPixelWidth;
-              y := (aExtent.YMax-point.Y)/aPixelHeight;
-              if not IsNaN(xPrev) then
+              colors2 := fPalette.ValueToColors(isgop.Value.texture2-refObj.texture2);
+              if IsNaN(isgop.Value.texture)
+              then colors := colors2
+              else colors := fPalette.ValueToColors(isgop.Value.texture-refObj.texture);
+            end
+            else
+            begin
+              colors2 := TGeoColors.Create(TAlphaColorRec.Black or TAlphaColorRec.Alpha, TAlphaColorRec.Black or TAlphaColorRec.Alpha);
+              colors := colors2;
+            end;
+            setLength(polygon, 5);
+            for part in isgop.Value.fGeometry.parts do
+            begin
+              x := NaN;
+              for point in part.points do
               begin
-                xn := y-yPrev;
-                yn := xPrev-x;
-                // normalize..
-                l := sqrt((xn*xn)+(yn*yn));
-
-                if not (IsNaN(isgop.Value.value) or IsNaN(isgop.Value.value2)) then
+                // recalc coordinates relative to extent
+                xPrev := x;
+                yPrev := y;
+                x := (point.X-aExtent.XMin)/aPixelWidth;
+                y := (aExtent.YMax-point.Y)/aPixelHeight;
+                if not IsNaN(xPrev) then
                 begin
-                  // add polygon to the right for x,y x2,y2
-                  xn := {(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-                  yn := {(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
-
-                  polygon[0].X := xPrev;
-                  polygon[0].Y := yPrev;
-                  polygon[1].X := x;
-                  polygon[1].Y := y;
-                  polygon[2].X := x+xn;
-                  polygon[2].Y := y+yn;
-                  polygon[3].X := xPrev+xn;
-                  polygon[3].Y := yPrev+yn;
-                  polygon[4].X := xPrev;
-                  polygon[4].Y := yPrev;
-
-                  // draw
-                  if colors.fillColor<>0  then
-                  begin
-                    aBitmap.Canvas.Fill.Color := colors.fillColor;
-                    aBitmap.Canvas.FillPolygon(polygon, 1);
-                  end;
-                  if colors.outlineColor<>0 then
-                  begin
-                    aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-                    aBitmap.Canvas.DrawPolygon(polygon, 1);
-                  end;
-
-                  //left
-                  // add polygon to the left for x,y x2,y2
-                  xn := yPrev-y;
-                  yn := x-xPrev;
+                  xn := y-yPrev;
+                  yn := xPrev-x;
                   // normalize..
                   l := sqrt((xn*xn)+(yn*yn));
-                  xn := {(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-                  yn := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
 
-                  // todo: wrong rotation direction..
-                  polygon[2].X := x-xn;
-                  polygon[2].Y := y-yn;
-                  polygon[3].X := xPrev-xn;
-                  polygon[3].Y := yPrev-yn;
-                  // draw left
-                  if colors2.fillColor<>0 then
+                  if not (IsNaN(isgop.Value.value) or IsNaN(isgop.Value.value2)) then
                   begin
-                    aBitmap.Canvas.Fill.Color := colors2.fillColor;
-                    aBitmap.Canvas.FillPolygon(polygon, 1);
-                  end;
-                  if colors2.outlineColor<>0 then
-                  begin
-                    aBitmap.Canvas.Stroke.Color := colors2.outlineColor;
-                    aBitmap.Canvas.DrawPolygon(polygon, 1);
-                  end;
-                end
-                else
-                begin
-                  // draw centered line around path with capacity as width
-                  if IsNaN(isgop.Value.value) then
-                  begin
-                    xn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-                    yn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+                    // add polygon to the right for x,y x2,y2
+                    xn := {(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
+                    yn := {(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+
+                    polygon[0].X := xPrev;
+                    polygon[0].Y := yPrev;
+                    polygon[1].X := x;
+                    polygon[1].Y := y;
+                    polygon[2].X := x+xn;
+                    polygon[2].Y := y+yn;
+                    polygon[3].X := xPrev+xn;
+                    polygon[3].Y := yPrev+yn;
+                    polygon[4].X := xPrev;
+                    polygon[4].Y := yPrev;
+
+                    // draw
+                    if colors.fillColor<>0  then
+                    begin
+                      aBitmap.Canvas.Fill.Color := colors.fillColor;
+                      aBitmap.Canvas.FillPolygon(polygon, 1);
+                    end;
+                    if colors.outlineColor<>0 then
+                    begin
+                      aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+                      aBitmap.Canvas.DrawPolygon(polygon, 1);
+                    end;
+
+                    //left
+                    // add polygon to the left for x,y x2,y2
+                    xn := yPrev-y;
+                    yn := x-xPrev;
+                    // normalize..
+                    l := sqrt((xn*xn)+(yn*yn));
+                    xn := {(1+}isgop.Value.value*capacityFactor{)}*xn/l;
+                    yn := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
+
+                    // todo: wrong rotation direction..
+                    polygon[2].X := x-xn;
+                    polygon[2].Y := y-yn;
+                    polygon[3].X := xPrev-xn;
+                    polygon[3].Y := yPrev-yn;
+                    // draw left
+                    if colors2.fillColor<>0 then
+                    begin
+                      aBitmap.Canvas.Fill.Color := colors2.fillColor;
+                      aBitmap.Canvas.FillPolygon(polygon, 1);
+                    end;
+                    if colors2.outlineColor<>0 then
+                    begin
+                      aBitmap.Canvas.Stroke.Color := colors2.outlineColor;
+                      aBitmap.Canvas.DrawPolygon(polygon, 1);
+                    end;
                   end
                   else
                   begin
-                    xn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-                    yn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*yn/l;
-                  end;
+                    // draw centered line around path with capacity as width
+                    if IsNaN(isgop.Value.value) then
+                    begin
+                      xn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
+                      yn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+                    end
+                    else
+                    begin
+                      xn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*xn/l;
+                      yn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*yn/l;
+                    end;
 
-                  polygon[0].X := xPrev-xn;
-                  polygon[0].Y := yPrev-yn;
-                  polygon[1].X := x-xn;
-                  polygon[1].Y := y-yn;
-                  polygon[2].X := x+xn;
-                  polygon[2].Y := y+yn;
-                  polygon[3].X := xPrev+xn;
-                  polygon[3].Y := yPrev+yn;
-                  polygon[4].X := xPrev-xn;
-                  polygon[4].Y := yPrev-yn;
+                    polygon[0].X := xPrev-xn;
+                    polygon[0].Y := yPrev-yn;
+                    polygon[1].X := x-xn;
+                    polygon[1].Y := y-yn;
+                    polygon[2].X := x+xn;
+                    polygon[2].Y := y+yn;
+                    polygon[3].X := xPrev+xn;
+                    polygon[3].Y := yPrev+yn;
+                    polygon[4].X := xPrev-xn;
+                    polygon[4].Y := yPrev-yn;
 
-                  // draw
-                  if colors.fillColor<>0 then
-                  begin
-                    aBitmap.Canvas.Fill.Color := colors.fillColor;
-                    aBitmap.Canvas.FillPolygon(polygon, 1);
-                  end;
-                  if colors.outlineColor<>0 then
-                  begin
-                    aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-                    aBitmap.Canvas.DrawPolygon(polygon, 1);
+                    // draw
+                    if colors.fillColor<>0 then
+                    begin
+                      aBitmap.Canvas.Fill.Color := colors.fillColor;
+                      aBitmap.Canvas.FillPolygon(polygon, 1);
+                    end;
+                    if colors.outlineColor<>0 then
+                    begin
+                      aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+                      aBitmap.Canvas.DrawPolygon(polygon, 1);
+                    end;
                   end;
                 end;
               end;
@@ -3098,11 +3315,14 @@ begin
           end;
         end;
       end;
+    finally
+      fCurrentSlice.fDataLock.EndRead;
+      fRefSlice.fDataLock.EndRead;
     end;
   finally
     aBitmap.Canvas.EndScene;
   end;
-  Result := True;
+  Result := gtsOk;
 end;
 
 { TSliceDiffPOI }
@@ -3127,10 +3347,10 @@ begin
   inherited;
 end;
 
-function TSliceDiffPOI.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceDiffPOI.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 begin
   // todo: implement
-  Result := False;
+  Result := gtsFailed;
 end;
 
 { TSliceDiffPNG }
@@ -3152,10 +3372,10 @@ begin
   inherited;
 end;
 
-function TSliceDiffPNG.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceDiffPNG.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 begin
   // todo: implement
-  Result := False;
+  Result := gtsFailed;
 end;
 
 { TSliceDiffLocation }
@@ -3172,10 +3392,10 @@ begin
 
 end;
 
-function TSliceDiffLocation.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): Boolean;
+function TSliceDiffLocation.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 begin
   // todo: implement
-  Result := False;
+  Result := gtsFailed;
 end;
 
 { TLayer }
@@ -3202,7 +3422,7 @@ begin
       fPersistent := true;
     end;
   end
-  else fPersistent := false;
+  else fPersistent := false; // todo: remove persistency information?
   fDescription := aDescription;
   fMaxEdgeLengthInMeters := aMaxEdgeLengthInMeters;
   // todo: clear slices? prob. not..
@@ -3525,18 +3745,12 @@ begin
                   if Assigned(slice) then
                   begin
                     size := aBuffer.bb_read_uint64(aCursor);
-                    slice.BeginUpdate;
-                    try
-                      if slice.HandleSliceUpdate(aBuffer, aCursor, aCursor+size) then
-                      begin
-                        // todo: if specified do recalc of data now (triangulate for receptors)?
-                        SignalRefresh(timeStamp);
-
-                      end;
-                    finally
-                      slice.EndUpdate;
+                    if slice.HandleSliceUpdate(aBuffer, aCursor, aCursor+size) then
+                    begin
+                      // todo: if specified do recalc of data now (triangulate for receptors)?
+                      SignalRefresh(timeStamp);
+                      slice.HandleUpdateOfParents; // todo: is this the correct position or before slice.EndUpdate ?
                     end;
-                    slice.HandleUpdateOfParents; // todo: is this the correct position or before slice.EndUpdate ?
                   end
                   else aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
                 end;
@@ -3675,46 +3889,6 @@ end;
 
 { TModel }
 
-function getFQDN: string;
-var
-  nSize: DWORD;
-begin
-  nSize := 0;
-  GetComputerNameEx(ComputerNameDnsFullyQualified, nil, nSize);
-  setLength(Result, nSize);
-  if GetComputerNameEx(ComputerNameDnsFullyQualified, PChar(Result), nSize) then
-  begin
-    // strip terminating 0
-    while Result.EndsWith(#0)
-    do Result := Result.Substring(0, Length(Result)-1);
-  end
-  else Result := '';
-end;
-
-procedure deleteDirectory(const aDirectoryName: string);
-var
-  path: string;
-  F: TSearchRec;
-begin
-  path := IncludeTrailingPathDelimiter(aDirectoryName);
-  if FindFirst(path+'*.*', faAnyFile, F) = 0 then
-  begin
-    try
-      repeat
-        if (F.Attr and faDirectory) <> 0 then
-        begin
-          if (F.Name <> '.') and (F.Name <> '..')
-          then deleteDirectory(path+F.Name);
-        end
-        else DeleteFile(path+F.Name);
-      until FindNext(F) <> 0;
-    finally
-      FindClose(F);
-    end;
-    RemoveDir(aDirectoryName);
-  end;
-end;
-
 procedure TModel.ClearCache;
 var
   F: TSearchRec;
@@ -3757,10 +3931,6 @@ begin
 
     URL := GetStdIniSetting(TilerURLSwitch, '');
 
-  //  Log.WriteLn('command line parameters');
-  //  for p := 0 to ParamCount-1
-  //  do Log.WriteLn(ParamStr(p), llNormal, 2);
-
     // execute actions needed to stop the model
     Log.WriteLn('Start model');
     LoadPersistentLayers;
@@ -3769,7 +3939,7 @@ begin
     ClearCache;
     Log.WriteLn('Cleared non-persistent cache');
     fWS2IMBEvent := fConnection.publish('Sessions.WS2IMB'); // for gettings status from ws2imb services
-    fTilerEvent := fConnection.subscribe('Tilers.'+GetFQDN.Replace('.', '_')); // todo: how to specify specific tiler (fqdn?), check
+    fTilerEvent := fConnection.subscribe('Tilers.'+GetFQDN.Replace('.', '_'));
     fTilerEvent.OnEvent.Add(HandleTilerEvent);
     fTilerEvent.OnString.Add(HandleTilerStatus);
     fTilerEvent.OnIntString.Add(HandleTilerStatusRequest);
@@ -4288,6 +4458,7 @@ var
   timeStamp: TDateTime;
 begin
   try
+    // decode parameters
     layerID := Request.QueryFields.Values[rpLayerID].ToInteger();
     lat := StrToFloat(Request.QueryFields.Values[rpLat], dotFormat);
     lon := StrToFloat(Request.QueryFields.Values[rpLon], dotFormat);
@@ -4297,6 +4468,7 @@ begin
                      time.Substring(0,4).toInteger, time.Substring(4,2).toInteger, time.Substring(6,2).toInteger,
                      time.Substring(8,2).toInteger, time.Substring(10,2).toInteger, time.Substring(12,2).toInteger, 0)
     else timeStamp := 0;
+
     // handle request on model
     value := model.PointValue(layerID, timeStamp, lat, lon);
     Response.ContentType := 'application/json';
@@ -4326,6 +4498,7 @@ var
   timeStamp: TDateTime;
 begin
   try
+    // decode parameters
     timeStamp := 0;
     try
       layerID := Request.QueryFields.Values[rpLayerID].ToInteger();
