@@ -5,7 +5,7 @@
 - [createVariant](#createVariant)
 - [deleteVariant](#deleteVariant)
 - [getData](#getData)
-	- [table public.dm_queries](#dm_queries)
+	- [table dm_queries](#dm_queries)
 - setKpiResult
 - getKpiResult
 - getGeojson
@@ -179,7 +179,28 @@ The returned "status" field can be
 - `failed - no module id`
 - `failed - no case id`
 
-## table public.dm_queries <a name="dm_queries"></a>
+## table dm_queries <a name="dm_queries"></a>
 
-The table public.dm_queries contains queries that are executed on request where the results are put together to form a response JSON object.
+The table dm_queries contains queries that are executed on request where the results are put together to form a response JSON object.
+
+Per project there is a table dm_queries in the main projects schema. It is copied from the public schema on project creation but can be changed per project afterwards to conform to the used models and data structure for that project. Based on the moduleId in the getData request all matching queries are executed and results are combined to one JSON object returned in the response message.
+
+### Table structure
+
+columns
+
+- `object_id` integer	the object_id must be unique integer
+- `returntype` text		type of the result of the specified query, see below
+- `request` text		name of the data returned
+- `query` text			the query to be executed; it can contain `{case_id}` to be filled in with the schema name
+- `module` text			the id of the module to be matched to the "moduleId" of the getData request, all matching queries are executed and combined to one getData result JSON object
+
+
+the return type be can one of
+
+- `INT`	the specified query returns 1 integer
+- `FLOAT` the specified query returns 1 double
+- `LIST` the specified query returns a list of values
+- `GEOJSON` the specified query returns a GEOJSON object
+- `TABLE` the specified query returns a table
 
