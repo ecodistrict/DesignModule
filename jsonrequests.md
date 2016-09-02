@@ -6,8 +6,14 @@
 - [deleteVariant](#deleteVariant)
 - [getData](#getData)
 	- [table dm_queries](#dm_queries)
-- setKpiResult
-- getKpiResult
+- [setKpiResult](#setKpiResult)
+- [getKpiResult](#getKpiResult)
+- [readDMQueries](#readDMQueries)
+- [readDIQueries](#readDIQueries)
+- [readDIObjectProperties](#readDIObjectProperties)
+
+
+not implemented yet
 - getGeojson
 
 
@@ -200,7 +206,149 @@ the return type be can one of
 
 - `INT`	the specified query returns 1 integer
 - `FLOAT` the specified query returns 1 double
-- `LIST` the specified query returns a list of values
 - `GEOJSON` the specified query returns a GEOJSON object
-- `TABLE` the specified query returns a table
+- `LIST` the specified query returns a list of values, the structure of the database is assumed to be citygml
+- `TABLE` the specified query returns a table, the structure of the database is assumed to be a flat simple object model
+
+## setKpiResult <a name="setKpiResult"></a>
+
+Set values for KPIs.
+...
+
+	{
+		...
+		"kpiId":"<kpiId>"
+		"kpiType":"<kpiType>"
+		"kpiValueList":[{"type":"<type>","gml_id":"<gml_id>","kpiValue":"<kpiValue>"}, ...]
+		...
+	}
+
+The returned "status" field can be
+
+- `Success - data added to the database`
+- `failed - no schema found for case and variant`
+- `failed - no kpiId found in request`
+- `failed - no module id`
+- `failed - no case id`
+
+## getKpiResult <a name="getKpiResult"></a>
+
+Get values for KPIs.
+...
+
+	{
+		...
+		"kpiId":"<kpiId>"
+		...
+	}
+
+The return event is
+
+	{
+		"type": "response",
+    	"method": "getKpiResult",
+    	"caseId": "<caseId>",
+		"variantId": "<variantId>",
+    	"userId": "<userId>",
+		"kpiValue": [{"kpi_id":"<kpi_id>","gml_id":"<gml_id>","kpi_type":"<type>", "kpi_value":<value>}, ...],
+    	"status": "Success"
+	}
+
+The returned "status" field can be
+
+- `Success`
+- `failed - no schema found for case and variant`
+- `failed - no kpiId found in request`
+- `failed - no module id`
+- `failed - no case id`
+
+## readDMQueries <a name="readDMQueries"></a>
+
+Trigger the re-reading of the dm_queries table.
+
+	{
+		
+		"type": "request",
+		"method": "readDMQueries",
+    	"caseId": "<caseId>",
+    	"userId": "<userId>",
+    	"eventId": "data-to-dashboard"
+	}
+
+"eventId" is the optional name of the event to return the answer to, it defaults to `data-to-dashboard`.
+
+The return event is
+
+	{
+		"type": "response",
+    	"method": "readDMQueries",
+    	"caseId": "<caseId>",
+    	"userId": "<userId>",
+    	"status": "Success - read queries"
+	}
+
+The returned "status" field can be
+
+- `Success - read queries`
+- `failed - case not loaded to read dm-queries for or no queries found`
+
+## readDIQueries <a name="readDIQueries"></a>
+
+Trigger the re-reading of the di_queries table.
+
+	{
+		
+		"type": "request",
+		"method": "readDIQueries",
+    	"caseId": "<caseId>",
+    	"userId": "<userId>",
+    	"eventId": "data-to-dashboard"
+	}
+
+"eventId" is the optional name of the event to return the answer to, it defaults to `data-to-dashboard`.
+
+The return event is
+
+	{
+		"type": "response",
+    	"method": "readDIQueries",
+    	"caseId": "<caseId>",
+    	"userId": "<userId>",
+    	"status": "Success - read queries"
+	}
+
+The returned "status" field can be
+
+- `Success - read queries`
+- `failed - case not loaded to read di-queries for or no queries found`
+
+## readDIObjectProperties <a name="readDIObjectProperties"></a>
+
+Trigger the re-reading of the di_objectproperties table.
+
+	{
+		
+		"type": "request",
+		"method": "readDIObjectProperties",
+    	"caseId": "<caseId>",
+    	"userId": "<userId>",
+    	"eventId": "data-to-dashboard"
+	}
+
+"eventId" is the optional name of the event to return the answer to, it defaults to `data-to-dashboard`.
+
+The return event is
+
+	{
+		"type": "response",
+    	"method": "readDIObjectProperties",
+    	"caseId": "<caseId>",
+    	"userId": "<userId>",
+    	"status": "Success - read object properties"
+	}
+
+The returned "status" field can be
+
+- `Success - read object properties`
+- `failed - case not loaded to read di-object-properties for or no properties found`
 
