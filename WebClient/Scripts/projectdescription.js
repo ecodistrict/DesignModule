@@ -7,6 +7,8 @@ L.control.projectDescription.showScenarios = function () {
         var div = modalDialogCreate('Scenarios', 'choose the active and the reference scenario');
         div.style.width = '800px';
         div.style.margin = '5% auto';
+
+        Scenarios = this.options.scenarios;
         
         // build dialog form
         var f = div.appendChild(document.createElement('form'));
@@ -17,27 +19,18 @@ L.control.projectDescription.showScenarios = function () {
         f.style.overflow = "auto";
         window.addEventListener("resize", calculateSize);
 
-        var rb2 = f.appendChild(document.createElement('input'));
-        rb2.className = 'selectReferenceScenarioRadio';
-        rb2.id = 'referenceScenario-1';
-        rb2.type = 'radio';
-        rb2.name = 'referenceScenario';
-        rb2.value = -1;
-        if (typeof (this.options.referenceScenario) === 'undefined' || this.options.referenceScenario === -1)
-            rb2.checked = true;
-        rb2.title = 'none';
+        var ul = f.appendChild(document.createElement("ul"));
+        //var ul = listContainer.appendChild("ul");
+        ul.id = "list";
 
-        var span = f.appendChild(document.createElement('span'));
-        span.appendChild(document.createTextNode('no reference scenario'));
-        span.className = 'selectReferenceScenarioLabel';
+        // add active|reference text
+        AddActiveReference(ul);
 
-        f.appendChild(document.createElement('br'));
+        // adds the no reference scenario option
+        AddNoReference(ul);
 
-        var ul = f.appendChild(document.createElement('ul'));
-        ul.className = 'selectScenarioUL';
-
-        for (var i = 0; i < this.options.scenarios.length; i++)
-            this._addScenario(ul, this.options.scenarios[i]);
+        // adds the scenarios
+        AddScenarios(Scenarios, ul);
 
         f.appendChild(document.createElement('br'));
         f.appendChild(document.createElement('hr'));
@@ -58,13 +51,15 @@ L.control.projectDescription.showScenarios = function () {
             modalDialogClose();
         });
         modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
+
+        CheckCurrentScenarios(this.options);
     }
 };
 
 function calculateSize() {
     var div = document.getElementById("selectScenariosForm")
 
-    //check if element still excists otherwise remove the eventlistener
+    //check if element still excists otherwise remove the eventlistener ?? Is this needed?
     if (div == null)
     {
         window.removeEventListener("resize", calculateSize);
@@ -79,67 +74,6 @@ function calculateSize() {
     div.style.overflow = "auto";
 }
 
-function selectRefScenario(e) {
-    var referenceScenario = e.currentTarget.defaultReference;
-    var referenceScenarioElement = document.getElementById('referenceScenario' + referenceScenario);
-    if (referenceScenarioElement)
-        referenceScenarioElement.checked = true;
-}
-
-L.control.projectDescription._addScenario = function (aParent, aScenario) {
-    // scenario.id
-    // scenario.name
-    // scenario.description
-    // scenario.status
-    // scenario.reference
-    // scenario.children
-    var li = aParent.appendChild(document.createElement('li'));
-    li.className = 'selectScenarioLI';
-
-    var rb = li.appendChild(document.createElement('input'));
-    rb.className = 'selectActiveScenarioRadio';
-    rb.id = aScenario.id;
-    rb.type = 'radio';
-    rb.name = 'activeScenario';
-    rb.value = aScenario.id;
-    rb.defaultReference = aScenario.reference;
-    if (aScenario.id == this.options.activeScenario)
-        rb.checked = true;
-    //rb.scenario = aScenario;
-    //rb.action = aScenario.description;
-    rb.title = aScenario.description;
-    rb.addEventListener('click', selectRefScenario);
-
-    var label = li.appendChild(document.createElement('label'));
-    label.className = 'selectActiveScenarioLabel';
-    // todo: for US: small name (V12) does not need to be shown (conflict with other sources?)
-    if (aScenario.name.length > 3)
-        label.appendChild(document.createTextNode(aScenario.name + ', ' + aScenario.description));
-    else {
-        label.appendChild(document.createTextNode(aScenario.description));
-        label.title = aScenario.name;
-    }
-    label.htmlFor = aScenario.id;
-
-    var rb2 = label.appendChild(document.createElement('input'));
-    rb2.className = 'selectReferenceScenarioRadio';
-    rb2.id = 'referenceScenario' + aScenario.id;
-    rb2.type = 'radio';
-    rb2.name = 'referenceScenario';
-    rb2.value = aScenario.id;
-    if (aScenario.id == this.options.referenceScenario)
-        rb2.checked = true;
-    rb2.title = 'reference scenario: ' + aScenario.name;
-
-
-    if (aScenario.children.length > 0) {
-        var ul = li.appendChild(document.createElement('ul'));
-        ul.className = 'selectScenarioUL';
-        for (var i = 0; i < aScenario.children.length; i++) {
-            this._addScenario(ul, aScenario.children[i]);
-        }
-    }
-};
 
 // handle onAdd and addTo
 L.control.projectDescription.onAdd = function (map) {
@@ -164,3 +98,339 @@ L.control.projectDescription.update = function (props) {
     if (this.options.description)
         this._div.innerHTML = '<h2>' + this.options.description + '</h2>';
 };
+
+
+function AddActiveReference(ul) {
+    var li = ul.appendChild(document.createElement("li"));
+    li.className = "listItem";
+
+    var table = CreateTable(false);
+
+    var activeTextSpan = table[2].appendChild(document.createElement("span"));
+    activeTextSpan.id = "activeTextSpan";
+    activeTextSpan.appendChild(document.createTextNode("Active"));
+    table[2].className = "";
+    table[2].id = "activeTextCell";
+
+    var refTextSpan = table[3].appendChild(document.createElement("span"));
+    refTextSpan.id = "refTextSpan";
+    refTextSpan.appendChild(document.createTextNode("Ref"));
+    table[3].className = "";
+    table[3].id = "refTextCell";
+
+    li.appendChild(table[0]);
+}
+
+function AddNoReference(ul) {
+    var li = ul.appendChild(document.createElement("li"));
+    li.className = "listItem";
+
+    var table = CreateTable(false);
+
+    var textSpan = table[2].appendChild(document.createElement("span"));
+    textSpan.id = "noRefSpan";
+    textSpan.appendChild(document.createTextNode("No Reference Scenario"));
+    table[2].className = "";
+    table[2].id = "noRefTextCell";
+
+    var rightRadioSpan = table[3].appendChild(document.createElement("span"));
+    rightRadioSpan.className = "rightRadioSpan";
+    table[3].id = "noRefRightRadio";
+    table[3].value = "noreference";
+    rightRadioSpan.value = "noreference";
+    table[3].addEventListener("click", RightMouseClick);
+    var rightRadio = rightRadioSpan.appendChild(document.createElement("input"));
+    rightRadio.type = "radio";
+    rightRadio.className = "rightRadio";
+    rightRadio.id = "noreference";
+    rightRadio.value = "noreference";
+
+    li.appendChild(table[0]);
+}
+
+function AddScenarios(list, ul) {
+
+    for (var i = 0; i < list.length; i++)
+    {
+        var li = ul.appendChild(document.createElement("li"));
+        li.className = "listItem";
+        FillTable(Scenarios[i], li);
+
+        if (list[i].children.length > 0) {
+            var subUL = ul.appendChild(document.createElement("ul"));
+            subUL.className = "subList";
+            AddScenarios(list[i].children, subUL);
+        }
+    }
+}
+
+function CheckCurrentScenarios(options)
+{
+    var leftRadioButtons = document.getElementsByClassName("leftRadio");
+    var rightRadioButtons = document.getElementsByClassName("rightRadio");
+
+    var activeId = options.activeScenario;
+
+    var referenceId = options.referenceScenario;
+
+    for (var i = 0; i < leftRadioButtons.length; i++)
+    {
+        if (leftRadioButtons[i].value == activeId)
+        {
+            leftRadioButtons[i].checked = true;
+            break;
+        }
+    }
+
+    for (var i = 0; i < rightRadioButtons.length; i++)
+    {
+        if (rightRadioButtons[i].value == referenceId)
+        {
+            rightRadioButtons[i].checked = true;
+            return;
+        }
+    }
+
+    for (var i = 0; i < rightRadioButtons.length; i++)
+    {
+        if (rightRadioButtons[i].value == "noreference")
+        {
+            rightRadioButtons[i].checked = true;
+            return;
+        }
+    }
+}
+
+function FillTable(aScenario, li) {
+
+
+    var table = CreateTable();
+
+    var textSpan = table[1].appendChild(document.createElement("span"));
+    table[1].value = aScenario.id;
+    textSpan.className = "textSpan";
+    textSpan.id = "scenariotext" + aScenario.id;
+    textSpan.value = aScenario.id;
+    if (aScenario.name.length > 3)
+    {
+        var spanText = textSpan.appendChild(document.createTextNode(aScenario.name + ", " + aScenario.description));
+    }
+    else
+    {
+        var spanText = textSpan.appendChild(document.createTextNode(aScenario.description));
+    }
+
+
+    var leftRadioSpan = table[2].appendChild(document.createElement("span"));
+    leftRadioSpan.className = "leftRadioSpan";
+    leftRadioSpan.value = aScenario.id;
+    table[2].value = aScenario.id;
+    var leftRadio = leftRadioSpan.appendChild(document.createElement("input"));
+    leftRadio.type = "radio";
+    leftRadio.className = "leftRadio";
+    leftRadio.id = aScenario.id;
+    leftRadio.value = aScenario.id;
+    leftRadio.name = "activeScenario";
+
+
+    var rightRadioSpan = table[3].appendChild(document.createElement("span"));
+    rightRadioSpan.className = "rightRadioSpan";
+    rightRadioSpan.value = aScenario.id;
+    table[3].value = aScenario.id;
+    var rightRadio = rightRadioSpan.appendChild(document.createElement("input"));
+    rightRadio.type = "radio";
+    rightRadio.className = "rightRadio";
+    rightRadio.id = "referenceScenario" + aScenario.id;
+    rightRadio.value = aScenario.id;
+    rightRadio.name = "referenceScenario";
+
+    aScenario.span = textSpan;
+    aScenario.leftRadio = leftRadio;
+    aScenario.rightRadio = rightRadio;
+
+    li.appendChild(table[0]);
+}
+
+function CreateTable(triggers) {
+
+    if (arguments.length == 0) {
+        triggers = true;
+    }
+    var table = document.createElement("table");
+    table.className = "scenarioTable";
+
+    var row = table.appendChild(document.createElement("tr"));
+    row.className = "tableRow";
+
+    var cell1 = row.appendChild(document.createElement("td"));
+    cell1.className = "cell1";
+    if (triggers) {
+        cell1.addEventListener("mouseenter", TextMouseEnter);
+        cell1.addEventListener("mouseleave", TextMouseLeave);
+        cell1.addEventListener("click", TextMouseClick);
+    }
+
+    var cell2 = row.appendChild(document.createElement("td"));
+    cell2.className = "cell2";
+    if (triggers) {
+        cell2.addEventListener("mouseenter", LeftMouseEnter);
+        cell2.addEventListener("mouseleave", LeftMouseLeave);
+        cell2.addEventListener("click", LeftMouseClick);
+    }
+
+    var cell3 = row.appendChild(document.createElement("td"));
+    cell3.className = "cell3";
+    if (triggers) {
+        cell3.addEventListener("mouseenter", RightMouseEnter);
+        cell3.addEventListener("mouseleave", RightMouseLeave);
+        cell3.addEventListener("click", RightMouseClick);
+    }
+
+    return [table, cell1, cell2, cell3];
+}
+
+function TextMouseEnter(event) {
+    target = event.target;
+    AdjustRadioColor(target, "LightBlue");
+}
+
+function TextMouseLeave(event) {
+    target = event.target;
+    AdjustRadioColor(target, "White");
+}
+
+function TextMouseClick(event) {
+    ActiveClick(event.target.value);
+}
+
+function LeftMouseEnter(event) {
+    target = event.target;
+    AdjustColor(target, "LightBlue");
+}
+
+function LeftMouseLeave(event) {
+    target = event.target;
+    AdjustColor(target, "white");
+}
+
+function LeftMouseClick(event) {
+    ActiveClick(event.target.value);
+}
+
+function RightMouseEnter(event) {
+    target = event.target;
+    AdjustColor(target, "#d6adeb");
+}
+
+function RightMouseLeave(event) {
+    target = event.target;
+    AdjustColor(target, "white");
+}
+
+function RightMouseClick(event) {
+    var rightRadioButtons = document.getElementsByClassName("rightRadio");
+
+    console.log(event.target);
+    for (var i = 0; i < rightRadioButtons.length; i++) {
+        if (rightRadioButtons[i].value == event.target.value) {
+            rightRadioButtons[i].checked = true;
+        }
+        else {
+            rightRadioButtons[i].checked = false;
+        }
+    }
+
+}
+
+function FindScenario(scenarioID, list) {
+    for (var i = 0; i < list.length; i++) {
+        if (list[i].id == scenarioID) {
+            return [true, list[i]];
+        }
+        else if (list[i].children.length > 0) {
+            var temp = FindScenario(scenarioID, list[i].children);
+            if (temp[0]) {
+                return temp;
+            }
+        }
+    }
+    return [false, null];
+}
+
+function ActiveClick(scenarioID) {
+    var leftRadioButtons = document.getElementsByClassName("leftRadio");
+    var rightRadioButtons = document.getElementsByClassName("rightRadio");
+    console.log(scenarioID);
+    var scenario;
+    for (var i = 0; i < Scenarios.length; i++) {
+        if (scenarioID == Scenarios[i].id) {
+            scenario = Scenarios[i];
+        }
+    }
+    scenario = FindScenario(scenarioID, Scenarios)[1];
+
+    console.log(scenario);
+
+    for (var i = 0; i < leftRadioButtons.length; i++) {
+        if (leftRadioButtons[i].value == scenarioID) {
+            leftRadioButtons[i].checked = true;
+        }
+        else {
+            leftRadioButtons[i].checked = false;
+        }
+    }
+
+    var reference = scenario.reference;
+
+    var found = false;
+
+    for (var i = 0; i < rightRadioButtons.length; i++) {
+        if (rightRadioButtons[i].value == reference) {
+            rightRadioButtons[i].checked = true;
+            found = true;
+        }
+        else {
+            rightRadioButtons[i].checked = false;
+        }
+    }
+
+    if (!found) {
+        for (var i = 0; i < rightRadioButtons.length; i++) {
+            if (rightRadioButtons[i].value == "noreference") {
+                rightRadioButtons[i].checked = true;
+                return;
+            }
+        }
+    }
+}
+
+function AdjustColor(target, color) {
+    target.style.backgroundColor = color;
+
+    var radioButton = target.children[0].children[0];
+
+    var spanList = document.getElementsByClassName("textSpan");
+
+    var i;
+    for (i = 0; i < spanList.length; i++) {
+        if (spanList[i].value == radioButton.value) {
+            spanList[i].parentNode.style.backgroundColor = color;
+        }
+    }
+}
+
+function AdjustRadioColor(target, color) {
+    target.style.backgroundColor = color;
+
+    var textSpan = target.children[0];
+
+    var leftButtonList = document.getElementsByClassName("leftRadio");
+
+    var i;
+    for (i = 0; i < leftButtonList.length; i++) {
+        if (leftButtonList[i].value == textSpan.value) {
+            leftButtonList[i].parentNode.parentNode.style.backgroundColor = color;
+        }
+    }
+}
+

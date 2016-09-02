@@ -21,6 +21,12 @@
     /*overflow-y:scroll;*/
 }
 
+.selectScenarioUR {
+    display: block;
+    align: right;
+    width: 10px;
+}
+
 .selectScenarioLI {
     white-space:nowrap;
 }
@@ -58,11 +64,88 @@
 }
 
 .selectReferenceScenarioRadio {
-    float: right;
-    
+    float: right;  
 }
 
 .selectReferenceScenarioLabel {
     float: right;
     /*font-size: 16px;*/
+}
+
+#list {
+	width: 85%;
+	list-style-type: none;
+}
+
+.listItem {
+	width: auto;
+	height: auto;
+}
+
+.subList {
+	list-style-type: none;
+}
+
+.subListItem {
+	height: auto;
+}
+
+
+/* --- Table Stuff --- */
+.scenarioTable {
+	width: 100%;
+	border: 0;
+	border-collapse: collapse;
+    font-size: 16px;
+}
+
+.tableRow {
+	height: auto;
+}
+
+.cell1 {
+	width: auto;
+}
+
+.cell2 {
+	width: 20px;
+}
+
+
+.cell3 {
+	width:30px;
+	border-left: 3px solid LightGrey;
+}
+
+#noRefRightRadio:hover {
+	background-color: #d6adeb;
+}
+
+#refTextCell {
+	width: 30px;
+	border-left: 3px solid LightGrey;
+}
+
+#activeTextCell {
+	width: 20px;
+}
+
+#noRefTextCell {
+	width: 20px;
+}
+
+
+
+/* --- Text Fields --- */
+#activeTextSpan {
+	margin-right: 3px;
+}
+
+#refTextSpan {
+	padding-left: 3px;
+}
+
+#noRefSpan {
+	margin-right: 3px;
+    white-space: nowrap;
 }
