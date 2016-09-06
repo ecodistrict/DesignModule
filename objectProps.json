@@ -1,0 +1,121 @@
+﻿{
+  "selectedObjectsProperties": {
+    "selectCategories": [ "building" ],
+    "properties": [
+      {
+        "attr5": {
+          "value": 5,
+          "type": "list",
+          "editable": "Y",
+          "options": [ 1, 3, 343, 5 ]
+        },
+        "attr0": {
+          "value": "blablabla1",  
+          "type": "string",
+          "editable":  "Y"
+        },
+        "attr1": {
+          "value": 20,
+          "type": "int",
+          "editable": "N"
+        },
+        "attr2": {
+          "value": 20,
+          "type": "float",
+          "editable": "Y"
+        },
+        "attr3": {
+          "value": 300,
+          "type": "int",
+          "editable": "Y"
+        },
+        "attr4": {
+          "value": "Type 2134324",
+          "type": "string",
+          "editable": "Y"
+        },
+        "attr6": {
+          "value": "0.3",
+          "type": "float",
+          "editable": "Y"
+        }
+      },
+      {
+         "attr5": {
+          "value": 3,
+          "type": "selection",
+          "editable": "Y",
+          "options": [1,3,3,5]
+        },
+        "attr0": {
+          "value": "blablabla2",
+          "type": "string",
+          "editable": "Y"
+        },
+        "attr1": {
+          "value": 22,
+          "type": "int",
+          "editable": "N"
+        },
+        "attr2": {
+          "value": 20,
+          "type": "float",
+          "editable": "Y"
+        },
+        "attr3": {
+          "value": 300,
+          "type": "int",
+          "editable": "Y"
+        },
+        "attr4": {
+          "value": "Type 234343",
+          "type": "string",
+          "editable": "Y"
+        },
+        "attr6": {
+          "value": "0.3",
+          "type": "float",
+          "editable": "Y"
+        }
+      },
+      {
+        "attr5": {
+          "value": 43,
+          "type": "selection",
+          "editable": "Y",
+          "options": [43,64565,343434]
+        },
+        "attr0": {
+          "value": "blablabla3",
+          "type": "string",
+          "editable": "Y"
+        },
+        "attr1": {
+          "value": 2222,
+          "type": "int",
+          "editable": "N"
+        },
+        "attr2": {
+          "value": 333,
+          "type": "float",
+          "editable": "Y"
+        },
+        "attr3": {
+          "value": 88,
+          "type": "int",
+          "editable": "Y"
+        },
+        "attr4": {
+          "value": "Type 34",
+          "type": "string",
+          "editable": "Y"
+        },
+        "attr6": {
+          "value": "0.3",
+          "type": "float",
+          "editable": "Y"
+        }
+      }
+    ]
+  }
+}
