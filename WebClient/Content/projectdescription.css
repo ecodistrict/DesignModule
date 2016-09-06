@@ -6,8 +6,38 @@
 
 .projectDescription {
     color: white;
-    text-shadow: 1px 1px black;
+    pointer-events: none;
+}
+
+#projectDescriptionH2{
+       background-color: rgba(0, 0, 0, 0.0);
+       border-radius: 3px;
+       padding-left: 3px;
+       padding-right: 3px;
+       margin-top: 14px;
+       text-overflow: ellipsis;
+       white-space: nowrap;
+       overflow: hidden;
+       display: inline-block;
+       color: white;
+       text-shadow: 1px 1px black;
+       pointer-events: none;
+}
+
+#projectDescriptionH2:hover{
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+#projectDescriptionTextBox{
+    pointer-events: auto;
     cursor: pointer;
+    position: relative;
+}
+
+#projectDescriptionTextBox:hover{
+    cursor: pointer;
+    pointer-events: auto;
 }
 
 /* select scenario form */
@@ -15,10 +45,6 @@
 .selectScenarioUL {
     list-style-type: none;
     margin-left: 0;
-    /*padding: 0; */
-    /*margin: 0; */
-    /*max-height: 300px; /* todo: adjust to height screen */
-    /*overflow-y:scroll;*/
 }
 
 .selectScenarioUR {
@@ -46,30 +72,6 @@
     border: 1px solid white;
     border-radius: 3px;
 
-}
-
-.selectActiveScenarioRadio:checked +.selectActiveScenarioLabel {
-    font-style:italic;
-    background: lightblue;
-    border-radius: 3px;
-    border: 1px solid lightblue;
-}
-
-.selectActiveScenarioRadio:checked + .selectActiveScenarioLabel:hover {
-    border: 1px solid dodgerblue;
-}
-
-.selectActiveScenarioLabel:hover {
-    border: 1px solid dodgerblue;
-}
-
-.selectReferenceScenarioRadio {
-    float: right;  
-}
-
-.selectReferenceScenarioLabel {
-    float: right;
-    /*font-size: 16px;*/
 }
 
 #list {
@@ -105,16 +107,19 @@
 
 .cell1 {
 	width: auto;
+    cursor: default;
 }
 
 .cell2 {
 	width: 20px;
+    cursor: default;
 }
 
 
 .cell3 {
 	width:30px;
 	border-left: 3px solid LightGrey;
+    cursor: default;
 }
 
 #noRefRightRadio:hover {

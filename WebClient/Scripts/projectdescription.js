@@ -2,13 +2,14 @@
 L.control.projectDescription = L.control();
 
 L.control.projectDescription.showScenarios = function () {
+    console.log("Ik trigger");
     // show modal dialog with all available scenarios
-    if (this.options.scenarios && this.options.scenarios.length > 0) {
+    if (options.scenarios && options.scenarios.length > 0) {
         var div = modalDialogCreate('Scenarios', 'choose the active and the reference scenario');
         div.style.width = '800px';
         div.style.margin = '5% auto';
 
-        Scenarios = this.options.scenarios;
+        Scenarios = options.scenarios;
         
         // build dialog form
         var f = div.appendChild(document.createElement('form'));
@@ -17,7 +18,7 @@ L.control.projectDescription.showScenarios = function () {
         //set max-height and scrollbars if window is small
         f.style.maxHeight = '' + height + 'px';
         f.style.overflow = "auto";
-        window.addEventListener("resize", calculateSize);
+        window.addEventListener("resize", ResizeSelectScenario);
 
         var ul = f.appendChild(document.createElement("ul"));
         //var ul = listContainer.appendChild("ul");
@@ -39,30 +40,30 @@ L.control.projectDescription.showScenarios = function () {
         var _this = this;
         modelDialogAddButton(mddb, 'Apply', function () {
             var selectedRadio = document.querySelector('input[name=activeScenario]:checked');
-            _this.options.activeScenario = selectedRadio ? selectedRadio.value : -1;
+            options.activeScenario = selectedRadio ? selectedRadio.value : -1;
             selectedRadio = document.querySelector('input[name=referenceScenario]:checked');
-            _this.options.referenceScenario = selectedRadio ? selectedRadio.value : -1;
+            options.referenceScenario = selectedRadio ? selectedRadio.value : -1;
             wsSend({
                 selectScenario: {
-                    currentScenario: _this.options.activeScenario,
-                    referenceScenario: _this.options.referenceScenario
+                    currentScenario: options.activeScenario,
+                    referenceScenario: options.referenceScenario
                 }
             });
             modalDialogClose();
         });
         modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
 
-        CheckCurrentScenarios(this.options);
+        CheckCurrentScenarios(options);
     }
 };
 
-function calculateSize() {
+function ResizeSelectScenario() {
     var div = document.getElementById("selectScenariosForm")
 
     //check if element still excists otherwise remove the eventlistener ?? Is this needed?
     if (div == null)
     {
-        window.removeEventListener("resize", calculateSize);
+        window.removeEventListener("resize", ResizeSelectScenario);
         return;
     }
 
@@ -79,7 +80,8 @@ function calculateSize() {
 L.control.projectDescription.onAdd = function (map) {
     this._div = L.DomUtil.create('div', 'projectDescription');
     var _this = this; // capture this
-    this._div.addEventListener('click', function () { _this.showScenarios(); });
+    options = this.options;
+    window.addEventListener("resize", ResizeProjectDescription);
     L.DomEvent.disableClickPropagation(this._div);
     this.update();
     return this._div;
@@ -96,9 +98,33 @@ L.control.projectDescription.addTo = function (map) {
 
 L.control.projectDescription.update = function (props) {
     if (this.options.description)
-        this._div.innerHTML = '<h2>' + this.options.description + '</h2>';
+    {
+        //using global variable projectDescriptionH2
+        projectDescriptionH2 = document.getElementById("projectDescriptionH2")
+        projectDescriptionH2 = (projectDescriptionH2 != null) ? projectDescriptionH2 : this._div.appendChild(document.createElement("h2"));
+        projectDescriptionH2.id = "projectDescriptionH2";
+
+        var textBox;
+        if (projectDescriptionH2.children[0] == null) {
+            textBox = projectDescriptionH2.appendChild(document.createElement("span"));
+            textBox.addEventListener('click', L.control.projectDescription.showScenarios);
+            textBox.id = "projectDescriptionTextBox";
+        }
+        else
+            textBox = projectDescriptionH2.children[0];
+
+        textBox.innerText = this.options.description;
+
+        //projectDescriptionH2.innerHTML = this.options.description;
+
+        ResizeProjectDescription();
+
+    }
 };
 
+function ResizeProjectDescription() {
+        projectDescriptionH2.style.width = "" + (window.innerWidth - 165) + "px";
+}
 
 function AddActiveReference(ul) {
     var li = ul.appendChild(document.createElement("li"));
@@ -164,14 +190,14 @@ function AddScenarios(list, ul) {
     }
 }
 
-function CheckCurrentScenarios(options)
+function CheckCurrentScenarios(aOptions)
 {
     var leftRadioButtons = document.getElementsByClassName("leftRadio");
     var rightRadioButtons = document.getElementsByClassName("rightRadio");
 
-    var activeId = options.activeScenario;
+    var activeId = aOptions.activeScenario;
 
-    var referenceId = options.referenceScenario;
+    var referenceId = aOptions.referenceScenario;
 
     for (var i = 0; i < leftRadioButtons.length; i++)
     {
