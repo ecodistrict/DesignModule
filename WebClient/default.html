@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="Content/projectdescription.css" />
     <link rel="stylesheet" href="Content/connectionstatus.css" />
     <link rel="stylesheet" href="Content/userMessages.css" />
+    <link rel="stylesheet" href="Content/select.css" />
     <link rel="stylesheet" href="Content/timeslider.css" />
     <link rel="stylesheet" href="Content/map.css" />
 </head>
@@ -46,8 +47,7 @@
     <script src="Scripts/querydialog.js"></script>
     <script src="Scripts/map.js"></script>
     <script src="Scripts/userMessages.js"></script>
-    <script src="Scripts/jquery-3.1.0.min.js"></script>
-    <script src="Scripts/select_jquery.js"></script>
+    <script src="Scripts/select.js"></script>
     <script src="Scripts/measures.js"></script>
     <script src="Scripts/info.js"></script>
     <script src="Scripts/legend.js"></script>
@@ -70,9 +70,9 @@
         var session = getParameterByName('session', ''); 
         if (session == '') {
             //session = '1234'; // default test session
-            //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
+            session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
             //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerp
-            session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
+            //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
@@ -166,6 +166,7 @@
             };
             ws.onmessage = function (evt) {
                 var message = JSON.parse(evt.data);
+                console.log(message);
                 if (message.measures) {
                     measuresControl.resetMeasures(message.measures);
                 }

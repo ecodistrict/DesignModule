@@ -9,6 +9,8 @@
 	z-index: 99999;
 	opacity:0;
 	pointer-events: none;
+    height: 100%;
+    overflow: auto;
 }
 
 .modalDialog:target {
@@ -17,9 +19,9 @@
 }
 
 .modalDialog > div {
- 	width: 400px; 
+ 	width: 90%; 
 	position: relative;
-	margin: 10% auto;
+	margin: 10px auto;
 	padding: 5px 20px 13px 20px;
 	border-radius: 4px;
 	background: white;
