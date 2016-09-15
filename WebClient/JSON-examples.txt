@@ -34,10 +34,26 @@ Wind Data:
 New Complaint:
 {
 	"complaint" : {
+		"complaintid" : 20,
 		"type" : "Phone call",
 		"latitude" : 52.4098,
 		"longitude" : 4.56982,
 		"time" : "Hier mag je nog kiezen wat je stuurt!",
 		"text" : "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa."
 	}
+}
+
+Remove Complaint:
+{
+	"removecomplaint" : {
+		"complaintid" : 20
+	}
+}
+
+Remove Sensor:
+{
+	"removesensor" : {
+		"sensorid" : 20
+	}
+}
 }
