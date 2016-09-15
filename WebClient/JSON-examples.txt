@@ -1,0 +1,43 @@
+New Sensor:
+{
+	"sensor" : {
+		"sensorid" : "99",
+		"name" : "Test sensor 1",
+		"address" : "Milkyway galaxy",
+		"latitude" : 51.98176489866166,
+		"longitude" : 5.04248063564119,
+		"measuredsubstance" : "benzeen",
+		"mobile" : false
+	}
+}
+
+Sensor Data:
+{
+	"sensordata" : {
+		"sensorid" : 20,
+		"concentration" : 0.000000112,
+		"latitude" : 52.495,
+		"longitude" : 4.4952,
+		"time" : "Hier mag je nog kiezen wat je stuurt!"
+	}
+}
+
+Wind Data:
+{
+	"winddata" : {
+		"speed" : 12,
+		"direction" : 89,
+		"time" : "Hier mag je nog kiezen wat je stuurt!"
+	}
+}
+
+New Complaint:
+{
+	"complaint" : {
+		"type" : "Phone call",
+		"latitude" : 52.4098,
+		"longitude" : 4.56982,
+		"time" : "Hier mag je nog kiezen wat je stuurt!",
+		"text" : "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa."
+	}
+}
