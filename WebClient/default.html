@@ -23,7 +23,11 @@
     <link rel="stylesheet" href="Content/userMessages.css" />
     <link rel="stylesheet" href="Content/select.css" />
     <link rel="stylesheet" href="Content/timeslider.css" />
+    <link rel="stylesheet" href="Content/windDirection.css" />
+    <link rel="stylesheet" href="Content/markerdialog.css" />
     <link rel="stylesheet" href="Content/map.css" />
+    <link rel="stylesheet" href="Content/ensel.css" />
+    <link rel="stylesheet" href="Content/warningDialog.css" />
 </head>
 <body>
     <!-- main map -->
@@ -46,6 +50,7 @@
     <script src="Scripts/modaldialog.js"></script>
     <script src="Scripts/querydialog.js"></script>
     <script src="Scripts/map.js"></script>
+    <script src="Scripts/ensel.js"></script>
     <script src="Scripts/userMessages.js"></script>
     <script src="Scripts/select.js"></script>
     <script src="Scripts/measures.js"></script>
@@ -60,19 +65,24 @@
     <script src="Scripts/history.js"></script>
     <script src="Scripts/projectdescription.js"></script>
     <script src="Scripts/timeslider.js"></script>
+    <script src="Scripts/markerdialog.js"></script>
+    <script src="Scripts/windDirection.js"></script>
+    <script src="Scripts//warningDialog.js"></script>
     <!-- charts -->
     <script src="Scripts/d3.js"></script> 
     <script src="Scripts/bullet.js"></script>
     <!-- local scripts -->
     <script>
         // determine parameters and config
-        var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
+        //var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
+        var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
         var session = getParameterByName('session', ''); 
         if (session == '') {
             //session = '1234'; // default test session
-            session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
+            //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
             //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerp
             //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
+            session = 'ensel';
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
@@ -133,6 +143,9 @@
 
         detailsControl.setCRD(crd);
 
+        DataManager.wind = L.control.arrow();//L.control.wind({});
+        map.addControl(DataManager.wind);
+
         // bottom-left (reverse order)
 
         // info
@@ -166,7 +179,6 @@
             };
             ws.onmessage = function (evt) {
                 var message = JSON.parse(evt.data);
-                console.log(message);
                 if (message.measures) {
                     measuresControl.resetMeasures(message.measures);
                 }
@@ -345,6 +357,26 @@
                     if (message.connection.message)
                         showUserMessage(message.connection.message, message.connection.messageType);
                 }
+                else if (message.sensor) {
+                    DataManager.NewSensor(message.sensor);
+                }
+                else if (message.complaint) {
+                    DataManager.NewComplaint(message.complaint);
+                }
+                else if (message.sensordata) {
+                    DataManager.NewSensorData(message.sensordata);
+                }
+                else if (message.winddata) {
+                    DataManager.NewWindData(message.winddata);
+                }
+                else if (message.removecomplaint) {
+                    if (typeof message.removecomplaint.complaintid !== 'undefined')
+                        DataManager.RemoveComplaint(message.removecomplaint.complaintid);
+                }
+                else if (message.removesensor) {
+                    if (typeof message.removesensor.sensorid !== 'undefined')
+                        DataManager.RemoveSensor(message.removesensor.sensorid);
+                }
             };
             ws.onerror = function (evt) {
                 if (evt.message)
@@ -384,6 +416,8 @@
 
         // default: try to connect
         wsConnect();
+
+        //AddMultipleSensors(39);
 
         // todo: handling window resize and orientation change
         // http://stackoverflow.com/questions/5284878/how-do-i-correctly-detect-orientation-change-using-javascript-and-phonegap-in-io

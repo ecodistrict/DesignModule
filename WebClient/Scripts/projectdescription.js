@@ -355,8 +355,6 @@ function RightMouseLeave(event) {
 
 function RightMouseClick(event) {
     var rightRadioButtons = document.getElementsByClassName("rightRadio");
-
-    console.log(event.target);
     for (var i = 0; i < rightRadioButtons.length; i++) {
         if (rightRadioButtons[i].value == event.target.value) {
             rightRadioButtons[i].checked = true;
@@ -386,7 +384,6 @@ function FindScenario(scenarioID, list) {
 function ActiveClick(scenarioID) {
     var leftRadioButtons = document.getElementsByClassName("leftRadio");
     var rightRadioButtons = document.getElementsByClassName("rightRadio");
-    console.log(scenarioID);
     var scenario;
     for (var i = 0; i < Scenarios.length; i++) {
         if (scenarioID == Scenarios[i].id) {
@@ -395,7 +392,6 @@ function ActiveClick(scenarioID) {
     }
     scenario = FindScenario(scenarioID, Scenarios)[1];
 
-    console.log(scenario);
 
     for (var i = 0; i < leftRadioButtons.length; i++) {
         if (leftRadioButtons[i].value == scenarioID) {

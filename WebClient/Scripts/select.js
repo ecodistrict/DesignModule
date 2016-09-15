@@ -128,13 +128,11 @@ function ApplyNewProperties() {
                 if (properties[i].value != inputNode.value) {
                     changes = true;
                     properties[i].value = inputNode.value;
-                    console.log("Changed: " + properties[i].name);
                 }
             }
             else if (inputNode.checked != BoolParse(properties[i].value)) {
                 changes = true;
                 properties[i].value = inputNode.checked;
-                console.log("Changed: " + properties[i].name);
             }
         }
         else {
@@ -142,7 +140,6 @@ function ApplyNewProperties() {
             if (properties[i].value != inputNode.options[inputNode.selectedIndex].value) {
                 changes = true;
                 properties[i].value = inputNode.options[inputNode.selectedIndex].value;
-                console.log("Changed: " + properties[i].name);
             }
         }
 
