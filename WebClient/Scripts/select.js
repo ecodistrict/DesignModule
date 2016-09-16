@@ -9,120 +9,19 @@ var selectedPointMarker = {
     radius: 4,
     fillColor: "#f06eaa",
     color: "#000",
-    weight: 1   ,
+    weight: 1,
     opacity: 1,
     fillOpacity: 0.8
 };
 
-function objectPropertiesSubmit(oriProps) {
-    var submitInfo = document.getElementById("submit-info");
-    submitInfo.className = 'submit-info-failed';
-    submitInfo.innerText = '';
-    if (!objectPropertiesValidation()) {
-        submitInfo.innerText = 'Validation Failed. Please check the changed properties';
-        return;
-    }
-    // go through the table to construct the JSON string
-    var sendInfo = {
-        selectedObjectsProperties: {
-            selectCategories: oriProps.selectedObjectsProperties.selectCategories,
-            properties: []
-        }
-    };
 
-    var propertiesTable = document.getElementById('md-prop-tbl');
-    var rowLength = propertiesTable.rows.length;
-    var attrNames = [];
-    // get the table headers
-    for (i = 0; i < propertiesTable.rows[0].cells.length; ++i)
-        attrNames[i] = propertiesTable.rows[0].cells[i].innerText;
 
-    var toUpdate = false;
-    // go through each object
-    for (r = 1; r < rowLength; ++r) {
-        // reference the original object properties
-        var oldObjectR = oriProps.selectedObjectsProperties.properties[r - 1];
-        var newObjectR = {};
-        var valueChanged = false;
-        // iterate each property of the object
-        for (i = 0; i < propertiesTable.rows[r].cells.length; ++i) {
-            // always add the non-editable attribute
-            var editable = oldObjectR[attrNames[i]].editable;
-            if (editable == "N") {
-                newObjectR[attrNames[i]] = {};
-                newObjectR[attrNames[i]].value = oldObjectR[attrNames[i]].value;
-                newObjectR[attrNames[i]].type = oldObjectR[attrNames[i]].type;
-                continue;
-            }
-            var curtValue = propertiesTable.rows[r].cells[i].firstChild.innerText;
-            // 
-            if (propertiesTable.rows[r].cells[i].firstChild.nodeName === 'SELECT') {
-                var idx = propertiesTable.rows[r].cells[i].firstChild.selectedIndex;
-                curtValue = propertiesTable.rows[r].cells[i].firstChild.options[idx].value;
-            }
-                
-            // changed, update the attribute value
-            if (curtValue != oldObjectR[attrNames[i]].value) {
-                newObjectR[attrNames[i]] = {};
-                newObjectR[attrNames[i]].value = curtValue;
-                newObjectR[attrNames[i]].type = oldObjectR[attrNames[i]].type;
-                valueChanged = true;
-            }          
-        }
-        if (valueChanged) {
-            sendInfo.selectedObjectsProperties.properties.push(newObjectR);
-            toUpdate = true;
-        }
-            
-    }
-    // send to Server (publishing server)
-    if (toUpdate) {
-        var jsonData = JSON.stringify(sendInfo);
-        wsSend(JSON.stringify(sendInfo));
-        submitInfo.className = 'submit-info-succeed';
-        submitInfo.innerText = "submit succeed.";
-    }
-}
-
-function objectPropertiesValidation() {
-    var propertiesTable = document.getElementById('md-prop-tbl');
-    //gets rows of table
-    var rowLength = propertiesTable.rows.length;
-    if (rowLength == 0)
-        return true;
-    var colLength = propertiesTable.rows[0].cells.length;
-
-    //loops through each column, the tableheader cell contains the datatype in the className property
-    for (i = 0; i < colLength; i++) {
-        // get the datatype of the whole column
-        var dataType = propertiesTable.rows[0].cells[i].className;
-        // get the data in each row of this column
-        for (r = 1; r < rowLength; r++) {  
-            var value = propertiesTable.rows[r].cells[i].firstChild.innerText;
-            if (dataType == "float") {
-                if (!/^[-+]?[0-9]+\.[0-9]+$/.test(value) && (!/^[0-9]+$/.test(value))) {
-                    // TODO: set the original value back??
-                    return false;
-                }
-                    
-            }
-            else if (dataType == "int") {
-                if (!/^[0-9]+$/.test(value)) {
-                    // todo: set the original value back??
-                    return false;
-                }
-            }
-            else if (dataType == "string") { }
-        }
-    }
-    return true;
-};
 
 // https://codepen.io/KryptoniteDove/post/load-json-file-locally-using-pure-javascript
 function loadJSONLocal(callback) {
     var xobj = new XMLHttpRequest();
     xobj.overrideMimeType("application/json");
-    xobj.open('GET', 'objectProps.json', true);
+    xobj.open('GET', 'objectPropsNew.json', true);
     xobj.onreadystatechange = function () {
         if (xobj.readyState == 4 && xobj.status == "200") {
             // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
@@ -131,6 +30,7 @@ function loadJSONLocal(callback) {
     };
     xobj.send(null);
 };
+
 
 function initSelectedObjectsProperties(e) {
     var objectPropertiesDialog = modalDialogCreate("Object properties");
@@ -153,100 +53,267 @@ function initSelectedObjectsProperties(e) {
         var objectProps = JSON.parse(response);
         if (objectProps.selectedObjectsProperties.properties.length == 0)
             return;
-        var mdtable = document.createElement('table');
-        mdtable.id = 'md-prop-tbl';
-        mdtable.className = 'modalDialog-table';
-    
-        // get all the attribute names and use them as table header
-        var tableHeaderRow = document.createElement('tr');
-        for (var attrName in objectProps.selectedObjectsProperties.properties[0]) {
-            var cell = document.createElement('th');
-            cell.appendChild(document.createTextNode(attrName));
-            // add the attribute type into the className
-            cell.className = objectProps.selectedObjectsProperties.properties[0][attrName].type;
-            tableHeaderRow.appendChild(cell);
-        }
-        mdtable.appendChild(tableHeaderRow);
-
-        // add the value into the table, each object takes one row
-        objectProps.selectedObjectsProperties.properties.map(function (props) {
-            // create a row
-            var row = document.createElement('tr');
-            for (var attrName in props)
-                if (props.hasOwnProperty(attrName)) {
-                    var cell = document.createElement('td');
-                    var dataType = props[attrName].type;
-                    var dataValue = props[attrName].value;
-                    if (dataType == 'list') {
-                        var options = props[attrName].options.map(function (optionValue) {
-                            if (dataValue == optionValue)
-                                return '<option selected="selected">' + optionValue + '</option>';
-                            else
-                                return '<option>' + optionValue + '</option>';
-                        });
-                        cell.innerHTML = "<select class='cell-dropdownlist'>" + options + "</select>";
-                    }
-                    // other data type
-                    else {
-                        // insert attribute values
-                        if (props[attrName].editable == "Y") {
-                            // for all browser http://stackoverflow.com/questions/16232554/add-rows-to-table-dynamically-and-make-content-editable
-                            cell.innerHTML = "<div contenteditable class='cell-editable'>" + props[attrName].value + "</div>";
-                        }
-                        else
-                            cell.innerHTML = "<div>" + props[attrName].value + "</div>";
-
-                    }
-                    row.appendChild(cell);
-                }
-            mdtable.appendChild(row);
-        });
-        // add the table into the modalDialog
-        objectPropertiesDialog.appendChild(mdtable);
-
-        // add buttons in a row
-        var btnRow = objectPropertiesDialog.appendChild(document.createElement('div'));
-        // add the submit button
-        var btn = document.createElement('input');
-        btn.type = 'button';
-        btn.value = 'Submit';
-        btn.className = 'modalDialogButton1';
-        btn.addEventListener('click', function() {
-            objectPropertiesSubmit(objectProps);
-        });
-        btnRow.appendChild(btn);
-        // add Refresh button
-        var btnRefresh = document.createElement('input');
-        btnRefresh.type = 'button';
-        btnRefresh.value = 'Refresh';
-        btnRefresh.className = 'modalDialogButton1';
-        btnRefresh.addEventListener('click', function() {
-            // TODO:
-        });
-        btnRow.appendChild(btnRefresh);
-        // add Close button
-        var btnClose = document.createElement('input');
-        btnClose.type = 'button';
-        btnClose.value = 'Close';
-        btnClose.className = 'modalDialogButton1';
-        btnClose.addEventListener('click', function () {
-            modalDialogClose();
-        });
-        btnRow.appendChild(btnClose);
-
-        // add extra div into the dialog
-        var submitInfo = objectPropertiesDialog.appendChild(document.createElement('div'));
-        submitInfo.id = 'submit-info';
+        showSelectedObjectsProperties(objectProps);
     });
 }
 
-// handle filling properties dialog with the retrieved values
 function showSelectedObjectsProperties(aSelectedObjectsProperties) {
-    var dialog = document.getElementById('modalDialog');
-    // todo: implement
-    // find content element
+
+    var objectPropertiesDialog = document.getElementById('modalDialog');
+
+    objProps = aSelectedObjectsProperties;
+
+    document.querySelector(".modalDialog h2").innerText = objProps.selectedObjectsProperties.selectCategories[0] + " properties";
+
+    var modalDialogDiv = document.querySelector(".modalDialog div");
+
+    var container = modalDialogDiv.appendChild(document.createElement("div"));
+
+    container.id = "attributesContainer";
+
+
+
+    buildAttributesTable(container);
+    // attribute names are used as rows
+}
+
+
+
+function buildAttributesTable(container) {
+    var tableContainer = container.appendChild(document.createElement("div"));
+    tableContainer.id = "tableContainer";
+
+    for (var i = 0; i < objProps.selectedObjectsProperties.properties.length; i++) {
+        objProps.selectedObjectsProperties.properties[i].id = objProps.selectedObjectsProperties.properties[i].name.replace(/\s+/g, '');
+        createAttributeTable(objProps.selectedObjectsProperties.properties[i], tableContainer);
+    }
+
+    container.appendChild(document.createElement("br"));
+    container.appendChild(document.createElement("hr"));
+
+    var buttonContainer = container.appendChild(document.createElement("div"));
+    buttonContainer.className = 'modalDialogDevideButtons';
+    modelDialogAddButton(buttonContainer, "Apply", ApplyNewProperties);
+    modelDialogAddButton(buttonContainer, "Cancel", modalDialogClose);
+    //var applyButton = buttonContainer.appendChild(document.createElement("input"));
+    //applyButton.type = "button";
+    //applyButton.value = "Apply";
+    //applyButton.id = "propertiesApplyButton";
+    //applyButton.className = "button";
+    //applyButton.addEventListener("click", ApplyNewProperties);
+
+    //var cancelButton = buttonContainer.appendChild(document.createElement("input"));
+    //cancelButton.type = "button";
+    //cancelButton.value = "Cancel";
+    //cancelButton.className = "button";
+    //cancelButton.id = "propertiesCancelButton";
+    //cancelButton.addEventListener("click", function () { modalDialogClose(); });
 
 }
+
+function ApplyNewProperties() {
+    var changes = false;
+    var properties = objProps.selectedObjectsProperties.properties;
+
+    for (var i = 0; i < properties.length; i++) {
+
+        var table = document.querySelectorAll("#" + properties[i].id + "Table")[0];
+
+
+        let inputNode = table.querySelectorAll("input")[0];
+
+
+        if (typeof inputNode !== "undefined") {
+            if (inputNode.type != "checkbox") {
+                if (properties[i].value != inputNode.value) {
+                    changes = true;
+                    properties[i].value = inputNode.value;
+                }
+            }
+            else if (inputNode.checked != BoolParse(properties[i].value)) {
+                changes = true;
+                properties[i].value = inputNode.checked;
+            }
+        }
+        else {
+            inputNode = table.querySelectorAll("select")[0];
+            if (properties[i].value != inputNode.options[inputNode.selectedIndex].value) {
+                changes = true;
+                properties[i].value = inputNode.options[inputNode.selectedIndex].value;
+            }
+        }
+
+    }
+
+    if (changes) {
+        // send to Server (publishing server)
+        var jsonData = JSON.stringify(objProps);
+        wsSend(jsonData);
+    }
+    //No closing on apply??
+    modalDialogClose();
+    
+}
+
+function createAttributeTable(aAttribute, aElem) {
+    switch (aAttribute.type) {
+        case "int": createIntTable(aAttribute, aElem);
+            break;
+        case "float": createFloatTable(aAttribute, aElem);
+            break;
+        case "list": createListTable(aAttribute, aElem);
+            break;
+        case "string": createStringTable(aAttribute, aElem);
+            break;
+        case "bool": createBoolTable(aAttribute, aElem);
+            break;
+        default: console.log("Encountered unknown attribute.type variable: " + aAttribute.type + " in: " + aAttribute);
+    }
+}
+
+function createIntTable(aAttribute, aElem) {
+    var table = createEmptyTable(aElem, aAttribute, "int");
+    table.attribute = aAttribute;
+    //aAttribute.table = table;
+
+    var leftCell = table.children[0].children[0];
+    var rightCell = table.children[0].children[1];
+
+    leftCell.appendChild(document.createTextNode(aAttribute.name));
+    var inputField = rightCell.appendChild(document.createElement("Input"));
+    inputField.type = "number";
+    inputField.className = "intInput";
+    inputField.value = aAttribute.value;
+    inputField.disabled = !BoolParse(aAttribute.editable);
+}
+
+function createFloatTable(aAttribute, aElem) {
+    var table = createEmptyTable(aElem, aAttribute, "float");
+    table.attribute = aAttribute;
+    //aAttribute.table = table;
+
+    var leftCell = table.children[0].children[0];
+    var rightCell = table.children[0].children[1];
+
+    leftCell.appendChild(document.createTextNode(aAttribute.name));
+    var inputField = rightCell.appendChild(document.createElement("Input"));
+    inputField.type = "number";
+    inputField.className = "intInput";
+    inputField.value = aAttribute.value;
+    inputField.oldValue = aAttribute.value;
+    inputField.disabled = !BoolParse(aAttribute.editable);
+}
+
+function createListTable(aAttribute, aElem) {
+    switch (aAttribute.forced.toUpperCase()) {
+        case "Y": createForcedListTable(aAttribute, aElem);
+            break;
+        case "N": createFreeListTable(aAttribute, aElem);
+            break;
+        default: console.log("Encountered unknown attribute.forced variable: " + aAttribute.forced + " in: " + aAttribute);
+    }
+}
+
+function createForcedListTable(aAttribute, aElem) {
+    var table = createEmptyTable(aElem, aAttribute, "forcedList");
+    table.attribute = aAttribute;
+    //aAttribute.table = table;
+
+    var leftCell = table.children[0].children[0];
+    var rightCell = table.children[0].children[1];
+
+    leftCell.appendChild(document.createTextNode(aAttribute.name));
+    var inputField = rightCell.appendChild(document.createElement("Select"));
+    for (var i = 0; i < aAttribute.options.length; i++) {
+        var selectOption = inputField.appendChild(document.createElement("option"));
+        selectOption.value = aAttribute.options[i];
+        selectOption.innerText = aAttribute.options[i];
+    }
+    inputField.className = "forcedListInput";
+    inputField.disabled = !BoolParse(aAttribute.editable);
+    inputField.value = aAttribute.value;
+}
+
+function createFreeListTable(aAttribute, aElem) {
+    var table = createEmptyTable(aElem, aAttribute, "freeList");
+    table.attribute = aAttribute;
+    //aAttribute.table = table;
+
+    var leftCell = table.children[0].children[0];
+    var rightCell = table.children[0].children[1];
+
+    leftCell.appendChild(document.createTextNode(aAttribute.name));
+    var inputField = rightCell.appendChild(document.createElement("Input"));
+    inputField.type = "text";
+    inputField.className = "textInput";
+    inputField.value = aAttribute.value;
+    inputField.disabled = !BoolParse(aAttribute.editable);
+
+}
+
+function createStringTable(aAttribute, aElem) {
+    var table = createEmptyTable(aElem, aAttribute, "string");
+    table.attribute = aAttribute;
+    //aAttribute.table = table;
+
+    var leftCell = table.children[0].children[0];
+    var rightCell = table.children[0].children[1];
+
+    leftCell.appendChild(document.createTextNode(aAttribute.name));
+    var inputField = rightCell.appendChild(document.createElement("Input"));
+    inputField.type = "text";
+    inputField.className = "textInput";
+    inputField.value = aAttribute.value;
+    inputField.disabled = !BoolParse(aAttribute.editable);
+}
+
+function createBoolTable(aAttribute, aElem) {
+    var table = createEmptyTable(aElem, aAttribute, "bool");
+    table.attribute = aAttribute;
+    //aAttribute.table = table;
+
+    var leftCell = table.children[0].children[0];
+    var rightCell = table.children[0].children[1];
+
+    leftCell.appendChild(document.createTextNode(aAttribute.name));
+    var inputField = rightCell.appendChild(document.createElement("Input"));
+    inputField.type = "checkbox";
+    inputField.className = "boolInput";
+    inputField.checked = BoolParse(aAttribute.value);
+    inputField.disabled = !BoolParse(aAttribute.editable);
+}
+
+function createEmptyTable(aElem, aAttribute, type) {
+    let id = aAttribute.id;
+
+    var table = aElem.appendChild(document.createElement("table"));
+    table.className = "attributeTable " + type + "Table";
+    table.id = id + "Table";
+
+    var row = table.appendChild(document.createElement("tr"));
+    row.className = "attributeRow " + type + "Row";
+
+    var leftCell = row.appendChild(document.createElement("td"));
+    leftCell.className = "attributeLeftCell " + type + "LeftCell";
+
+    var rightCell = row.appendChild(document.createElement("td"));
+    rightCell.className = "attributeRightCell " + type + "RightCell";
+
+    return table;
+}
+
+function BoolParse(input) {
+    if (typeof input == "string") {
+        if (input.toLowerCase() == "true" || input.toLowerCase() == "y")
+            return true;
+        return false;
+    }
+    if (typeof input == "boolean")
+        return input;
+    return false;
+}
+
+
 
 var selectedItems = L.geoJson(undefined,
     {
@@ -287,7 +354,7 @@ map.on('draw:drawstop', function () {
     inDraw = false;
 });
 
-map.on('draw:created', function (e,e2) {
+map.on('draw:created', function (e, e2) {
     var sessionRequest = {};
     sessionRequest.selectObjects = {};
     sessionRequest.selectObjects.type = e.layerType;
@@ -304,14 +371,24 @@ map.on('draw:created', function (e,e2) {
 map.on('click', function (e) {
     if (canSelect && !inDraw) {
         var popLocation = e.latlng;
+
+        let ctrlPressed
+        if (window.event) {
+            ctrlPressed = window.event.ctrlKey;
+        }
+        else if (e.originalEvent)
+        {
+            ctrlPressed = e.originalEvent.ctrlKey;
+        }
+
         var sessionRequest = {};
         sessionRequest.selectObjects = {};
         sessionRequest.selectObjects.type = 'Point';
         sessionRequest.selectObjects.geometry = {};
         sessionRequest.selectObjects.geometry.geometry = {};
         sessionRequest.selectObjects.geometry.geometry.coordinates = [e.latlng.lng, e.latlng.lat];
-        sessionRequest.selectObjects.mode = window.event.ctrlKey ? '~' : '=';
-        sessionRequest.selectObjects.selectCategories = window.event.ctrlKey ? measuresControl.options.selectCategories : measuresControl.setSelectCategories([]); // reset selected object type
+        sessionRequest.selectObjects.mode = ctrlPressed ? '~' : '=';
+        sessionRequest.selectObjects.selectCategories = ctrlPressed ? measuresControl.options.selectCategories : measuresControl.setSelectCategories([]); // reset selected object type
         wsSend(sessionRequest);
     }
 });

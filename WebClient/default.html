@@ -21,8 +21,13 @@
     <link rel="stylesheet" href="Content/projectdescription.css" />
     <link rel="stylesheet" href="Content/connectionstatus.css" />
     <link rel="stylesheet" href="Content/userMessages.css" />
+    <link rel="stylesheet" href="Content/select.css" />
     <link rel="stylesheet" href="Content/timeslider.css" />
+    <link rel="stylesheet" href="Content/windDirection.css" />
+    <link rel="stylesheet" href="Content/markerdialog.css" />
     <link rel="stylesheet" href="Content/map.css" />
+    <link rel="stylesheet" href="Content/ensel.css" />
+    <link rel="stylesheet" href="Content/warningDialog.css" />
 </head>
 <body>
     <!-- main map -->
@@ -45,9 +50,9 @@
     <script src="Scripts/modaldialog.js"></script>
     <script src="Scripts/querydialog.js"></script>
     <script src="Scripts/map.js"></script>
+    <script src="Scripts/ensel.js"></script>
     <script src="Scripts/userMessages.js"></script>
-    <script src="Scripts/jquery-3.1.0.min.js"></script>
-    <script src="Scripts/select_jquery.js"></script>
+    <script src="Scripts/select.js"></script>
     <script src="Scripts/measures.js"></script>
     <script src="Scripts/info.js"></script>
     <script src="Scripts/legend.js"></script>
@@ -60,6 +65,9 @@
     <script src="Scripts/history.js"></script>
     <script src="Scripts/projectdescription.js"></script>
     <script src="Scripts/timeslider.js"></script>
+    <script src="Scripts/markerdialog.js"></script>
+    <script src="Scripts/windDirection.js"></script>
+    <script src="Scripts//warningDialog.js"></script>
     <!-- charts -->
     <script src="Scripts/d3.js"></script> 
     <script src="Scripts/bullet.js"></script>
@@ -134,6 +142,9 @@
         map.addControl(crd);
 
         detailsControl.setCRD(crd);
+
+        DataManager.wind = L.control.arrow();//L.control.wind({});
+        map.addControl(DataManager.wind);
 
         // bottom-left (reverse order)
 
@@ -346,6 +357,26 @@
                     if (message.connection.message)
                         showUserMessage(message.connection.message, message.connection.messageType);
                 }
+                else if (message.sensor) {
+                    DataManager.NewSensor(message.sensor);
+                }
+                else if (message.complaint) {
+                    DataManager.NewComplaint(message.complaint);
+                }
+                else if (message.sensordata) {
+                    DataManager.NewSensorData(message.sensordata);
+                }
+                else if (message.winddata) {
+                    DataManager.NewWindData(message.winddata);
+                }
+                else if (message.removecomplaint) {
+                    if (typeof message.removecomplaint.complaintid !== 'undefined')
+                        DataManager.RemoveComplaint(message.removecomplaint.complaintid);
+                }
+                else if (message.removesensor) {
+                    if (typeof message.removesensor.sensorid !== 'undefined')
+                        DataManager.RemoveSensor(message.removesensor.sensorid);
+                }
             };
             ws.onerror = function (evt) {
                 if (evt.message)
@@ -385,6 +416,8 @@
 
         // default: try to connect
         wsConnect();
+
+        //AddMultipleSensors(39);
 
         // todo: handling window resize and orientation change
         // http://stackoverflow.com/questions/5284878/how-do-i-correctly-detect-orientation-change-using-javascript-and-phonegap-in-io
