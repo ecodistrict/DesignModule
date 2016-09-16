@@ -73,7 +73,8 @@ type
     ptUrbanStrategyOracle,
     ptEcoDistrict,
     ptWorld,
-    ptNWBLiveFeed
+    ptNWBLiveFeed,
+    ptEnsel
   );
 
 type
@@ -422,6 +423,107 @@ type
     procedure HandleCaseVariantManagentEvent(aEventEntry: TEventEntry; const aString: string);
   end;
 
+
+// EnSel
+
+{
+  emmission layer
+  sensor layer -> point value, concentration, time,
+}
+
+const sources_latitude = 113;
+const sources_longitude = 121;
+const sources_height = 129;
+const sources_timeutc = 137;
+const sources_emission_strength_forecast = 145;
+const sources_emission_strength_analysis = 153;
+const sources_probability_forecast = 161;
+const sources_probability_analysis = 169;
+
+type
+  TEnselLayer = class(TLayer)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
+    aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean=False);
+  destructor Destroy; override;
+  protected
+    fLayerType: Integer;
+    fPalette: TWDPalette;
+
+    fDataEvent: TEVentEntry;
+    fPrivateDataEvent: TEventEntry;
+  public
+    //procedure ReadObjects(aSender: TObject);
+    procedure RegisterLayer; override;
+    procedure RegisterSlice; override;
+    function SliceType: Integer; override;
+  end;
+
+  TEnselEmissionLayer = class(TEnselLayer)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
+    aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean=False);
+  private
+    // table: sources
+    // id uuid NOT NULL,
+    // latitude double precision (
+    // longitude double precision,
+    // emission_strength_analysis
+    procedure handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+  end;
+
+  TEnselScenario = class(TScenario)
+  public
+//    function AddLayerFromTable(const aDomain, aID, aName, aDescription, aObjectTypes, aGeometryType: string;
+//      aDefaultLoad: Boolean; aBasicLayer: Boolean;
+//      const aSchema, aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string): TLayer;
+//    function AddLayerFromQuery(const aDomain, aID, aName, aDescription, aObjectTypes, aGeometryType: string;
+//      aDefaultLoad: Boolean; aBasicLayer: Boolean;
+//      const aSchema, aQuery: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string): TLayer;
+
+    procedure ReadBasicData(); override;
+  public
+//    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
+//    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
+//    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aQuery: string): string; overload; override;
+//
+//    function selectObjectsProperties(aClient: TClient; const aSelectedCategories, aSelectedObjects: TArray<string>): string; override;
+  end;
+
+  TEnselProject = class(TProject)
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
+    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+    aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
+  destructor Destroy; override;
+  private
+  protected
+    procedure ReadObjects(aSender: TObject);
+    function getMeasuresJSON: string; override;
+    function handleTilerStatus(aTiler: TTiler): string;
+  public
+    function ReadScenario(const aID: string): TScenario; override;
+    procedure ReadBasicData(); override;
+  end;
+
+  TEnselModule = class
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aTilerFQDN, aTilerStatusURL: string;
+    aMaxNearestObjectDistanceInMeters: Integer);
+  destructor Destroy; override;
+  private
+    fSessionModel: TSessionModel;
+    fConnection: TConnection;
+    //fDBConnection: TCustomConnection;
+    //fConnectString: string;
+    fTilerFQDN: string;
+    fTilerStatusURL: string;
+    //fDashboardEvent: TEventEntry;
+    //fDataEvent: TEventEntry;
+    //fModuleEvent: TEventEntry;
+    //fCaseVariantManagementEvent: TEventEntry;
+    fProjects: TDictionary<string, TProject>;
+    fMaxNearestObjectDistanceInMeters: Integer;
+  end;
+
+
+
   // NWB live feed
   TOldTilerLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aPalette: TWDPalette;
@@ -504,6 +606,28 @@ type
   public
     procedure ReadBasicData(); override;
     property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
+  end;
+
+  TSSMCar = class(TLayerObject)
+  constructor Create(aLayer: TLayer; const aID: TWDID; aX, aY, aZ, aZRotation: Double);
+  private
+    fX: Double;
+    fY: Double;
+    fZ: Double;
+    fZRotation: Double;
+  public
+    property x: Double read fX;
+    property y: Double read fY;
+    property z: Double read fZ;
+    property zRotation: Double read fZRotation;
+  end;
+
+  TSSMLayer  = class(TLayer)
+
+  end;
+
+  TSSMProject  = class(TProject)
+
   end;
 
 
@@ -646,7 +770,7 @@ function TEcodistrictScenario.AddLayerFromQuery(const aDomain, aID, aName, aDesc
   const aQuery: string;
   aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string): TLayer;
 begin
-  Result := TEcodistrictLayer.Create(self, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, 1, aPalette, aLegendJSON, aBasicLayer);
+  Result := TEcodistrictLayer.Create(self, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, aLayerType, aPalette, aLegendJSON, aBasicLayer);
   try
     Result.query := aQuery.Replace('{case_id}', aSchema);// PGSVGPathsQuery('"'+aSchema+'".'+aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName);
     //AddCommandToQueue(sl, Self.ReadObjects);
@@ -667,7 +791,7 @@ function TEcodistrictScenario.AddLayerFromTable(const aDomain, aID, aName, aDesc
   const aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string;
   aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string): TLayer;
 begin
-  Result := TEcodistrictLayer.Create(self, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, 2, aPalette, aLegendJSON, aBasicLayer);
+  Result := TEcodistrictLayer.Create(self, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, aLayerType, aPalette, aLegendJSON, aBasicLayer);
   try
     Result.query := PGSVGPathsQuery('"'+aSchema+'".'+aTableName.Replace('{case_id}', aSchema), aIDFieldName, aGeometryFieldName, aDataFieldName);
     //AddCommandToQueue(sl, Self.ReadObjects);
@@ -733,6 +857,8 @@ begin
     begin
       palette := CreateBasicPalette;
       legendJSON := iqp.Value.legendjson;
+      if iqp.Value.palettejson<>''
+      then Log.WriteLn('Invalid palette JSON: '+iqp.Value.palettejson, llError);
     end;
     if iqp.Value.tablename<>'' then
     begin
@@ -1119,7 +1245,7 @@ begin
           'having category=c.category '+
         ') as typologies '+
       ') as measures '+
-      'from measures c '+
+      'from '+schema+'.di_measures c '+
       'group by category '+
       'order by category '+
       ') as categories');
@@ -1885,7 +2011,6 @@ begin
           //insert variables into query
                                 _SQL:= ReplaceStr(dataquery.SQL,'{case_id}', EcoDistrictSchemaId(_caseId)); // todo (HC): should this not be schema_id? or not being used at all in a query?
           //end variables insert
-                                //_SQL := 'SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''; ' + _SQL;
                                 Log.WriteLn(_SQL, llNormal, 1);
                                 query.SQL.Text := _SQL;
                                 query.Open();
@@ -2086,18 +2211,24 @@ begin
                         query := TFDQuery.Create(nil);
                         try
                           query.Connection := fDBConnection as TFDConnection;
-                          query.SQL.Text := 'SELECT id, kpi_id, gml_id, kpi_value, kpi_type FROM kpi_results WHERE kpi_id='''+_kpiId+'''';
+                          query.SQL.Text :=
+                            'SELECT id, kpi_id, gml_id, kpi_value, kpi_type '+
+                            'FROM kpi_results '+
+                            'WHERE kpi_id='''+_kpiId+'''';
                           query.Open();
                           try
                             query.First;
                             while not query.Eof do
                             begin
                               jsonList:=TJSONObject.Create; // will be owned by the JSON Array, so do not free!
-                              jsonList.AddPair('kpi_id', query.FieldByName('kpi_id').AsString);
-                              jsonList.AddPair('gml_id', query.FieldByName('gml_id').AsString);
-                              jsonList.AddPair('kpi_type', query.FieldByName('kpi_type').AsString);
-                              jsonList.AddPair('kpi_value', TJSONNumber.Create(StrToFloat(query.FieldByName('kpi_value').AsString, dotFormat)));
-                              jsonArray.Add(jsonList);
+                              try
+                                jsonList.AddPair('kpi_id', query.FieldByName('kpi_id').AsString);
+                                jsonList.AddPair('gml_id', query.FieldByName('gml_id').AsString);
+                                jsonList.AddPair('kpi_type', query.FieldByName('kpi_type').AsString);
+                                jsonList.AddPair('kpi_value', TJSONNumber.Create(StrToFloat(query.FieldByName('kpi_value').AsString, dotFormat)));
+                              finally
+                                jsonArray.Add(jsonList);
+                              end;
                             end;
                           finally
                             query.Close;
@@ -2110,7 +2241,7 @@ begin
                       end;
                     finally
                       (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
-                      _status := 'Success - data added to the database';
+                      _status := 'Success';
                     end;
                   end;
                 end
@@ -2150,7 +2281,7 @@ begin
           if _method='readDIObjectProperties' then
           begin
             if forceReadOfDIObjectProperties(_caseId)
-            then _status := 'Success - read queries'
+            then _status := 'Success - read object properties'
             else _status := 'failed - case not loaded to read di-object-properties for or no properties found';
             jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
             DataEvent.signalString(JSONresponse.ToString);
@@ -2718,6 +2849,20 @@ procedure TUSScenario.ReadBasicData;
     AddCommandToQueue(Self, layer.ReadObjects);
   end;
 
+  function defaultValue(aValue, aDefault: Double): Double; overload;
+  begin
+    if not IsNaN(aValue)
+    then Result := aValue
+    else Result := aDefault;
+  end;
+
+  function defaultValue(const aValue, aDefault: string): string; overload;
+  begin
+    if aValue<>''
+    then Result := aValue
+    else Result := aDefault;
+  end;
+
 var
   mlp: TPair<Integer, TMetaLayerEntry>;
   layer: TUSLayer;
@@ -2834,55 +2979,55 @@ begin
           begin
             objectTypes := '"receptor"';
             geometryType := 'Point';
-            diffRange := mlp.Value.diffRange*0.3;
+            diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
           end;
         2:
           begin
             objectTypes := '"grid"';
             geometryType := 'MultiPolygon'; // todo: ?
-            diffRange := mlp.Value.diffRange*0.3;
+            diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
           end;
         3, 8:
           begin
             objectTypes := '"building"'; // 3 buildings, 8 RS buildings
             geometryType := 'MultiPolygon';
-            diffRange := mlp.Value.diffRange*0.3;
+            diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
           end;
         4,    // road color (VALUE_EXPR)
         5:    // road color (VALUE_EXPR) and width (TEXTURE_EXPR)
           begin
             objectTypes := '"road"';
             geometryType := 'LineString';
-            diffRange := mlp.Value.diffRange*0.3;
+            diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
           end;
         9:    // enrg color (VALUE_EXPR) and width (TEXTURE_EXPR)
           begin
             objectTypes := '"energy"';
             geometryType := 'LineString';
-            diffRange := mlp.Value.diffRange*0.3;
+            diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
           end;
         11:
           begin
             objectTypes := '"location"';
             geometryType := 'Point';
-            diffRange := NaN; // todo:
+            diffRange := mlp.Value.diffRange; // todo:
           end;
         21:
           begin
             objectTypes := '"poi"';
             geometryType := 'Point';
-            diffRange := NaN; // todo:
+            diffRange := mlp.Value.diffRange; // todo:
           end;
       else
         // 31 vector layer ?
         objectTypes := '';
         geometryType := '';
-        diffRange := NaN;
+        diffRange := mlp.Value.diffRange;
       end;
       if geometryType<>'' then
       begin
         layer := TUSLayer.Create(Self,
-          standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0]), //  domain
+          defaultValue(mlp.Value.domain, standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0])), //  domain
           mlp.Key.ToString, // id
           layerInfoParts[1], // name
           mlp.Value.LEGEND_DESC.Replace('~~', '-').replace('\', '-'), // description
@@ -3913,6 +4058,234 @@ begin
   end;
 end;
 
+
+{ TSSMCar }
+
+constructor TSSMCar.Create(aLayer: TLayer; const aID: TWDID; aX, aY, aZ, aZRotation: Double);
+begin
+  inherited Create(aLayer, aID);
+  fX := aX;
+  fY := aY;
+  fZ := aZ;
+  fZRotation := aZRotation;
+end;
+
+{ TEnselModule }
+
+constructor TEnselModule.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aTilerFQDN, aTilerStatusURL: string;
+  aMaxNearestObjectDistanceInMeters: Integer);
+var
+  project: TProject;
+begin
+  // publish to dashboard
+  // subscribe to modules
+  // publish and subscribe to data
+  inherited Create;
+  fSessionModel := aSessionModel;
+  fConnection := aConnection;
+  fTilerFQDN := aTilerFQDN;
+  fTilerStatusURL := aTilerStatusURL;
+  fProjects := TDictionary<string, TProject>.Create;//([doOwnsValues]);
+  fMaxNearestObjectDistanceInMeters := aMaxNearestObjectDistanceInMeters;
+  //InitPG;
+  project := TEnselProject.Create(aSessionModel, aConnection, 'ensel', 'EnSel', aTilerFQDN, aTilerStatusURL,
+    1, False, False, False, False, aMaxNearestObjectDistanceInMeters, TMapView.Create(52.08895, 5.1707, 14));
+  fProjects.Add(project.ProjectID, project);
+end;
+
+destructor TEnselModule.Destroy;
+begin
+  // todo:
+  FreeAndNil(fProjects);
+  inherited;
+end;
+
+{ TEnselProject }
+
+constructor TEnselProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
+  aTilerStatusURL: string; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+  aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
+begin
+  mapView := aMapView;
+  inherited Create(
+    aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
+    aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers,
+    aMaxNearestObjectDistanceInMeters);
+  fTiler.onTilerStatus := handleTilerStatus;
+  // add ensel scenario
+  //scenario := TEnselScenario.Create(Self, '1', '1', '1', false, Self.mapView);
+  //scenarios.Add(scenario.id, scenario);
+end;
+
+destructor TEnselProject.Destroy;
+begin
+
+  inherited;
+end;
+
+function TEnselProject.getMeasuresJSON: string;
+begin
+  Result := '{}';
+end;
+
+function TEnselProject.handleTilerStatus(aTiler: TTiler): string;
+begin
+  // handle status request
+  Result := 'project '+projectName+' ('+projectID+')';
+end;
+
+procedure TEnselProject.ReadBasicData;
+begin
+  fCurrentScenario := ReadScenario('1'); //TEnselScenario.Create(Self, '1', '1', '1', false, Self.mapView);
+  scenarios.Add(fCurrentScenario.id, fCurrentScenario);
+end;
+
+procedure TEnselProject.ReadObjects(aSender: TObject);
+begin
+  // todo:
+end;
+
+function TEnselProject.ReadScenario(const aID: string): TScenario;
+begin
+  Result := TEnselScenario.Create(Self, aID, 'Uithof', 'Incident on the Uithof', false, Self.mapView);
+end;
+
+{ TEnselScenario }
+
+procedure TEnselScenario.ReadBasicData;
+var
+  layer: TLayer;
+  palette: TDiscretePalette;
+  entries: TPaletteDiscreteEntryArray;
+begin
+  // subscribe to data feeds
+  SetLength(entries, 5);
+  entries[0] := TDiscretePaletteEntry.Create(TGeoColors.Create($FF00FF00), 0, 10/10e9, '0 - 10');
+  entries[1] := TDiscretePaletteEntry.Create(TGeoColors.Create($FF66FF00), 10/10e9, 50/10e9, '10 - 50');
+  entries[2] := TDiscretePaletteEntry.Create(TGeoColors.Create($FFFFFF00), 50/10e9, 100/10e9, '50 - 100');
+  entries[3] := TDiscretePaletteEntry.Create(TGeoColors.Create($FFFF6600), 100/10e9, 500/10e9, '100 - 500');
+  entries[4] := TDiscretePaletteEntry.Create(TGeoColors.Create($FFFF0000), 500/10e9, 1000/10e9, '500 - 1000');
+  palette := TDiscretePalette.Create('Emissions', entries, TGeoColors.Create());
+  layer := TEnselEmissionLayer.Create(self, 'air quality', 'emissions', 'Emissions', 'Emissions', True, '"sources"', 'point', stReceptor,
+    palette, BuildDiscreteLegendJSON(palette, TLegendFormat.lfVertical));
+  fLayers.Add(layer.ID, layer);
+end;
+
+{ TEnselLayer }
+
+constructor TEnselLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
+  const aObjectTypes, aGeometryType: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean);
+begin
+  fLayerType := aLayerType;
+  fPalette := aPalette;
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, NaN, aBasicLayer);
+  fLegendJSON := aLegendJSON; // property of TLayer
+end;
+
+destructor TEnselLayer.Destroy;
+begin
+  FreeAndNil(fPalette);
+  inherited;
+end;
+
+procedure TEnselLayer.RegisterLayer;
+begin
+  RegisterOnTiler(False, SliceType, name);
+end;
+
+procedure TEnselLayer.RegisterSlice;
+begin
+  if Assigned(fPalette)
+  then tilerLayer.signalAddSlice(fPalette.Clone)
+  else tilerLayer.signalAddSlice(nil);
+  // todo: link data, layer is registered on tiler
+  fDataEvent.signalEvent(
+    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateDataEvent.eventName)+
+    TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, ''));
+end;
+
+function TEnselLayer.SliceType: Integer;
+begin
+  Result := fLayerType; // in ensel slice type=layer type
+end;
+
+{ TEnselEmissionLayer }
+
+constructor TEnselEmissionLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
+  const aObjectTypes, aGeometryType: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean);
+begin
+  inherited;
+  fPrivateDataEvent := aScenario.project.Connection.subscribe(aScenario.project.Connection.privateEventName+'.sources', false);
+  fPrivateDataEvent.OnEvent.Add(handleDataEvent);
+  fDataEvent := aScenario.project.Connection.subscribe('ensel.sources', false);
+  fDataEvent.OnEvent.Add(handleDataEvent);
+  // send inquire
+  // todo: to early?
+  RegisterLayer;
+end;
+
+procedure TEnselEmissionLayer.handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+var
+  fieldInfo: UInt32;
+  id: TGUID;
+  lat: Double;
+  lon: double;
+  value: Double;
+  prevID: TGUID;
+
+  procedure addLayerObject(aID: TGUID; aLat, aLon: Double; aValue: Double);
+  var
+    wdid: TWDID;
+  begin
+    if not (aLat.IsNan or aLon.IsNan) then
+    begin
+      SetLength(wdid, SizeOf(aID));
+      Move(aID, PAnsiChar(wdid)^, SizeOf(aID));
+      objects.AddOrSetValue(wdid, TGeometryPointLayerObject.Create(self, wdid, TWDGeometryPoint.Create(aLon, aLat, 0), aValue));
+      // signal object to tiler
+
+      // todo: tilerLayer.signalData();
+    end
+    else Log.WriteLn('TEnselEmissionLayer.handleDataEvent addLayerObject: ignoring NaN coordinates', llWarning);
+  end;
+
+begin
+  prevID := TGUID.Empty;
+  lat := Double.NaN;
+  lon := Double.NaN;
+  value := Double.NaN;
+  while aCursor<aLimit do
+  begin
+    fieldInfo := aPayload.bb_read_uint32(aCursor);
+    case fieldInfo of
+      (icehObjectID shl 3) or wtLengthDelimited:
+        begin
+          id := aPayload.bb_read_guid(aCursor);
+          if id<>prevID then
+          begin
+            addLayerObject(prevID, lat, lon, value);
+            prevID := id;
+          end;
+        end;
+      (sources_latitude shl 3) or wt64Bit:
+        begin
+          lat := aPayload.bb_read_double(aCursor);
+        end;
+      (sources_longitude shl 3) or wt64Bit:
+        begin
+          lon := aPayload.bb_read_double(aCursor);
+        end;
+      (sources_probability_analysis shl 3) or wt64Bit:
+        begin
+          value := aPayload.bb_read_double(aCursor);
+        end;
+    end;
+  end;
+  if id<>prevID then
+  begin
+    addLayerObject(prevID, lat, lon, value);
+  end;
+end;
 
 end.
 

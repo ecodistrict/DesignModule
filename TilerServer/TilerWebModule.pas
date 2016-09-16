@@ -48,6 +48,7 @@ uses
 
   // canvas class implementations (different on hardware and VPS machine)
   //FMX.Canvas.GDIP,
+
   FMX.Canvas.D2D.my,
 
   // TPolygon
@@ -102,6 +103,8 @@ const
   rpLon = 'lon';
   rpTime = 'time'; // yyyymmddhhmmss
   rpNewURL = 'url';
+
+  SliceTimeIDFormat = 'yyyymmdd.hhnn';
 
   HSC_SUCCESS_OK = 200;
   HSC_SUCCESS_CREATED = 201;
@@ -1203,6 +1206,7 @@ begin
     // tile generation phase, max read lock of tile
     fTileLock.BeginRead;
     try
+      //Log.WriteLn('TSlice.GenerateTile '+TimeFolder+aFileName);
       bitmapFileName := aCacheFolder+TimeFolder+aFileName;
       // try cache first
       if (aCacheFolder<>'') and FileExists(bitmapFileName) then
@@ -1229,37 +1233,44 @@ begin
         try
           bitmap := FMX.Graphics.TBitmap.Create(aWidthPixels, aHeightPixels);
           try
-            status := GenerateTileCalc(aExtent, bitmap, (aExtent.XMax-aExtent.XMin)/bitmap.Width, (aExtent.YMax-aExtent.YMin)/bitmap.Height);
-            if status=gtsOk then
-            begin
-              if aCacheFolder<>'' then
+            try
+              status := GenerateTileCalc(aExtent, bitmap, (aExtent.XMax-aExtent.XMin)/bitmap.Width, (aExtent.YMax-aExtent.YMin)/bitmap.Height);
+              if status=gtsOk then
               begin
-                // save tile bitmap
-                try
-                  ForceDirectories(ExtractFileDir(bitmapFileName));
-                  fileStream := TFileStream.Create(bitmapFileName, fmCreate+fmShareExclusive);
+                if aCacheFolder<>'' then
+                begin
+                  // save tile bitmap
                   try
-                    bitmap.SaveToStream(fileStream);
-                  finally
-                    fileStream.Free;
-                  end;
-                except
-                  on E: Exception do
-                  begin
-                    Log.WriteLn('Exception saving tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+                    ForceDirectories(ExtractFileDir(bitmapFileName));
+                    fileStream := TFileStream.Create(bitmapFileName, fmCreate+fmShareExclusive);
+                    try
+                      bitmap.SaveToStream(fileStream);
+                    finally
+                      fileStream.Free;
+                    end;
+                  except
+                    on E: Exception do
+                    begin
+                      Log.WriteLn('Exception saving tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+                    end;
                   end;
                 end;
+                // return stream
+                bitmap.SaveToStream(aStream);
+                Result := HSC_SUCCESS_CREATED;
+                status := gtsOk;
+              end
+              else
+              begin
+                if status=gtsFailed
+                then Log.WriteLn('could not calculate tile '+TimeFolder+aFileName, llError)
+                else Log.WriteLn('retry on calculating tile '+TimeFolder+aFileName, llWarning);
               end;
-              // return stream
-              bitmap.SaveToStream(aStream);
-              Result := HSC_SUCCESS_CREATED;
-              status := gtsOk;
-            end
-            else
-            begin
-              if status=gtsFailed
-              then Log.WriteLn('could not calculate tile '+TimeFolder+aFileName, llError)
-              else Log.WriteLn('retry on calculating tile '+TimeFolder+aFileName, llWarning);
+            except
+              on E: Exception do
+              begin
+                Log.WriteLn('Exception generating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+              end;
             end;
           finally
             bitmap.Free;
@@ -1271,6 +1282,7 @@ begin
           end;
         end;
       end;
+      //Log.WriteLn('end of TSlice.GenerateTile '+TimeFolder+aFileName+': '+Ord(status).ToString);
     finally
       fTileLock.EndRead;
     end;
@@ -1379,7 +1391,7 @@ end;
 function TSlice.id: string;
 begin
   if fTimeStamp<>0
-  then Result := fDataVersion.ToString+'-'+FormatDateTime('yyyymmdd.hhnn', fTimeStamp)
+  then Result := fDataVersion.ToString+'-'+FormatDateTime(SliceTimeIDFormat, fTimeStamp)
   else Result := fDataVersion.ToString;
 end;
 
@@ -1465,10 +1477,17 @@ begin
       begin
         // get distance in lat/lon (degrees) for x and y in middle of extent for disabling triangles
         distLatLon := TDistanceLatLon.Create(fMaxExtent.YMin, fMaxExtent.YMax);
+        Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': before fNet.Triangulate');
         fNet.Triangulate(fLayer.MaxEdgeLengthInMeters/distLatLon.m_per_deg_lon, fLayer.MaxEdgeLengthInMeters/distLatLon.m_per_deg_lat, NaN, aThreadPool);
+        Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': before fNet.Triangulate');
         Result := True;
       end
-      else Result := False;
+      else
+      begin
+        //Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': no points', llWarning);
+        Result := False;
+      end;
+      Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': triangulated');
     finally
       fDataLock.EndWrite;
     end;
@@ -3483,7 +3502,7 @@ begin
     end
     else
     begin
-      Result := FormatDateTime('yyyymmdd.hhmm', l)+' - '+FormatDateTime('yyyymmdd.hhmm', h);
+      Result := FormatDateTime(SliceTimeIDFormat, l)+' - '+FormatDateTime(SliceTimeIDFormat, h);
       if z
       then Result := Result+' incl. 0';
     end;
@@ -3582,7 +3601,7 @@ begin
   begin
     if aTimeStamp=0
     then Log.WriteLn('Layer id '+LayerID.ToString+', slice (0) not found to generate tile from', llWarning)
-    else Log.WriteLn('Layer id '+LayerID.ToString+', slice ('+FormatDateTime('yyyymmdd.hhmm', aTimeStamp)+') not found to generate tile from', llWarning);
+    else Log.WriteLn('Layer id '+LayerID.ToString+', slice ('+FormatDateTime(SliceTimeIDFormat, aTimeStamp)+') not found to generate tile from', llWarning);
     Result := HSC_ERROR_NOT_FOUND;
   end;
 end;
@@ -3639,47 +3658,52 @@ begin
                   slice := findSlice(timeStamp);
                   if not Assigned(slice) then
                   begin
-                    case fSliceType of
-                      stReceptor:
-                        slice := TSliceReceptor.Create(Self, timeStamp, palette.Clone);
-                      stGeometry:
-                        slice := TSliceGeometry.Create(Self, timeStamp, palette.Clone);
-                      stGeometryI:
-                        slice := TSliceGeometryI.Create(Self, timeStamp, palette.Clone);
-                      stGeometryIC:
-                        slice := TSliceGeometryIC.Create(Self, timeStamp, palette.Clone);
-                      stGeometryICLR:
-                        slice := TSliceGeometryICLR.Create(Self, timeStamp, palette.Clone);
-                      stPOI:
-                        slice := TSlicePOI.Create(Self, timeStamp, poiImages.ToArray);
-                      stPNG:
-                        slice := TSlicePNG.Create(Self, timeStamp, pngExtent, pngImage, discreteColorsOnStretch);
-                      stLocation:
-                        slice := TSliceLocation.Create(Self, timeStamp, palette.Clone);
-                      // diff slice types
-                      stDiffReceptor:
-                        slice := TSliceDiffReceptor.Create(Self, timeStamp, currentSlice as TSliceReceptor, refSlice as TSliceReceptor, palette.Clone);
-                      stDiffGeometry:
-                        slice := TSliceDiffGeometry.Create(Self, timeStamp, currentSlice as TSliceGeometry, refSlice as TSliceGeometry, palette.Clone);
-                      stDiffGeometryI:
-                        slice := TSliceDiffGeometryI.Create(Self, timeStamp, currentSlice as TSliceGeometryI, refSlice as TSliceGeometryI, palette.Clone);
-                      stDiffGeometryIC:
-                        slice := TSliceDiffGeometryIC.Create(Self, timeStamp, currentSlice as TSliceGeometryIC, refSlice as TSliceGeometryIC, palette.Clone);
-                      stDiffGeometryICLR:
-                        slice := TSliceDiffGeometryICLR.Create(Self, timeStamp, currentSlice as TSliceGeometryICLR, refSlice as TSliceGeometryICLR, palette.Clone);
-                      stDiffPOI:
-                        slice := TSliceDiffPOI.Create(Self, timeStamp, currentSlice as TSlicePOI, refSlice as TSlicePOI, colorRemovedPOI, colorSamePOI, colorNewPOI);
-                      stDiffPNG:
-                        slice := TSliceDiffPNG.Create(Self, timeStamp, currentSlice as TSlicePNG, refSlice as TSLicePNG);
-                      stDiffLocation:
-                        slice := TSliceDiffLocation.Create(Self, timeStamp, currentSlice as TSliceLocation, refSlice as TSliceLocation, palette.Clone);
-                    end;
-                    WORMLock.EndRead;
                     try
-                      AddSlice(slice);
-                      //Log.WriteLn('Added slice ('+slice.id+') for layer '+LayerID.ToString, llNormal, 1);
-                    finally
-                      WORMLock.BeginRead;
+                      case fSliceType of
+                        stReceptor:
+                          slice := TSliceReceptor.Create(Self, timeStamp, palette.Clone);
+                        stGeometry:
+                          slice := TSliceGeometry.Create(Self, timeStamp, palette.Clone);
+                        stGeometryI:
+                          slice := TSliceGeometryI.Create(Self, timeStamp, palette.Clone);
+                        stGeometryIC:
+                          slice := TSliceGeometryIC.Create(Self, timeStamp, palette.Clone);
+                        stGeometryICLR:
+                          slice := TSliceGeometryICLR.Create(Self, timeStamp, palette.Clone);
+                        stPOI:
+                          slice := TSlicePOI.Create(Self, timeStamp, poiImages.ToArray);
+                        stPNG:
+                          slice := TSlicePNG.Create(Self, timeStamp, pngExtent, pngImage, discreteColorsOnStretch);
+                        stLocation:
+                          slice := TSliceLocation.Create(Self, timeStamp, palette.Clone);
+                        // diff slice types
+                        stDiffReceptor:
+                          slice := TSliceDiffReceptor.Create(Self, timeStamp, currentSlice as TSliceReceptor, refSlice as TSliceReceptor, palette.Clone);
+                        stDiffGeometry:
+                          slice := TSliceDiffGeometry.Create(Self, timeStamp, currentSlice as TSliceGeometry, refSlice as TSliceGeometry, palette.Clone);
+                        stDiffGeometryI:
+                          slice := TSliceDiffGeometryI.Create(Self, timeStamp, currentSlice as TSliceGeometryI, refSlice as TSliceGeometryI, palette.Clone);
+                        stDiffGeometryIC:
+                          slice := TSliceDiffGeometryIC.Create(Self, timeStamp, currentSlice as TSliceGeometryIC, refSlice as TSliceGeometryIC, palette.Clone);
+                        stDiffGeometryICLR:
+                          slice := TSliceDiffGeometryICLR.Create(Self, timeStamp, currentSlice as TSliceGeometryICLR, refSlice as TSliceGeometryICLR, palette.Clone);
+                        stDiffPOI:
+                          slice := TSliceDiffPOI.Create(Self, timeStamp, currentSlice as TSlicePOI, refSlice as TSlicePOI, colorRemovedPOI, colorSamePOI, colorNewPOI);
+                        stDiffPNG:
+                          slice := TSliceDiffPNG.Create(Self, timeStamp, currentSlice as TSlicePNG, refSlice as TSLicePNG);
+                        stDiffLocation:
+                          slice := TSliceDiffLocation.Create(Self, timeStamp, currentSlice as TSliceLocation, refSlice as TSliceLocation, palette.Clone);
+                      end;
+                      WORMLock.EndRead;
+                      try
+                        AddSlice(slice);
+                        Log.WriteLn('added slice ('+slice.id+') for layer '+LayerID.ToString, llNormal, 1);
+                      finally
+                        WORMLock.BeginRead;
+                      end;
+                    except
+                      on E: Exception
+                      do Log.WriteLn('exception in TLayer.handleDataEvent ('+layerID.ToString+') creating slice ('+FormatDateTime(SliceTimeIDFormat, timeStamp)+'): '+e.Message, llError);
                     end;
                   end;
                 end;
@@ -3776,37 +3800,11 @@ begin
                     res := GenerateTile(0, Self.extent.SquareInMeters, stream, width, width,{bitmap, }'preview.png', model.fCacheFolder);
                     if (res=HSC_SUCCESS_OK) or (res=HSC_SUCCESS_CREATED)
                     then aEventEntry.signalEvent(TByteBuffer.bb_tag_bytes(icehTilerPreviewImage, (stream as TMemoryStream).Memory^, stream.Size))
-                    else Log.WriteLn('TLayer.handleDataEvent: could not create bitmap on icehTilerRequestPreviewImage');
+                    else Log.WriteLn('TLayer.handleDataEvent ('+LayerID.ToString+'): could not create bitmap on icehTilerRequestPreviewImage');
                   finally
                     stream.Free;
                   end;
-                  (*
-                  bitmap := FMX.Graphics.TBitmap.Create(width, width);
-                  try
-                    if Assigned(bitmap) then
-                    begin
-
-                      res := GenerateTile(0, Self.extent.SquareInMeters, {bitmap, }'preview.png', model.fCacheFolder);
-                      if (res=HSC_SUCCESS_OK) or (res=HSC_SUCCESS_CREATED) then
-                      begin
-                        stream := TMemoryStream.Create;
-                        try
-                          bitmap.SaveToStream(stream);
-                          aEventEntry.signalEvent(TByteBuffer.bb_tag_bytes(icehTilerPreviewImage, (stream as TMemoryStream).Memory^, stream.Size));
-                        finally
-                          stream.Free;
-                        end;
-                      end;
-                    end
-                    else
-                    begin
-                      Log.WriteLn('TLayer.handleDataEvent: could not create bitmap on icehTilerRequestPreviewImage');
-                    end;
-                  finally
-                    bitmap.Free;
-                  end;
-                  *)
-                end
+                end;
             else
               Log.WriteLn('unknown fields in layer ('+LayerID.ToString+') data: '+fieldInfo.toString, llWarning);
               aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
@@ -3824,7 +3822,7 @@ begin
     end;
   except
     on e: Exception
-    do Log.WriteLn('exception in TLayer.handleDataEvent: '+e.Message, llError);
+    do Log.WriteLn('exception in TLayer.handleDataEvent ('+layerID.ToString+'): '+e.Message, llError);
   end;
 end;
 

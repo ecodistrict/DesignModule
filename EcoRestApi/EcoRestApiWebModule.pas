@@ -64,6 +64,7 @@ var
   jsonArray: TJSONArray;
   rowObject: TJSONObject;
   jsonResponse: TJSONObject;
+  propertiesObject: TJSONObject;
 begin
   try
     jsonResponse := TJSONObject.Create;
@@ -76,7 +77,6 @@ begin
         // set correct schema
         schema := EcoDistrictSchemaId(caseId, variantId);
         // execute query
-        //fDBConnection.ExecSQL('SET SCHEMA  '''+schema+'''');
         jsonArray := TJSONArray.Create; // will become part of jsonResponse
         try
           query := TFDQuery.Create(nil);
@@ -84,17 +84,27 @@ begin
             query.Connection := fDBConnection;
             // todo: get query from ini or database ?
             query.SQL.Text :=
-              'SELECT object_id, ST_AsGeoJSON(lod0footprint)::text, street_name, zip_code '+
-              'FROM '+schema+'.building';
+              FDSingleStringResultQuery(fDBConnection,
+                'SELECT query '+
+                'FROM '+EcoDistrictSchemaId(caseId)+'.di_restapi '+
+                'WHERE name=''AllBuildings''').
+                  Replace('{case_id}',schema);
+              //'SELECT object_id, ST_AsGeoJSON(lod0footprint)::text, street_name, zip_code '+
+              //'FROM '+schema+'.building';
             query.Open;
             while not query.Eof do
             begin
               rowObject := TJSONObject.Create;
               try
-                rowObject.AddPair('id', TJSONString.Create(query.Fields[0].AsString));
                 rowObject.AddPair('geometry', TJSONObject.ParseJSONValue(query.Fields[1].AsString));
-                rowObject.AddPair('street', TJSONString.Create(query.Fields[2].AsString));
-                rowObject.AddPair('zip', TJSONString.Create(query.Fields[3].AsString))
+                propertiesObject := TJSONObject.Create;
+                try
+                  propertiesObject.AddPair('id', TJSONString.Create(query.Fields[0].AsString));
+                  propertiesObject.AddPair('street', TJSONString.Create(query.Fields[2].AsString));
+                  propertiesObject.AddPair('zip', TJSONString.Create(query.Fields[3].AsString))
+                finally
+                  rowObject.AddPair('properties', propertiesObject);
+                end;
               finally
                 jsonArray.Add(rowObject);
               end;
@@ -104,7 +114,7 @@ begin
             query.Free;
           end;
         finally
-          jsonResponse.AddPair('buldings', jsonArray);
+          jsonResponse.AddPair('buildings', jsonArray);
         end;
         Response.StatusCode := HSC_SUCCESS_OK;
         Response.ContentType := 'application/json';
@@ -143,7 +153,7 @@ begin
       '/allbuildings?caseId=(caseId)[&variantId=(variantId)]<br>'+
       '/gpstobuilding?caseId=(caseId)[&variantId=(variantId)]&lat=(lat)&lon=(lon)<br>'+
       '<br>'+
-      'return json array of buldings<br>'+
+      'return json array of buildings<br>'+
       //'<a href="http://localhost/EcoRestApi/EcoRestApi.dll/gpstobuilding?caseId=57b428a6cef25a0a0d6681ac&lat=51.1891682839691&lon=4.37702442308985">test</a><br>'+
     '</body>' +
     '</html>';
@@ -161,6 +171,7 @@ var
   lat: Double;
   lon: Double;
   jsonResponse: TJSONObject;
+  propertiesObject: TJSONObject;
 begin
   try
     jsonResponse := TJSONObject.Create;
@@ -180,20 +191,30 @@ begin
           query := TFDQuery.Create(nil);
           try
             query.Connection := fDBConnection;
-            // todo: get query from ini or database ?
-            query.SQL.Text :=
-              'SELECT object_id, ST_AsGeoJSON(lod0footprint)::text, street_name, zip_code '+
-              'FROM '+schema+'.building '+
-              'WHERE point''('+lon.toString(dotFormat)+','+lat.toString(dotFormat)+')'' <@ polygon(lod0footprint)';
+            query.SQL.Text := FDSingleStringResultQuery(fDBConnection,
+              'SELECT query '+
+              'FROM '+EcoDistrictSchemaId(caseId)+'.di_restapi '+
+              'WHERE name=''GPSToBuilding''').
+                Replace('{case_id}',schema).
+                Replace('{lat}', lat.toString(dotFormat)).
+                Replace('{lon}', lon.toString(dotFormat));
+//              'SELECT object_id, ST_AsGeoJSON(lod0footprint)::text, street_name, zip_code '+
+//              'FROM '+schema+'.building '+
+//              'WHERE point''('+lon.toString(dotFormat)+','+lat.toString(dotFormat)+')'' <@ polygon(lod0footprint)';
             query.Open;
             while not query.Eof do
             begin
               rowObject := TJSONObject.Create;
               try
-                rowObject.AddPair('id', TJSONString.Create(query.Fields[0].AsString));
                 rowObject.AddPair('geometry', TJSONObject.ParseJSONValue(query.Fields[1].AsString));
-                rowObject.AddPair('street', TJSONString.Create(query.Fields[2].AsString));
-                rowObject.AddPair('zip', TJSONString.Create(query.Fields[3].AsString))
+                propertiesObject := TJSONObject.Create;
+                try
+                  propertiesObject.AddPair('id', TJSONString.Create(query.Fields[0].AsString));
+                  propertiesObject.AddPair('street', TJSONString.Create(query.Fields[2].AsString));
+                  propertiesObject.AddPair('zip', TJSONString.Create(query.Fields[3].AsString))
+                finally
+                  rowObject.AddPair('properties', propertiesObject);
+                end;
               finally
                 jsonArray.Add(rowObject);
               end;
@@ -203,7 +224,7 @@ begin
             query.Free;
           end;
         finally
-          jsonResponse.AddPair('buldings', jsonArray);
+          jsonResponse.AddPair('buildings', jsonArray);
         end;
         Response.StatusCode := HSC_SUCCESS_OK;
         Response.ContentType := 'application/json';

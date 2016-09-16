@@ -166,7 +166,6 @@ type
     fName: string;
     fDescription: string;
     fDefaultLoad: Boolean;
-//    fOutputEvent: TEventEntry;
   protected
     function getJSON: string; virtual;
     function getElementID: string; override;
@@ -177,9 +176,6 @@ type
     property name: string read fName;
     property description: string read fDescription;
     property defaultLoad: Boolean read fDefaultLoad;
-    //
-//    property outputEvent: TEventEntry read fOutputEvent;
-    //
     property JSON: string read getJSON;
     property elementID: string read getElementID;
   end;
@@ -262,15 +258,12 @@ type
     const aObjectTypes, aGeometryType: string; aDiffRange: Double; aBasicLayer: Boolean=False);
   destructor Destroy; override;
   private
-//    fPalette: TWDPalette; // owns
-//    fPOIImages: TArray<TPngImage>;
     fObjects: TObjectDictionary<TWDID, TLayerObject>; // owns
     fGeometryType: string;
     fObjectsLock: TOmniMREW;
     fBasicLayer: Boolean;
     fDependentDiffLayers: TObjectList<TDiffLayer>; // refs
     fDiffRange: Double;
-    //fPreview: TPngImage;// TPicture;//TBitmap;
     fObjectTypes: string;
     fPreviewRequestTimer: TTimer;
     fSendRefreshTimer: TTImer;
@@ -1140,7 +1133,6 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     r: Double;
     x, y: Double;
     geometry: TWDGeometry;
-    //partI: Integer;
     part: TWDGeometryPart;
     c, c2: TJSONArray;
     pointI: Integer;
@@ -1149,7 +1141,7 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     i: Integer;
     resp: string;
   begin
-    // todo: decode selection and send back objects
+    // decode selection and send back objects
     resp := '';
     // type
     t := aSelectObjects.getValue<string>('type', '');
@@ -1167,13 +1159,12 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     if Assigned(g) then
     begin
       c := g.Values['geometry'].getValue<TJSONArray>('coordinates');
-      // todo: select objects based on geometry
+      // select objects based on geometry
       // always polygon or point (radius)? -> simplyfy
       if c.Count=1 then
       begin
         // 1 part with coordinates
         c2 := c.Items[0] as TJSONArray;
-        //TJSONArray(TJSONArray(TJSONArray(c.Items[0]).items[0])).items[0].tostring
         geometry := TWDGeometry.Create;
         try
           part := geometry.AddPart;
@@ -1210,7 +1201,7 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     else
     begin
       q := aSelectObjects.getValue<string>('query', '');
-      // todo: select objects based on query
+      // select objects based on query
       if Assigned(fCurrentScenario) then
       begin
         resp := fCurrentScenario.SelectObjects(Self, t, m, sc, q);
@@ -1272,6 +1263,12 @@ begin
         else if isObject(jsonObject, 'selectObjectsProperties', jsonPair)
         then selectObjectsProperties(jsonPair.JsonValue)
         else ;
+
+        // todo:
+        // setObjectProperties
+        // applyMeasures
+        // selectedTime: "now" | "yyyy-mm-dd hh:nn"
+
         // rest
       finally
         jsonObject.Free;
@@ -2869,7 +2866,7 @@ end;
 constructor TProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
   aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
-  aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
+  aMaxNearestObjectDistanceInMeters: Integer);
 begin
   inherited  Create;
   fTimeSlider := aTimeSlider;

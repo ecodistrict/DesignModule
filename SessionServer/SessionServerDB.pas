@@ -34,6 +34,7 @@ procedure SetPGConnection(aDBConnection: TFDConnection; const aConnectString: st
 
 function FDReadJSON(aDBConnection: TFDConnection; const aQuery: string): string;
 //function FDCreateQuery(aDBConnection: TFDConnection; const aQuery: string ): TFDQuery;
+function FDSingleStringResultQuery(aDBConnection: TFDConnection; const aQuery: string): string;
 
 function PGGeometriesJSONQuery(const aTableName, aIDFieldName, aGeometryFieldName: string): string;
 function PGSVGPathsQuery(const aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string): string;
@@ -98,6 +99,24 @@ begin
 end;
 
 function FDReadJSON(aDBConnection: TFDConnection; const aQuery: string): string;
+var
+  query: TFDQuery;
+begin
+  query := TFDQuery.Create(nil);
+  try
+    query.Connection := aDBConnection;
+    query.SQL.Text := aQuery;
+    query.Open;
+    if not query.Eof
+    then result := query.Fields[0].AsString
+    else result := '';
+  finally
+    query.Free;
+  end;
+end;
+
+// todo: essentially the same now as FDReadJSON
+function FDSingleStringResultQuery(aDBConnection: TFDConnection; const aQuery: string): string;
 var
   query: TFDQuery;
 begin

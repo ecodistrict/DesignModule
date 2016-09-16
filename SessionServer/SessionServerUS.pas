@@ -42,6 +42,13 @@ type
     MYC: Double;
     MYT: Double;
     IMB_EVENTCLASS: string;
+    // added for web interface
+    domain: string;
+    description: string;
+    diffRange: Double;
+    objectType: string;
+    geometryType: string;
+    publish: Integer;
     // indirect
     legendAVL: string;
     odbList: TODBList;
@@ -50,7 +57,7 @@ type
     function BaseTableNoPrefix: string;
     function BuildJoin(const aTablePrefix: string; out aShapePrefix: string): string;
     function SQLQuery(const aTablePrefix:string; xMin: Integer=0; yMin: Integer=0; xMax: Integer=-1; yMax: Integer=-1): string;
-    function diffRange: Double;
+    function autoDiffRange: Double;
   end;
 
   TMetaLayer = TObjectDictionary<Integer, TMetaLayerEntry>;
@@ -146,6 +153,7 @@ begin
     query.Open;
     while not query.Eof do
     begin
+      // default
       metaLayerEntry := TMetaLayerEntry.Create;
       metaLayerEntry.OBJECT_ID := IntField('OBJECT_ID');
       metaLayerEntry.LAYER_TYPE := IntField('LAYER_TYPE');
@@ -171,6 +179,22 @@ begin
       metaLayerEntry.MYC := DoubleField('MYC');
       metaLayerEntry.MYT := DoubleField('MYT');
       metaLayerEntry.IMB_EVENTCLASS := StringField('IMB_EVENTCLASS');
+
+      // added for web interface
+      metaLayerEntry.domain := StringField('DOMAIN');
+      metaLayerEntry.description := StringField('DESCRIPTION');
+      metaLayerEntry.diffRange := DoubleField('DIFFRANGE');
+      metaLayerEntry.objectType := StringField('OBJECTTYPE');
+      metaLayerEntry.geometryType := StringField('GEOMETRYTYPE');
+      metaLayerEntry.publish:= IntField('PUBLISHED', 1);
+
+      {
+      ALTER TABLE VXX#META_LAYER
+      ADD (DOMAIN VARCHAR2(50), DESCRIPTION VARCHAR2(150), DIFFRANGE NUMBER, OBJECTTYPE VARCHAR2(50), GEOMETRYTYPE VARCHAR2(50), PUBLISHED INTEGER);
+
+      UPDATE V21#META_LAYER SET DIFFRANGE = 2 WHERE object_id in (142,52,53,54,55,153,3,4,28,32,141,56);
+      }
+
       aMetaLayer.Add(metaLayerEntry.OBJECT_ID, metaLayerEntry);
       metaLayerEntry.LegendAVL := '';
       setLength(metaLayerEntry.odbList, 0);
@@ -360,7 +384,7 @@ begin
 end;
 }
 
-function TMetaLayerEntry.diffRange: Double;
+function TMetaLayerEntry.autoDiffRange: Double;
 var
   odb: TODBRecord;
   values: TList<double>;
