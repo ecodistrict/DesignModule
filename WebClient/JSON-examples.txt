@@ -56,4 +56,26 @@ Remove Sensor:
 		"sensorid" : 20
 	}
 }
+
+Add History Measures
+{
+	"addhistorymeasures": [
+		{
+		"measure": {
+			"description": "...",
+			"id": ???,
+			"measure": "...",
+			"name": "..."
+			},
+		"selectedCategories": ["building", "enzo"],
+		"selectedObjects": ["7", "1"],
+		"time": "2016-08-09 12:34:52",
+		"id": GUID
+		}
+	]
+}
+
+Remove History Measures
+{
+	"removehistorymeasures": [{"id": GUID}, {"id": GUID}]
 }
