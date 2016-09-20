@@ -9,7 +9,7 @@ uses
   CommandQueue,
   TilerControl,
   SessionServerLib, SessionServerDB,
-  SessionServerSessions,
+  SessionServerEcodistrict,
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.SvcMgr, Vcl.Dialogs;
 
 const

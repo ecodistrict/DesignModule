@@ -36,6 +36,21 @@ const
   colorBasicOutline = $3388FF or $FF000000;
   colorBasicFill = $B5C6DD or $FF000000;
 
+  TilerNameSwitch = 'TilerName';
+    DefaultTilerName = 'vps17642.public.cloudvps.com';
+
+  TilerStatusURLSwitch = 'TilerStatusURL';
+
+  MaxEdgeLengthInMetersSwitchName = 'MaxEdgeLengthInMeters';
+    DefaultMaxEdgeLengthInMeters = 250;
+
+  MaxNearestObjectDistanceInMetersSwitch = 'MaxNearestObjectDistanceInMeters';
+    DefaultMaxNearestObjectDistanceInMeters = 50;
+
+  SourceEPSGSwitch = 'SourceEPSG';
+
+  UseScenarioHierarchySwitch = 'UseScenarioHierarchy';
+
 type
   TDistanceLatLon = record
     m_per_deg_lat: Double;
@@ -108,6 +123,8 @@ type
     property legendJSON: string read fLegendJSON;
     procedure HandleSubLayerInfo(aLayer: TLayer);
   end;
+
+  TLegendFormat = (lfVertical, lfHorizontal); // todo:..
 
   TClient = class
   constructor Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
@@ -189,6 +206,7 @@ type
     function getGeoJSON2D(const aType: string): string; virtual; abstract;
     function getValidGeometry: Boolean; virtual;
     function getExtent: TWDExtent; virtual;
+  public
     function Encode: TByteBuffer; virtual;
   public
     property layer: TLayer read fLayer;
@@ -210,6 +228,7 @@ type
     function getGeoJSON2D(const aType: string): string; override;
     function getValidGeometry: Boolean; override;
     function getExtent: TWDExtent; override;
+  public
     function Encode: TByteBuffer; override;
   public
     property geometryPoint: TWDGeometryPoint read fGeometryPoint;
@@ -227,6 +246,7 @@ type
     function getGeoJSON2D(const aType: string): string; override;
     function getValidGeometry: Boolean; override;
     function getExtent: TWDExtent; override;
+  public
     function Encode: TByteBuffer; override;
   public
     property POI: Integer read fPOI;
@@ -245,6 +265,7 @@ type
     function getGeoJSON2D(const aType: string): string; override;
     function getValidGeometry: Boolean; override;
     function getExtent: TWDExtent; override;
+  public
     function Encode: TByteBuffer; override;
   public
     property geometry: TWDGeometry read fGeometry;
@@ -275,7 +296,6 @@ type
     function getObjectsJSON: string; virtual;
     function getPreviewBASE64: string; virtual;
     function getRefJSON: string; virtual;
-    procedure signalObjects(aSender: TObject); virtual;
 
     procedure handleTilerInfo(aTilerLayer: TTilerLayer);
   	procedure handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
@@ -307,9 +327,11 @@ type
     function findNearestObject(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double; var aDistance: Double): TLayerObject;
     function findObjectsInCircle(const aDistanceLatLon: TDistanceLatLon; aX, aY, aRadius: Double; var aObjectsJSON: string): Integer;
     function findObjectsInGeometry(const aGeometryExtent: TWDExtent; aGeometry: TWDGeometry; var aObjectsJSON: string): Integer;
+
   public
+    procedure signalObjects(aSender: TObject); virtual;
     procedure ReadObjectsDBSVGPaths(aQuery: TDataSet; aDefaultValue: Double);
-  public
+
     procedure RegisterOnTiler(aPersistent: Boolean; aSliceType: Integer; const aDescription: string; aEdgeLengthInMeters: Double=NaN; aPalette: TWDPalette=nil);
 
     procedure RegisterLayer; virtual; // override to call -> RegisterOnTiler(XX)
@@ -415,6 +437,7 @@ type
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; virtual;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; virtual;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aQuery: string): string; overload; virtual;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aSelectedIDs: TArray<string>): string; overload; virtual;
     // select object properties
     function selectObjectsProperties(aClient: TClient; const aSelectedCategories, aSelectedObjects: TArray<string>): string; virtual;
   end;
@@ -525,11 +548,13 @@ type
     function ReadScenario(const aID: string): TScenario; virtual;
     procedure handleTilerStartup(aTiler: TTiler; aStartupTime: TDateTime);
     procedure timerTilerStatusAsHeartbeat(aTimer: TTimer);
+    procedure newClient(aClient: TClient); virtual;
   public
     function AddClient(const aClientID: string): TClient;
     procedure ReadBasicData(); virtual; abstract;
   public
     property Connection: TConnection read fConnection;
+    property dbConnection: TCustomConnection read fDBConnection;
     property ProjectID: string read fProjectID;
     property ProjectName: string read fProjectName write setProjectName;
     property ProjectDescription: string read fProjectDescription write setProjectDescription;
@@ -555,6 +580,7 @@ type
   public
     procedure SendRefresh();
     procedure SendPreview();
+    procedure SendString(const aString: string);
   end;
 
   // empty model control entries
@@ -592,6 +618,9 @@ function geoJsonFeatureCollection(const aFeatures: string): string;
 function geoJsonFeature(const aGeometry: string; const aProperties: string=''): string;
 
 function ZoomLevelFromDeltaLon(aDeltaLon: Double): Integer;
+
+function BuildDiscreteLegendJSON(aPalette: TDiscretePalette; aLegendFormat: TLegendFormat): string;
+function CreateBasicPalette: TWDPalette;
 
 implementation
 
@@ -645,6 +674,42 @@ begin
   except
     Result := 0;
   end;
+end;
+
+{ utils }
+
+function BuildDiscreteLegendJSON(aPalette: TDiscretePalette; aLegendFormat: TLegendFormat): string;
+var
+  i: Integer;
+begin
+  Result := '';
+  case aLegendFormat of
+    lfVertical:
+      begin
+        for i := 0 to length(aPalette.entries)-1 do
+        begin
+          if Result<>''
+          then Result := Result+',';
+          Result := Result+'{"'+aPalette.entries[i].description+'":{'+aPalette.entries[i].colors.toJSON+'}}';
+        end;
+        Result := '"grid":{"title":"'+aPalette.description+'","labels":['+Result+']}';
+      end;
+    lfHorizontal:
+      begin
+        for i := 0 to length(aPalette.entries)-1 do
+        begin
+          if Result<>''
+          then Result := Result+',';
+          Result := Result+'{"'+aPalette.entries[i].description+'":{'+aPalette.entries[i].colors.toJSON+'}}';
+        end;
+        Result := '"grid2":{"title":"'+aPalette.description+'","labels":[{'+Result+'}]}';;
+      end;
+  end;
+end;
+
+function CreateBasicPalette: TWDPalette;
+begin
+  Result := TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicFill, colorBasicOutline));
 end;
 
 { TDistanceLatLon }
@@ -988,6 +1053,7 @@ begin
   SendSession();
   SendMeasures();
   SendDomains('domains');
+  fProject.newClient(Self);
 end;
 
 destructor TClient.Destroy;
@@ -1128,6 +1194,7 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     t: string;
     m: string;
     g: TJSONObject;
+    measure: TJSONObject;
     q: string;
     rStr: string;
     r: Double;
@@ -1138,6 +1205,7 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     pointI: Integer;
     sca: TJSONArray;
     sc: TArray<string>;
+    oids: TArray<string>;
     i: Integer;
     resp: string;
   begin
@@ -1200,11 +1268,26 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     end
     else
     begin
-      q := aSelectObjects.getValue<string>('query', '');
-      // select objects based on query
-      if Assigned(fCurrentScenario) then
+      measure := aSelectObjects.getValue<TJSONObject>('measure', nil);
+      if Assigned(measure) then
       begin
-        resp := fCurrentScenario.SelectObjects(Self, t, m, sc, q);
+        // todo: select objects based on given measure
+
+        if Assigned(fCurrentScenario) then
+        begin
+          // decode objects from measure                         \
+          setLength(oids, 0);
+          resp := fCurrentScenario.SelectObjects(Self, t, m, sc, oids);
+        end;
+      end
+      else
+      begin
+        q := aSelectObjects.getValue<string>('query', '');
+        // select objects based on query
+        if Assigned(fCurrentScenario) then
+        begin
+          resp := fCurrentScenario.SelectObjects(Self, t, m, sc, q);
+        end;
       end;
     end;
     if resp<>'' then
@@ -1239,6 +1322,11 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     end;
   end;
 
+  procedure applyMeasures(aMeasures: TJSONObject);
+  begin
+    // todo: implement
+  end;
+
 var
   jsonObject: TJSONObject;
   jsonPair: TJSONPair;
@@ -1262,6 +1350,8 @@ begin
         then selectScenario(jsonPair.JsonValue as TJSONObject)
         else if isObject(jsonObject, 'selectObjectsProperties', jsonPair)
         then selectObjectsProperties(jsonPair.JsonValue)
+        else if isObject(jsonObject, 'applyMeasures', jsonPair)
+        then applyMeasures(jsonPair.JsonValue as TJSONObject)
         else ;
 
         // todo:
@@ -2194,25 +2284,33 @@ var
   _id: TWDID;
   _path: string;
   _value: Double;
+  obj: TGeometryLayerObject;
 begin
   aQuery.Open;
-  while not aQuery.Eof do
-  begin
-    try
-      _id := aQuery.Fields[0].AsAnsiString;
-      if not aQuery.Fields[1].IsNull then
-      begin
-        _path := aQuery.Fields[1].Value;
-        if (aQuery.Fields.Count>2) and not aQuery.Fields[2].IsNull
-        then _value := aQuery.Fields[2].AsFloat
-        else _value := aDefaultValue;
-        AddObject(TGeometryLayerObject.Create(Self, _id, TWDGeometry.CreateFromSVGPath(_path), _value));
+  fObjectsLock.BeginWrite;
+  try
+    fObjects.Clear;
+    while not aQuery.Eof do
+    begin
+      try
+        _id := aQuery.Fields[0].AsAnsiString;
+        if not aQuery.Fields[1].IsNull then
+        begin
+          _path := aQuery.Fields[1].Value;
+          if (aQuery.Fields.Count>2) and not aQuery.Fields[2].IsNull
+          then _value := aQuery.Fields[2].AsFloat
+          else _value := aDefaultValue;
+          obj := TGeometryLayerObject.Create(Self, _id, TWDGeometry.CreateFromSVGPath(_path), _value);
+          fObjects.Add(obj.id, obj);
+        end;
+      except
+        on e: Exception
+        do Log.WriteLn(elementID+': exception in ReadObjectsDBSVGPaths: '+e.Message, llError);
       end;
-    except
-      on e: Exception
-      do Log.WriteLn(elementID+': exception in ReadObjectsDBSVGPaths: '+e.Message, llError);
+      aQuery.Next;
     end;
-    aQuery.Next;
+  finally
+    fObjectsLock.EndWrite;
   end;
 end;
 
@@ -2334,7 +2432,7 @@ begin
     '"legend":{'+legendJSON+'},'+
     '"preview":"'+previewBASE64+'",'+
     '"tiles":"'+uniqueObjectsTilesLink+'"';
-  if objects.Count<=MaxDirectSendObjectCount
+  if (objects.Count<=MaxDirectSendObjectCount) and (fGeometryType<>'Point')
   then Result := Result+',"objects": '+objectsJSON;
 end;
 
@@ -2361,7 +2459,7 @@ end;
 function TLayer.getRefJSON: string;
 begin
   Result := '"id":"'+getElementID+'","tiles":"'+uniqueObjectsTilesLink+'"';
-  if objects.Count<=MaxDirectSendObjectCount
+  if (objects.Count<=MaxDirectSendObjectCount) and (fGeometryType<>'Point')
   then Result := Result+',"objects": '+objectsJSON;
 end;
 {
@@ -2690,6 +2788,11 @@ begin
   end;
 end;
 
+function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories, aSelectedIDs: TArray<string>): string;
+begin
+  Result := '';
+end;
+
 function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string;
 begin
   Result := '';
@@ -2969,6 +3072,11 @@ begin
   do scenario.RegisterLayers;
 end;
 
+procedure TProject.newClient(aClient: TClient);
+begin
+  // default no actions
+end;
+
 function TProject.ReadScenario(const aID: string): TScenario;
 begin
   Result := nil;
@@ -3035,6 +3143,20 @@ begin
         TMonitor.Exit(client.subscribedElements);
       end;
     end;
+  finally
+    TMonitor.Exit(clients);
+  end;
+end;
+
+procedure TProject.SendString(const aString: string);
+var
+  client: TClient;
+begin
+  //Log.WriteLn('Sending string to clients connected to project '+Self.ProjectName);
+  TMonitor.Enter(clients);
+  try
+    for client in clients
+    do client.signalString(aString);
   finally
     TMonitor.Exit(clients);
   end;

@@ -5,15 +5,21 @@ program SessionServerCmd;
 {$R *.res}
 
 uses
-  Logger, LogFile, LogConsole,
+  Logger,
+  LogFile,
+  LogConsole,
   StdIni,
   imb4,
   CommandQueue,
   TilerControl,
-  SessionServerLib, SessionServerDB,
-  SessionServerSessions,
+  SessionServerLib,
+  SessionServerDB,
+  SessionServerGIS,
+  //SessionServerEnSel,
+  //SessionServerNWBLive,
+  SessionServerEcodistrict,
+  SessionServerSSM,
   System.SysUtils;
-
 
 {
 function ConsoleCtrlHandler(dwCtrlType: DWORD): Boolean; stdcall;

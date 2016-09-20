@@ -16,7 +16,8 @@ const
   USIdleFederation = 'USIdle';
 
   TilerNameSwitch = 'TilerName';
-    DefaultTilerName = 'vps17642.public.cloudvps.com';
+    //DefaultTilerName = 'vps17642.public.cloudvps.com';
+    DefaultTilerName = 'EnSelSrv';
 
   actionStatus = 4;
 
@@ -341,12 +342,16 @@ var
   TilerFQDN: string;
   connection: TConnection;
   tilerEvent: TEventEntry;
+  remoteHost: string;
+  remotePort: Integer;
 begin
   FileLogger.SetLogDef([llNormal, llWarning, llError], [llsTime]);
   ConsoleLogger.SetLogDef([llNormal, llWarning, llError], [llsTime]);
   try
     TilerFQDN := GetSetting(TilerNameSwitch, DefaultTilerName);
-    connection := TSocketConnection.Create('Tiler debugger', 5, USIdleFederation);
+    remoteHost := 'app-usimb01.westeurope.cloudapp.azure.com';//GetSetting('RemoteHost', imbDefaultRemoteHost);
+    remotePort := GetSetting('RemotePort', imbDefaultRemoteSocketPort);
+    connection := TSocketConnection.Create('Tiler debugger', 5, USIdleFederation, remoteHost, remotePort);
     try
       connection.onDisconnect := HandleDisconnect;
       connection.onException := HandleException;
