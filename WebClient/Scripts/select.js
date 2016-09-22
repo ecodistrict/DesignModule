@@ -147,8 +147,7 @@ function ApplyNewProperties() {
 
     if (changes) {
         // send to Server (publishing server)
-        var jsonData = JSON.stringify(objProps);
-        wsSend(jsonData);
+        wsSend(objProps);
     }
     //No closing on apply??
     modalDialogClose();
@@ -380,6 +379,9 @@ map.on('click', function (e) {
         {
             ctrlPressed = e.originalEvent.ctrlKey;
         }
+
+        if (typeof e.latlng === 'undefined')
+            return;
 
         var sessionRequest = {};
         sessionRequest.selectObjects = {};

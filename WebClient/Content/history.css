@@ -99,17 +99,29 @@
 }
 
 .history-remove-button {
-    float: right;
     background-image: url(images/historyremove.png);
+}
+
+.history-icon-button {
     background-repeat: no-repeat;
     width: 16px;
     height: 16px;
     margin-left: 10px;
     margin-right: 4px;
     opacity: 0.7;
+    float: right;
+}
+
+.history-add-button {
+    background-image: url(images/domainadd.png);
 }
 
 .history-remove-button:hover {
+    opacity: 1.0;
+    cursor: pointer;    
+}
+
+.history-add-button:hover {
     opacity: 1.0;
     cursor: pointer;    
 }
@@ -118,8 +130,24 @@
     line-height:20px;
 }
 
+.history-empty-line {
+
+}
+
+.history-empty-name {
+    display: table;
+    margin: auto;
+    opacity: 0.7;
+}
+
+
 .history-name {
-    cursor: pointer;    
+    cursor: pointer;  
+}
+
+.history-name-inactive {
+    opacity: 0.5;
+    cursor: pointer;
 }
 
 .leaflet-control-history-apply {

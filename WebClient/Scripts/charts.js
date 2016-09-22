@@ -265,3 +265,30 @@ function addChartLines(parent, definition, aWidth, aHeight, aWithAxes, aWithLege
 
 
 }
+
+//function addSensorChart(sParent, aData, aWidth, aHeight, aMinimalMax)
+//{
+//    aMinimalMax = aMinimalMax || 40;
+
+//    var svgContainer = aParent.append("svg")
+//                                .attr("width", aWidth)
+//                                .attr("height", aHeight);
+
+//    var max = Math.max(d3.max(aData, function (d) { return d.concentration; }), aMinimalMax);
+
+//    var yScale = d3.scale.linear().domain([0, max]).range([5, height - 5]);
+
+//    var xScale = d3.scale.linear().domain([0, aData.length - 1]).range([5, width - 5]);
+
+//    var lineFunction = d3.svg.line()
+//                            .x(function(d, i) { return xScale(i);})
+//                            .y(function (d) { return yScale(d.concentration); })
+
+//    var lineGraph = svgContainer.append("path")
+//                            .attr("d", lineFunction(aData))
+//                            .attr("stroke", "blue")
+//                            .attr("stroke-width", 2)
+//                            .attr("fill", "none");
+
+//    return svgContainer;
+//}

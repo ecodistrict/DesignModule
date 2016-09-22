@@ -1,6 +1,6 @@
 ﻿
 
-function showSensorWarning(sensor, value) {
+function showSensorWarning(sensor, data) {
     if (DataManager.warningGiven) {
         //Flash the sensor if we recently had a warning
         textDiv = sensor.textDiv;
@@ -28,7 +28,10 @@ function showSensorWarning(sensor, value) {
     informationList.id = "informationList";
 
     var warningLI = L.DomUtil.create("li", "informationLI", informationList);
-    warningLI.innerText = "Found a reading of: " + (value * 1000000000) + "  µg/m3";
+    warningLI.innerText = "Found a reading of: " + (data.concentration) + "  µg/m3";
+
+    var timeLI = L.DomUtil.create("li", "informationLI", informationList);
+    timeLI.innerText = "Time: " + DataManager.GetDisplayTime(data.time)
 
     var nameLI = L.DomUtil.create("li", "informationLI", informationList);
     nameLI.innerText = "Name: " + sensor.name;
@@ -61,7 +64,7 @@ function showSensorWarning(sensor, value) {
 
         modalDialogClose();
 
-        setTimeout(function(){ DataManager.warningGiven = false; }, 10000);
+        setTimeout(function(){ DataManager.warningGiven = false; }, 180000);
     });
     modelDialogAddButton(div, 'Close', modalDialogClose);
 }

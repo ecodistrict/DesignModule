@@ -137,6 +137,7 @@
                 if (layer.id == aElementID) {
                     if (layer.tiles != aTilesURL) {
                         layer.tiles = aTilesURL;
+                        changed = true;
                         // only reload layer if not showing the objects directly (ie is using tiles)
                         if (!layer.objects)
                             changed = true;

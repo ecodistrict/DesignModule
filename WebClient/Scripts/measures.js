@@ -190,14 +190,26 @@
             // build dialog form
             var f = div.appendChild(document.createElement('form'));
             f.id = 'selectMeasureForm';
+            f.addEventListener("change", function () {
+
+                var button = document.querySelector("#measuresApplyButton");
+
+                button.disabled = false;
+            });
+
             for (var a in measureDefinition.actions) 
                 this._addMeasureLine(f, measureDefinition.actions[a]);
+            if (f.children.length / 2 == 1)
+            {
+                f.children[0].checked = true;
+            }
+
             f.appendChild(document.createElement('br'));
             f.appendChild(document.createElement('hr'));
             var mddb = f.appendChild(document.createElement('div'));
             mddb.className = 'modalDialogDevideButtons';
             var _this = this;
-            modelDialogAddButton(mddb, 'Apply', function () {
+            var applyButton = modelDialogAddButton(mddb, 'Apply', function () {
                 // todo: add selected measure to history
                 var selectedRadio = document.querySelector('input[name=measureOption]:checked');
                 if (selectedRadio) {
@@ -217,6 +229,10 @@
                 //else
                 //    alert('Select an option before applying or press cancel to abort');
             });
+            applyButton.id = "measuresApplyButton";
+            var selectedRadio = document.querySelector('input[name=measureOption]:checked');
+            if (!selectedRadio)
+                applyButton.disabled = true;
             modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
         }
     },
