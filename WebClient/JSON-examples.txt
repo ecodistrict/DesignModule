@@ -95,7 +95,9 @@ Update SSM Car
 	"updatecar": [{
 		"id": unique id,
 		"lat": 4.6512424, //latitude
-		"lng": 54.248710912 //longitude
+		"lng": 54.248710912 //longitude,
+		"tis": "LEFT"/"RIGHT"/"NONE"/"HAZARD"/"NOTPRESENT",
+		"bl": boolean
 		/* je mag alle vars al meesturen die je wil, maar deze 3 heb ik nu nodig /*
 	}]
 }
