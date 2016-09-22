@@ -80,7 +80,7 @@ Remove History Measures
 	"removehistorymeasures": [{"id": GUID}, {"id": GUID}]
 }
 
-Add SSIM Car
+Add SSM Car
 {
 	"addcar": {
 		"carid": unique id,
@@ -90,7 +90,7 @@ Add SSIM Car
 	}
 }
 
-Update SSIM Car
+Update SSM Car
 {
 	"updatecar": {
 		"carid": unique id,
@@ -100,7 +100,7 @@ Update SSIM Car
 	}
 }
 
-Remove SSIM Car
+Remove SSM Car
 {
 	"removecar": {
 		"carid": unique id
