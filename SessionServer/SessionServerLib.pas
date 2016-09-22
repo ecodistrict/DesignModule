@@ -147,6 +147,7 @@ type
     procedure SendMeasures();
     procedure SendDomains(const aPrefix: string);
     procedure SendSession();
+    procedure SendMeasuresHistory();
     procedure UpdateSession();
     procedure SendTimeSlider();
     procedure SendSelectionEnabled();
@@ -549,6 +550,7 @@ type
     procedure handleTilerStartup(aTiler: TTiler; aStartupTime: TDateTime);
     procedure timerTilerStatusAsHeartbeat(aTimer: TTimer);
     procedure newClient(aClient: TClient); virtual;
+    function getMeasuresHistoryJSON: string; virtual;
   public
     function AddClient(const aClientID: string): TClient;
     procedure ReadBasicData(); virtual; abstract;
@@ -1565,6 +1567,11 @@ begin
     '{"session":{'+
       '"measuresEnabled":'+Ord(fProject.measuresEnabled).toString+
     '}}');
+end;
+
+procedure TClient.SendMeasuresHistory;
+begin
+  signalString('{"addhistorymeasures":['+fProject.getMeasuresHistoryJSON+']}');
 end;
 
 procedure TClient.SendMeasuresHistoryEnabled;
@@ -3052,6 +3059,11 @@ begin
     end;
   end
   else Result := aCurrent.elementID+'-'+aReference.elementID+'-diff';
+end;
+
+function TProject.getMeasuresHistoryJSON: string;
+begin
+  Result := ''; // default no measures history
 end;
 
 function TProject.getMeasuresJSON: string;

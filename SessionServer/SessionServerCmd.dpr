@@ -15,6 +15,7 @@ uses
   SessionServerLib,
   SessionServerDB,
   SessionServerGIS,
+  //SessionServerUS,
   //SessionServerEnSel,
   //SessionServerNWBLive,
   SessionServerEcodistrict,
@@ -72,6 +73,7 @@ begin
 //            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters)); {todo: NWBLiveFeedProjectName}
 
           // ecodistrict module
+          {
           ecodistrictModule := TEcodistrictModule.Create(
             sessionModel,
             imbConnection,
@@ -84,7 +86,10 @@ begin
             tilerFQDN,
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
-
+          }
+          // ssm module
+          sessionModel.Projects.Add(
+            TSSMProject.Create(sessionModel, imbConnection, 'SSM', 'SSM', '', '', nil, 0, false, false, false, false, 0));
           // inquire existing session and rebuild internal sessions..
           imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(
             procedure(event: TEventEntry; aInt: Integer; const aString: string)

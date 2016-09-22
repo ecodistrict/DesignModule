@@ -168,6 +168,15 @@ type
     ReturnType: string;
   end;
 
+  TDIMeasureHistory = record
+    id: TGUID;
+    measure_cat: string;
+    measure_id: Integer;
+    object_ids: string;
+    timeutc: TDateTime;
+    variants: string;
+  end;
+
   TEcodistrictProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
     aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
@@ -177,11 +186,16 @@ type
     function getDMQueries: TDictionary<string, TDMQuery>;
     function getDIQueries: TDictionary<string, TDIQuery>;
     function getDIObjectProperties: TObjectList<TDIObjectProperty>;
+    function getDIMeasuresHistory: TDictionary<TGUID, TDIMeasureHistory>;
   protected
     fDIObjectProperties: TObjectList<TDIObjectProperty>;
     fDMQueries: TDictionary<string, TDMQuery>;
     fDIQueries: TDictionary<string, TDIQuery>;
+    fDIMeasuresHistory: TDictionary<TGUID, TDIMeasureHistory>;
+
     function getMeasuresJSON: string; override;
+    function getMeasuresHistoryJSON: string; override;
+
     function ReadSchemaNames: TArray<string>;
     function handleTilerStatus(aTiler: TTiler): string;
   public
@@ -189,10 +203,12 @@ type
     property DMQueries: TDictionary<string, TDMQuery> read getDMQueries;
     property DIQueries: TDictionary<string, TDIQuery> read getDIQueries;
     property DIObjectProperties: TObjectList<TDIObjectProperty> read getDIObjectProperties;
+    property DIMeasuresHistory: TDictionary<TGUID, TDIMeasureHistory> read getDIMeasuresHistory;
     // (re-)read items
     function ReadDMQueries: Boolean;
     function ReadDIQueries: Boolean;
     function ReadDIObjectProperties: Boolean;
+    function ReadDIMeasuresHistory: Boolean;
 
     function ReadScenario(const aID: string): TScenario; override;
     procedure ReadBasicData(); override;
@@ -222,12 +238,11 @@ type
     function SchemaDelete(aSchemaName: string): boolean;
 
     function getDMQueries(const aCaseId: string; var aQueries: TDictionary<string, TDMQuery>): boolean;
+
     function forceReadOfDMQueries(const aCaseId: string): Boolean;
-
-    //function getDIQueries(const aCaseId: string; var aQueries: TDictionary<string, TDIQuery>): boolean;
     function forceReadOfDIQueries(const aCaseId: string): Boolean; // todo: does not reload layers!
-
     function forceReadOfDIObjectProperties(const aCaseId: string): Boolean;
+    function forceReadOfDIMeasuresHistory(const aCaseId: string): Boolean;
 
     function GetOrAddCase(const aCaseId: string): TProject;
     procedure HandleModuleCase(const aCaseId, aCaseTitle,  aCaseDescription: string; const aMapView: TMapView);
@@ -243,7 +258,7 @@ type
   end;
 
 
-
+function EcoDistrictSchemaId(const aCaseId: string; const aVariantId: string=''): string;
 
 implementation
 
@@ -294,27 +309,11 @@ function TEcodistrictScenario.AddLayerFromQuery(const aDomain, aID, aName, aDesc
   aDefaultLoad, aBasicLayer: Boolean; const aSchema: string;
   const aQuery: string;
   aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string): TLayer;
-//var
-//  query: TFDQuery;
 begin
   Result := TEcodistrictLayer.Create(self, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, aLayerType, aPalette, aLegendJSON, aBasicLayer);
   try
     Result.query := aQuery.Replace('{case_id}', aSchema);
-
     ReadObjectFromQuery(Result);
-    {
-    (project as TEcodistrictProject).PingDatabase('TEcodistrictScenario.AddLayerFromQuery');
-
-    query := TFDQuery.Create(nil);
-    try
-      query.Connection := project.dbConnection as TFDConnection;
-      query.SQL.Text := Result.query;
-      Result.ReadObjectsDBSVGPaths(query, Double.NaN);
-    finally
-      query.Free;
-    end;
-    Log.WriteLn(Result.elementID+': '+Result.name+', read objects (svg paths)', llNormal, 1);
-    }
     Result.RegisterLayer;
     // todo: other palette types..?
     Layers.Add(Result.ID, Result);
@@ -331,26 +330,11 @@ function TEcodistrictScenario.AddLayerFromTable(const aDomain, aID, aName, aDesc
   aDefaultLoad, aBasicLayer: Boolean; const aSchema:string;
   const aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string;
   aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string): TLayer;
-//var
-//  query: TFDQuery;
 begin
   Result := TEcodistrictLayer.Create(self, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, aLayerType, aPalette, aLegendJSON, aBasicLayer);
   try
     Result.query := PGSVGPathsQuery('"'+aSchema+'".'+aTableName.Replace('{case_id}', aSchema), aIDFieldName, aGeometryFieldName, aDataFieldName);
     ReadObjectFromQuery(Result);
-    {
-    (project as TEcodistrictProject).PingDatabase('TEcodistrictScenario.AddLayerFromTable');
-
-    query := TFDQuery.Create(nil);
-    try
-      query.Connection := project.dbConnection as TFDConnection;
-      query.SQL.Text := Result.query;
-      Result.ReadObjectsDBSVGPaths(query, Double.NaN);
-    finally
-      query.Free;
-    end;
-    Log.WriteLn(Result.elementID+': '+Result.name+', read objects (svg paths)', llNormal, 1);
-    }
     Result.RegisterLayer;
     // todo: other palette types..?
     Layers.Add(Result.ID, Result);
@@ -366,9 +350,6 @@ end;
 procedure TEcodistrictScenario.ReadBasicData;
 var
   schema: string;
-  //entries: TPaletteDiscreteEntryArray;
-  //layer: TLayer;
-  //query: string;
   palette: TWDPalette;
   legendJSON: string;
   iqp: TPair<string, TDIQuery>;
@@ -821,6 +802,7 @@ begin
   fDIObjectProperties := nil; // TObjectList<TDIObjectProperty>.Create;
   fDMQueries := nil;
   fDIQueries := nil;
+  fDIMeasuresHistory := nil;
   fTiler.onTilerStatus := handleTilerStatus;
 end;
 
@@ -829,7 +811,28 @@ begin
   FreeAndNil(fDIObjectProperties);
   FreeAndNil(fDMQueries);
   FreeAndNil(fDIQueries);
+  FreeAndNil(fDIMeasuresHistory);
   inherited;
+end;
+
+function TEcodistrictProject.getMeasuresHistoryJSON: string;
+var
+  mhl: TDictionary<TGUID, TDIMeasureHistory>;
+  mi: TPair<TGUID, TDIMeasureHistory>;
+begin
+  Result := inherited getMeasuresHistoryJSON;
+  mhl := DIMeasuresHistory;
+  TMonitor.Enter(mhl);
+  try
+    for mi in mhl do
+    begin
+      if Result<>''
+      then Result := Result+',';
+      Result := Result+'{'+''+'}'; // todo:
+    end;
+  finally
+    TMOnitor.Exit(mhl);
+  end;
 end;
 
 function TEcodistrictProject.getMeasuresJSON: string;
@@ -875,6 +878,13 @@ begin
     }
 end;
 
+function TEcodistrictProject.getDIMeasuresHistory: TDictionary<TGUID, TDIMeasureHistory>;
+begin
+  if not Assigned(fDIMeasuresHistory)
+  then ReadDIMeasuresHistory();
+  Result := fDIMeasuresHistory;
+end;
+
 function TEcodistrictProject.getDIObjectProperties: TObjectList<TDIObjectProperty>;
 begin
   if not Assigned(fDIObjectProperties)
@@ -915,19 +925,49 @@ var
   schemaNames: TArray<string>;
   schemaName: string;
 begin
-  {
-  // todo: for now just create a single scenario as the current
-  fCurrentScenario := TScenario.Create(Self, 'current', 'current', '', TMapView.Create(39.479005, -0.394991, 15));
-  fScenarios.Add(fCurrentScenario.ID, fCurrentScenario);
-  sl := TLayer.Create(fCurrentScenario, 'basic structures', 'buildings', 'buildings', 'basic buildings', false, nil, '"building"', 'MultiPolygon', fTilerEvent, True);
-  sl.query := PGSVGPathsQuery('bldg_building', 'attr_gml_id', 'bldg_lod1multisurface_value');
-  //AddCommandToQueue(sl, Self.ReadObjects);
-  ReadObjects(sl);
-  fCurrentScenario.Layers.Add(sl.ID, sl);
-  }
   schemaNames := ReadSchemaNames();
   for schemaName in schemaNames
   do readScenario(schemaName);
+end;
+
+function TEcodistrictProject.ReadDIMeasuresHistory: Boolean;
+var
+  query: TFDQuery;
+  mh: TDIMeasureHistory;
+begin
+  fDIObjectProperties.Free;
+  fDIObjectProperties := TObjectList<TDIObjectProperty>.Create;
+  query := TFDQuery.Create(nil);
+  try
+    query.Connection := fDBConnection as TFDConnection;
+    query.SQL.Text :=
+      'SELECT id, measure_cat, measure_id, object_ids, timeutc, variants '+
+      'FROM '+EcoDistrictSchemaId(projectId)+'.di_measuresHistory';
+    try
+      query.Open();
+      query.First();
+      while not query.Eof do
+      begin
+        mh.id := TGUID.Create(query.Fields[0].AsString);
+        mh.measure_cat := query.Fields[1].AsString;
+        mh.measure_id := query.Fields[2].AsInteger;
+        mh.object_ids := query.Fields[3].AsString;
+        mh.timeutc := query.Fields[4].AsDateTime;
+        mh.variants := query.Fields[5].AsString;
+        fDIMeasuresHistory.Add(mh.id, mh);
+        query.Next();
+      end;
+      Result := True;
+    except
+      on e: exception do
+      begin
+        log.WriteLn('exception in TEcodistrictProject.ReadDIMeasuresHistory: '+e.Message, llError);
+        Result := False;
+      end;
+    end;
+  finally
+    query.Free;
+  end;
 end;
 
 function TEcodistrictProject.ReadDIObjectProperties: Boolean;
@@ -1177,6 +1217,15 @@ begin
   // todo:
   FreeAndNil(fProjects);
   inherited;
+end;
+
+function TEcodistrictModule.forceReadOfDIMeasuresHistory(const aCaseId: string): Boolean;
+var
+  project: TProject;
+begin
+  if fProjects.TryGetValue(aCaseId, project)
+  then Result := (project as TEcodistrictProject).ReadDIMeasuresHistory
+  else Result := False;
 end;
 
 function TEcodistrictModule.forceReadOfDIObjectProperties(const aCaseId: string): Boolean;
@@ -1716,6 +1765,7 @@ begin
                                             if not f.IsNull then
                                             begin
                                               case f.DataType of
+                                                ftWideMemo,
                                                 ftString,
                                                 ftWideString: // todo: check widestring conversion..
                                                   rowObject.AddPair(f.FieldName, TJSONString.Create(f.AsString));
@@ -1908,6 +1958,15 @@ begin
             if forceReadOfDIObjectProperties(_caseId)
             then _status := 'Success - read object properties'
             else _status := 'failed - case not loaded to read di-object-properties for or no properties found';
+            jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
+            DataEvent.signalString(JSONresponse.ToString);
+          end
+          else
+          if _method='readDIMeasuresHistory' then
+          begin
+            if forceReadOfDIMeasuresHistory(_caseId)
+            then _status := 'Success - read measures history'
+            else _status := 'failed - case not loaded to read di-measures-history for or no history found';
             jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
             DataEvent.signalString(JSONresponse.ToString);
           end

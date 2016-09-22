@@ -594,7 +594,8 @@ begin
   if not fEvent.OnIntString.Contains(handleTilerStatus)
   then fEvent.OnIntString.Add(handleTilerStatus);
   // start tiler web service
-  getTilerStatus;
+  if fTilerStatusURL<>''
+  then getTilerStatus;
 end;
 
 destructor TTiler.Destroy;

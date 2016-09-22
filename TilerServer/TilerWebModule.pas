@@ -1631,8 +1631,11 @@ begin
               id := aBuffer.bb_read_rawbytestring(aCursor);
               // find point
               i := fNet.Points.IndexOf(StrToIntDef(string(id), -1));
-              if i<0
-              then fNet.Points.Add(TDLPoint.Create(point.x, point.y, value, StrToIntDef(string(id), -1)))
+              if i<0 then
+              begin
+                fNet.Points.Add(TDLPoint.Create(point.x, point.y, value, StrToIntDef(string(id), -1)));
+                Log.WriteLn('new point '+point.x.ToString+' , '+point.y.ToString+': '+value.toString);
+              end
               else
               begin
                 if not IsNaN(point.x) then
@@ -1640,10 +1643,12 @@ begin
                   fNet.Points[i].x  := point.x;
                   fNet.Points[i].y  := point.y;
                   point.x := NaN;
+                  Log.WriteLn('update point '+point.x.ToString+' , '+point.y.ToString);
                 end;
                 if not IsNaN(value) then
                 begin
                   fNet.Points[i].Value := value;
+                  Log.WriteLn('update value '+value.ToString());
                   value := NaN;
                 end;
               end;

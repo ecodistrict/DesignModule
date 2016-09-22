@@ -197,7 +197,6 @@ type
   destructor Destroy; override;
   private
     fUSDBScenarios: TObjectDictionary<Integer, TUSDBScenario>;
-    fMapView: TMapView;
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
     fPreLoadScenarios: Boolean;
     function getOraSession: TOraSession;
@@ -1663,7 +1662,7 @@ var
   SourceEPSG: Integer;
 begin
   fUSDBScenarios := TObjectDictionary<Integer, TUSDBScenario>.Create;
-  fMapView := aMapView;
+  mapView := aMapView;
 
   SourceEPSGstr := GetSetting(SourceEPSGSwitch, 'Amersfoort_RD_New');
   if SourceEPSGstr<>'' then
@@ -1748,7 +1747,7 @@ begin
       if fUSDBScenarios.TryGetValue(aID.ToInteger(), dbScenario) then
       begin
         //StatusInc;
-        Result := TUSScenario.Create(Self, aID, dbScenario.name, dbScenario.description, addBasicLayers, fMapView, dbScenario.tablePrefix);
+        Result := TUSScenario.Create(Self, aID, dbScenario.name, dbScenario.description, addBasicLayers, mapView, dbScenario.tablePrefix);
         fScenarios.Add(Result.ID, Result);
       end
       else Result := nil;
