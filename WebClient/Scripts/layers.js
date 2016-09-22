@@ -62,7 +62,7 @@
                     // todo: only implement for tiles now
                     if (e.srcElement == crd.current) {
                         if (layer.tileLayer) {
-                            layer.tileLayer.setUrl(layer.tiles);
+                            layer.tileLayer.setUrl(layer.tiles, false);
                             layer.tileLayer.idShowing = layer.id;
                             if (layer.legend)
                                 legendControl.createLegend(layer.legend);
@@ -70,7 +70,7 @@
                     }
                     else if (e.srcElement == crd.reference) {
                         if (layer.tileLayer) {
-                            layer.tileLayer.setUrl(layer.ref.tiles);
+                            layer.tileLayer.setUrl(layer.ref.tiles, false);
                             layer.tileLayer.idShowing = layer.ref.id;
                             if (layer.legend)
                                 legendControl.createLegend(layer.legend);
@@ -78,7 +78,7 @@
                     }
                     else {
                         if (layer.tileLayer) {
-                            layer.tileLayer.setUrl(layer.diff.tiles);
+                            layer.tileLayer.setUrl(layer.diff.tiles, false);
                             layer.tileLayer.idShowing = layer.diff.id;
                             if (layer.diff.legend)
                                 legendControl.createLegend(layer.diff.legend);
@@ -162,32 +162,33 @@ function updateTilesLayerOnMap(aElementID, aTilesURL) {
         // todo: check ref or diff IDs also..
 
         if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == aElementID) {
-            var domainLayer = layer.domainLayer;
-            if (domainLayer.tiles != aTilesURL || !layer.redraw) {
-                // update tiles url
-                domainLayer.tiles = aTilesURL;
-                if (!layer.redraw) {
-                    // remove previous layer
-                    removeDomainLayer(domainLayer);
-                    // add as new layer
-                    domainLayer.leaflet_id = addLayerToMap(domainLayer, layer.options.opacity);
-                }
-                else {
-                    layer.setUrl(aTilesURL);
-                    //layer.redraw();
-                }
-                //layer.removeLayer(layer);
-                break; // todo: to avoid layer itteration going wrong?
-            }
-            else {
-                if (layer.redraw)
-                    layer.redraw();
-                else {
-                    if (layer.tiles) {
-                        //layer.setUrl
-                    }
-                }
-            }
+            layer.setUrl(aTilesURL, false);
+           // var domainLayer = layer.domainLayer;
+            //if (domainLayer.tiles != aTilesURL || !layer.redraw) {
+            //    // update tiles url
+            //    domainLayer.tiles = aTilesURL;
+            //    if (!layer.redraw) {
+            //        // remove previous layer
+            //        removeDomainLayer(domainLayer);
+            //        // add as new layer
+            //        domainLayer.leaflet_id = addLayerToMap(domainLayer, layer.options.opacity);
+            //    }
+            //    else {
+            //        layer.setUrl(aTilesURL);
+            //        //layer.redraw();
+            //    }
+            //    //layer.removeLayer(layer);
+            //    break; // todo: to avoid layer itteration going wrong?
+            //}
+            //else {
+            //    if (layer.redraw)
+            //        layer.redraw();
+            //    else {
+            //        if (layer.tiles) {
+            //            //layer.setUrl
+            //        }
+            //    }
+            //}
         }
     }
 }

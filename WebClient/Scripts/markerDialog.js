@@ -11,10 +11,10 @@
     informationList.id = "informationList";
 
     var timeLI = L.DomUtil.create("li", "informationLI", informationList);
-    timeLI.innerText = "Time: " + complaint.time;
+    timeLI.innerText = "Time: " + DataManager.GetDisplayTime(complaint.time);
 
     var locationLI = L.DomUtil.create("li", "informationLI", informationList);
-    locationLI.innerText = complaint.location;
+    locationLI.innerText = "long: " + complaint.marker.getLatLng().lng + ", lat: " + complaint.marker.getLatLng().lat
 
     var typeLI = L.DomUtil.create("li", "informationLI", informationList);
     typeLI.innerText = "Type: " + complaint.type;
@@ -57,8 +57,6 @@ showSensorDialog = function (e) {
     var substanceLI = L.DomUtil.create("li", "informationLI", informationList);
     substanceLI.innerText = "Measured substance: " + sensor.measuredsubstance;
 
-    sensor.data.push({ time: "13:42", concentration: 0.0000000012, windSpeed: 13, windDirection: 78 });
-
     if (sensor.data.length > 0) {
         var data = sensor.data[sensor.data.length - 1];
 
@@ -74,7 +72,7 @@ showSensorDialog = function (e) {
         timeLI.innerText = "Time: " + data.time;
 
         var concentrationLI = L.DomUtil.create("li", "informationLI", dataList);
-        concentrationLI.innerText = "Concentration: " + (data.concentration * 1000000000) + " µg/m3";
+        concentrationLI.innerText = "Concentration: " + (data.concentration) + " µg/m3";
 
         var windSpeedLI = L.DomUtil.create("li", "informationLI", dataList);
         windSpeedLI.innerText = "Wind speed: " + data.windSpeed;
@@ -90,6 +88,10 @@ showSensorDialog = function (e) {
         var graphImage = L.DomUtil.create("img", "graphImage", graphLI);
         graphImage.src = "Content/images/graph-mockup.jpg";
         graphImage.width = 500;
+
+
+
+        //var graphSVG = addSensorChart(graphLI, , 500, 300, 50);
 
     }
 

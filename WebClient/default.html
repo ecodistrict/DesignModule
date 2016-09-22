@@ -44,9 +44,9 @@
     <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div> 
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
     <!-- load scripts -->
-    <script src="Scripts/leaflet-src.js"></script>
+    <script src="Scripts/leaflet-src-old.js"></script>
     <script src="Scripts/leaflet.draw-src.js"></script>
-    <script src="Scripts/leaflet.contextmenu-src.js"></script>
+    <script src="Scripts/leaflet.contextmenu-src-old.js"></script>
     <script src="Scripts/modaldialog.js"></script>
     <script src="Scripts/querydialog.js"></script>
     <script src="Scripts/map.js"></script>
@@ -67,22 +67,22 @@
     <script src="Scripts/timeslider.js"></script>
     <script src="Scripts/markerdialog.js"></script>
     <script src="Scripts/windDirection.js"></script>
-    <script src="Scripts//warningDialog.js"></script>
+    <script src="Scripts/warningDialog.js"></script>
     <!-- charts -->
     <script src="Scripts/d3.js"></script> 
     <script src="Scripts/bullet.js"></script>
     <!-- local scripts -->
     <script>
         // determine parameters and config
-        //var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
-        var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
+        var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
+        //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
         var session = getParameterByName('session', ''); 
         if (session == '') {
             //session = '1234'; // default test session
             //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
-            //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerp
+            session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerp
             //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
-            session = 'ensel';
+            //session = 'ensel';
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
@@ -114,18 +114,25 @@
         });
         map.addControl(detailsControl);
 
-        // history
+       //history
         var historyControl = L.control.history(baseLayers);
         map.addControl(historyControl);
-
+        DataManager.HistoryControl = historyControl;
         // top-left
 
-        // measures
+        //measures
         var measuresControl = L.control.measures([], historyControl);
         map.addControl(measuresControl);
         measuresControl.setSelectCategories([]);
 
+
+        //DataManager.wind = L.control.arrow();//L.control.wind({});
+        //map.addControl(DataManager.wind);
+
         // bottom-right (reverse order)
+
+        //Wind Arrow
+
 
         // time slider
         var tsStart = new Date();
@@ -143,8 +150,6 @@
 
         detailsControl.setCRD(crd);
 
-        DataManager.wind = L.control.arrow();//L.control.wind({});
-        map.addControl(DataManager.wind);
 
         // bottom-left (reverse order)
 
@@ -377,6 +382,21 @@
                     if (typeof message.removesensor.sensorid !== 'undefined')
                         DataManager.RemoveSensor(message.removesensor.sensorid);
                 }
+                else if (message.addhistorymeasures) {
+                    historyControl.addHistoryItems(message.addhistorymeasures);
+                }
+                else if (message.removehistorymeasures) {
+                    historyControl.removeHistoryItems(removehistorymeasures);
+                }
+                else if (message.addcar) {
+                    DataManager.AddCars(message.addcar);
+                }
+                else if (message.updatecar) {
+                    DataManager.UpdateCars(message.updatecar);
+                }
+                else if (message.removecar) {
+                    DataManager.RemoveCars(message.removecar);
+                }
             };
             ws.onerror = function (evt) {
                 if (evt.message)
@@ -416,8 +436,6 @@
 
         // default: try to connect
         wsConnect();
-
-        //AddMultipleSensors(39);
 
         // todo: handling window resize and orientation change
         // http://stackoverflow.com/questions/5284878/how-do-i-correctly-detect-orientation-change-using-javascript-and-phonegap-in-io

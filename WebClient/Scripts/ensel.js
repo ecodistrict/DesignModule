@@ -3,9 +3,13 @@
 DataManager = {
     complaints: [],
     sensors: [],
+    cars: [],
     counter: 99,
     warningGiven: false,
     wind: null,
+    drawLayer: null,
+
+
 
     _addSensor: function (sensor) {
 
@@ -32,7 +36,8 @@ DataManager = {
     },
 
     _addComplaint: function (complaint) {
-        complaint = complaint || {};
+        
+        var pos = L.latLng(complaint.latitude, complaint.longitude);
 
         let scale = 0.375;
         let orr = 128;
@@ -54,65 +59,8 @@ DataManager = {
         marker.complaint = complaint;
         complaint.marker = marker;
 
-        complaint.data = {
-            time: "" + Math.round(Math.random() * 24) + ":" + Math.round(Math.random() * 60),
-            location: "long: " + marker.getLatLng().lng + ", lat: " + marker.getLatLng().lat,
-            type: "phone call",
-            text: "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Etiam rhoncus. Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero, sit amet adipiscing sem neque sed ipsum. Nam quam nunc, blandit vel, luctus pulvinar, hendrerit id, lorem. Maecenas nec odio et ante tincidunt tempus. Donec vitae sapien ut libero venenatis faucibus. Nullam quis ante. Etiam sit amet orci eget eros faucibus tincidunt. Duis leo. Sed fringilla mauris sit amet nibh. Donec sodales sagittis magna. Sed consequat, leo eget bibendum sodales, augue velit cursus nunc."
-        }
-
         DataManager.complaints.push(complaint);
     },
-
-    //_addCar: function (car) {
-    //    car = car || {};
-
-    //    let scale = 0.5;
-    //    let orr = 128;
-    //    let orrAnchor = { x: 64, y: 120 };
-
-    //    var carIcon = L.icon({
-    //        iconUrl: "Content/images/sensor-car2.png",
-    //        shadowUrl: "Content/images/sensor.png",
-
-    //        iconSize: [orr * scale, orr * scale],
-    //        shadowSize: [0, 0],
-    //        iconAnchor: [orrAnchor.x * scale, orrAnchor.y * scale],
-    //        shadowAnchor: [0, 0],
-    //        popupAnchor: [0, 0]
-    //    });
-
-
-    //    var bounds = map.getBounds();
-
-
-    //    var marker = L.marker(getRandomLatLng(), { icon: carIcon }).addTo(map);
-
-    //    car.marker = marker;
-    //    marker.car = car;
-
-    //    var divIcon = L.divIcon({ className: 'text-icon-div' });
-
-    //    var textMarker = L.marker(marker.getLatLng(), { icon: divIcon }).addTo(map);
-
-    //    var textContainer = textMarker._icon;
-
-    //    //var textDiv = L.DomUtil.create("div", textContainer);
-
-    //    var textDiv = textContainer.appendChild(document.createElement("div"));
-
-    //    textDiv.className = "car-text-icon";
-    //    textDiv.innerHTML = "" + Math.round(Math.random() * 100);
-
-    //    car.textDiv = textDiv;
-    //    textMarker.sensor = textMarker;
-
-    //    car.textMarker = textMarker;
-
-    //    DataManager.cars.push(car);
-
-    //    return car;
-    //},
 
     _getSensor: function (sensorid) {
         for (var i = 0; i < DataManager.sensors.length; i++)
@@ -135,13 +83,11 @@ DataManager = {
         return null;
     },
 
-
-
     _addSensorMarkers: function (sensor) {
 
         var icon;
 
-        var isCar = sensor.sensorid == 99;
+        var isCar = sensor.sensorid == 99 || sensor.sensorid == "EFC018EE-E977-4B23-9C6E-49B118E00E9E" || sensor.sensorid == 24;
 
         if (isCar) {
             let scale = 0.5;
@@ -197,7 +143,7 @@ DataManager = {
         else {
             textDiv.className = "text-icon";
         }
-        textDiv.innerHTML = "" + Math.round(Math.random() * 100);
+        textDiv.innerHTML = "-";
 
         sensor.textDiv = textDiv;
         textMarker.sensor = sensor;
@@ -205,9 +151,116 @@ DataManager = {
 
     },
 
+    AddCars: function (aCars) {
+        for (var i = 0; i < aCars.length; i++)
+            DataManager.AddCar(aCars[i]);
+
+    },
+
+    UpdateCars: function (aCarsData) {
+        for (var i = 0; i < aCarsData.length; i++)
+            DataManager.UpdateCar(aCarsData[i]);
+    },
+
+    RemoveCars: function (aCarIds) {
+        for (var i = 0; i < aCarIds.length; i++)
+            DataManager.RemoveCar(aCarIds[i]);
+    },
+
+    AddCar: function (aCar) {
+        if (DataManager.drawLayer == null)
+        {
+            DataManager.drawLayer = L.layerGroup().addTo(map);
+        }
+
+        var circle = L.circle([aCar.lat, aCar.lng], 2, {
+            color: aCar.fill,
+            opacity: 0,
+            fillColor: aCar.fill,
+            fillOpacity: 0.8
+        }).addTo(DataManager.drawLayer);
+
+        aCar.circle = circle;
+        DataManager.cars.push(aCar);
+    },
+
+    UpdateCar: function (aCarData) {
+        var car;
+        for (var i = 0; i < DataManager.cars.length; i++)
+        {
+            if (aCarData.id == DataManager.cars[i].id)
+            {
+                car = DataManager.cars[i]
+                break;
+            }
+        }
+
+        if (car == null)
+            return;//car not found
+
+
+
+        var changed = false;
+        if (typeof aCarData.lat !== 'undefined')
+        {
+            car.lat = aCarData.lat;
+            changed = true;
+        }
+        if (typeof aCarData.lng !== 'undefined')
+        {
+            car.lng = aCarData.lng;
+            changed = true;
+        }
+
+        var lightChange = false;
+        if (typeof aCarData.tis !== 'undefinded')
+        {
+            car.tis = aCarData.tis;
+            lightChange = true;
+        }
+
+        if (typeof aCarData.bl !== 'undefinded')
+        {
+            car.bl = aCarData.bl;
+            lightChange = true;
+        }
+
+        if (lightChange)
+        {
+            if (aCarData.bl)
+            {
+                car.circle.setStyle({ color: "#ff0000", opacity: 1 })
+            }
+            else if (aCarData.tis == "LEFT" || aCarData.tis == "RIGHT" || aCarData.tis == "HAZARD")
+            {
+                car.circle.setStyle({ color: "#ffcc00", opacity: 1 })
+            }
+            else
+            {
+                car.circle.setStyle( {color: car.fill, opacity: 0})
+            }
+        }
+
+        if (changed) {
+            car.circle.setLatLng([car.lat, car.lng]);
+        }
+    },
+
+    RemoveCar: function (aCarId) {
+
+        for (var i = 0; i < DataManager.cars.length; i++) {
+            if (DataManager.cars[i].carid == aCarid) {
+
+                DataManager.drawLayer.removeLayer(DataManager.cars[i].circle);
+
+                DataManager.cars.splice(i, 1);
+            }
+        }
+    },
+
     _getDisplayValue: function (concentration) {
 
-        var micrograms = concentration * 1000000000; // goes from kg/m3 to microgram/m3
+        var micrograms = concentration;// * 1000000000; // goes from kg/m3 to microgram/m3
 
         var mgStringHead = micrograms.toString().split(/[,.]+/)[0];
 
@@ -272,11 +325,134 @@ DataManager = {
         }
     },
 
+    GetDisplayTime: function(aTime)
+    {
+        var time = DataManager.BreakdownTime(aTime);
+
+        var systemTime = new Date();
+
+        var utcTime = DataManager.GetTimeObject(time);
+
+        var builder = "";
+        
+        //if (time.day != systemTime.getDate() || time.month != (systemTime.getMonth() + 1) || time.year != systemTime.getFullYear())
+        //{
+        //    builder += time.day + "/" + time.month;
+        //}
+
+        //if (time.year != systemTime.getFullYear()) {
+        //    builder += "/" + time.year;
+        //}
+
+        if (time.year != systemTime.getFullYear()) {
+            builder += utcTime.getDay() + "/" + (utcTime.getMonth() + 1) + "/" + utcTime.getYear();
+        }
+        else if (utcTime.getDay() != systemTime.getDate() || utcTime.getMonth() != (systemTime.getMonth())) {
+            builder += time.day;    
+            switch (parseInt(utcTime.getMonth()) + 1)
+            {
+                case 1: builder += " Jan.";
+                    break;
+                case 2: builder += " Feb.";
+                    break;
+                case 3: builder += " Mar.";
+                    break;
+                case 4: builder += " Apr.";
+                    break;
+                case 5: builder += " May";
+                    break;
+                case 6: builder += " June";
+                    break;
+                case 7: builder += " July";
+                    break;
+                case 8: builder += " Aug.";
+                    break;
+                case 9: builder += " Sept.";
+                    break;
+                case 10: builder += " Oct.";
+                    break;
+                case 11: builder += " Nov.";
+                    break;
+                case 12: builder += " Dec.";
+                    break;
+            }
+        }
+        else
+        {
+            builder += "Today";
+        }
+
+        builder += " " + utcTime.getHours() + ":" + utcTime.getMinutes();
+
+        if (utcTime.getSeconds() != 0)
+        {
+            builder += ":" + utcTime.getSeconds();
+        }
+        
+        return builder;
+    },
+
+    BreakdownTime: function (aTime) {
+        var dates = aTime.split(/[ ]+/)[0].split(/[-]+/);
+        var times = aTime.split(/[ ]+/)[1].split(/[:]+/);
+
+        return {
+            year: dates[0],
+            month: dates[1],
+            day: dates[2],
+            hours: times[0],
+            minutes: times[1],
+            seconds: times[2]
+        }
+    },
+
+    GetTimeObject: function (obj) {
+        var date = new Date();
+        date.setUTCFullYear(obj.year, obj.month - 1, obj.day);
+        date.setUTCHours(obj.hours);
+        date.setUTCMinutes(obj.minutes);
+        date.setUTCSeconds(obj.seconds);
+        return date;
+    },
+
+    BuildServerTimeStamp: function (date) {
+        var builder = "" + date.getUTCFullYear() + "-";
+
+        if (date.getUTCMonth() < 9)
+            builder += "0";
+        builder += (date.getUTCMonth() + 1) + "-";
+
+        if (date.getUTCDate() < 10)
+            builder += "0";
+        builder += date.getUTCDate() + " ";
+
+        if (date.getUTCHours() < 10)
+            builder += "0";
+        builder += date.getUTCHours() + ":";
+
+        if (date.getUTCMinutes() < 10)
+            builder += "0";
+        builder += date.getUTCMinutes() + ":";
+
+        if (date.getUTCSeconds() < 10)
+            builder += "0";
+        builder += date.getUTCSeconds();
+
+        return builder;
+
+
+    },
+
     NewSensorData: function (aData) {
         if (typeof aData.sensorid === 'undefined')
             return;
 
         var sensor = DataManager._getSensor(aData.sensorid);
+
+        if (sensor == null) {
+            return;
+            console.log("Couldn't find sensor for data!");
+        }
 
         //todo logical processing of new data.
         if (typeof aData.latitude !== 'undefined' && typeof aData.longitude !== 'undefined') {
@@ -296,15 +472,23 @@ DataManager = {
             sensor.textDiv.innerHTML = "" + micrograms;
 
             if (micrograms >= 10) {
-                showSensorWarning(sensor, aData.concentration);
+                showSensorWarning(sensor, aData);
             }
+
+
+            sensor.data.push(aData); //Keep a record of all the data we've received;
         }
 
-        sensor.data.push(aData); //Keep a record of all the data we've received;
 
     },
 
     NewWindData: function (aData) {
+
+
+        if (DataManager.wind == null) {
+            DataManager.wind = L.control.arrow();
+            map.addControl(DataManager.wind);
+        }
         DataManager.wind.NewData(aData);
     },
 
@@ -315,7 +499,7 @@ DataManager = {
         if (sensor == null)
         {
             sensor = {
-                sensorid: aSensor.id,
+                sensorid: aSensor.sensorid,
                 name: aSensor.name,
                 address: aSensor.address,
                 latitude: aSensor.latitude,
@@ -325,7 +509,7 @@ DataManager = {
                 data: []
             }
 
-            _addSensor(sensor);
+            DataManager._addSensor(sensor);
         }
     },
 
@@ -344,14 +528,15 @@ DataManager = {
     AddLeak: function () {
 
         let scale = 0.25;
-        let orr = 210;
-        let orrAnchor = { x: 105, y: 105 };
+        let orrX = 128;
+        let orrY = 158;
+        let orrAnchor = { x: 60, y: 152 };
 
         var leakIcon = L.icon({
-            iconUrl: "Content/images/leak2.png",
+            iconUrl: "Content/images/leak3.png",
             shadowUrl: "Content/images/sensor.png",
 
-            iconSize: [orr * scale, orr * scale],
+            iconSize: [orrX * scale, orrY * scale],
             shadowSize: [0, 0],
             iconAnchor: [orrAnchor.x * scale, orrAnchor.y * scale],
             shadowAnchor: [0, 0],
@@ -376,19 +561,43 @@ DataManager = {
         console.log(JSON.stringify(object));
     }
 
-
 }
-
 
 function AddComplaint(complaint)
 {
     DataManager._addComplaint(complaint);
 }
 
+function AddMultipleCars(amount) {
+    for (var i = 0; i < amount; i++)
+        DataManager.AddCar(CreateRandomCar());
+}
+
 function AddMultipleSensors(amount)
 {
     for (var i = 0; i < amount; i++)
         AddSensor();
+}
+
+function StartDancingCars(maxDelay) {
+    DataManager.fpsCounter = 0;
+    DataManager.fpsLastCounter = 0;
+    DataManager.fpsMiliseconds = Date.now();
+    DataManager.dancing = true;
+    maxDelay = maxDelay || 1000;
+    randomCarChangeLoop(maxDelay);
+}
+
+function StopDancingCars() {
+    DataManager.dancing = false;
+}
+
+function ChangeRandomCar() {
+    var index = Math.floor(Math.random() * DataManager.cars.length)
+
+    var newpos = getRandomLatLng();
+
+    DataManager.UpdateCar({ id: DataManager.cars[index].id, lat: newpos.lat, lng: newpos.lng });
 }
 
 function AddSensor()
@@ -399,11 +608,14 @@ function AddSensor()
 }
 
 function getRandomLatLng() {
-    var bounds = map.getBounds(),
-        southWest = bounds.getSouthWest(),
-        northEast = bounds.getNorthEast(),
-        lngSpan = northEast.lng - southWest.lng,
-        latSpan = northEast.lat - southWest.lat;
+    if (typeof DataManager.bounds === 'undefined')
+        DataManager.bounds = map.getBounds();
+
+    var bounds = DataManager.bounds;
+    southWest = bounds.getSouthWest(),
+    northEast = bounds.getNorthEast(),
+    lngSpan = northEast.lng - southWest.lng,
+    latSpan = northEast.lat - southWest.lat;
 
     return new L.LatLng(
             southWest.lat + latSpan * Math.random(),
@@ -430,6 +642,50 @@ function CreateRandomSensor() {
     }
 }
 
+function CreateRandomCar() {
+    var latLng = getRandomLatLng();
+
+    var id = DataManager.counter;
+
+    DataManager.counter++;
+
+    return {
+        id: "" + id,
+        lat: latLng.lat,
+        lng: latLng.lng,
+        fill: getRandomColor()
+    }
+}
+
+function getRandomColor() {
+    var letters = '0123456789ABCDEF';
+    var color = '#';
+    for (var i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+}
+
+function randomCarChangeLoop(maxDelay) {
+    if (!DataManager.dancing)
+        return;
+
+    ChangeRandomCar();
+
+    DataManager.fpsCounter++;
+
+    if (Date.now() >= DataManager.fpsMiliseconds + 1000)
+    {
+        console.log("fps: " + DataManager.fpsCounter);
+        DataManager.fpsCounter = 0;
+        DataManager.fpsMiliseconds += 1000;
+    }
+
+    var delay = Math.round(Math.random() * maxDelay);
+
+    setTimeout(randomCarChangeLoop, maxDelay, maxDelay);
+}
+
 function randomSensorValueLoop(sensor) {
 
     var textDiv = sensor.textDiv;
@@ -454,7 +710,6 @@ function randomSensorValueLoop(sensor) {
     setTimeout(randomSensorValueLoop, delay, sensor);
 }
 
-
 function NewCarPosition(car, latlng) {
     if (car == "undefined")
         return;
@@ -465,31 +720,6 @@ function NewCarPosition(car, latlng) {
     car.textMarker.setLatLng(latlng);
 }
 
-//ShowAllMarkers: function () {
-//    this.ShowMarkersFromList(this.complaints);
-//    this.ShowMarkersFromList(this.sensors);
-//},
-
-//ShowMarkersFromList: function (list) {
-//    for (var i = 0; i < list.length; i++) {
-//        map.addTo(list[i].marker);
-
-//        if (typeof list[i].textMarker !== 'undefined')
-//            map.addTo(list[i].textMarker);
-//    }
-//},
-
-//HideAllMarkers: function () {
-//    this.HideMarkersFromList(this.complaints);
-//    this.HideMarkersFromList(this.sensors);
-//},
-
-//HideMarkersFromList: function (list) {
-//    for (var i = 0; i < list.length; i++)
-//    {
-//        map.removeLayer(list[i].marker);
-
-//        if (typeof list[i].textMarker !== 'undefined')
-//            map.removeLayer(list[i].textMarker);
-//    }
-//},
+function CountDOM() {
+    return document.getElementsByTagName('*').length
+}

@@ -3,6 +3,7 @@
     border-radius: 5px;
     border: 2px solid rgba(0, 0, 0, 0.2);
     animation-duration: 10s;
+    /*top: -30px;*/
 }
 
 #windArrow{
