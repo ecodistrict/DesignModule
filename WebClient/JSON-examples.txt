@@ -82,28 +82,28 @@ Remove History Measures
 
 Add SSM Car
 {
-	"addcar": {
-		"carid": unique id,
-		"latitude": 4.6512424, //latitude
-		"longitude": 54.248710912 //longitude
+	"addcar": [{
+		"id": unique id,
+		"lat": 4.6512424, //latitude
+		"lng": 54.248710912 //longitude
 		/* je mag alle vars al meesturen die je wil, maar deze 3 heb ik nu nodig /*
-	}
+	}]
 }
 
 Update SSM Car
 {
-	"updatecar": {
-		"carid": unique id,
-		"latitude": 4.6512424, //latitude
-		"longitude": 54.248710912 //longitude
+	"updatecar": [{
+		"id": unique id,
+		"lat": 4.6512424, //latitude
+		"lng": 54.248710912 //longitude
 		/* je mag alle vars al meesturen die je wil, maar deze 3 heb ik nu nodig /*
-	}
+	}]
 }
 
 Remove SSM Car
 {
-	"removecar": {
+	"removecar": [{
 		"carid": unique id
 		/* je mag die andere stuff ook weer meesturen, maar heb nu alleen carid nodig /*
-	}
+	}]
 }
