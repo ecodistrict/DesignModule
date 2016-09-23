@@ -4,22 +4,22 @@ interface
 
 uses
   Logger,
-  IMB3NativeClient, ByteBuffers,
+  IMB3NativeClient, IMB3Core, ByteBuffers,
   imb4,
   WorldDataCode,
   Data.DB,
 
   GisDefs, GisCsSystems, //GisLayerSHP, GisLayerVector,
 
+  System.JSON,
   SessionServerLib,
   SysUtils;
 
 type
   TSSMCar = class(TLayerObject)
   public
-    //gtuID: TWDID;  = TLayerObject.ID
-    // new, change (partly)
-    newTimestamp: Double;
+    // gtuID = TLayerObject.ID
+    //newTimestamp: Double;
     changedTimestamp: Double;
     x: Double;
     y: Double;
@@ -32,7 +32,7 @@ type
     length: Double;
     width: Double;
     baseColor: TAlphaRGBPixel;
-    //
+
     speed: Double;
     acceleration: Double;
     turnIndicatorStatus: string;
@@ -61,7 +61,7 @@ type
   TSSMProject  = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection;
     const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
-    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
     aMaxNearestObjectDistanceInMeters: Integer);
   destructor Destroy; override;
   private
@@ -69,6 +69,7 @@ type
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
   public
     procedure ReadBasicData(); override;
+    procedure handleClientMessage(aJSONObject: TJSONObject); override;
   public
     property imb3Connection: TIMBConnection read fIMB3Connection;
     property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
@@ -130,7 +131,7 @@ begin
     turnIndicatorStatus := _turnIndicatorStatus;
   end;
   aPayload.Read(_brakingLights);
-  if _brakingLights<>_brakingLights then
+  if brakingLights<>_brakingLights then
   begin
     if _brakingLights
     then addResult('bl', 'true')
@@ -212,6 +213,7 @@ begin
   aPayload.Read(G);
   aPayload.Read(B);
   baseColor := RGBToColor(R, G, B);
+  Log.WriteLn('color '+baseColor.ToHexString(8), llNormal, 1);
   addResult('fill', '"'+ColorToJSON(baseColor)+'"');
 end;
 
@@ -235,10 +237,13 @@ var
   lo: TLayerObject;
   car: TSSMCar;
   jsonStr: string;
+  l: Integer;
 begin
+  l := aPayload.Length;
   aPayload.Read(action);
   aPayload.Read(timestamp);
   aPayload.Read(gtuId);
+  //Log.WriteLn('event length '+l.ToString()+': '+action.ToString()+' ('+gtuId+')');
   case action of
     actionNew:
       begin
@@ -253,7 +258,7 @@ begin
             scenario.project.SendString('{"addcar": [{'+jsonStr+'}]}');
           end;
         end
-        else Log.WriteLn('TSSMLayer.HandleGTUEvent: new, already known car id '+string(UTF8String(gtuId)), llError);
+        else Log.WriteLn('TSSMLayer.HandleGTUEvent: new, already known car id '+string(UTF8String(gtuId)), llWarning);
       end;
     actionChange:
       begin
@@ -287,20 +292,45 @@ end;
 
 constructor TSSMProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
     const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
-    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
     aMaxNearestObjectDistanceInMeters: Integer);
 begin
-  fIMB3Connection := TIMBConnection.Create('app-usmodel01.tsn.tno.nl'{'192.168.1.11'}, 4000, 'PublishingServerSSM', 4, 'OTS_RT');
+  fIMB3Connection := TIMBConnection.Create('vps17642.public.cloudvps.com'{'app-usmodel01.tsn.tno.nl'}{'192.168.1.11'}, 4000, 'PublishingServerSSM', 4, 'OTS_RT');
   mapView  := TMapView.Create(52.08457, 4.88909, 14);
   fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   inherited Create(aSessionModel, aConnection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
-    aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers, aMaxNearestObjectDistanceInMeters);
+    aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers,
+    aMaxNearestObjectDistanceInMeters);
 end;
 
 destructor TSSMProject.Destroy;
 begin
   FreeAndNil(fIMB3Connection);
   inherited;
+end;
+
+procedure TSSMProject.handleClientMessage(aJSONObject: TJSONObject);
+var
+  jsonPair: TJSONPair;
+  jsonValue: TJSONValue;
+  EmptyPayload: ByteBuffers.TByteBuffer;
+begin
+  if isObject(aJSONObject, 'simulationControl', jsonPair) then
+  begin
+    EmptyPayload.Clear();
+    if isObjectValue(jsonPair.JsonValue as TJSONObject, 'stop', jsonValue) then
+    begin
+      fIMB3Connection.Publish('Sim_Stop').SignalEvent(ekNormalEvent, EmptyPayload);
+      SendString('{"simulationControl":{"stop":true}}');
+    end;
+    if isObjectValue(jsonPair.JsonValue as TJSONObject, 'start', jsonValue) then
+    begin
+      fIMB3Connection.Publish('Sim_Start').SignalEvent(ekNormalEvent, EmptyPayload);
+      // signal status to clients
+      SendString('{"simulationControl":{"start":true}}');
+    end;
+  end
+  else ;
 end;
 
 procedure TSSMProject.ReadBasicData;

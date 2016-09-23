@@ -1,26 +1,22 @@
-program SessionServerCmd;
+program PublishingServerEnsel;
 
 {$APPTYPE CONSOLE}
 
 {$R *.res}
 
 uses
-  Logger,
-  LogFile,
-  LogConsole,
+  Logger, LogFile, LogConsole,
   StdIni,
   imb4,
   CommandQueue,
   TilerControl,
-  SessionServerLib,
-  SessionServerDB,
-  SessionServerGIS,
-  //SessionServerUS,
-  //SessionServerEnSel,
-  //SessionServerNWBLive,
-  SessionServerEcodistrict,
-  SessionServerSSM,
+  SessionServerLib, SessionServerDB,
+  SessionServerEnsel,
   System.SysUtils;
+
+const
+  RemoteHostSwitch = 'RemoteHost';
+  RemotePortSwitch = 'RemotePort';
 
 {
 function ConsoleCtrlHandler(dwCtrlType: DWORD): Boolean; stdcall;
@@ -53,14 +49,17 @@ var
   imbConnection: TConnection;
   sessionModel: TSessionModel;
   tilerFQDN: string;
-  ecodistrictModule: TEcodistrictModule;
+  enselModule: TEnselModule;
 begin
-  ecodistrictModule := nil; // sentinel
+  enselModule := nil; // sentinel
   FileLogger.SetLogDef(AllLogLevels, [llsTime]);
   try
     try
       // todo: change to tls connection
-      imbConnection := TSocketConnection.Create('SessionServer');
+      imbConnection := TSocketConnection.Create(
+        'PublishingServer', 12,
+        'ensel',
+        GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
       try
         imbConnection.onException := HandleException;
         imbConnection.onDisconnect := HandleDisconnect;
@@ -72,24 +71,14 @@ begin
 //          CreateSessionProject(sessionModel, '1234'{'rotterdam'}, 'Rotterdam dashboard', ptNWBLiveFeed, tilerFQDN, '', '',
 //            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters)); {todo: NWBLiveFeedProjectName}
 
-          // ecodistrict module
-          {
-          ecodistrictModule := TEcodistrictModule.Create(
+          // ensel module
+          enselModule := TEnselModule.Create(
             sessionModel,
             imbConnection,
-            'User_Name='+GetSetting('EcoDBUserName', '')+';'+
-            'Password='+GetSetting('EcoDBPassword', '')+';'+
-            'Server='+GetSetting('EcoDBServer', '')+';'+
-            'Port='+GetSetting('EcoDBPort', '5432')+';'+
-            'Database='+GetSetting('EcoDBDatabase', 'Warsaw')+';'+
-            'PGAdvanced=sslmode=require',
             tilerFQDN,
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
-          }
-          // ssm module
-          sessionModel.Projects.Add(
-            TSSMProject.Create(sessionModel, imbConnection, 'SSM', 'SSM', '', '', nil, 0, false, false, false, True, false, 0));
+
           // inquire existing session and rebuild internal sessions..
           imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(
             procedure(event: TEventEntry; aInt: Integer; const aString: string)
@@ -112,6 +101,9 @@ begin
               Log.WriteLn('could not link existing ws2imb client to project: '+aString, llWarning);
             end);
 
+
+
+
           // inquire existing sessions
           imbConnection.publish(WS2IMBEventName, False).signalIntString(actionInquire, imbConnection.privateEventName);
 
@@ -121,7 +113,7 @@ begin
 
         finally
           FinalizeCommandQueue();
-          ecodistrictModule.Free;
+          enselModule.Free;
           sessionModel.Free;
         end;
       finally
