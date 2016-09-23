@@ -4052,6 +4052,8 @@ L.Marker = L.Layer.extend({
 		var options = this.options,
 		    classToAdd = 'leaflet-zoom-' + (this._zoomAnimated ? 'animated' : 'hide');
 
+
+
 		var icon = options.icon.createIcon(this._icon),
 		    addIcon = false;
 

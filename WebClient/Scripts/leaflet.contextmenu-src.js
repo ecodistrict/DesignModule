@@ -48,7 +48,7 @@ L.Map.ContextMenu = L.Handler.extend({
 		if (map.options.contextmenuWidth) {
 			container.style.width = map.options.contextmenuWidth + 'px';
 		}
-		
+
 		this._createItems();
 
 		L.DomEvent
@@ -200,7 +200,6 @@ L.Map.ContextMenu = L.Handler.extend({
 		var itemOptions = this._map.options.contextmenuItems,
 		    item,
 		    i, l;
-
 		for (i = 0, l = itemOptions.length; i < l; i++) {
 			this._items.push(this._createItem(this._container, itemOptions[i]));
 		}
@@ -355,7 +354,6 @@ L.Map.ContextMenu = L.Handler.extend({
 			} else {
 				this._setPosition(pt);			
 			}
-
 			this._map.fire('contextmenu.show', event);
 		}
 	},
@@ -446,14 +444,14 @@ L.Map.ContextMenu = L.Handler.extend({
 L.Map.addInitHook('addHandler', 'contextmenu', L.Map.ContextMenu);
 L.Mixin.ContextMenu = {
 
-	bindContextMenu: function (options) {
+    bindContextMenu: function (options) {
 		L.setOptions(this, options);
 		this._initContextMenu();
 
 		return this;
 	},
 
-	unbindContextMenu: function (){
+	unbindContextMenu: function () {
 		this.off('contextmenu', this._showContextMenu, this);
 
 		return this;

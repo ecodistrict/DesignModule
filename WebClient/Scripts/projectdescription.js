@@ -81,7 +81,7 @@ L.control.projectDescription.onAdd = function (map) {
     this._div = L.DomUtil.create('div', 'projectDescription');
     var _this = this; // capture this
     options = this.options;
-    //window.addEventListener("resize", ResizeProjectDescription);
+    window.addEventListener("resize", ResizeProjectDescription);
     L.DomEvent.disableClickPropagation(this._div);
     this.update();
     return this._div;
@@ -117,14 +117,14 @@ L.control.projectDescription.update = function (props) {
 
         //projectDescriptionH2.innerHTML = this.options.description;
 
-        //ResizeProjectDescription();
+        ResizeProjectDescription();
 
     }
 };
 
-//function ResizeProjectDescription() {
-//        projectDescriptionH2.style.width = "" + (window.innerWidth - 165) + "px";
-//}
+function ResizeProjectDescription() {
+        projectDescriptionH2.style.width = "" + (window.innerWidth - 165) + "px";
+}
 
 function AddActiveReference(ul) {
     var li = ul.appendChild(document.createElement("li"));

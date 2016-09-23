@@ -173,6 +173,14 @@ DataManager = {
             DataManager.drawLayer = L.layerGroup().addTo(map);
         }
 
+        for (var i = 0; i < DataManager.cars.length; i++)
+        {
+            if (DataManager.cars[i].id == aCar.id)
+            {
+                return;
+            }
+        }
+
         var circle = L.circle([aCar.lat, aCar.lng], 2, {
             color: aCar.fill,
             opacity: 0,
@@ -213,13 +221,13 @@ DataManager = {
         }
 
         var lightChange = false;
-        if (typeof aCarData.tis !== 'undefinded')
+        if (aCarData.tis)
         {
             car.tis = aCarData.tis;
             lightChange = true;
         }
 
-        if (typeof aCarData.bl !== 'undefinded')
+        if (typeof aCarData.bl !== 'undefined')
         {
             car.bl = aCarData.bl;
             lightChange = true;

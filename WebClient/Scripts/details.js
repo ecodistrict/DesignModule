@@ -233,7 +233,7 @@
             L.DomUtil.addClass(this._container, 'leaflet-control-details-expanded');
             this._form.style.height = null;
             var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
-            if (acceptableHeight < this._form.clientHeight) {
+            if (acceptableHeight < this._form.scrollHeight) {
                 L.DomUtil.addClass(this._form, 'leaflet-control-details-scrollbar');
                 this._form.style.height = acceptableHeight + 'px';
             } else {
