@@ -3,6 +3,9 @@
     // todo: build dialog based on measuresControl.options.selectCategories
 
     var div = modalDialogCreate('Select objects by query', 'Select objects based on values of their attributes');
+    div.style.width = '400px';
+    //div.style.margin = '5% auto';
+
     // build dialog form
     var f = div.appendChild(document.createElement('form'));
     f.id = 'selectByQueryForm';

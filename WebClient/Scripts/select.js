@@ -33,8 +33,7 @@ function loadJSONLocal(callback) {
 
 
 function initSelectedObjectsProperties(e) {
-    var objectPropertiesDialog = modalDialogCreate("Object properties");
-    objectPropertiesDialog.appendChild(document.createElement('hr'));
+    
     //// add close button
     //var mddb = objectPropertiesDialog.appendChild(document.createElement('div'));
     //mddb.className = 'modalDialogDevideButtons';
@@ -48,18 +47,26 @@ function initSelectedObjectsProperties(e) {
 
     //
     // debug only, read the JSON file for the properties of selected objects
-    // 
+    //
+
+    // todo: server repsonse to showSelectedObjectsProperties(objectProps); below
+
+    /*
     loadJSONLocal(function (response) {
         var objectProps = JSON.parse(response);
         if (objectProps.selectedObjectsProperties.properties.length == 0)
             return;
         showSelectedObjectsProperties(objectProps);
     });
+    */
 }
 
 function showSelectedObjectsProperties(aSelectedObjectsProperties) {
 
-    var objectPropertiesDialog = document.getElementById('modalDialog');
+    var objectPropertiesDialog = modalDialogCreate("Object properties");
+    objectPropertiesDialog.appendChild(document.createElement('hr'));
+
+    //var objectPropertiesDialog = document.getElementById('modalDialog');
 
     objProps = aSelectedObjectsProperties;
 
