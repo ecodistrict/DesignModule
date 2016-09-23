@@ -153,6 +153,7 @@ type
     procedure SendSelectionEnabled();
     procedure SendMeasuresEnabled();
     procedure SendMeasuresHistoryEnabled();
+    procedure SendSimulationControlEnabled();
 
     procedure addClient(aElement: TClientSubscribable);
     procedure removeClient(aElement: TClientSubscribable);
@@ -505,7 +506,8 @@ type
 
   TProject = class
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+    aDBConnection: TCustomConnection;
+    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
     aMaxNearestObjectDistanceInMeters: Integer);
   destructor Destroy; override;
   private
@@ -540,6 +542,7 @@ type
     fSelectionEnabled: Boolean;
     fMeasuresEnabled: Boolean;
     fMeasuresHistoryEnabled: Boolean;
+    fSimualtionControlEnabled: Boolean;
     fAddBasicLayers: Boolean;
     procedure setTimeSlider(aValue: Integer);
     procedure setSelectionEnabled(aValue: Boolean);
@@ -551,6 +554,7 @@ type
     procedure timerTilerStatusAsHeartbeat(aTimer: TTimer);
     procedure newClient(aClient: TClient); virtual;
     function getMeasuresHistoryJSON: string; virtual;
+    procedure handleClientMessage(aJSONObject: TJSONObject); virtual;
   public
     function AddClient(const aClientID: string): TClient;
     procedure ReadBasicData(); virtual; abstract;
@@ -575,6 +579,7 @@ type
     property selectionEnabled: Boolean read fSelectionEnabled write setSelectionEnabled;
     property measuresEnabled: Boolean read fMeasuresEnabled write setMeasuresEnabled;
     property measuresHistoryEnabled: Boolean read fMeasuresHistoryEnabled write setMeasuresHistoryEnabled;
+    property simualtionControlEnabled: Boolean read fSimualtionControlEnabled write fSimualtionControlEnabled;
     property addBasicLayers: Boolean read fAddBasicLayers;
   public
     property diffLayers: TObjectDictionary<string, TDiffLayer> read fDiffLayers;
@@ -614,6 +619,9 @@ type
   end;
 
 
+function isObject(aJSONObject: TJSONObject; const aObjectName: string; var aJSONPair: TJSONPair): Boolean;
+function isObjectValue(aJSONObject: TJSONObject; const aValueName: string; var aJSONValue: TJSONValue): Boolean;
+
 procedure jsonAdd(var aCurrent: string; const aAdd: string);
 function jsonArrayOfDoubleToStr(const aValues: TArray<double>): string;
 function geoJsonFeatureCollection(const aFeatures: string): string;
@@ -627,6 +635,18 @@ function CreateBasicPalette: TWDPalette;
 implementation
 
 { utils }
+
+function isObject(aJSONObject: TJSONObject; const aObjectName: string; var aJSONPair: TJSONPair): Boolean;
+begin
+  aJSONPair := aJSONObject.Get(aObjectName);
+  Result := Assigned(aJSONPair);
+end;
+
+function isObjectValue(aJSONObject: TJSONObject; const aValueName: string; var aJSONValue: TJSONValue): Boolean;
+begin
+  aJSONValue := aJSONObject.Values[aValueName];
+  Result := Assigned(aJSONValue);
+end;
 
 procedure jsonAdd(var aCurrent: string; const aAdd: string);
 begin
@@ -1089,18 +1109,6 @@ end;
 
 procedure TClient.HandleClientCommand(const aJSONString: string);
 
-  function isObject(aJSONObject: TJSONObject; const aObjectName: string; var aJSONPair: TJSONPair): Boolean;
-  begin
-    aJSONPair := aJSONObject.Get(aObjectName);
-    Result := Assigned(aJSONPair);
-  end;
-
-  function isObjectValue(aJSONObject: TJSONObject; const aValueName: string; var aJSONValue: TJSONValue): Boolean;
-  begin
-    aJSONValue := aJSONObject.Values[aValueName];
-    Result := Assigned(aJSONValue);
-  end;
-
   procedure login(aJSONObject: TJSONObject);
   var
     scenarioID: string;
@@ -1324,11 +1332,6 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     end;
   end;
 
-  procedure applyMeasures(aMeasures: TJSONObject);
-  begin
-    // todo: implement
-  end;
-
 var
   jsonObject: TJSONObject;
   jsonPair: TJSONPair;
@@ -1352,9 +1355,12 @@ begin
         then selectScenario(jsonPair.JsonValue as TJSONObject)
         else if isObject(jsonObject, 'selectObjectsProperties', jsonPair)
         then selectObjectsProperties(jsonPair.JsonValue)
-        else if isObject(jsonObject, 'applyMeasures', jsonPair)
-        then applyMeasures(jsonPair.JsonValue as TJSONObject)
-        else ;
+        // handle all other messages on the connected project
+        else fProject.handleClientMessage(jsonObject);
+
+//        if isObject(jsonObject, 'applyMeasures', jsonPair)
+//        then applyMeasures(jsonPair.JsonValue as TJSONObject)
+//        else ;
 
         // todo:
         // setObjectProperties
@@ -1640,7 +1646,16 @@ begin
       '"selectionEnabled":'+ord(fProject.selectionEnabled).toString+','+
       '"measuresEnabled":'+ord(fProject.measuresEnabled).toString+','+
       '"measuresHistoryEnabled":'+ord(fProject.measuresHistoryEnabled).toString+','+
+      '"simulationControlEnabled":'+ord(fProject.simualtionControlEnabled).ToString+','+
       view+
+    '}}');
+end;
+
+procedure TClient.SendSimulationControlEnabled;
+begin
+  signalString(
+    '{"session":{'+
+      '"simulationControlEnabled":'+ord(fProject.simualtionControlEnabled).ToString+
     '}}');
 end;
 
@@ -2975,7 +2990,7 @@ end;
 
 constructor TProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
-  aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+  aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
   aMaxNearestObjectDistanceInMeters: Integer);
 begin
   inherited  Create;
@@ -2983,6 +2998,7 @@ begin
   fSelectionEnabled := aSelectionEnabled;
   fMeasuresEnabled := aMeasuresEnabled;
   fMeasuresHistoryEnabled := aMeasuresHistoryEnabled;
+  fSimualtionControlEnabled := aSimualtionControlEnabled;
   fAddBasicLayers := aAddbasicLayers;
   fSessionModel := aSessionModel;
   fConnection := aConnection;
@@ -3074,6 +3090,11 @@ begin
     Result := '[]';
   end
   else Result := '[]';
+end;
+
+procedure TProject.handleClientMessage(aJSONObject: TJSONObject);
+begin
+  // default no action
 end;
 
 procedure TProject.handleTilerStartup(aTiler: TTiler; aStartupTime: TDateTime);

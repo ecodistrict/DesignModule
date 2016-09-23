@@ -179,7 +179,8 @@ type
 
   TEcodistrictProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+    aDBConnection: TCustomConnection;
+    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
     aMaxNearestObjectDistanceInMeters: Integer);
   destructor Destroy; override;
   private
@@ -198,6 +199,8 @@ type
 
     function ReadSchemaNames: TArray<string>;
     function handleTilerStatus(aTiler: TTiler): string;
+
+    procedure handleClientMessage(aJSONObject: TJSONObject); override;
   public
     // on demand load of items
     property DMQueries: TDictionary<string, TDMQuery> read getDMQueries;
@@ -796,7 +799,7 @@ end;
 
 constructor TEcodistrictProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
   aTilerStatusURL: string; aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled,
-  aMeasuresHistoryEnabled, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
+  aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
 begin
   inherited;
   fDIObjectProperties := nil; // TObjectList<TDIObjectProperty>.Create;
@@ -906,6 +909,20 @@ begin
   Result := fDMQueries;
 end;
 
+procedure TEcodistrictProject.handleClientMessage(aJSONObject: TJSONObject);
+var
+  jsonPair: TJSONPair;
+  jsonMeasuresToApply: TJSONObject;
+begin
+  if isObject(aJSONObject, 'applyMeasures', jsonPair) then
+  begin
+    jsonMeasuresToApply := jsonPair.JsonValue as TJSONObject;
+    // todo:
+
+  end
+  else ;
+end;
+
 function TEcodistrictProject.handleTilerStatus(aTiler: TTiler): string;
 begin
   // handle status request
@@ -982,7 +999,8 @@ begin
     query.Connection := fDBConnection as TFDConnection;
     query.SQL.Text :=
       'SELECT category, propertyName, propertyType, selection, fieldName, tablename, keyfieldname, editable '+
-      'FROM '+EcoDistrictSchemaId(projectId)+'.di_objectproperties';
+      'FROM '+EcoDistrictSchemaId(projectId)+'.di_objectproperties '+
+      'ORDER BY category, propertyName';
     try
       query.Open();
       query.First();
@@ -1265,7 +1283,7 @@ begin
     InitPG;
     dbConnection := TFDConnection.Create(nil);
     SetPGConnection(dbConnection as TFDConnection, fConnectString);
-    Result := TEcodistrictProject.Create(fSessionModel, fSessionModel.Connection, aCaseID, '', fTilerFQDN, fTilerStatusURL, dbConnection, 0, True, True, True, True, fMaxNearestObjectDistanceInMeters);
+    Result := TEcodistrictProject.Create(fSessionModel, fSessionModel.Connection, aCaseID, '', fTilerFQDN, fTilerStatusURL, dbConnection, 0, True, True, True, False, True, fMaxNearestObjectDistanceInMeters);
     fSessionModel.Projects.Add(Result);
 
     fProjects.Add(aCaseId, Result);
