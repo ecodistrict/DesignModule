@@ -9,7 +9,7 @@ uses
   WorldDataCode,
   Data.DB,
 
-  GisDefs, GisCsSystems, //GisLayerSHP, GisLayerVector,
+  GisDefs, GisCsSystems,
 
   System.JSON,
   SessionServerLib,
@@ -19,12 +19,16 @@ type
   TSSMCar = class(TLayerObject)
   public
     // gtuID = TLayerObject.ID
-    //newTimestamp: Double;
+    // timestamps
+    newTimestamp: Double;
     changedTimestamp: Double;
+    deletedTimestamp: Double;
+    // base, new/change/delete
     x: Double;
     y: Double;
     z: Double;
     rotZ: Double;
+    // new
     networkId: AnsiString;
     linkId: AnsiString;
     laneId: AnsiString;
@@ -32,7 +36,7 @@ type
     length: Double;
     width: Double;
     baseColor: TAlphaRGBPixel;
-
+    // change/delete
     speed: Double;
     acceleration: Double;
     turnIndicatorStatus: string;
@@ -101,7 +105,7 @@ begin
   // start after timestamp and gtuId
   aPayload.Read(_x);
   aPayload.Read(_y);
-  // project point always
+  // project point always and use offset as an extra option to put a 0 based network in a location
   p.X := _x+aOffsetInRD.X;
   p.Y := _y+aOffsetInRD.Y;
   p := aSourceProjection.ToGeocs(p);
@@ -151,7 +155,7 @@ function TSSMCar.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection
   end;
 
 begin
-  Result := '';
+  Result := ''; // for now no repsonse so no projection needed
   aPayload.Read(x);
   aPayload.Read(y);
   aPayload.Read(z);
@@ -195,7 +199,7 @@ begin
   // start after timestamp and gtuId
   aPayload.Read(x);
   aPayload.Read(y);
-  // project point always
+  // project point always and use offset as an extra option to put a 0 based network in a location
   p.X := x+aOffsetInRD.X;
   p.Y := y+aOffsetInRD.Y;
   p := aSourceProjection.ToGeocs(p);
@@ -250,6 +254,7 @@ begin
         if not objects.ContainsKey(RawByteString(gtuId)) then
         begin
           car := TSSMCar.Create(Self, RawByteString(gtuId));
+          car.newTimestamp := timestamp;
           objects.Add(car.ID, car);
           jsonStr := car.new(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
           if jsonStr<>'' then
@@ -265,6 +270,7 @@ begin
         if objects.TryGetValue(RawByteString(gtuId), lo) then
         begin
           car := lo as TSSMCar;
+          car.changedTimestamp := timestamp;
           jsonStr := car.change(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
           if jsonStr<>'' then
           begin
@@ -279,6 +285,7 @@ begin
         if objects.TryGetValue(RawByteString(gtuId), lo) then
         begin
           car := lo as TSSMCar;
+          car.deletedTimestamp := timestamp;
           jsonStr := car.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
           jsonStr := '"id":"'+string(UTF8String(gtuId))+'",'+jsonStr;
           scenario.project.SendString('{"removecar": [{'+jsonStr+'}]}');

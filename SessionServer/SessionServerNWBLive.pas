@@ -672,7 +672,7 @@ constructor TNWBLiveFeedProject.Create(aSessionModel: TSessionModel; aConnection
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
   aLiveFeedConnection: TIMBConnection; aPalette: TWDPalette; const aShapeFilename: string; aMaxNearestObjectDistanceInMeters: Integer);
 begin
-  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, nil, 0, False, False, False, False, aMaxNearestObjectDistanceInMeters);
+  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, nil, 0, False, False, False, False, False, aMaxNearestObjectDistanceInMeters);
   {if aSourceEPSG>0
   then fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(aSourceEPSG)
   else }

@@ -176,7 +176,7 @@ type
 
   TEnselProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
     aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
   destructor Destroy; override;
   private
@@ -241,7 +241,7 @@ begin
   fMaxNearestObjectDistanceInMeters := aMaxNearestObjectDistanceInMeters;
   //InitPG;
   project := TEnselProject.Create(aSessionModel, aConnection, 'ensel', 'EnSel', aTilerFQDN, aTilerStatusURL,
-    1, False, False, False, False, aMaxNearestObjectDistanceInMeters, TMapView.Create(52.08895, 5.1707, 14));
+    1, False, False, False, False, False, aMaxNearestObjectDistanceInMeters, TMapView.Create(52.08895, 5.1707, 14));
   fProjects.Add(project.ProjectID, project);
 end;
 
@@ -255,14 +255,14 @@ end;
 { TEnselProject }
 
 constructor TEnselProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
-  aTilerStatusURL: string; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers: Boolean;
+  aTilerStatusURL: string; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
   aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
 begin
   mapView := aMapView;
   fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
-    aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aAddBasicLayers,
+    aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers,
     aMaxNearestObjectDistanceInMeters);
   fTiler.onTilerStatus := handleTilerStatus;
   // add ensel scenario

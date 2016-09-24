@@ -257,7 +257,7 @@ type
     procedure HandleDataEvent(aEventEntry: TEventEntry; const aString: string);
     procedure HandleCaseVariantManagentEvent(aEventEntry: TEventEntry; const aString: string);
 
-    function HandleModuleScenarioRefresh(const aCaseId, aVariantID: string): Boolean;
+    function HandleModuleScenarioRefresh(const aCaseId, aVariantId: string): Boolean;
   end;
 
 
@@ -912,13 +912,27 @@ end;
 procedure TEcodistrictProject.handleClientMessage(aJSONObject: TJSONObject);
 var
   jsonPair: TJSONPair;
-  jsonMeasuresToApply: TJSONObject;
+  jsonValue: TJSONObject;
+  scenarioID: string;
+  scenario: TScenario;
 begin
   if isObject(aJSONObject, 'applyMeasures', jsonPair) then
   begin
-    jsonMeasuresToApply := jsonPair.JsonValue as TJSONObject;
+    //jsonValue := jsonPair.JsonValue as TJSONObject;
     // todo:
 
+  end
+  else if isObject(aJSONObject, 'scenarioRefresh', jsonPair) then
+  begin
+    scenarioID := jsonPair.JsonValue.Value;
+    if (scenarioID='') or (scenarioID='null') or (scenarioID='None')
+    then scenarioID := EcodistrictBaseScenario;
+    if scenarios.TryGetValue(scenarioID, scenario) then
+    begin
+      scenario.ReadBasicData;
+      Log.WriteLn('refreshed scenario '+scenarioID);
+    end
+    else Log.WriteLn('scenario '+scenarioID+' not found to refresh', llWarning);
   end
   else ;
 end;
