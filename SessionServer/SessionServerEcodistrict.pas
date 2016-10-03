@@ -1476,6 +1476,10 @@ var
   queries: TDictionary<string, TDMQuery>;
   rowObject: TJSONObject;
   f: TField;
+  first: Boolean;
+  geojsonObject: TJSONObject;
+  propertiesObject: TJSONObject;
+  geometryObject: TJSONValue;
 begin
   try
     if not (fDBConnection as TFDConnection).ping
@@ -1538,6 +1542,7 @@ begin
           jsonResponse.AddPair('eventId', _eventId);
           DataEvent:=fConnection.publish('ecodistrict.' + _eventId, false);
           jsonResponse.AddPair('status','<undefined>');
+          // process all 'method's
           if _method='createCase' then
           begin
             if not ((_caseId = 'null') or (_caseId = '')) then
@@ -1579,8 +1584,7 @@ begin
             DataEvent.signalString(JSONresponse.ToString);
             Log.WriteLn(_status);
           end
-          else
-          if _method='deleteCase' then
+          else if _method='deleteCase' then
           begin
             if not ((_caseId = 'null') or (_caseId = '')) then
             begin
@@ -1607,8 +1611,7 @@ begin
             DataEvent.signalString(JSONresponse.ToString);
             Log.WriteLn(_status);
           end
-          else
-          if _method='createVariant' then
+          else if _method='createVariant' then
           begin
             if not ((_caseId = 'null') or (_caseId = '')) then
             begin
@@ -1653,8 +1656,7 @@ begin
             DataEvent.signalString(JSONresponse.ToString);
             Log.WriteLn(_status);
           end
-          else
-          if _method='deleteVariant' then
+          else if _method='deleteVariant' then
           begin
             if not ((_caseId = 'null') or (_caseId = '')) then
             begin
@@ -1681,8 +1683,7 @@ begin
             DataEvent.signalString(JSONresponse.ToString);
             Log.WriteLn(_status);
           end
-          else
-          if _method='getData' then
+          else if _method='getData' then
           begin
             jsonDataResponse:=TJSONObject.Create;
             try
@@ -1731,8 +1732,7 @@ begin
                                       jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsInteger));
                                     end;
                                   end
-                                  else
-                                  if dataquery.ReturnType='FLOAT' then
+                                  else if dataquery.ReturnType='FLOAT' then
                                   begin
                                     if not query.Eof then
                                     begin
@@ -1741,8 +1741,7 @@ begin
                                       jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsFloat));
                                     end;
                                   end
-                                  else
-                                  if dataquery.ReturnType='GEOJSON' then
+                                  else if dataquery.ReturnType='GEOJSON' then
                                   begin // geojson as string
           //we expect the query to return: a geojson object as text
                                     if not query.Eof then
@@ -1751,8 +1750,7 @@ begin
                                       jsonDataResponse.AddPair(datafield, TJSONObject.ParseJSONValue(geojsonObjectAsString));
                                     end;
                                   end
-                                  else
-                                  if dataquery.ReturnType='LIST' then // specific for citygml structure, see: TABLE
+                                  else if dataquery.ReturnType='LIST' then // specific for citygml structure, see: TABLE
                                   begin
                                     jsonList:=TJSONObject.Create;
                                     try
@@ -1782,8 +1780,7 @@ begin
                                       jsonDataResponse.AddPair(datafield,jsonList);
                                     end;
                                   end
-                                  else
-                                  if dataquery.ReturnType='TABLE' then // specific for flat tables, see: LIST
+                                  else if dataquery.ReturnType='TABLE' then // specific for flat tables, see: LIST
                                   begin
                                     jsonArray := TJSONArray.Create;
                                     try
@@ -1821,6 +1818,64 @@ begin
                                     finally
                                       jsonDataResponse.AddPair(datafield,jsonArray);
                                     end;
+                                  end
+                                  else if dataquery.ReturnType='GEOJSONFLAT' then
+                                  begin // geojson as string
+                                    jsonArray := TJSONArray.Create;
+                                    try
+                                      while not query.Eof do
+                                      begin
+                                        propertiesObject := TJSONObject.Create;
+                                        geometryObject := nil;
+                                        try
+                                          // todo: convert all fields to GEOJSON object
+                                          // assume first object is geometry
+                                          first := True;
+                                          for f in query.fields do
+                                          begin
+                                            if first then
+                                            begin
+                                              geometryObject := TJSONObject.ParseJSONValue(f.AsString);
+                                              first := False;
+                                            end
+                                            else
+                                            begin
+                                              if not f.IsNull then
+                                              begin
+                                                case f.DataType of
+                                                  ftWideMemo,
+                                                  ftString,
+                                                  ftWideString: // todo: check widestring conversion..
+                                                    propertiesObject.AddPair(f.FieldName, TJSONString.Create(f.AsString));
+                                                  ftInteger:
+                                                    propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsInteger));
+                                                  ftLargeint:
+                                                    propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsLargeInt));
+                                                  ftFloat,
+                                                  ftExtended,
+                                                  ftSingle:
+                                                    propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsFloat));
+                                                end;
+                                              end
+                                              else propertiesObject.AddPair(f.FieldName, TJSONNull.Create); // todo: check!
+                                            end;
+                                          end;
+                                        finally
+                                          geojsonObject := TJSONObject.Create;
+                                          try
+                                            geojsonObject.AddPair('type', 'Feature');
+                                            if assigned(geometryObject)
+                                            then geojsonObject.AddPair('geometry', geometryObject);
+                                            geojsonObject.AddPair('properties', propertiesObject);
+                                          finally
+                                            jsonArray.Add(geojsonObject);
+                                          end;
+                                        end;
+                                        query.Next;
+                                      end;
+                                    finally
+                                      jsonDataResponse.AddPair(datafield,jsonArray);
+                                    end;
                                   end;
                                 finally
                                   query.Close;
@@ -1848,8 +1903,11 @@ begin
             DataEvent.signalString(jsonResponse.ToString);
             Log.WriteLn(_status);
           end
-          else
-          if _method='setKpiResult' then
+          else if _method='setData' then
+          begin
+            // todo: define with other developers..
+          end
+          else if _method='setKpiResult' then
           begin
             if not ((_caseId = 'null') or (_caseId = '')) then
             begin
@@ -1896,8 +1954,7 @@ begin
             DataEvent.signalString(JSONresponse.ToString);
             Log.WriteLn(_status);
           end
-          else
-          if _method='getKpiResult' then
+          else if _method='getKpiResult' then
           begin
             if not ((_caseId = 'null') or (_caseId = '')) then
             begin
@@ -1961,13 +2018,8 @@ begin
             DataEvent.signalString(JSONresponse.ToString);
             Log.WriteLn(_status);
           end
-          else
-//          if _method='getGeojson' then
-//          begin
-//
-//          end
-//          else
-          if _method='readDMQueries' then
+          //else if _method='getGeojson' then
+          else if _method='readDMQueries' then
           begin
             if forceReadOfDMQueries(_caseId)
             then _status := 'Success - read queries'
@@ -2029,10 +2081,9 @@ begin
           else
           begin
             Log.WriteLn('HandleDataEvent: unknown type/method: '+_type+', method: '+_method,llWarning);
-            // todo: just ignore unknown requests ?
-    //        _status := 'failed - unknown request';
-    //        jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
-    //        DataEvent.signalString(JSONresponse.ToString);
+            _status := 'failed - unknown request';
+            jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
+            DataEvent.signalString(JSONresponse.ToString);
           end;
         end;
       finally

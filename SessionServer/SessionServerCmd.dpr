@@ -74,7 +74,7 @@ begin
 //            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters)); {todo: NWBLiveFeedProjectName}
 
           // ecodistrict module
-          {
+
           ecodistrictModule := TEcodistrictModule.Create(
             sessionModel,
             imbConnection,
@@ -87,7 +87,7 @@ begin
             tilerFQDN,
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
-          }
+
           // ssm module
           sessionModel.Projects.Add(
             TSSMProject.Create(sessionModel, imbConnection, 'SSM', 'SSM', '', '', nil, 0, false, false, false, True, false, 0));
