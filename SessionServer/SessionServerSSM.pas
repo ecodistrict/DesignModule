@@ -410,7 +410,6 @@ var
   connected: Boolean;
   totalTrajectory: Boolean;
   updateFrequency: double;
-  p: TGIS_Point;
   i: Integer;
 begin
   Result := '';
@@ -435,13 +434,13 @@ begin
   aPayload.Read(connected);
   aPayload.Read(totalTrajectory);
   aPayload.Read(updateFrequency);
-  Result:='{"id":"'+ self.ID+'-KPI01"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI02"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI03"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI04"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI05"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI06"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI07"}';
+  Result:='{"id":"'+ string(self.ID)+'-KPI01"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI02"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI03"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI04"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI05"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07"}';
 end;
 
 function TSSMStatistic.change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
@@ -473,13 +472,13 @@ begin
   aPayload.Read(averageTripLength);
   aPayload.Read(totalNumberStops);
 
-  Result:='{"id":"'+ self.ID+'-KPI01","x":'+self.changedTimestamp.ToString()+',"y":['+totalGTUDistance.ToString()+']}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI02","x":'+self.changedTimestamp.ToString()+',"y":['+totalGTUTravelTime.ToString()+']}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI03","x":'+self.changedTimestamp.ToString()+',"y":['+averageGTUSpeed.ToString()+']}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI04","x":'+self.changedTimestamp.ToString()+',"y":['+averageGTUTravelTime.ToString()+']}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI05","x":'+self.changedTimestamp.ToString()+',"y":['+totalGTUTimeDelay.ToString()+']}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI06","x":'+self.changedTimestamp.ToString()+',"y":['+averageTripLength.ToString()+']}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI07","x":'+self.changedTimestamp.ToString()+',"y":['+totalNumberStops.ToString()+']}';
+  Result:='{"id":"'+ string(self.ID)+'-KPI01","x":'+self.changedTimestamp.ToString()+',"y":['+totalGTUDistance.ToString()+']}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI02","x":'+self.changedTimestamp.ToString()+',"y":['+totalGTUTravelTime.ToString()+']}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI03","x":'+self.changedTimestamp.ToString()+',"y":['+averageGTUSpeed.ToString()+']}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI04","x":'+self.changedTimestamp.ToString()+',"y":['+averageGTUTravelTime.ToString()+']}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI05","x":'+self.changedTimestamp.ToString()+',"y":['+totalGTUTimeDelay.ToString()+']}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06","x":'+self.changedTimestamp.ToString()+',"y":['+averageTripLength.ToString()+']}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07","x":'+self.changedTimestamp.ToString()+',"y":['+totalNumberStops.ToString()+']}';
 end;
 
 function TSSMStatistic.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point):  string;
@@ -493,13 +492,13 @@ function TSSMStatistic.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProj
 
 begin
 //  Result := ''; // for now no repsonse so no projection needed
-  Result:='{"id":"'+ self.ID+'-KPI01"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI02"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI03"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI04"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI05"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI06"}';
-  Result:=Result + ', {"id":"' + self.ID+'-KPI07"}';
+  Result:='{"id":"'+ string(self.ID)+'-KPI01"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI02"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI03"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI04"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI05"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06"}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07"}';
 end;
 
 function TSSMStatistic.distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double;
