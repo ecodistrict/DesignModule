@@ -299,7 +299,7 @@ begin
   aPayload.Read(G);
   aPayload.Read(B);
   baseColor := RGBToColor(R, G, B);
-  Log.WriteLn('color '+baseColor.ToHexString(8), llNormal, 1);
+  //Log.WriteLn('color '+baseColor.ToHexString(8), llNormal, 1);
   addResult('fill', '"'+ColorToJSON(baseColor)+'"');
 end;
 
@@ -325,8 +325,8 @@ begin
   aPayload.Read(gtuId);
   aPayload.Read(speed);
   aPayload.Read(triggerPosition);
-  addResult('gtuId', gtuId);
-  addResult('speed', speed.ToString());
+  addResult('gtuId', '"'+gtuId+'"');
+  addResult('speed', speed.ToString(dotFormat));
 end;
 
 function TSSMSensor.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point):  string;
@@ -472,13 +472,13 @@ begin
   aPayload.Read(averageTripLength);
   aPayload.Read(totalNumberStops);
 
-  Result:='{"id":"'+ string(self.ID)+'-KPI01","x":'+self.changedTimestamp.ToString()+',"y":['+totalGTUDistance.ToString()+']}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI02","x":'+self.changedTimestamp.ToString()+',"y":['+totalGTUTravelTime.ToString()+']}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI03","x":'+self.changedTimestamp.ToString()+',"y":['+averageGTUSpeed.ToString()+']}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI04","x":'+self.changedTimestamp.ToString()+',"y":['+averageGTUTravelTime.ToString()+']}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI05","x":'+self.changedTimestamp.ToString()+',"y":['+totalGTUTimeDelay.ToString()+']}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06","x":'+self.changedTimestamp.ToString()+',"y":['+averageTripLength.ToString()+']}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07","x":'+self.changedTimestamp.ToString()+',"y":['+totalNumberStops.ToString()+']}';
+  Result:='{"id":"'+ string(self.ID)+'-KPI01","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+totalGTUDistance.ToString(dotFormat)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI02","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+totalGTUTravelTime.ToString(dotFormat)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI03","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+averageGTUSpeed.ToString(dotFormat)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI04","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+averageGTUTravelTime.ToString(dotFormat)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI05","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+totalGTUTimeDelay.ToString(dotFormat)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI06","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+averageTripLength.ToString(dotFormat)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI07","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+totalNumberStops.ToString(dotFormat)+']}';
 end;
 
 function TSSMStatistic.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point):  string;
@@ -493,10 +493,10 @@ function TSSMStatistic.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProj
 begin
 //  Result := ''; // for now no repsonse so no projection needed
   Result:='{"id":"'+ string(self.ID)+'-KPI01"}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI02"}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI03"}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI04"}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI05"}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI02"}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI03"}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI04"}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI05"}';
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06"}';
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07"}';
 end;
@@ -551,19 +551,15 @@ begin
   case action of
     actionNew:
       begin
-        if not objects.ContainsKey(RawByteString(gtuId)) then
+        if not objects.TryGetValue(RawByteString(gtuId), lo) then
         begin
           car := TSSMCar.Create(Self, RawByteString(gtuId));
-          car.newTimestamp := timestamp;
           objects.Add(car.ID, car);
-          jsonStr := car.new(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-          if jsonStr<>'' then
-          begin
-            jsonStr := '"id":"'+string(UTF8String(gtuId))+'",'+jsonStr;
-            scenario.project.SendString('{"addcar": [{'+jsonStr+'}]}');
-          end;
         end
-        else Log.WriteLn('TSSMLayer.HandleGTUEvent: new, already known car id '+string(UTF8String(gtuId)), llWarning);
+        else car := lo as TSSMCar;
+        car.newTimestamp := timestamp;
+        jsonStr := '"id":"'+string(UTF8String(gtuId))+'",'+car.new(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
+        scenario.project.SendString('{"addcar": [{'+jsonStr+'}]}');
       end;
     actionChange:
       begin
@@ -586,8 +582,7 @@ begin
         begin
           car := lo as TSSMCar;
           car.deletedTimestamp := timestamp;
-          jsonStr := car.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-          jsonStr := '"id":"'+string(UTF8String(gtuId))+'",'+jsonStr;
+          jsonStr := '"id":"'+string(UTF8String(gtuId))+'",'+car.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
           scenario.project.SendString('{"removecar": [{'+jsonStr+'}]}');
         end
         else Log.WriteLn('TSSMLayer.HandleGTUEvent: delete, unknown car id '+string(UTF8String(gtuId)), llError);
@@ -621,19 +616,15 @@ begin
   case action of
     actionNew:
       begin
-        if not objects.ContainsKey(RawByteString(combiId)) then
+        if not objects.TryGetValue(RawByteString(combiId), lo) then
         begin
           sensor := TSSMSensor.Create(Self, RawByteString(combiId));
-          sensor.newTimestamp := timestamp;
           objects.Add(sensor.ID, sensor);
-          jsonStr := sensor.new(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-          if jsonStr<>'' then
-          begin
-            jsonStr := '"id":"'+string(UTF8String(combiId))+'",'+jsonStr;
-            scenario.project.SendString('{"newGTUsensor": [{'+jsonStr+'}]}');
-          end;
         end
-        else Log.WriteLn('TSSMLayer.HandleGTUSensorEvent: new, already known sensor id '+string(UTF8String(combiId)), llWarning);
+        else sensor := lo as TSSMSensor;
+        sensor.newTimestamp := timestamp;
+        jsonStr := '"id":"'+string(UTF8String(combiId))+'",'+sensor.new(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
+        scenario.project.SendString('{"newGTUsensor": [{'+jsonStr+'}]}');
       end;
     actionChange:
       begin
@@ -656,8 +647,7 @@ begin
         begin
           sensor := lo as TSSMSensor;
           sensor.deletedTimestamp := timestamp;
-          jsonStr := sensor.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-          jsonStr := '"id":"'+string(UTF8String(combiId))+'",'+jsonStr;
+          jsonStr := '"id":"'+string(UTF8String(combiId))+'",'+sensor.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
           scenario.project.SendString('{"removeGTUsensor": [{'+jsonStr+'}]}');
         end
         else Log.WriteLn('TSSMLayer.HandleGTUEvent: delete, unknown sensor id '+string(UTF8String(combiId)), llError);
@@ -682,18 +672,15 @@ begin
   case action of
     actionNew:
       begin
-        if not objects.ContainsKey(RawByteString(statisticId)) then
+        if not objects.TryGetValue(RawByteString(statisticId), lo) then
         begin
           stat := TSSMStatistic.Create(Self, RawByteString(statisticId));
-          stat.newTimestamp := timestamp;
           objects.Add(stat.ID, stat);
-          jsonStr := stat.new(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-          if jsonStr<>'' then
-          begin
-            scenario.project.SendString('{"newGTUstatistics": ['+jsonStr+']}');
-          end;
         end
-        else Log.WriteLn('TSSMLayer.HandleGTUStatisticEvent: new, already known statistic id '+string(UTF8String(statisticId)), llWarning);
+        else stat := lo as TSSMStatistic;
+        stat.newTimestamp := timestamp;
+        jsonStr := stat.new(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
+        scenario.project.SendString('{"newGTUstatistics": ['+jsonStr+']}');
       end;
     actionChange:
       begin
@@ -702,7 +689,7 @@ begin
           stat := lo as TSSMStatistic;
           stat.changedTimestamp := timestamp;
           jsonStr := stat.change(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-          if jsonStr<>'' then
+          if jsonStr<>''  then
           begin
             scenario.project.SendString('{"updateGTUstatistics": ['+jsonStr+']}');
           end;
@@ -730,8 +717,8 @@ constructor TSSMProject.Create(aSessionModel: TSessionModel; aConnection: TConne
     aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
     aMaxNearestObjectDistanceInMeters: Integer);
 begin
-//  fIMB3Connection := TIMBConnection.Create('vps17642.public.cloudvps.com'{'app-usmodel01.tsn.tno.nl'}{'192.168.1.11'}, 4000, 'PublishingServerSSM', 4, 'OTS_RT');
-  fIMB3Connection := TIMBConnection.Create(GetSetting('RemoteHost', ''){'app-usmodel01.tsn.tno.nl'}{'192.168.1.11'}, 4000, 'PublishingServerSSM', 4, 'OTS_RT');
+  fIMB3Connection := TIMBConnection.Create('vps17642.public.cloudvps.com'{'app-usmodel01.tsn.tno.nl'}{'192.168.1.11'}, 4000, 'PublishingServerSSM', 4, 'OTS_RT');
+  //fIMB3Connection := TIMBConnection.Create(GetSetting('RemoteHost', ''){'app-usmodel01.tsn.tno.nl'}{'192.168.1.11'}, 4000, 'PublishingServerSSM', 4, 'OTS_RT');
   mapView  := TMapView.Create(52.08457, 4.88909, 14);
   fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   inherited Create(aSessionModel, aConnection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,

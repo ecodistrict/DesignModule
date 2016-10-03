@@ -912,7 +912,7 @@ end;
 procedure TEcodistrictProject.handleClientMessage(aJSONObject: TJSONObject);
 var
   jsonPair: TJSONPair;
-  jsonValue: TJSONObject;
+  //jsonValue: TJSONObject;
   scenarioID: string;
   scenario: TScenario;
 begin
