@@ -60,7 +60,8 @@ begin
   try
     try
       // todo: change to tls connection
-      imbConnection := TSocketConnection.Create('SessionServer');
+
+      imbConnection := TSocketConnection.Create('SessionServer',99,'OTS_RT',GetSetting('RemoteHost', ''),GetSetting('RemotePort', '4004').ToInteger());
       try
         imbConnection.onException := HandleException;
         imbConnection.onDisconnect := HandleDisconnect;
