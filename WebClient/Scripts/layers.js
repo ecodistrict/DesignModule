@@ -60,7 +60,7 @@
                 crd.reset(layer != undefined, layer.ref != undefined, layer.diff != undefined, function (e) {
                     // handle switching between current, refference and difference layer
                     // todo: only implement for tiles now
-                    if (e.srcElement == crd.current) {
+                    if (e.target == crd.current) {
                         if (layer.tileLayer) {
                             layer.tileLayer.setUrl(layer.tiles, false);
                             layer.tileLayer.idShowing = layer.id;
@@ -68,7 +68,7 @@
                                 legendControl.createLegend(layer.legend);
                         }
                     }
-                    else if (e.srcElement == crd.reference) {
+                    else if (e.target == crd.reference) {
                         if (layer.tileLayer) {
                             layer.tileLayer.setUrl(layer.ref.tiles, false);
                             layer.tileLayer.idShowing = layer.ref.id;
