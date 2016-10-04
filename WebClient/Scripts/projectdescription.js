@@ -1,6 +1,21 @@
 ﻿// create project description control 
 L.control.projectDescription = L.control();
 
+L.control.projectDescription.showOptions = function (e) {
+    //stop the leaflet and default context menu's from appearing
+    e.preventDefault();
+    e.stopPropagation();
+
+    var dialog = modalDialogCreate("Options");
+    dialog.style.width = "300px";
+
+    var container = L.DomUtil.create("div", "optionsContainer", dialog);
+
+
+    modelDialogAddButton(container, 'Refresh', function () { wsSend({ scenarioRefresh: DataManager.sessionInfo.scenario }); });
+
+}
+
 L.control.projectDescription.showScenarios = function () {
     // show modal dialog with all available scenarios
     if (options.scenarios && options.scenarios.length > 0) {
@@ -108,6 +123,7 @@ L.control.projectDescription.update = function (props) {
         if (projectDescriptionH2.children[0] == null) {
             textBox = projectDescriptionH2.appendChild(document.createElement("span"));
             textBox.addEventListener('click', L.control.projectDescription.showScenarios);
+            textBox.addEventListener('contextmenu', L.control.projectDescription.showOptions);
             textBox.id = "projectDescriptionTextBox";
         }
         else

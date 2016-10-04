@@ -8,6 +8,7 @@ DataManager = {
     warningGiven: false,
     wind: null,
     drawLayer: null,
+    session: null,
 
 
 

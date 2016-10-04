@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="Content/ensel.css" />
     <link rel="stylesheet" href="Content/warningDialog.css" />
     <link rel="stylesheet" href="Content/startstop.css" />
+    <link rel="stylesheet" href="Content/graphmanager.css" />
 </head>
 <body>
     <!-- main map -->
@@ -73,6 +74,7 @@
     <!-- charts -->
     <script src="Scripts/d3.js"></script> 
     <script src="Scripts/bullet.js"></script>
+    <script src="Scripts/graphManager.js"></script>
     <!-- local scripts -->
     <script>
         // determine parameters and config
@@ -82,7 +84,7 @@
         if (session == '') {
             //session = '1234'; // default test session
             //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
-            //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerp
+            session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerp
             //session = "SSM";
             //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
             //session = 'ensel';
@@ -101,6 +103,15 @@
             else
                 userid = sessionParts[1];
         }
+
+        DataManager.sessionInfo = {
+            session: session,
+            scenario: scenario,
+            userid: userid,
+            description: sessionDescription,
+            referenceScenario: null
+        };
+
 
         // top-right
 
@@ -147,6 +158,11 @@
         var timesliderControl = L.control.timeslider(timeslider);
         map.addControl(timesliderControl);
 
+        //start-stop
+        var startControl = L.control.startstop();
+        map.addControl(startControl);
+        //startControl.setPosition("bottomright");
+
         // current-reference-difference control
         var crd = L.control.crd({ parent: currefdiff });
         map.addControl(crd);
@@ -160,10 +176,6 @@
         var infoControl = L.control.info();
         map.addControl(infoControl);
 
-        //start-stop
-        var startControl = L.control.startstop();
-        map.addControl(startControl);
-
         // legend
         var legendControl = L.control.legend;
         map.addControl(legendControl);
@@ -174,6 +186,11 @@
         var projectDescription = L.control.projectDescription;
         projectDescription.options.description = sessionDescription;
         map.addControl(projectDescription);
+
+        GraphManager.Initialize();
+        //GraphManager.MakeGraph();
+        //GraphManager.MakeGraph();
+        //GraphManager.MakeGraph();
         
         // web socket connection
         var ws;
@@ -311,13 +328,22 @@
                 else if (message.session) {
                     // handle session message
                     if (message.session.description) {
+                        DataManager.sessionInfo.description = message.session.description;
                         projectDescription.options.description = message.session.description;
                         projectDescription.update();
                     }
-                    if (message.session.activeScenario)
+                    if (message.session.activeScenario) {
+                        DataManager.sessionInfo.scenario = message.session.activeScenario;
                         projectDescription.options.activeScenario = message.session.activeScenario;
-                    if (message.session.referenceScenario)
+                    }
+                    if (message.session.referenceScenario) {
+                        DataManager.sessionInfo.referenceScenario = message.session.referenceScenario;
                         projectDescription.options.referenceScenario = message.session.referenceScenario;
+                    }
+                    else {
+                        DataManager.sessionInfo.referenceScenario = null;
+                        projectDescription.options.referenceScenario = message.session.referenceScenario;
+                    }
                     if (message.session.scenarios)
                         projectDescription.options.scenarios = message.session.scenarios;
                     if (message.session.view) {
@@ -412,6 +438,38 @@
                 else if (message.removecar) {
                     DataManager.RemoveCars(message.removecar);
                 }
+                else if (message.newGTUsensor)
+                {
+                    console.log("new GTU sensor: " + message.newGTUsensor);
+                }
+                else if (message.updateGTUsensor)
+                {
+                    console.log("new GTU sensor reading: " + message.updateGTUsensor);
+                }
+                else if (message.newGTUstatistics)
+                {
+                    for (var i = 0; i < message.newGTUstatistics.length; i++)
+                        GraphManager.MakeGraph(message.newGTUstatistics[i]);
+                }
+                else if (message.updateGTUstatistics)
+                {
+                    GraphManager.UpdateGraphs(message.updateGTUstatistics);
+                }
+                else if (message.simulationControl)
+                {
+                    if (typeof message.simulationControl.start !== "undefined")
+                    {
+                        startControl.SimulationStarted();
+                    }
+                    else if (typeof message.simulationControl.stop !== "undefined")
+                    {
+                        startControl.SimulationStopped();
+                    }
+                }
+                //else
+                //{
+                //    console.log(message);
+                //}
             };
             ws.onerror = function (evt) {
                 if (evt.message)

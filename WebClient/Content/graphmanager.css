@@ -1,0 +1,75 @@
+﻿/*todo: get rights for noun-project icon*/
+
+
+#graphsContainer {
+    pointer-events: none;
+    position: fixed;
+}
+
+.graphDiv {
+    pointer-events: auto;
+    position: absolute;
+    
+    border-radius: 4px;
+	background: white;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+}
+
+.graph-info {
+    position:absolute;
+    top: 1px;
+    right: 21px;
+    cursor:pointer;
+    width: 16px;
+    height: 16px;
+    background-image: url(/Content/images/info.png)
+}
+
+.graph-resize {
+    position: absolute;
+    right: 0px;
+    bottom: 0px;
+    width: 10px;
+    height: 10px;
+    background-image: url(/Content/images/resize.png);
+}
+
+.axis {
+  shape-rendering: crispEdges;
+  font-size: 10px;
+}
+
+.xAxis {
+    
+}
+
+svg text {
+    
+}
+
+.axisLabel {
+    fill: rgba(0, 0, 0, 0.5);
+}
+
+.xAxis line {
+    stroke: black;
+}
+.xAxis path {
+    stroke: black;
+}
+
+path {
+    shape-rendering: crispEdges;
+}
+
+.yAxis {
+
+}
+
+.yAxis line {
+    stroke: black;
+}
+
+.yAxis path {
+    stroke: black;
+}

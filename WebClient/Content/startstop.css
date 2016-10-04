@@ -1,0 +1,19 @@
+﻿.leaflet-control-startstop {
+	/*box-shadow: 0 1px 5px rgba(0,0,0,0.4);*/
+	background: #fff;
+	border-radius: 5px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    background-size: 26px 26px;
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    width: 44px;
+    height: 44px;
+	}
+
+.leaflet-control-startstop-stopped {
+    background-image: url(/Content/images/play.png);
+	}
+
+.leaflet-control-startstop-playing {
+    background-image: url(/Content/images/pauze.png);
+	}

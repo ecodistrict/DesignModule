@@ -13,6 +13,7 @@ function addTimeSlider(aParent, options) {
     var rectParent = aParent.getBoundingClientRect();
 
     var svg = d3.select(aParent).append('svg');
+    svg.attr("width", "100%");
 
     var range = function () {
         return [xMargin, rectParent.width - 1 - xMargin];
@@ -21,7 +22,6 @@ function addTimeSlider(aParent, options) {
     var scale = d3.time.scale()
                     .domain([options.startRange, options.endRange])
                     .range([xMargin, rectParent.width - 1 - xMargin]);
-
 
     var xaxis = d3.svg.axis()
         .scale(scale)

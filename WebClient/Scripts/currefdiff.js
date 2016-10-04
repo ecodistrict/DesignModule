@@ -28,7 +28,7 @@
     _initLayout: function () {
         this._container = this.options.parent;
         this.form = this._container.appendChild(document.createElement('form'));
-        this.current = this._addRadioButton('layerVersion', 'current', this.options.current);
+        this.current = this._addRadioButton('layerVersion', 'active', this.options.current);
         this.reference = this._addRadioButton('layerVersion', 'reference', this.options.current.reference);
         this.difference = this._addRadioButton('layerVersion', 'difference', this.options.difference);
         if (this.options.collapsed)
