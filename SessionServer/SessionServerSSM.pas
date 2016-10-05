@@ -438,13 +438,13 @@ begin
   aPayload.Read(connected);
   aPayload.Read(totalTrajectory);
   aPayload.Read(updateFrequency);
-  Result:='{"id":"'+ string(self.ID)+'-KPI01"}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI02"}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI03"}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI04"}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI05"}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06"}';
-  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07"}';
+  Result:='{"id":"'+ string(self.ID)+'-KPI01", "name": "Totale voertuigkilometers", "x": {"label": "simulatie seconden"}, "y": [{"label":"meters","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI02", "name": "Totale reistijd", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI03", "name": "Gemiddelde snelheid", "x": {"label": "simulatie seconden"}, "y": [{"label":"m/s","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI04", "name": "Gemiddelde reistijd", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI05", "name": "Voertuigverliesuren", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06", "name": "Gemiddelde ritlengte", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07", "name": "Voertuigstops", "x": {"label": "simulatie seconden"}, "y": [{"label":"stops","color":"LightBlue"}]}';
 end;
 
 function TSSMStatistic.change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
