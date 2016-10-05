@@ -137,11 +137,15 @@ type
     fGTUEvent: TIMBEventEntry;
     fGTUSensorEvent: TIMBEventEntry;
     fGTUStatisticEvent: TIMBEventEntry;
+    fSIMStartEvent: TIMBEventEntry;
+    fSIMStopEvent: TIMBEventEntry;
     fOffsetInRD: TGIS_Point;
   public
     procedure HandleGTUEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleGTUSensorEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
+    procedure HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
+    procedure HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
   end;
 
   TSSMProject  = class(TProject)
@@ -528,6 +532,10 @@ begin
   fGTUSensorEvent.OnNormalEvent := HandleGTUSensorEvent;
   fGTUStatisticEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('StatisticsGTULane');
   fGTUStatisticEvent.OnNormalEvent := HandleGTUStatisticEvent;
+  fSIMStartEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Sim_Start');
+  fSIMStartEvent.OnNormalEvent := HandleSIMStartEvent;
+  fSIMStopEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Sim_Stop');
+  fSIMStopEvent.OnNormalEvent := HandleSIMStopEvent;
   fOffsetInRD.X := scenario.mapView.lon;
   fOffsetInRD.Y := scenario.mapView.lat;
   fOffsetInRD := (scenario.project as TSSMProject).sourceProjection.FromGeocs(fOffsetInRD);
@@ -710,6 +718,15 @@ begin
   end;
 end;
 
+procedure TSSMLayer.HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+begin
+      scenario.project.SendString('{"simulationControl":{"start":true}}');
+end;
+
+procedure TSSMLayer.HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+begin
+      scenario.project.SendString('{"simulationControl":{"stop":true}}');
+end;
 { TSSMProject }
 
 constructor TSSMProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
