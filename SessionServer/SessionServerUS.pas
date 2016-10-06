@@ -211,6 +211,33 @@ type
     property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
   end;
 
+  {
+  TModelControlUSModel = class(TMCModelStarter2)
+  constructor Create();
+  destructor Destroy; override;
+  public
+  // standard overrides
+    procedure ParameterRequest(aParameters: TModelParameters); override;
+    procedure StartModel(aParameters: TModelParameters); override;
+    procedure StopModel; override;
+  // manual start
+    procedure CheckManualStart;
+  private
+    fSessionModel: TSessionModel;
+    fIMBConnection: TConnection; // imb connection to websocket etc.
+    fIMBLogger: TIMBLogger;
+  protected
+    procedure HandleException(aConnection: TConnection; aException: Exception);
+    procedure HandleDisconnect(aConnection: TConnection);
+  public
+    property sessionModel: TSessionModel read fSessionModel;
+    property imbConnection: TConnection read fIMBConnection;
+    property imbLogger: TIMBLogger read fIMBLogger;
+
+    procedure TestConnection();
+  end;
+  }
+
 function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapView;
 function getUSProjectID(aOraSession: TOraSession; const aDefault: string): string;
 procedure setUSProjectID(aOraSession: TOraSession; const aValue: string);
@@ -226,7 +253,21 @@ function ReadMetaLayer(aSession: TOraSession; const aTablePrefix: string; aMetaL
 function CreateWDGeometryFromSDOShape(aQuery: TOraQuery; const aFieldName: string): TWDGeometry;
 function CreateWDGeometryPointFromSDOShape(aQuery: TOraQuery; const aFieldName: string): TWDGeometryPoint;
 
+function ConnectToUSProject(const aConnectString, aProjectID: string; out aMapView: TMapView): TOraSession;
+
 implementation
+
+function ConnectToUSProject(const aConnectString, aProjectID: string; out aMapView: TMapView): TOraSession;
+var
+  dbConnection: TOraSession;
+begin
+  dbConnection := TOraSession.Create(nil);
+  dbConnection.ConnectString := aConnectString;
+  dbConnection.Open;
+  setUSProjectID(dbConnection, aProjectID); // store project id in database
+  aMapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
+  Result := dbConnection;
+end;
 
 function Left(const s: string; n: Integer): string;
 begin

@@ -342,6 +342,9 @@ type
 
     procedure addDiffLayer(aDiffLayer: TDiffLayer);
     procedure removeDiffLayer(aDiffLayer: TDiffLayer);
+
+    function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
   end;
 
   TKPI = class(TScenarioElement)
@@ -401,6 +404,8 @@ type
     property lat: Double read fLat;
     property lon: Double read fLon;
     property zoom: Integer read fZoom;
+
+    procedure DumpToLog;
   end;
 
   TScenario = class(TClientSubscribable)
@@ -955,27 +960,50 @@ end;
 
 procedure TDiffLayer.handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
 begin
+  if Assigned(fSendRefreshTimer) then
+  begin
+    fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*5),
+      procedure(aTimer: TTimer)
+      var
+        timeStampStr: string;
+        tiles: string;
+        client: TClient;
+      begin
+        if aTimeStamp<>0
+        then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
+        else timeStampStr := '';
+        // signal refresh to layer client
+        tiles := fTilerLayer.URLTimeStamped;
+
+        Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+' ('+timeStampStr+'): '+tiles);
+
+        TMonitor.Enter(clients);
+        try
+          for client in clients do
+          begin
+            client.SendRefresh(elementID {fCurrentLayer.elementID}, timeStampStr, tiles); // todo: extra processing needed?
+            Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', direct subscribed client: '+client.fClientID, llNormal, 1);
+          end;
+        finally
+          TMonitor.Exit(clients);
+        end;
+        // signal current layer of diff layer refresh
+        if Assigned(fCurrentLayer) then
+        begin
+          TMonitor.Enter(fCurrentLayer.clients);
+          try
+            for client in fCurrentLayer.clients do
+            begin
+              client.SendRefreshDiff(fCurrentLayer.elementID, timeStampStr, Self.refJSON);
+              Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', current layer subscribed client: '+client.fClientID, llNormal, 1);
+            end;
+          finally
+            TMonitor.Exit(fCurrentLayer.clients);
+          end;
+        end;
+      end);
+  end;
   // refresh preview also
-  fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*5),
-    procedure(aTimer: TTimer)
-    var
-      timeStampStr: string;
-      tiles: string;
-      client: TClient;
-    begin
-      if aTimeStamp<>0
-      then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
-      else timeStampStr := '';
-      // signal refresh to layer client
-      tiles := fTilerLayer.URLTimeStamped;
-      TMonitor.Enter(clients);
-      try
-        for client in clients
-        do client.SendRefresh(elementID {fCurrentLayer.elementID}, timeStampStr, tiles); // todo: extra processing needed?
-      finally
-        TMonitor.Exit(clients);
-      end;
-    end);
   fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10);
 end;
 
@@ -2097,12 +2125,23 @@ end;
 procedure TLayer.addDiffLayer(aDiffLayer: TDiffLayer);
 var
   i: Integer;
+  client: TClient;
 begin
   TMonitor.Enter(fDependentDiffLayers);
   try
     i := fDependentDiffLayers.IndexOf(aDiffLayer);
-    if i<0
-    then fDependentDiffLayers.Add(aDiffLayer);
+    if i<0 then
+    begin
+      fDependentDiffLayers.Add(aDiffLayer);
+      // subscribe all clients to this diff layer also
+      TMonitor.Enter(fClients);
+      try
+        for client in fClients
+        do aDiffLayer.HandleClientSubscribe(client);
+      finally
+        TMonitor.Exit(fClients);
+      end;
+    end;
   finally
     TMonitor.Exit(fDependentDiffLayers);
   end;
@@ -2377,12 +2416,23 @@ end;
 procedure TLayer.removeDiffLayer(aDiffLayer: TDiffLayer);
 var
   i: Integer;
+  client: TClient;
 begin
   TMonitor.Enter(fDependentDiffLayers);
   try
     i := fDependentDiffLayers.IndexOf(aDiffLayer);
-    if i>=0
-    then fDependentDiffLayers.Delete(i);
+    if i>=0 then
+    begin
+      fDependentDiffLayers.Delete(i);
+      // unsubscribe all clients from this diff layer also
+      TMonitor.Enter(fClients);
+      try
+        for client in fClients
+        do aDiffLayer.HandleClientUnsubscribe(client);
+      finally
+        TMonitor.Exit(fClients);
+      end;
+    end;
   finally
     TMonitor.Exit(fDependentDiffLayers);
   end;
@@ -2484,6 +2534,36 @@ begin
   if (objects.Count<=MaxDirectSendObjectCount) and (fGeometryType<>'Point')
   then Result := Result+',"objects": '+objectsJSON;
 end;
+function TLayer.HandleClientSubscribe(aClient: TClient): Boolean;
+var
+  diffLayer: TDiffLayer;
+begin
+  Result := inherited;
+  // handle subscribe on dependent diff layers
+  TMonitor.Enter(fDependentDiffLayers);
+  try
+    for diffLayer in fDependentDiffLayers
+    do diffLayer.HandleClientSubscribe(aClient);
+  finally
+    TMonitor.Exit(fDependentDiffLayers);
+  end;
+end;
+
+function TLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
+var
+  diffLayer: TDiffLayer;
+begin
+  Result := inherited;
+  // todo: handle unsubscribe on dependent diff layers
+  TMonitor.Enter(fDependentDiffLayers);
+  try
+    for diffLayer in fDependentDiffLayers
+    do diffLayer.HandleClientUnsubscribe(aClient);
+  finally
+    TMonitor.Exit(fDependentDiffLayers);
+  end;
+end;
+
 {
 procedure TLayer.handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
 var
@@ -2557,39 +2637,43 @@ end;
 
 procedure TLayer.handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
 begin
-  // refresh preview also
-  fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*5),
-    procedure(aTimer: TTimer)
-    var
-      timeStampStr: string;
-      tiles: string;
-      client: TClient;
-    begin
-      if aTimeStamp<>0
-      then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
-      else timeStampStr := '';
-      // signal refresh to layer client
-      tiles := uniqueObjectsTilesLink;
-      TMonitor.Enter(clients);
-      try
-        for client in clients
-        do client.SendRefresh(elementID, timeStampStr, tiles);
-      finally
-        TMonitor.Exit(clients);
-      end;
-      // signal refresh to scenario client
-      TMonitor.Enter(fScenario.clients);
-      try
-        for client in fScenario.clients do
-        begin
-          if not clients.Contains(client)
-          then client.SendRefresh(elementID, timeStampStr, tiles);
+  if Assigned(fSendRefreshTimer) then
+  begin
+    fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*5),
+      procedure(aTimer: TTimer)
+      var
+        timeStampStr: string;
+        tiles: string;
+        client: TClient;
+      begin
+        if aTimeStamp<>0
+        then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
+        else timeStampStr := '';
+        // signal refresh to layer client
+        tiles := uniqueObjectsTilesLink;
+        TMonitor.Enter(clients);
+        try
+          for client in clients
+          do client.SendRefresh(elementID, timeStampStr, tiles);
+        finally
+          TMonitor.Exit(clients);
         end;
-      finally
-        TMonitor.Exit(fScenario.clients);
-      end;
-    end);
-  fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10);
+        // signal refresh to scenario client
+        TMonitor.Enter(fScenario.clients);
+        try
+          for client in fScenario.clients do
+          begin
+            if not clients.Contains(client)
+            then client.SendRefresh(elementID, timeStampStr, tiles);
+          end;
+        finally
+          TMonitor.Exit(fScenario.clients);
+        end;
+      end);
+  end;
+  // refresh preview also
+  if Assigned(fPreviewRequestTimer)
+  then fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10);
 end;
 
 { KPI }
@@ -3334,6 +3418,11 @@ begin
   Result.fLat := aLat;
   Result.fLon := aLon;
   Result.fZoom := aZoom;
+end;
+
+procedure TMapView.DumpToLog;
+begin
+  Log.WriteLn('MapView: lat:'+lat.ToString+' lon:'+lon.ToString+' zoom:'+zoom.ToString);
 end;
 
 end.

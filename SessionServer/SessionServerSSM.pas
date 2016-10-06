@@ -137,15 +137,19 @@ type
     fGTUEvent: TIMBEventEntry;
     fGTUSensorEvent: TIMBEventEntry;
     fGTUStatisticEvent: TIMBEventEntry;
+    fOffsetInRD: TGIS_Point;
+    // todo:  move to project or scenario
     fSIMStartEvent: TIMBEventEntry;
     fSIMStopEvent: TIMBEventEntry;
-    fOffsetInRD: TGIS_Point;
+    fSIMSpeedEvent: TIMBEventEntry;
   public
     procedure HandleGTUEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleGTUSensorEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
+
     procedure HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
+    procedure HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
   end;
 
   TSSMProject  = class(TProject)
@@ -322,7 +326,6 @@ var
   gtuId: string;
   speed: double;
   triggerPosition: AnsiString;
-
 begin
   Result := '';
   // start after timestamp and gtuId
@@ -457,14 +460,13 @@ function TSSMStatistic.change(var aPayload: ByteBuffers.TByteBuffer; aSourceProj
   end;
 
 var
-    totalGTUDistance: double;
-    totalGTUTravelTime: double;
-    averageGTUSpeed: double;
-    averageGTUTravelTime: double;
-    totalGTUTimeDelay: double;
-    averageTripLength: double;
-    totalNumberStops: double;
-
+  totalGTUDistance: double;
+  totalGTUTravelTime: double;
+  averageGTUSpeed: double;
+  averageGTUTravelTime: double;
+  totalGTUTimeDelay: double;
+  averageTripLength: double;
+  totalNumberStops: double;
 begin
   Result := '';
   // start after timestamp and gtuId
@@ -526,19 +528,31 @@ end;
 constructor TSSMLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
 begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"car"', 'Point', 0);
+  // GTU
   fGTUEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('GTU');
   fGTUEvent.OnNormalEvent := HandleGTUEvent;
+  // Sensor
   fGTUSensorEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Sensor_GTU');
   fGTUSensorEvent.OnNormalEvent := HandleGTUSensorEvent;
+  // Statistics
   fGTUStatisticEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('StatisticsGTULane');
   fGTUStatisticEvent.OnNormalEvent := HandleGTUStatisticEvent;
+  // simulation start
   fSIMStartEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Sim_Start');
   fSIMStartEvent.OnNormalEvent := HandleSIMStartEvent;
+  // simulation stop
   fSIMStopEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Sim_Stop');
   fSIMStopEvent.OnNormalEvent := HandleSIMStopEvent;
-  fOffsetInRD.X := scenario.mapView.lon;
-  fOffsetInRD.Y := scenario.mapView.lat;
-  fOffsetInRD := (scenario.project as TSSMProject).sourceProjection.FromGeocs(fOffsetInRD);
+  // simulation speed
+  fSIMSpeedEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Sim_Speed');
+  fSIMSpeedEvent.OnNormalEvent := HandleSimSpeedEvent;
+  // offset to received coordinates in RD for now..
+
+  //fOffsetInRD.X := scenario.mapView.lon;
+  //fOffsetInRD.Y := scenario.mapView.lat;
+  //fOffsetInRD := (scenario.project as TSSMProject).sourceProjection.FromGeocs(fOffsetInRD);
+  fOffsetInRD.X := 0;
+  fOffsetInRD.Y := 0;
 end;
 
 procedure TSSMLayer.HandleGTUEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
@@ -718,14 +732,22 @@ begin
   end;
 end;
 
+procedure TSSMLayer.HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+var
+  speed: Double;
+begin
+  aPayload.Read(speed);
+  scenario.project.SendString('{"simulationControl":{"speed":'+speed.ToString(dotFormat)+'}}');
+end;
+
 procedure TSSMLayer.HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 begin
-      scenario.project.SendString('{"simulationControl":{"start":true}}');
+  scenario.project.SendString('{"simulationControl":{"start":true}}');
 end;
 
 procedure TSSMLayer.HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 begin
-      scenario.project.SendString('{"simulationControl":{"stop":true}}');
+  scenario.project.SendString('{"simulationControl":{"stop":true}}');
 end;
 { TSSMProject }
 
@@ -754,6 +776,8 @@ var
   jsonPair: TJSONPair;
   jsonValue: TJSONValue;
   EmptyPayload: ByteBuffers.TByteBuffer;
+  speed: Double;
+  speedPayload: ByteBuffers.TByteBuffer;
 begin
   if isObject(aJSONObject, 'simulationControl', jsonPair) then
   begin
@@ -768,6 +792,15 @@ begin
       fIMB3Connection.Publish('Sim_Start').SignalEvent(ekNormalEvent, EmptyPayload);
       // signal status to clients
       SendString('{"simulationControl":{"start":true}}');
+    end;
+    if isObjectValue(jsonPair.JsonValue as TJSONObject, 'speed', jsonValue) then
+    begin
+      speed := jsonValue.getValue<Double>(); // todo: check if this works
+      speedPayload.Clear();
+      speedPayload.Write(speed);
+      fIMB3Connection.Publish('Sim_Speed').SignalEvent(ekNormalEvent, speedPayload);
+      // signal status to clients
+      SendString('{"simulationControl":{"speed":'+speed.ToString(dotFormat)+'}}');
     end;
   end
   else ;

@@ -752,9 +752,9 @@ begin
       // find aSelectedObjects in layers and get properties
       for l in layers do
       begin
-//        if Result<>''
-//        then Result := Result+',';
-//        Result := Result+'{"id":"'++'",'++'}';
+        if Result<>''
+        then Result := Result+',';
+        //Result := Result+'{"id":"'++'",'++'}';
         // get properties per category
 
       end;
@@ -1704,141 +1704,93 @@ begin
                       _status := 'Success';
                       for datafield in queries.Keys do
                       begin
-                        if queries.TryGetValue(datafield, dataquery) then
-                        begin
-                          if (dataquery.module.Contains(_moduleId)) then
+                        try
+                          if queries.TryGetValue(datafield, dataquery) then
                           begin
-                            (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
-                            try
-                              query := TFDQuery.Create(nil);
+                            if (dataquery.module.Contains(_moduleId)) then
+                            begin
+                              (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
                               try
-                                Log.WriteLn(datafield, llNormal, 1);
-                                query.Connection := fDBConnection as TFDConnection;
-          //insert variables into query
-                                _SQL:= dataquery.SQL.Replace('{case_id}', EcoDistrictSchemaId(_caseId));
-                                //_SQL:= ReplaceStr(dataquery.SQL, '{case_id}', EcoDistrictSchemaId(_caseId)); // todo (HC): should this not be schema_id? or not being used at all in a query?
-          //end variables insert
-                                Log.WriteLn(_SQL, llNormal, 1);
-                                query.SQL.Text := _SQL;
-                                query.Open();
+                                query := TFDQuery.Create(nil);
                                 try
-                                  query.First;
-                                  if dataquery.ReturnType='INT' then
-                                  begin
-                                    if not query.Eof then
+                                  Log.WriteLn(datafield, llNormal, 1);
+                                  query.Connection := fDBConnection as TFDConnection;
+            //insert variables into query
+                                  _SQL:= dataquery.SQL.Replace('{case_id}', EcoDistrictSchemaId(_caseId));
+                                  //_SQL:= ReplaceStr(dataquery.SQL, '{case_id}', EcoDistrictSchemaId(_caseId)); // todo (HC): should this not be schema_id? or not being used at all in a query?
+            //end variables insert
+                                  Log.WriteLn(_SQL, llNormal, 1);
+                                  query.SQL.Text := _SQL;
+                                  query.Open();
+                                  try
+                                    query.First;
+                                    if dataquery.ReturnType='INT' then
                                     begin
-          //                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
-          //                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsInteger.toString()+'"';
-                                      jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsInteger));
-                                    end;
-                                  end
-                                  else if dataquery.ReturnType='FLOAT' then
-                                  begin
-                                    if not query.Eof then
-                                    begin
-          //                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
-          //                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsFloat.toString()+'"';
-                                      jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsFloat));
-                                    end;
-                                  end
-                                  else if dataquery.ReturnType='GEOJSON' then
-                                  begin // geojson as string
-          //we expect the query to return: a geojson object as text
-                                    if not query.Eof then
-                                    begin
-                                      geojsonObjectAsString := query.Fields[0].AsString;
-                                      jsonDataResponse.AddPair(datafield, TJSONObject.ParseJSONValue(geojsonObjectAsString));
-                                    end;
-                                  end
-                                  else if dataquery.ReturnType='LIST' then // specific for citygml structure, see: TABLE
-                                  begin
-                                    jsonList:=TJSONObject.Create;
-                                    try
-                                      dataguid:='';
-                                      //we expect the query to return: attr_gml_id, attr_name, string_value, double_value, int_value
-                                      while not query.Eof do
+                                      if not query.Eof then
                                       begin
-                                        thisguid:=query.FieldByName('attr_gml_id').AsString;
-                                        if (dataguid<>thisguid) then
+            //                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
+            //                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsInteger.toString()+'"';
+                                        jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsInteger));
+                                      end;
+                                    end
+                                    else if dataquery.ReturnType='FLOAT' then
+                                    begin
+                                      if not query.Eof then
+                                      begin
+            //                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
+            //                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsFloat.toString()+'"';
+                                        jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsFloat));
+                                      end;
+                                    end
+                                    else if dataquery.ReturnType='GEOJSON' then
+                                    begin // geojson as string
+            //we expect the query to return: a geojson object as text
+                                      if not query.Eof then
+                                      begin
+                                        geojsonObjectAsString := query.Fields[0].AsString;
+                                        jsonDataResponse.AddPair(datafield, TJSONObject.ParseJSONValue(geojsonObjectAsString));
+                                      end;
+                                    end
+                                    else if dataquery.ReturnType='LIST' then // specific for citygml structure, see: TABLE
+                                    begin
+                                      jsonList:=TJSONObject.Create;
+                                      try
+                                        dataguid:='';
+                                        //we expect the query to return: attr_gml_id, attr_name, string_value, double_value, int_value
+                                        while not query.Eof do
                                         begin
-                                          if dataguid='' then
+                                          thisguid:=query.FieldByName('attr_gml_id').AsString;
+                                          if (dataguid<>thisguid) then
                                           begin
-                                            dataguid:=thisguid;
-                                          end;
-                                          jsonList.AddPair('gml_id', thisguid);
-                                        end;
-                                        if not query.FieldByName('string_value').IsNull
-                                        then jsonList.AddPair(query.FieldByName('attr_name').AsString, query.FieldByName('string_value').AsString)
-                                        else if not query.FieldByName('double_value').IsNull
-                                        then jsonList.AddPair(query.FieldByName('attr_name').AsString, TJSONNumber.Create(StrToFloat(query.FieldByName('double_value').AsString, dotFormat)))
-                                        else if not query.FieldByName('int_value').IsNull
-                                        then jsonList.AddPair(query.FieldByName('attr_name').AsString, TJSONNumber.Create(query.FieldByName('int_value').AsLargeInt));
-                                        //jsonList.AddPair(query.FieldByName('attr_name').AsString, attr_value);
-                                        query.Next;
-                                      end;
-                                    finally
-                                      jsonDataResponse.AddPair(datafield,jsonList);
-                                    end;
-                                  end
-                                  else if dataquery.ReturnType='TABLE' then // specific for flat tables, see: LIST
-                                  begin
-                                    jsonArray := TJSONArray.Create;
-                                    try
-                                      while not query.Eof do
-                                      begin
-                                        rowObject := TJSONObject.Create;
-                                        try
-                                          // todo: convert all fields to json object
-                                          for f in query.fields do
-                                          begin
-                                            if not f.IsNull then
+                                            if dataguid='' then
                                             begin
-                                              case f.DataType of
-                                                ftWideMemo,
-                                                ftString,
-                                                ftWideString: // todo: check widestring conversion..
-                                                  rowObject.AddPair(f.FieldName, TJSONString.Create(f.AsString));
-                                                ftInteger:
-                                                  rowObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsInteger));
-                                                ftLargeint:
-                                                  rowObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsLargeInt));
-                                                ftFloat,
-                                                ftExtended,
-                                                ftSingle:
-                                                  rowObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsFloat));
-                                              end;
-                                            end
-                                            else rowObject.AddPair(f.FieldName, TJSONNull.Create); // todo: check!
+                                              dataguid:=thisguid;
+                                            end;
+                                            jsonList.AddPair('gml_id', thisguid);
                                           end;
-                                        finally
-                                          jsonArray.Add(rowObject);
+                                          if not query.FieldByName('string_value').IsNull
+                                          then jsonList.AddPair(query.FieldByName('attr_name').AsString, query.FieldByName('string_value').AsString)
+                                          else if not query.FieldByName('double_value').IsNull
+                                          then jsonList.AddPair(query.FieldByName('attr_name').AsString, TJSONNumber.Create(StrToFloat(query.FieldByName('double_value').AsString, dotFormat)))
+                                          else if not query.FieldByName('int_value').IsNull
+                                          then jsonList.AddPair(query.FieldByName('attr_name').AsString, TJSONNumber.Create(query.FieldByName('int_value').AsLargeInt));
+                                          //jsonList.AddPair(query.FieldByName('attr_name').AsString, attr_value);
+                                          query.Next;
                                         end;
-                                        query.Next;
+                                      finally
+                                        jsonDataResponse.AddPair(datafield,jsonList);
                                       end;
-                                    finally
-                                      jsonDataResponse.AddPair(datafield,jsonArray);
-                                    end;
-                                  end
-                                  else if dataquery.ReturnType='GEOJSONFLAT' then
-                                  begin // geojson as string
-                                    jsonArray := TJSONArray.Create;
-                                    try
-                                      while not query.Eof do
-                                      begin
-                                        propertiesObject := TJSONObject.Create;
-                                        geometryObject := nil;
-                                        try
-                                          // todo: convert all fields to GEOJSON object
-                                          // assume first object is geometry
-                                          first := True;
-                                          for f in query.fields do
-                                          begin
-                                            if first then
-                                            begin
-                                              geometryObject := TJSONObject.ParseJSONValue(f.AsString);
-                                              first := False;
-                                            end
-                                            else
+                                    end
+                                    else if dataquery.ReturnType='TABLE' then // specific for flat tables, see: LIST
+                                    begin
+                                      jsonArray := TJSONArray.Create;
+                                      try
+                                        while not query.Eof do
+                                        begin
+                                          rowObject := TJSONObject.Create;
+                                          try
+                                            // todo: convert all fields to json object
+                                            for f in query.fields do
                                             begin
                                               if not f.IsNull then
                                               begin
@@ -1846,46 +1798,106 @@ begin
                                                   ftWideMemo,
                                                   ftString,
                                                   ftWideString: // todo: check widestring conversion..
-                                                    propertiesObject.AddPair(f.FieldName, TJSONString.Create(f.AsString));
+                                                    rowObject.AddPair(f.FieldName, TJSONString.Create(f.AsString));
                                                   ftInteger:
-                                                    propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsInteger));
+                                                    rowObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsInteger));
                                                   ftLargeint:
-                                                    propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsLargeInt));
+                                                    rowObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsLargeInt));
                                                   ftFloat,
                                                   ftExtended,
                                                   ftSingle:
-                                                    propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsFloat));
+                                                    rowObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsFloat));
+                                                  ftBoolean:
+                                                    rowObject.AddPair(f.FieldName, TJSONBool.Create(f.AsBoolean));
+                                                else
+                                                  Log.WriteLn('Unsupported DataType in getData TABLE request: '+Ord(f.DataType).toString, llWarning);
                                                 end;
                                               end
-                                              else propertiesObject.AddPair(f.FieldName, TJSONNull.Create); // todo: check!
+                                              else rowObject.AddPair(f.FieldName, TJSONNull.Create);
+                                            end;
+                                          finally
+                                            jsonArray.Add(rowObject);
+                                          end;
+                                          query.Next;
+                                        end;
+                                      finally
+                                        jsonDataResponse.AddPair(datafield,jsonArray);
+                                      end;
+                                    end
+                                    else if dataquery.ReturnType='GEOJSONFLAT' then
+                                    begin // geojson as string
+                                      jsonArray := TJSONArray.Create;
+                                      try
+                                        while not query.Eof do
+                                        begin
+                                          propertiesObject := TJSONObject.Create;
+                                          geometryObject := nil;
+                                          try
+                                            // todo: convert all fields to GEOJSON object
+                                            // assume first object is geometry
+                                            first := True;
+                                            for f in query.fields do
+                                            begin
+                                              if first then
+                                              begin
+                                                geometryObject := TJSONObject.ParseJSONValue(f.AsString);
+                                                first := False;
+                                              end
+                                              else
+                                              begin
+                                                if not f.IsNull then
+                                                begin
+                                                  case f.DataType of
+                                                    ftWideMemo,
+                                                    ftString,
+                                                    ftWideString: // todo: check widestring conversion..
+                                                      propertiesObject.AddPair(f.FieldName, TJSONString.Create(f.AsString));
+                                                    ftInteger:
+                                                      propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsInteger));
+                                                    ftLargeint:
+                                                      propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsLargeInt));
+                                                    ftFloat,
+                                                    ftExtended,
+                                                    ftSingle:
+                                                      propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsFloat));
+                                                  end;
+                                                end
+                                                else propertiesObject.AddPair(f.FieldName, TJSONNull.Create); // todo: check!
+                                              end;
+                                            end;
+                                          finally
+                                            geojsonObject := TJSONObject.Create;
+                                            try
+                                              geojsonObject.AddPair('type', 'Feature');
+                                              if assigned(geometryObject)
+                                              then geojsonObject.AddPair('geometry', geometryObject);
+                                              geojsonObject.AddPair('properties', propertiesObject);
+                                            finally
+                                              jsonArray.Add(geojsonObject);
                                             end;
                                           end;
-                                        finally
-                                          geojsonObject := TJSONObject.Create;
-                                          try
-                                            geojsonObject.AddPair('type', 'Feature');
-                                            if assigned(geometryObject)
-                                            then geojsonObject.AddPair('geometry', geometryObject);
-                                            geojsonObject.AddPair('properties', propertiesObject);
-                                          finally
-                                            jsonArray.Add(geojsonObject);
-                                          end;
+                                          query.Next;
                                         end;
-                                        query.Next;
+                                      finally
+                                        jsonDataResponse.AddPair(datafield,jsonArray);
                                       end;
-                                    finally
-                                      jsonDataResponse.AddPair(datafield,jsonArray);
                                     end;
+                                  finally
+                                    query.Close;
                                   end;
                                 finally
-                                  query.Close;
+                                  query.Free;
                                 end;
                               finally
-                                query.Free;
+                                (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
                               end;
-                            finally
-                              (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
                             end;
+                          end;
+                        except
+                          on E: Exception do
+                          begin
+                            _status := 'failed - exception during query execution: '+e.Message;
+                            Log.WriteLn('Exception in TEcodistrictModule.HandleDataEvent during getData execution: '+E.Message, llError);
                           end;
                         end;
                       end
@@ -1906,6 +1918,34 @@ begin
           else if _method='setData' then
           begin
             // todo: define with other developers..
+
+            // json structure
+            (*
+              {
+                "type": "request",
+                "method": "setData",
+                "caseId": "<caseId>",
+                "variantId": "<variantId>",
+                "moduleId": "<moduleId>",
+                "userId": "<userId>",
+                "eventId": "data-to-dashboard"
+                "data": {
+                   "type": "building",
+                   "idField": "building_id",
+                   "entries": [
+                      {
+                        "building_id": "1A",
+                        "cost": 245.9
+                      },
+                      {
+                        "building_id": "2F",
+                        "cost": 9.0,
+                        "levels": 5
+                      }
+                   ]
+              }
+            *)
+
           end
           else if _method='setKpiResult' then
           begin
@@ -1937,9 +1977,9 @@ begin
                           (fDBConnection as TFDConnection).ExecSQL('DELETE FROM kpi_results WHERE kpi_type='''+_kpi_type+''' AND gml_id='''+_gml_id+''' AND kpi_id='''+_kpiId+''';');
     // SQL insert into kpi_results (kpi_type, kpi_id, gml_id, kpi_value) values ()
                           (fDBConnection as TFDConnection).ExecSQL('INSERT INTO kpi_results (kpi_type, kpi_id, gml_id, kpi_value) VALUES ('''+_kpi_type+''', '''+_kpiId+''', '''+_gml_id+''','+_kpi_value.ToString()+');');
+                          _status := 'Success - data added to the database';
                         finally
                           (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
-                          _status := 'Success - data added to the database';
                         end;
                       end;
                     end;

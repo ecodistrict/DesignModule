@@ -48,7 +48,7 @@ const
 
 
 type
-    TOldTilerLayer = class(TLayer)
+  TOldTilerLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aPalette: TWDPalette;
     const aObjectTypes, aGeometryType: string; {aTilerEvent: TEventEntry; }aRefreshEvent: TIMBEventEntry; aBasicLayer: Boolean=False);
   destructor Destroy; override;

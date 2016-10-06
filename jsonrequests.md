@@ -6,6 +6,7 @@
 - [deleteVariant](#deleteVariant)
 - [getData](#getData)
 	- [table dm_queries](#dm_queries)
+- [setData](#setData)
 - [setKpiResult](#setKpiResult)
 - [getKpiResult](#getKpiResult)
 - [readDMQueries](#readDMQueries)
@@ -184,6 +185,56 @@ The returned "status" field can be
 - `failed - no schema found for case and variant`
 - `failed - no module id`
 - `failed - no case id`
+
+## setData event on channel "data" <a name="setData"></a>
+
+	{
+		"type": "request",
+		"method": "setData",
+		"caseId": "<caseId>",
+		"variantId": "<variantId>",
+		"moduleId": "<moduleId>",
+		"userId": "<userId>",
+		"eventId": "data-to-dashboard",
+		"data": {
+		"type": "building",
+		"idField": "building_id",
+		"entries": [
+			{
+				"building_id": "1A",
+				"<field1>": 245.9
+			},
+			{
+				"building_id": "2F",
+				"<field1>": 9.0,
+				"<field2>": 5
+			}
+		]
+	}
+
+"eventId" is the optional name of the event to return the answer to, it defaults to `data-to-dashboard`.
+"variantId" is optional; if ommited data is adjusted in the base case ("as is" situation).
+"moduleId" is the id of the module and only here for reference.
+
+The return event is
+
+	{
+		"type": "response",
+    	"method": "setData",
+    	"caseId": "<caseId>",
+		"variantId": "<variantId>",
+    	"userId": "<userId>",
+		"data": {<JSON object with returned data>},
+    	"status": "Success"
+	}
+
+The returned "status" field can be
+
+- `Success`
+- `failed - no schema found for case and variant`
+- `failed - no module id`
+- `failed - no case id`
+- `failed - xxx todo..`
 
 ## table dm_queries <a name="dm_queries"></a>
 
