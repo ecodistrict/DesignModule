@@ -629,12 +629,15 @@ function isObjectValue(aJSONObject: TJSONObject; const aValueName: string; var a
 
 procedure jsonAdd(var aCurrent: string; const aAdd: string);
 function jsonArrayOfDoubleToStr(const aValues: TArray<double>): string;
+function jsonString(const aText: string): string;
 function geoJsonFeatureCollection(const aFeatures: string): string;
 function geoJsonFeature(const aGeometry: string; const aProperties: string=''): string;
 
 function ZoomLevelFromDeltaLon(aDeltaLon: Double): Integer;
+function ZoomLevelFromDeltaLat(aDeltaLat: Double): Integer;
 
 function BuildDiscreteLegendJSON(aPalette: TDiscretePalette; aLegendFormat: TLegendFormat): string;
+function BuildRamplLegendJSON(aPalette: TRampPalette; aWidth: Integer=300; aLogScale: Boolean=False; aTickFontSize: Integer=11): string;
 function CreateBasicPalette: TWDPalette;
 
 implementation
@@ -672,6 +675,18 @@ begin
   do jsonAdd(Result, Double.ToString(aValues[i], dotFormat));
 end;
 
+function jsonString(const aText: string): string;
+var
+  jsonS: TJSONString;
+begin
+  jsonS := TJSONString.Create(aText);
+  try
+    Result := jsonS.toJSON;
+  finally
+    jsonS.Free;
+  end;
+end;
+
 function geoJsonFeatureCollection(const aFeatures: string): string;
 begin
   Result := '{"type":"FeatureCollection",'+'"features":['+afeatures+']'+'}';
@@ -685,6 +700,7 @@ begin
 end;
 
 function ZoomLevelFromDeltaLon(aDeltaLon: Double): Integer;
+// todo: need correction for lat?
 begin
   try
     if aDeltaLon>0 then
@@ -692,6 +708,25 @@ begin
       if aDeltaLon<=180 then
       begin
         Result := Trunc(ln(360/aDeltaLon)/ln(2));
+        if Result>19
+        then Result := 19;
+      end
+      else Result := 0;
+    end
+    else Result := 19;
+  except
+    Result := 0;
+  end;
+end;
+
+function ZoomLevelFromDeltaLat(aDeltaLat: Double): Integer;
+begin
+  try
+    if aDeltaLat>0 then
+    begin
+      if aDeltaLat<=180 then
+      begin
+        Result := Trunc(ln(360/aDeltaLat)/ln(2));
         if Result>19
         then Result := 19;
       end
@@ -732,6 +767,66 @@ begin
         Result := '"grid2":{"title":"'+aPalette.description+'","labels":[{'+Result+'}]}';;
       end;
   end;
+end;
+
+function BuildDiffLegendJSON(
+  const aTitle: string;
+  aValueLess: Double; const aColorLess, aLabelLess: string;
+  aValueNoChange: Double; const aColorNoChange, aLabelNoChange: string;
+  aValueMore: Double; const aColorMore, aLabelMore: string): string;
+begin
+  Result :=
+    '"scale": {'+
+      '"width": "300px",'+
+      '"title":'+jsonString(aTitle)+','+
+      '"logScale":0,'+
+      '"tickFontSize": "11px",'+
+      '"gradients":['+
+        '{"color":"'+aColorLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+        '{"color":"'+aColorNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+        '{"color":"'+aColorMore+'","position":'+aValueMore.toString(dotFormat)+'}'+
+      '],'+
+      '"labels":['+
+        '{"description":"'+aLabelLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+        '{"description":"'+aLabelNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+        '{"description":"'+aLabelMore+'","position":'+aValueMore.ToString(dotFormat)+'}'+
+      ']}';
+end;
+
+function BuildRamplLegendJSON(aPalette: TRampPalette; aWidth: Integer; aLogScale: Boolean; aTickFontSize: Integer): string;
+var
+  gradients: string;
+  labels: string;
+  e: TRampPaletteEntry;
+begin
+  gradients := '';
+  labels := '';
+  for e in aPalette.entries do
+  begin
+    if gradients<>''
+    then gradients := gradients+',';
+    gradients := gradients+'{"color":"'+ColorToJSON(e.color)+'","position":'+e.value.ToString(dotFormat)+'}';
+    if labels<>''
+    then labels := labels+',';
+    labels := labels+'{"description":'+jsonString(e.description)+',"position":'+e.value.ToString(dotFormat)+'}';
+  end;
+  Result :=
+    '"scale": {'+
+      '"width": "'+aWidth.ToString+'px",'+
+      '"title":'+jsonString(aPalette.description)+','+
+      '"logScale":'+Ord(aLogScale).ToString+','+
+      '"tickFontSize": "'+aTickFontSize.ToString+'px",'+
+      '"gradients":['+gradients+
+        //'{"color":"'+aColorLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+        //'{"color":"'+aColorNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+        //'{"color":"'+aColorMore+'","position":'+aValueMore.toString(dotFormat)+'}'+
+      '],'+
+      '"labels":['+labels+
+        //'{"description":"'+aLabelLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+        //'{"description":"'+aLabelNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+        //'{"description":"'+aLabelMore+'","position":'+aValueMore.ToString(dotFormat)+'}'+
+      ']'+
+    '}';
 end;
 
 function CreateBasicPalette: TWDPalette;
@@ -882,37 +977,6 @@ begin
      Assigned(fCurrentLayer.tilerLayer) and (fCurrentLayer.tilerLayer.URL<>'') and
      Assigned(fReferenceLayer.tilerLayer) and (fReferenceLayer.tilerLayer.URL<>'')
   then fTilerLayer.signalRegisterLayer(fCurrentLayer.scenario.project.tiler, 'diff-'+fCurrentLayer.Description+'-'+fReferenceLayer.description);
-end;
-
-function BuildDiffLegendJSON(
-  const aTitle: string;
-  aValueLess: Double; const aColorLess, aLabelLess: string;
-  aValueNoChange: Double; const aColorNoChange, aLabelNoChange: string;
-  aValueMore: Double; const aColorMore, aLabelMore: string): string;
-var
-  jsonTitle: TJSONString;
-begin
-  jsonTitle := TJSONString.Create(aTitle);
-  try
-    Result :=
-      '"scale": {'+
-        '"width": "300px",'+
-        '"title":'+jsonTitle.ToJSON+','+
-        '"logScale":0,'+
-        '"tickFontSize": "11px",'+
-        '"gradients":['+
-          '{"color":"'+aColorLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
-          '{"color":"'+aColorNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
-          '{"color":"'+aColorMore+'","position":'+aValueMore.toString(dotFormat)+'}'+
-        '],'+
-        '"labels":['+
-          '{"description":"'+aLabelLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
-          '{"description":"'+aLabelNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
-          '{"description":"'+aLabelMore+'","position":'+aValueMore.ToString(dotFormat)+'}'+
-        ']}';
-  finally
-    jsonTitle.Free;
-  end;
 end;
 
 procedure TDiffLayer.handleTilerInfo(aTilerLayer: TTilerLayer);
@@ -1847,6 +1911,7 @@ end;
 function TGeometryPointLayerObject.getGeoJSON2D(const aType: string): string;
 var
   colors: TGeoColors;
+  jsonOpacity: string;
 begin
   if Assigned(fGeometryPoint) then
   begin
@@ -1861,7 +1926,8 @@ begin
       '},'+
       '"properties":{'+
         '"id":"'+string(ID)+'",'+
-        '"color": "'+ColorToJSON(colors.mainColor)+'"'+
+        '"color": "'+ColorToJSON(colors.mainColor)+'",'+
+        '"fillOpacity":'+Double((colors.mainColor shr 24)/$FF).ToString(dotFormat)+
       '}'+
     '}'
   end
@@ -2071,11 +2137,19 @@ end;
 function TGeometryLayerObject.getGeoJSON2D(const aType: string): string;
 var
   colors: TGeoColors;
+  mainColorOpacity: Integer;
+  jsonOpacity: string;
 begin
   if Assigned(fGeometry) then
   begin
-    if Assigned(fLayer.tilerLayer) and Assigned(fLayer.tilerLayer.palette)
-    then colors := fLayer.tilerLayer.palette.ValueToColors(fValue)
+    if Assigned(fLayer.tilerLayer) and Assigned(fLayer.tilerLayer.palette) then
+    begin
+      colors := fLayer.tilerLayer.palette.ValueToColors(fValue);
+      mainColorOpacity := colors.mainColor shr 24;
+      if mainColorOpacity<$FF
+      then jsonOpacity := ',"fillOpacity":'+Double(mainColorOpacity/$FF).ToString(dotFormat)
+      else jsonOpacity := '';
+    end
     else colors := TGeoColors.Create($FF000000); // black
     Result := '{ '+
       '"type":"Feature",'+
@@ -2086,19 +2160,13 @@ begin
       '"properties":{'+
         '"id":"'+string(ID)+'",'+
         '"color": "'+ColorToJSON(colors.mainColor)+'"'+
+        jsonOpacity+
       '}'+
     '}'
   end
   else Result := '';
 end;
-{
-function TGeometryLayerObject.getJSONColor: string;
-begin
-  if Assigned(fLayer.palette)
-  then Result := fLayer.palette.ValueToColorJSON(fValue)
-  else Result := '#000000'; // black, default
-end;
-}
+
 function TGeometryLayerObject.getValidGeometry: Boolean;
 begin
   Result := Assigned(fGeometry);

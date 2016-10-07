@@ -1,5 +1,14 @@
 unit SessionServerEcodistrict;
 
+{
+  todo:
+    base scenario uses internally Scenario.ID=ProjectID!
+    in dictionary EcodistrictBaseScenario is used
+    -> mismatch scenario.ID and dictionary id within project
+      -> solution: remove EcodistrictBaseScenario and always use project id?
+
+}
+
 interface
 
 uses
@@ -8,7 +17,7 @@ uses
   imb4,
   WorldDataCode,
   WorldLegends,
-
+  WorldTilerConsts,
   Data.DB,
   FireDAC.Comp.Client,
 
@@ -177,11 +186,28 @@ type
     variants: string;
   end;
 
+  TEcodistrictKPI = class
+  constructor Create(const aId, aName: string; aSufficient, aExcellent: Double);
+  private
+    fId: string;
+    fName: string;
+    fBad: Double;
+    fSufficient: Double;
+    fExcellent: Double;
+  public
+    property id: string read fId;
+    property name: string read fName;
+    property bad: Double read fBad;
+    property sufficient: Double read fSufficient;
+    property excellent: Double read fExcellent;
+  end;
+
   TEcodistrictProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
     aDBConnection: TCustomConnection;
     aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
-    aMaxNearestObjectDistanceInMeters: Integer);
+    aMaxNearestObjectDistanceInMeters: Integer;
+    aKPIList: TObjectList<TEcodistrictKPI>);
   destructor Destroy; override;
   private
     function getDMQueries: TDictionary<string, TDMQuery>;
@@ -193,6 +219,7 @@ type
     fDMQueries: TDictionary<string, TDMQuery>;
     fDIQueries: TDictionary<string, TDIQuery>;
     fDIMeasuresHistory: TDictionary<TGUID, TDIMeasureHistory>;
+    fKpiList: TObjectDictionary<string, TEcodistrictKPI>;
 
     function getMeasuresJSON: string; override;
     function getMeasuresHistoryJSON: string; override;
@@ -202,6 +229,9 @@ type
 
     procedure handleClientMessage(aJSONObject: TJSONObject); override;
   public
+    //
+    property kpiList: TObjectDictionary<string, TEcodistrictKPI> read fKpiList;
+    procedure UpdateKPIList(aKPIList: TObjectList<TEcodistrictKPI>);
     // on demand load of items
     property DMQueries: TDictionary<string, TDMQuery> read getDMQueries;
     property DIQueries: TDictionary<string, TDIQuery> read getDIQueries;
@@ -247,8 +277,8 @@ type
     function forceReadOfDIObjectProperties(const aCaseId: string): Boolean;
     function forceReadOfDIMeasuresHistory(const aCaseId: string): Boolean;
 
-    function GetOrAddCase(const aCaseId: string): TProject;
-    procedure HandleModuleCase(const aCaseId, aCaseTitle,  aCaseDescription: string; const aMapView: TMapView);
+    function GetOrAddCase(const aCaseId: string; aKPIList: TObjectList<TEcodistrictKPI>): TProject;
+    function HandleModuleCase(const aCaseId, aCaseTitle,  aCaseDescription: string; const aMapView: TMapView; aKPIList: TObjectList<TEcodistrictKPI>): TProject;
     procedure HandleModuleCaseDelete(const aCaseId: string);
     procedure HandleModuleVariant(const aCaseId, aVariantID, aVariantName, aVariantDescription: string);
     procedure HandleModuleVariantDelete(const aCaseId, aVariantId: string);
@@ -350,6 +380,12 @@ begin
   end;
 end;
 
+const
+  ecoKPIBadColor = $FFCF051D; // bad: red
+  ecoKPISufficiantColor = $FFFCED0E; // suffient: orange/yellow
+  ecoKPIExcellentColor = $FF00862F; // excellent: green
+  ecoKPINoDataColor = $00000000; // opaque
+
 procedure TEcodistrictScenario.ReadBasicData;
 var
   schema: string;
@@ -358,6 +394,7 @@ var
   iqp: TPair<string, TDIQuery>;
   jsonPalette: TJSONValue;
   layer: TLayer;
+  ikpip: TPair<string, TEcodistrictKpi>;
 begin
   // read ecodistrict data
   if fID=fProject.ProjectID
@@ -396,6 +433,7 @@ begin
       if iqp.Value.palettejson<>''
       then Log.WriteLn('Invalid palette JSON: '+iqp.Value.palettejson, llError);
     end;
+
     if Layers.TryGetValue(iqp.key, layer) then
     begin
       // todo: check: does this work?
@@ -428,7 +466,52 @@ begin
       end;
     end;
   end;
+  try
+    Log.WriteLn('TEcodistrictScenario.ReadBasicData kpiList: '+(project as TEcodistrictProject).kpiList.Count.ToString);
+    // add layers for kpi's defined on project
+    for ikpip in (project as TEcodistrictProject).kpiList do
+    begin
+      // bad = same ammount lower/higher then excelent-sufficient
+      // todo: check suffient higher then excellent
 
+
+      Log.WriteLn('eco kpi layer '+ikpip.key, llNormal, 1);
+      palette := TRampPalette.Create(ikpip.Value.name, [
+          TRampPaletteEntry.Create(ecoKPIBadColor, ikpip.Value.bad, 'bad'),
+          TRampPaletteEntry.Create(ecoKPISufficiantColor, ikpip.Value.sufficient, 'sufficient'),
+          TRampPaletteEntry.Create(ecoKPIExcellentColor, ikpip.Value.excellent, 'excellent')],
+        ecoKPIBadColor, ecoKPINoDataColor, ecoKPIExcellentColor);
+      legendJSON := BuildRamplLegendJSON(palette as TRampPalette);
+      if Layers.TryGetValue(ikpip.key, layer) then
+      begin
+        // todo: check: does this work?
+        (layer as TEcodistrictLayer).fPalette.Free;
+        (layer as TEcodistrictLayer).fPalette := palette;
+        layer.legendJSON := legendJSON;
+        layer.RegisterSlice;
+        ReadObjectFromQuery(layer);
+        // assume that on update the registration on the tiler already succeeded so we can just start signaling objects
+        // todo: maybe check if already registered on tiler?
+        layer.signalObjects(nil);
+      end
+      else
+      begin
+        // todo: assuming for now always building
+        // todo: table ie type can be derived from kpi_results table field: kpi_type..
+        AddLayerFromQuery(
+          'KPI', ikpip.Value.id, ikpip.Value.name, ikpip.Value.name, '"building"', 'MultiPolygon',
+          False, False,
+          schema,
+          'SELECT building_id as id, ST_AsSVG(lod0footprint) as geometry, kpi_value as value '+
+          'FROM {case_id}.building join {case_id}.kpi_results on {case_id}.building.building_id={case_id}.kpi_results.gml_id '+
+          'WHERE kpi_id='''+ikpip.Value.id+'''',
+          stGeometry, palette, legendJSON);
+      end;
+    end;
+  except
+    on E: Exception
+    do Log.WriteLn('Exception in TEcodistrictScenario.ReadBasicData kpiList: '+e.Message, llError);
+  end;
   (*
   // buildings              -> v
   //AddLayerFromTable('basic structures', 'buildings', 'buildings', 'basic buildings', '"building"', 'MultiPolygon', false, True, schema, 'bldg_building', 'attr_gml_id', 'bldg_lod1multisurface_value');
@@ -799,9 +882,14 @@ end;
 
 constructor TEcodistrictProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
   aTilerStatusURL: string; aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled,
-  aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
+  aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aKPIList: TObjectList<TEcodistrictKPI>);
 begin
-  inherited;
+  fKpiList := TObjectDictionary<string, TEcodistrictKPI>.Create;
+  UpdateKPIList(aKPIList);
+  inherited Create(
+    aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
+    aDBConnection, aTimeSlider, aSelectionEnabled, aMeasuresEnabled,
+    aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers, aMaxNearestObjectDistanceInMeters);
   fDIObjectProperties := nil; // TObjectList<TDIObjectProperty>.Create;
   fDMQueries := nil;
   fDIQueries := nil;
@@ -815,6 +903,7 @@ begin
   FreeAndNil(fDMQueries);
   FreeAndNil(fDIQueries);
   FreeAndNil(fDIMeasuresHistory);
+  FreeAndNil(fKpiList);
   inherited;
 end;
 
@@ -913,7 +1002,7 @@ procedure TEcodistrictProject.handleClientMessage(aJSONObject: TJSONObject);
 var
   jsonPair: TJSONPair;
   //jsonValue: TJSONObject;
-  scenarioID: string;
+  dictScenariosID: string;
   scenario: TScenario;
 begin
   if isObject(aJSONObject, 'applyMeasures', jsonPair) then
@@ -924,15 +1013,17 @@ begin
   end
   else if isObject(aJSONObject, 'scenarioRefresh', jsonPair) then
   begin
-    scenarioID := jsonPair.JsonValue.Value;
-    if (scenarioID='') or (scenarioID='null') or (scenarioID='None')
-    then scenarioID := EcodistrictBaseScenario;
-    if scenarios.TryGetValue(scenarioID, scenario) then
+    // determine id used for dictionary
+    dictScenariosID := jsonPair.JsonValue.Value;
+    if (dictScenariosID='') or (dictScenariosID='null') or (dictScenariosID='None') or (dictScenariosID=ProjectID)
+    then dictScenariosID := EcodistrictBaseScenario;
+
+    if scenarios.TryGetValue(dictScenariosID, scenario) then
     begin
       scenario.ReadBasicData;
-      Log.WriteLn('refreshed scenario '+scenarioID);
+      Log.WriteLn('refreshed scenario '+dictScenariosID);
     end
-    else Log.WriteLn('scenario '+scenarioID+' not found to refresh', llWarning);
+    else Log.WriteLn('scenario '+dictScenariosID+' not found to refresh', llWarning);
   end
   else ;
 end;
@@ -1216,6 +1307,38 @@ begin
   end;
 end;
 
+procedure TEcodistrictProject.UpdateKPIList(aKPIList: TObjectList<TEcodistrictKPI>);
+var
+  kpi: TEcodistrictKPI;
+  ikp: TPair<string, TEcodistrictKPI>;
+begin
+  if Assigned(aKPIList) then
+  begin
+    // add to local dictionary
+    for kpi in aKPIList
+    do fKpiList.AddOrSetValue(kpi.id, kpi);
+    // extract from parameter list
+    for ikp in fKpiList
+    do aKPIList.Extract(ikp.Value);
+  end;
+end;
+
+{ TEcodistrictKPI }
+
+constructor TEcodistrictKPI.Create(const aId, aName: string; aSufficient, aExcellent: Double);
+begin
+  inherited Create;
+  fId := aId;
+  fName := aName;
+  fSufficient := aSufficient;
+  fExcellent := aExcellent;
+  // calculate bad (for now same distance from sufficient as excellent distance (other side)
+  fBad := fSufficient-(fExcellent-fSufficient);
+  // todo: needed?
+//  if fBad<0
+//  then fBad := 0;
+end;
+
 { TEcodistrictModule }
 
 constructor TEcodistrictModule.Create(aSessionModel: TSessionModel; aConnection: TConnection;
@@ -1255,8 +1378,11 @@ function TEcodistrictModule.forceReadOfDIMeasuresHistory(const aCaseId: string):
 var
   project: TProject;
 begin
-  if fProjects.TryGetValue(aCaseId, project)
-  then Result := (project as TEcodistrictProject).ReadDIMeasuresHistory
+  if fProjects.TryGetValue(aCaseId, project) then
+  begin
+    Result := (project as TEcodistrictProject).ReadDIMeasuresHistory;
+    // todo: signal connected clients of domains update
+  end
   else Result := False;
 end;
 
@@ -1273,8 +1399,11 @@ function TEcodistrictModule.forceReadOfDIQueries(const aCaseId: string): Boolean
 var
   project: TProject;
 begin
-  if fProjects.TryGetValue(aCaseId, project)
-  then Result := (project as TEcodistrictProject).ReadDIQueries
+  if fProjects.TryGetValue(aCaseId, project) then
+  begin
+    Result := (project as TEcodistrictProject).ReadDIQueries;
+    // todo: signal connected clients of domains update
+  end
   else Result := False;
 end;
 
@@ -1287,7 +1416,7 @@ begin
   else Result := False;
 end;
 
-function TEcodistrictModule.GetOrAddCase(const aCaseId: string): TProject;
+function TEcodistrictModule.GetOrAddCase(const aCaseId: string; aKPIList: TObjectList<TEcodistrictKPI>): TProject;
 var
   dbConnection: TCustomConnection;
 begin
@@ -1297,10 +1426,15 @@ begin
     InitPG;
     dbConnection := TFDConnection.Create(nil);
     SetPGConnection(dbConnection as TFDConnection, fConnectString);
-    Result := TEcodistrictProject.Create(fSessionModel, fSessionModel.Connection, aCaseID, '', fTilerFQDN, fTilerStatusURL, dbConnection, 0, True, True, True, False, True, fMaxNearestObjectDistanceInMeters);
+    Result := TEcodistrictProject.Create(fSessionModel, fSessionModel.Connection, aCaseID, '', fTilerFQDN, fTilerStatusURL, dbConnection, 0, True, True, True, False, True, fMaxNearestObjectDistanceInMeters, aKPIList);
     fSessionModel.Projects.Add(Result);
 
     fProjects.Add(aCaseId, Result);
+  end
+  else
+  begin
+    if Assigned(aKPIList)
+    then (Result as TEcodistrictProject).UpdateKPIList(aKPIList);
   end;
   //else already loaded
 end;
@@ -2138,33 +2272,32 @@ begin
   end;
 end;
 
-procedure TEcodistrictModule.HandleModuleCase(const aCaseId, aCaseTitle,  aCaseDescription: string; const aMapView: TMapView);
+function TEcodistrictModule.HandleModuleCase(const aCaseId, aCaseTitle,  aCaseDescription: string; const aMapView: TMapView; aKPIList: TObjectList<TEcodistrictKPI>): TProject;
 var
-  project: TProject;
   scenario: TScenario;
 begin
-  project := GetOrAddCase(aCaseId);
-  project.ProjectName := aCaseTitle;
-  project.projectDescription := aCaseDescription;
-  project.mapView := aMapView;
+  result := GetOrAddCase(aCaseId, aKPIList);
+  result.ProjectName := aCaseTitle;
+  result.projectDescription := aCaseDescription;
+  result.mapView := aMapView;
   // update map view of all scenarios
-  TMonitor.Enter(project.scenarios);
+  TMonitor.Enter(result.scenarios);
   try
-    for scenario in project.scenarios.values
-    do scenario.mapView := project.mapView;
+    for scenario in result.scenarios.values
+    do scenario.mapView := result.mapView;
     // add base scenario
-    if not project.scenarios.ContainsKey(EcodistrictBaseScenario) then
+    if not result.scenarios.ContainsKey(EcodistrictBaseScenario) then
     begin
-      scenario := TEcodistrictScenario.Create(project, project.ProjectID, project.ProjectName, project.ProjectDescription, project.addBasicLayers, (project as TEcodistrictProject).mapView);
-      project.scenarios.Add(EcodistrictBaseScenario, scenario);
-      Log.WriteLn('added base scenario '+EcodistrictBaseScenario+': '+project.ProjectName+', '+project.ProjectDescription, llNormal, 1);
+      scenario := TEcodistrictScenario.Create(result, result.ProjectID, result.ProjectName, result.ProjectDescription, result.addBasicLayers, (result as TEcodistrictProject).mapView);
+      result.scenarios.Add(EcodistrictBaseScenario, scenario);
+      Log.WriteLn('added base scenario '+EcodistrictBaseScenario+': '+result.ProjectName+', '+result.ProjectDescription, llNormal, 1);
     end
     else
     begin
       Log.WriteLn('already contains base scenario '+EcodistrictBaseScenario, llNormal, 1);
     end;
   finally
-    TMonitor.Exit(project.scenarios);
+    TMonitor.Exit(result.scenarios);
   end;
 end;
 
@@ -2208,6 +2341,7 @@ var
   _title: string;
   _polygons: TJSONArray;
   _polygon: TJSONArray;
+  _kpiList: TJSONArray;
   _description: string;
   _coordinate: TJSONArray;
   _lat: Double;
@@ -2218,6 +2352,12 @@ var
   response: string;
   extent: TWDExtent;
   mapView: TMapView;
+  _kpi: TJSONValue;
+  kpiSufficient: Double;
+  kpiExcellent: Double;
+  kpiId: string;
+  kpiName: string;
+  kpiList: TObjectList<TEcodistrictKPI>;
 begin
   try
     _jsonObject := TJSONObject.ParseJSONValue(aString) as TJSONObject;
@@ -2251,7 +2391,7 @@ begin
         // signal getVariants request
         response := '{"method": "getVariants", "type": "request", "userId": "'+_userId+'", "caseId": "'+_caseId+'"}';
         fDashboardEvent.signalString(response);
-        {project := }GetOrAddCase(_caseId);
+        {project := }GetOrAddCase(_caseId, nil);
       end;
     end
     // process respons from dashboard
@@ -2278,9 +2418,46 @@ begin
           end;
         end;
         if not extent.IsEmpty
-        then mapView := TMapView.Create(extent.centerY, extent.centerX, ZoomLevelFromDeltaLon(1.1*Abs(extent.xMax-extent.xMin)))
+        then mapView := TMapView.Create(extent.centerY, extent.centerX, ZoomLevelFromDeltaLat(1.1*Abs(extent.yMax-extent.yMin)))
         else mapView := TMapView.Create(55.7, 41, 4); //  whole of europe?
-        HandleModuleCase(_caseId, _title, _description, mapView);
+        kpiList := TObjectList<TEcodistrictKPI>.Create;
+        try
+          // process kpi list
+          try
+            _kpiList := _jsonObject.GetValue<TJSONArray>('caseData.kpiList');
+            if Assigned(_kpiList) then
+            begin
+              for i := 0 to _kpiList.Count-1 do
+              begin
+                try
+                  _kpi := _kpiList.Items[i];
+                  // get id from kpiAlias or kpiId (backwards compatible)
+                  kpiId := _kpi.GetValue<string>('kpiAlias', '');
+                  if kpiId=''
+                  then kpiId := _kpi.GetValue<string>('kpiId', '');
+                  kpiName := _kpi.GetValue<string>('name');
+                  kpiSufficient := _kpi.GetValue<Double>('sufficient');
+                  kpiExcellent := _kpi.GetValue<Double>('excellent');
+                  kpiList.Add(TEcodistrictKPI.Create(kpiId, kpiName, kpiSufficient, kpiExcellent));
+                except
+                  on E: Exception do
+                  begin
+                    Log.WriteLn('Exception parsing kpi '+i.ToString+': '+E.Message, llError);
+                  end;
+                end;
+              end;
+            end
+            else Log.WriteLn('No kpiList in response on getCase', llWarning);
+          except
+            on E: Exception
+            do Log.WriteLn('No kpiList in response on getCase: '+E.Message, llError);
+          end;
+
+          // add or set project
+          HandleModuleCase(_caseId, _title, _description, mapView, kpiList);
+        finally
+          kpiList.Free;
+        end;
       end
       else if (_method='getVariants') then
       begin
@@ -2307,17 +2484,19 @@ end;
 function TEcodistrictModule.HandleModuleScenarioRefresh(const aCaseId, aVariantID: string): Boolean;
 var
   project: TProject;
-  scenarioID: string;
+  dictScenariosID: string;
   scenario: TScenario;
 begin
   if fProjects.TryGetValue(aCaseId, project) then
   begin
-    if (aVariantId='') or (avariantId='null') or (aVariantId='None')
-    then scenarioID := EcodistrictBaseScenario
-    else scenarioID := aVariantId;
+    // determine id used in dictionary
+    if (aVariantId='') or (avariantId='null') or (aVariantId='None') or (aVariantID=aCaseID)
+    then dictScenariosID := EcodistrictBaseScenario
+    else dictScenariosID := aVariantId;
+
     TMonitor.Enter(project.scenarios);
     try
-      if project.scenarios.TryGetValue(scenarioID, scenario) then
+      if project.scenarios.TryGetValue(dictScenariosID, scenario) then
       begin
         scenario.ReadBasicData;
         Result := True;
