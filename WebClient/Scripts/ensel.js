@@ -165,7 +165,7 @@ DataManager = {
 
     RemoveCars: function (aCarIds) {
         for (var i = 0; i < aCarIds.length; i++)
-            DataManager.RemoveCar(aCarIds[i]);
+            DataManager.RemoveCar(aCarIds[i].id);
     },
 
     AddCar: function (aCar) {
@@ -188,6 +188,8 @@ DataManager = {
             fillColor: aCar.fill,
             fillOpacity: 0.8
         }).addTo(DataManager.drawLayer);
+
+        console.log(aCar.fill);
 
         aCar.circle = circle;
         DataManager.cars.push(aCar);
@@ -258,8 +260,7 @@ DataManager = {
     RemoveCar: function (aCarId) {
 
         for (var i = 0; i < DataManager.cars.length; i++) {
-            if (DataManager.cars[i].carid == aCarid) {
-
+            if (DataManager.cars[i].id == aCarId) {
                 DataManager.drawLayer.removeLayer(DataManager.cars[i].circle);
 
                 DataManager.cars.splice(i, 1);

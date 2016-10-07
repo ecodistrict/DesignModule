@@ -11,6 +11,9 @@
     },
 
     onAdd: function (map) {
+
+        DataManager.simSpeed = 1.0;
+
         this._initLayout();
 
         this._map = map;
@@ -37,6 +40,7 @@
         }
         
         container.addEventListener("click", this._clickControl);
+        container.addEventListener("contextmenu", this._rightClick);
 
         //var form = this._form = L.DomUtil.create('form', className + '-list');
 
@@ -50,6 +54,47 @@
         //container.appendChild(form);
         L.DomUtil.addClass(container, 'leaflet-control-startstop');
         L.DomUtil.addClass(container, 'leaflet-control-info-collapsed');
+    },
+
+    _rightClick: function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        var dialog = modalDialogCreate("Set Simulation Speed");
+        dialog.style.width = "200px";
+
+        var entries = [{ value: 0.1, label: "0.1" },
+                        { value: 0.2, label: "0.2" },
+                        { value: 0.5, label: "0.5" },
+                        { value: 1.0, label: "1.0 (real)" },
+                        { value: 2.0, label: "2.0" },
+                        { value: 5.0, label: "5.0" },
+                        { value: 10.0, label: "10.0" },
+                        { value: 20.0, label: "20.0" },
+                        { value: 50.0, label: "50.0" },
+                        { value: 100.0, label: "100.0" },
+                        { value: 200.0, label: "200.0" },
+                        { value: 500.0, label: "500.0" },
+                        { value: 1000.0, label: "1000.0" },
+                        { value: Number.MAX_VALUE, label: "Max" }];
+
+        DataManager.speedEntries = entries;
+
+        var container = L.DomUtil.create("div", "speedContainer", dialog);
+        var form = L.DomUtil.create("form", "simSpeedForm", container);
+        var selection = L.DomUtil.create("select", "selectionList", form);
+        for (var i = 0; i < entries.length; i++) {
+            var option = L.DomUtil.create("option", "listOption", selection);
+            option.value = entries[i].value;
+            option.innerHTML = entries[i].label;
+            if (option.value == DataManager.simSpeed)
+                option.selected = "selected";
+        }
+
+        selection.onchange = function (e) {
+            wsSend({ "simulationControl": { "speed": e.target.value } });
+        };
+
     },
 
     _clickControl: function (e) {

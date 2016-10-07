@@ -194,15 +194,11 @@
 
                 var button = document.querySelector("#measuresApplyButton");
 
-                button.disabled = false;
+                button.removeAttribute("disabled");
             });
 
             for (var a in measureDefinition.actions) 
                 this._addMeasureLine(f, measureDefinition.actions[a]);
-            if (f.children.length / 2 == 1)
-            {
-                f.children[0].checked = true;
-            }
 
             f.appendChild(document.createElement('br'));
             f.appendChild(document.createElement('hr'));
@@ -230,9 +226,17 @@
                 //    alert('Select an option before applying or press cancel to abort');
             });
             applyButton.id = "measuresApplyButton";
+
+            if ((f.children.length - 3) / 2 == 1) {
+                f.children[0].checked = true;
+            }
+            else {
+                applyButton.setAttribute("disabled", true);
+            }
+
             var selectedRadio = document.querySelector('input[name=measureOption]:checked');
             if (!selectedRadio)
-                applyButton.disabled = true;
+                applyButton.setAttribute("disabled", true);
             modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
         }
     },

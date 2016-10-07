@@ -66,6 +66,8 @@
                             layer.tileLayer.idShowing = layer.id;
                             if (layer.legend)
                                 legendControl.createLegend(layer.legend);
+                            else
+                                legendControl.clearLegend();
                         }
                     }
                     else if (e.target == crd.reference) {
@@ -74,6 +76,8 @@
                             layer.tileLayer.idShowing = layer.ref.id;
                             if (layer.legend)
                                 legendControl.createLegend(layer.legend);
+                            else
+                                legendControl.clearLegend();
                         }
                     }
                     else {
@@ -82,6 +86,8 @@
                             layer.tileLayer.idShowing = layer.diff.id;
                             if (layer.diff.legend)
                                 legendControl.createLegend(layer.diff.legend);
+                            else
+                                legendControl.clearLegend();
                         }
                     }
                 });

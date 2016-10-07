@@ -5,6 +5,10 @@
     topRight: "topRight"
 }
 
+var axisType = {
+
+}
+
 var graphType = {
     horizontalBar: "hbar",
     verticalBar: "vbar",
@@ -84,7 +88,7 @@ var GraphManager = {
         type: graphType.line, //Default graph type
         interpolation: "linear", //https://coderwall.com/p/thtwbw/d3-js-interpolation-options
         flashBorder: false, //todo: implementation. makes border of a graph flash when received new data
-        maxPoints: 10, //9007199254740991, //Graph only plots the last x points of an array
+        maxPoints: 200, //9007199254740991, //Graph only plots the last x points of an array
         x: {label: "" }, //Attribute name for the attribute holding the value for the x-axis
         y: [{color: "LightBlue", label: "" }], //Attribute name for the attribute holding the value of the y-axis along with color and label
         xScale: "linear", //sets the scale to use for the x axis "linear"/"ordinal"/"power"/"log" todo: time
@@ -106,7 +110,7 @@ var GraphManager = {
         graphPadding: {
             left: 10,
             right: 10,
-            top: 10,
+            top: 30,
             bottom: 10
         },
         axisTextPadding: 5,
@@ -192,11 +196,12 @@ var GraphManager = {
         resizeDiv.graphID = graphDiv.graphID;
         resizeDiv.addEventListener("mousedown", GraphManager._startGraphResize);
 
-        graphObject = GraphManager.SetGraphParameters(graphObject);
+        //graphObject = 
+        GraphManager.SetGraphParameters(graphObject);
 
-        //only for label testing!
-        graphObject.x.label = "x-axis";
-        graphObject.y[0].label = "y-axis";
+        ////only for label testing!
+        //graphObject.x.label = "x-axis";
+        //graphObject.y[0].label = "y-axis";
 
         GraphManager.BuildGraph(graphObject, graphDiv);
 
@@ -212,7 +217,7 @@ var GraphManager = {
         graphObject.width = (typeof graphObject.width === 'undefined') ? GraphManager.defaultValues.width : graphObject.width;
         graphObject.height = (typeof graphObject.height === 'undefined') ? GraphManager.defaultValues.height : graphObject.height;
         graphObject.x = (typeof graphObject.x === 'undefined') ? GraphManager.defaultValues.x : graphObject.x;
-        graphObject.y = (typeof graphObject.y === 'undefined') ? GraphManager.defaultValues.y : graphObject.y;
+        graphObject.y = (typeof graphObject.y === 'undefined') ? JSON.parse(JSON.stringify(GraphManager.defaultValues.y)) : graphObject.y;
         graphObject.xScale = (typeof graphObject.xScale === 'undefined') ? GraphManager.defaultValues.xScale : graphObject.xScale;
         graphObject.yScale = (typeof graphObject.yScale === 'undefined') ? GraphManager.defaultValues.yScale : graphObject.yScale;
         graphObject.maxPoints = (typeof graphObject.maxPoints === 'undefined') ? GraphManager.defaultValues.maxPoints : graphObject.maxPoints;
@@ -255,38 +260,51 @@ var GraphManager = {
 
         svg.className = "graph-svg";
 
-        var lineG = []
-
-        for (var i = 0; i < graphObject.y.length; i++)
-            lineG.push(svg.append("g"));
 
         //remove: only for SSM testing!
-        switch (GraphManager.idcounter)
-        {
-            case 0: graphObject.name = "Total GTU Distance";
-                graphObject.holdminmax = false;
-                GraphManager.idcounter++;
-                break;
-            case 1: graphObject.name = "Total GTU Travel Time";
-                GraphManager.idcounter++;
-                break;
-            case 2: graphObject.name = "Average GTU Speed";
-                GraphManager.idcounter++;
-                break;
-            case 3: graphObject.name = "Average GTU Travel Time";
-                GraphManager.idcounter++;
-                break;
-            case 4: graphObject.name = "Total GTU Time Delay";
-                GraphManager.idcounter++;
-                break;
-            case 5: graphObject.name = "Average Trip Length";
-                GraphManager.idcounter++;
-                break;
-            case 6: graphObject.name = "Total Number Stops";
-                GraphManager.idcounter++
-                break;
-            default: graphObject.name = "Test Graph";
-        }
+        //switch (GraphManager.idcounter)
+        //{
+        //    case 0: graphObject.name = "Total GTU Distance";
+        //        graphObject.x.label = "sim seconds";
+        //        graphObject.y[0].label = "meters";
+        //        graphObject.holdminmax = false;
+        //        GraphManager.idcounter++;
+        //        break;
+        //    case 1: graphObject.name = "Total GTU Travel Time";
+        //        graphObject.x.label = "sim seconds";
+        //        graphObject.y[0].label = "seconds";
+        //        GraphManager.idcounter++;
+        //        break;
+        //    case 2: graphObject.name = "Avg. GTU Speed";
+        //        graphObject.x.label = "sim seconds";
+        //        graphObject.y[0].label = "m/s";
+        //        GraphManager.idcounter++;
+        //        break;
+        //    case 3: graphObject.name = "Avg. GTU Travel Time";
+        //        graphObject.x.label = "sim seconds";
+        //        graphObject.y[0].label = "seconds";
+        //        GraphManager.idcounter++;
+        //        break;
+        //    case 4: graphObject.name = "Total GTU Time Delay";
+        //        graphObject.x.label = "sim seconds";
+        //        graphObject.y[0].label = "seconds";
+        //        GraphManager.idcounter++;
+        //        break;
+        //    case 5: graphObject.name = "Avg. Trip Length";
+        //        graphObject.x.label = "sim seconds";
+        //        graphObject.y[0].label = "seconds";
+        //        //graphObject.y.push({ color: "red", label: "" })
+        //        GraphManager.idcounter++;
+        //        break;
+        //    case 6: graphObject.name = "Total Number Stops";
+        //        graphObject.x.label = "sim seconds";
+        //        graphObject.y[0].label = "stops";
+        //        GraphManager.idcounter++
+        //        break;
+        //    default: graphObject.name = "Test Graph";
+        //}
+
+        var lineG = svg.append("g");
 
         var text = null;
 
@@ -295,7 +313,7 @@ var GraphManager = {
             text = svg.append("text")
                 .attr("x", (width / 2))
                 .attr("y", marginTop)
-                .attr("dy", 10)
+                .attr("dy", 20 - GraphManager.defaultValues.graphPadding.top)
                 .attr("text-anchor", "middle")
                 .attr("pointer-events", "none")
                 .attr("class", "graph-title-text")
@@ -306,7 +324,6 @@ var GraphManager = {
         if (graphObject.xAxis) {
             var axisX = svg.append("g")
                                 .attr("class", "axis xAxis");
-                                //.attr("transform", "translate(" + 0 + ", " + (graphObject.xAxisOrient == "top" ? marginTop : height - (GraphManager.defaultValues.axisMargin.x) + ")");
 
             graphObject.axisX = axisX;
 
@@ -360,6 +377,10 @@ var GraphManager = {
     {
         if (data != null)
         {
+            //if (graph.id == "graphje-KPI06") {
+            //    //data.y.push(data.y[0]);
+            //    data.y.push(30 + (Math.random() * 10));
+            //}
             graph.data.push(data);
             graph.container.style.visibility = "visible";
         }
@@ -557,11 +578,8 @@ var GraphManager = {
 
     UpdateLineGraph: function (graph, data, xScale, yScale)
     {
-        var lineFunction = d3.svg.line()
-                                    .x(function (d) { return xScale(d.x); })
-                                    .y(function (d) { return yScale(d.y); })
-                                    .interpolate(graph.interpolation);
-        
+        if (graph.id == "graphje-KPI04")
+            var tlkajsdaj = 0;
 
         if (typeof graph.axisX !== "undefined") {
             var xAxis = d3.svg.axis().scale(xScale).orient(graph.xAxisOrient).ticks(5);
@@ -572,23 +590,38 @@ var GraphManager = {
             graph.axisY.call(yAxis);
         }
 
-        graph.lineG[0].selectAll("path").remove();
+        //make 1 line function to use in the loop!
 
-        
-        var paths = graph.lineG[0].selectAll("path").data(data);
+        graph.lineG.selectAll("path").remove();
 
-        paths.attr("d", lineFunction(data))
-                        .attr("stroke", graph.y[0].color)
-                        .attr("class", "graphLine")
-                        .attr("fill", "none");
+        for (var i = 0; i < graph.y.length; i++)
+        {
+            var lineFunction = d3.svg.line()
+                                        .x(function (d) { return xScale(d.x); })
+                                        .y(function (d) { return yScale(d.y[i]); })
+                                        .interpolate(graph.interpolation);
 
-        paths.enter().append("path")
-                        .attr("d", lineFunction(data))
-                        .attr("stroke", graph.y[0].color)
-                        .attr("class", "graphLine")
-                        .attr("fill", "none");
+            graph.lineG.append("path")
+                            .attr("d", lineFunction(data))
+                            .attr("class", "graphLine")
+                            .attr("stroke", graph.y[i].color)
+                            .attr("fill", "none");
 
-        paths.exit().remove();
+            //var paths = graph.lineG.selectAll("path").data(data);
+
+            //paths.attr("d", lineFunction(data))
+            //                .attr("stroke", graph.y[i].color)
+            //                .attr("class", "graphLine")
+            //                .attr("fill", "none");
+
+            //paths.enter().append("path")
+            //                .attr("d", lineFunction(data))
+            //                .attr("stroke", graph.y[i].color)
+            //                .attr("class", "graphLine")
+            //                .attr("fill", "none");
+
+
+        }
 
        
                                                         
@@ -859,6 +892,8 @@ var GraphManager = {
         window.addEventListener("mousemove", GraphManager._dragMove);
         window.addEventListener("mouseup", GraphManager._endDrag);
     },
+
+
 
     _dragMove: function (e) {
         e.preventDefault();

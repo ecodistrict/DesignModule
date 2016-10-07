@@ -6,14 +6,47 @@
     background-size: 26px 26px;
     background-position: 50% 50%;
     background-repeat: no-repeat;
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
 	}
 
+.leaflet-touch .leaflet-control-startstop {
+    width: 44px;
+    height: 44px;
+}
+
+/*.leaflet-control-details-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	background-image: url('images/details.png');
+    width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-details-toggle {
+	background-image: url('images/details-2x.png');
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-details-toggle {
+    width: 44px;
+	height: 44px;
+	}*/
+
+.leaflet-retina .leaflet-control-startstop-playing {
+    background-image: url('images/pauze-2x.png');
+    background-size: 26px 26px;
+}
+
+.leaflet-retina .leaflet-control-startstop-stopped {
+    background-image: url('images/play-2x.png');
+    background-size: 26px 26px;
+}
+
 .leaflet-control-startstop-stopped {
-    background-image: url(/Content/images/play.png);
+    background-image: url('images/play.png');
 	}
 
 .leaflet-control-startstop-playing {
-    background-image: url(/Content/images/pauze.png);
+    background-image: url('images/pauze.png');
 	}

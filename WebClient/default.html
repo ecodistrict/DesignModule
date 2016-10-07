@@ -84,7 +84,7 @@
         if (session == '') {
             //session = '1234'; // default test session
             //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
-            session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerp
+            //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerp
             //session = "SSM";
             //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
             //session = 'ensel';
@@ -204,7 +204,6 @@
                 // todo: remove all basic layers?
                 // todo: remove all non-basic layers?
                 wsLastConnectDateTime = new Date();
-
             };
             ws.onmessage = function (evt) {
                 var message = JSON.parse(evt.data);
@@ -440,11 +439,11 @@
                 }
                 else if (message.newGTUsensor)
                 {
-                    console.log("new GTU sensor: " + message.newGTUsensor);
+                    //console.log("new GTU sensor: " + message.newGTUsensor);
                 }
                 else if (message.updateGTUsensor)
                 {
-                    console.log("new GTU sensor reading: " + message.updateGTUsensor);
+                    //console.log("new GTU sensor reading: " + message.updateGTUsensor);
                 }
                 else if (message.newGTUstatistics)
                 {
@@ -465,17 +464,21 @@
                     {
                         startControl.SimulationStopped();
                     }
+                    else if (typeof message.simulationControl.speed !== "undefined")
+                    {
+                        DataManager.simSpeed = message.simulationControl.speed;
+                        showUserMessage("Simulation speed changed to: " + message.simulationControl.speed, 1);
+                    }
                 }
-                //else
-                //{
-                //    console.log(message);
-                //}
             };
             ws.onerror = function (evt) {
                 if (evt.message)
                     showUserMessage("disconnect: " + evt.message);
                 else
                     showUserMessage("disconnected");
+
+                connectionStatus.classList.remove('connection-status-connected');
+                connectionStatus.classList.add('connection-status-disconnected');
             };
             ws.onclose = function (evt) {
                 connectionStatus.classList.remove('connection-status-connected');
@@ -487,8 +490,9 @@
         };
 
         function wsSend(obj) {
-            if (ws)
+            if (ws) {
                 return ws.readyState && ws.readyState == WebSocket.OPEN ? ws.send(JSON.stringify(obj)) : -1;
+            }
             else
                 return -2;
         };
