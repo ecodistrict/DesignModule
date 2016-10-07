@@ -9,7 +9,7 @@
 .graphDiv {
     pointer-events: auto;
     position: absolute;
-    
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     border-radius: 4px;
 	background: white;
     border: 2px solid rgba(0, 0, 0, 0.2);
@@ -49,6 +49,7 @@ svg text {
 
 .axisLabel {
     fill: rgba(0, 0, 0, 0.5);
+    font-size: 12px;
 }
 
 .xAxis line {
