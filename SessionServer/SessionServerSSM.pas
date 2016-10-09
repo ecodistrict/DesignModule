@@ -163,7 +163,7 @@ type
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
   public
     procedure ReadBasicData(); override;
-    procedure handleClientMessage(aJSONObject: TJSONObject); override;
+    procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); override;
   public
     property imb3Connection: TIMBConnection read fIMB3Connection;
     property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
@@ -779,7 +779,7 @@ begin
   inherited;
 end;
 
-procedure TSSMProject.handleClientMessage(aJSONObject: TJSONObject);
+procedure TSSMProject.handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario);
 var
   jsonPair: TJSONPair;
   jsonValue: TJSONValue;

@@ -129,7 +129,7 @@
         map.addControl(detailsControl);
 
        //history
-        var historyControl = L.control.history(baseLayers);
+        var historyControl = L.control.history(baseLayers); // todo (NK): why pass baseLayers as options?
         map.addControl(historyControl);
         DataManager.HistoryControl = historyControl;
         // top-left

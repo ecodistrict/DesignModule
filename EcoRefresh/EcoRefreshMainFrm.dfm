@@ -187,12 +187,11 @@ object MainForm: TMainForm
     Width = 492
     Height = 21
     Anchors = [akLeft, akTop, akRight]
-    ItemIndex = 0
     TabOrder = 11
     Items.Strings = (
       ''
-      '57b43118cef25a0a0d6681b1'
-      '57b431aecef25a0a0d6681b2'
-      '57b431dfcef25a0a0d6681b3')
+      '57f7721a38ddeb850af42d13'
+      '57f7725f38ddeb850af42d14'
+      '57f772c438ddeb850af42d15')
   end
 end

@@ -41,7 +41,7 @@ function initSelectedObjectsProperties(e) {
     // build request for retrieving object properties
     var command = {};
     command.selectObjectsProperties = {};
-    command.selectObjectsProperties.selectedCategories = selectCategories = measuresControl.options.selectCategories;
+    command.selectObjectsProperties.selectCategories = selectCategories = measuresControl.options.selectCategories;
     command.selectObjectsProperties.selectedObjects = getSelectedObjects();
     wsSend(command);
 

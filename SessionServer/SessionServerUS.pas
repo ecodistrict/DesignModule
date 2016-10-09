@@ -154,11 +154,11 @@ type
     procedure ReadBasicData(); override;
     function BuildLegendJSON(aMetaLayerEntry: TMetaLayerEntry; aLayer: TUSLayer; aLegendFormat: TLegendFormat): string;
   public
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aQuery: string): string; overload; override;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string; overload; override;
 
-    //function selectObjectsProperties(aClient: TClient; const aSelectedCategories, aSelectedObjects: TArray<string>): string; overrride;
+    //function selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string; overrride;
   end;
 
   TUSDBScenario = class
@@ -1522,7 +1522,7 @@ begin
   //(fProject as TUSProject).StatusDec;
 end;
 
-function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string;
+function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string;
 var
   layers: TList<TLayer>;
   categories: string;
@@ -1535,7 +1535,7 @@ begin
   Result := '';
   layers := TList<TLayer>.Create;
   try
-    if selectLayersOnCategories(aSelectedCategories, layers) then
+    if selectLayersOnCategories(aSelectCategories, layers) then
     begin
       categories := '';
       objectsGeoJSON := '';
@@ -1564,7 +1564,7 @@ begin
   end;
 end;
 
-function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aX, aY, aRadius: Double): string;
+function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string;
 var
   layers: TList<TLayer>;
   dist: TDistanceLatLon;
@@ -1581,7 +1581,7 @@ begin
   Result := '';
   layers := TList<TLayer>.Create;
   try
-    if selectLayersOnCategories(aSelectedCategories, layers) then
+    if selectLayersOnCategories(aSelectCategories, layers) then
     begin
       dist := TDistanceLatLon.Create(aY, aY);
       if (aRadius=0) then
@@ -1639,14 +1639,14 @@ begin
   end;
 end;
 
-function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aQuery: string): string;
+function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string;
 var
   layers: TList<TLayer>;
 begin
   Result := '';
   layers := TList<TLayer>.Create;
   try
-    if selectLayersOnCategories(aSelectedCategories, layers) then
+    if selectLayersOnCategories(aSelectCategories, layers) then
     begin
       if aMode='+' then
       begin
