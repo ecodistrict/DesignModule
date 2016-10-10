@@ -109,3 +109,29 @@ Remove SSM Car
 		/* je mag die andere stuff ook weer meesturen, maar heb nu alleen carid nodig /*
 	}]
 }
+
+Define New Graph
+{
+	"newgraph" : [{
+		"id": unique id,
+		"width": INT, //optional
+		"height": INT, //optional
+		"type": "hbar"/"vbar"/"line"/"splot",
+		"interpolation": "linear", //optional https://coderwall.com/p/thtwbw/d3-js-interpolation-options
+		"maxPoints": INT, //optional
+		"x": string, //optional
+		"xScale": "linear"/"ordinal"/"power"/"log", //optional todo: add support for time scale
+		"yScale": "linear"/"ordinal"/"power"/"log", //optional todo: add support for time scale
+		"y": [{"attribute": string, "color": "#ff0000", label: string}], //optional
+		"minX": INT, //optional
+		"maxX": INT, //optional
+		"minY": INT, //optional
+		"maxY": INT, //optional
+		"xAxis": true/false //optional
+		"yAxis": true/false //optional
+		"holdminmax": true/false //optional
+		"additive": true/false, //optional
+		"name": string, //optional but nice
+		"description": string //optional but also nice^^
+	}]
+}
