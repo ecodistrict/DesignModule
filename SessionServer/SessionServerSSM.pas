@@ -156,14 +156,14 @@ type
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection;
     const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
     aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
-    aMaxNearestObjectDistanceInMeters: Integer);
+    aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer);
   destructor Destroy; override;
   private
     fIMB3Connection: TIMBConnection;
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
   public
     procedure ReadBasicData(); override;
-    procedure handleClientMessage(aJSONObject: TJSONObject); override;
+    procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); override;
   public
     property imb3Connection: TIMBConnection read fIMB3Connection;
     property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
@@ -172,6 +172,13 @@ type
 
 
 implementation
+
+function DoubleToJSON(d: Double): string;
+begin
+  if d.IsNan
+  then Result := 'null'
+  else Result := d.toString(dotFormat);
+end;
 
 { TSSMCar }
 
@@ -202,12 +209,12 @@ begin
   // check for changes
   if x<>_x then
   begin
-    addResult('lng', p.x.ToString(dotFormat));
+    addResult('lng', DoubleToJSON(p.x));
     x := _x;
   end;
   if y<>_y then
   begin
-    addResult('lat', p.y.toString(dotFormat));
+    addResult('lat', DoubleToJSON(p.y));
     y := _y;
   end;
   aPayload.Read(z);
@@ -293,8 +300,8 @@ begin
   p.X := x+aOffsetInRD.X;
   p.Y := y+aOffsetInRD.Y;
   p := aSourceProjection.ToGeocs(p);
-  addResult('lng', p.X.ToString(dotFormat));
-  addResult('lat', p.Y.ToString(dotFormat));
+  addResult('lng', DoubleToJSON(p.X));
+  addResult('lat', DoubleToJSON(p.Y));
   aPayload.Read(z);
   aPayload.Read(rotZ);
   aPayload.Read(networkId);
@@ -306,7 +313,7 @@ begin
   aPayload.Read(R);
   aPayload.Read(G);
   aPayload.Read(B);
-  baseColor := RGBToColor(R, G, B);
+  baseColor :=  RGBToAlphaColor(R, G, B);
   //Log.WriteLn('color '+baseColor.ToHexString(8), llNormal, 1);
   addResult('fill', '"'+ColorToJSON(baseColor)+'"');
 end;
@@ -333,7 +340,7 @@ begin
   aPayload.Read(speed);
   aPayload.Read(triggerPosition);
   addResult('gtuId', '"'+gtuId+'"');
-  addResult('speed', speed.ToString(dotFormat));
+  addResult('speed', DoubleToJSON(speed));
 end;
 
 function TSSMSensor.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point):  string;
@@ -386,8 +393,8 @@ begin
   p.X := x+aOffsetInRD.X;
   p.Y := y+aOffsetInRD.Y;
   p := aSourceProjection.ToGeocs(p);
-  addResult('lng', p.X.ToString(dotFormat));
-  addResult('lat', p.Y.ToString(dotFormat));
+  addResult('lng', DoubleToJSON(p.X));
+  addResult('lat', DoubleToJSON(p.Y));
   aPayload.Read(z);
   aPayload.Read(triggerPosition);
 end;
@@ -478,13 +485,13 @@ begin
   aPayload.Read(averageTripLength);
   aPayload.Read(totalNumberStops);
 
-  Result:='{"id":"'+ string(self.ID)+'-KPI01","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+totalGTUDistance.ToString(dotFormat)+']}';
-  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI02","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+totalGTUTravelTime.ToString(dotFormat)+']}';
-  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI03","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+averageGTUSpeed.ToString(dotFormat)+']}';
-  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI04","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+averageGTUTravelTime.ToString(dotFormat)+']}';
-  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI05","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+totalGTUTimeDelay.ToString(dotFormat)+']}';
-  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI06","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+averageTripLength.ToString(dotFormat)+']}';
-  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI07","x":'+self.changedTimestamp.ToString(dotFormat)+',"y":['+totalNumberStops.ToString(dotFormat)+']}';
+  Result:='{"id":"'+ string(self.ID)+'-KPI01","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUDistance)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI02","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUTravelTime)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI03","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageGTUSpeed)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI04","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageGTUTravelTime)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI05","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUTimeDelay)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI06","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageTripLength)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI07","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalNumberStops)+']}';
 end;
 
 function TSSMStatistic.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point):  string;
@@ -604,7 +611,7 @@ begin
         begin
           car := lo as TSSMCar;
           car.deletedTimestamp := timestamp;
-          jsonStr := '"id":"'+string(UTF8String(gtuId))+'",'+car.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
+          jsonStr := '"id":"'+string(UTF8String(gtuId))+'"'; // +car.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD)}
           scenario.project.SendString('{"removecar": [{'+jsonStr+'}]}');
         end
         else Log.WriteLn('TSSMLayer.HandleGTUEvent: delete, unknown car id '+string(UTF8String(gtuId)), llError);
@@ -737,7 +744,7 @@ var
   speed: Double;
 begin
   aPayload.Read(speed);
-  scenario.project.SendString('{"simulationControl":{"speed":'+speed.ToString(dotFormat)+'}}');
+  scenario.project.SendString('{"simulationControl":{"speed":'+DoubleToJSON(speed)+'}}');
 end;
 
 procedure TSSMLayer.HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
@@ -754,11 +761,12 @@ end;
 constructor TSSMProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
     const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
     aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
-    aMaxNearestObjectDistanceInMeters: Integer);
+    aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer);
 begin
   fIMB3Connection := TIMBConnection.Create('vps17642.public.cloudvps.com'{'app-usmodel01.tsn.tno.nl'}{'192.168.1.11'}, 4000, 'PublishingServerSSM', 4, 'OTS_RT');
   //fIMB3Connection := TIMBConnection.Create(GetSetting('RemoteHost', ''){'app-usmodel01.tsn.tno.nl'}{'192.168.1.11'}, 4000, 'PublishingServerSSM', 4, 'OTS_RT');
-  mapView  := TMapView.Create(52.08457, 4.88909, 14);
+  //mapView  := TMapView.Create(52.08457, 4.88909, 14);
+  mapView := aMapView;
   fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   inherited Create(aSessionModel, aConnection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
     aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers,
@@ -771,7 +779,7 @@ begin
   inherited;
 end;
 
-procedure TSSMProject.handleClientMessage(aJSONObject: TJSONObject);
+procedure TSSMProject.handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario);
 var
   jsonPair: TJSONPair;
   jsonValue: TJSONValue;
@@ -800,7 +808,7 @@ begin
       speedPayload.Write(speed);
       fIMB3Connection.Publish('Sim_Speed').SignalEvent(ekNormalEvent, speedPayload);
       // signal status to clients
-      SendString('{"simulationControl":{"speed":'+speed.ToString(dotFormat)+'}}');
+      SendString('{"simulationControl":{"speed":'+DoubleToJSON(speed)+'}}');
     end;
   end
   else ;

@@ -190,9 +190,9 @@
     },
 
     addHistoryItems: function (historyItems) {
-        for (var i = 0, len = histoyItems.length; i < len; i++)
+        for (var i = 0, len = historyItems.length; i < len; i++)
         {
-            _addHistoryItem(historyItems[i]);
+            this._addHistoryItem(historyItems[i]);
         }
     },
 
@@ -241,7 +241,7 @@
     },
 
     addMeasure: function (m, so, sc) {
-        this._measureItems.push({ measure: m, selectedObjects: so, selectedCategories: sc, time: new Date() })
+        this._measureItems.push({ measure: m, selectedObjects: so, selectCategories: sc, time: new Date() })
         this._update();
     },
 
@@ -250,14 +250,14 @@
         var message = {};
         message.applyMeasures = [];
         //todo
-        //for (var mi in this._measureItems) {
-        //    var am = {
-        //        measure: this._measureItems[mi].measure,
-        //        selectedCategories: this._measureItems[mi].selectedCategories,
-        //        selectedObjects: this._measureItems[mi].selectedObjects
-        //    };
-        //    message.applyMeasures.push(am);
-        //}
+        for (var mi in this._measureItems) {
+            var am = {
+                measure: this._measureItems[mi].measure,
+                selectCategories: this._measureItems[mi].selectCategories,
+                selectedObjects: this._measureItems[mi].selectedObjects
+            };
+            message.applyMeasures.push(am);
+        }
         wsSend(message);
         this._refocusOnMap();
     },
@@ -308,7 +308,7 @@
         sessionRequest.selectObjects.type = 'HistoryMeasure';
         sessionRequest.selectObjects.measure = item.measure;
         sessionRequest.selectObjects.selectedObjects = item.selectedObjects;
-        sessionRequest.selectObjects.selectedCategories = item.selectedCategories;
+        sessionRequest.selectObjects.selectCategories = item.selectCategories;
         //sessionRequest.selectObjects.mode = ctrlPressed ? '~' : '='; //tocheck wil je hier nog wat mee?
         wsSend(sessionRequest);
 

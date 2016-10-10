@@ -67,7 +67,7 @@ Add History Measures
 			"measure": "...",
 			"name": "..."
 			},
-		"selectedCategories": ["building", "enzo"],
+		"selectCategories": ["building", "enzo"],
 		"selectedObjects": ["7", "1"],
 		"time": "2016-08-09 12:34:52",
 		"id": GUID

@@ -84,6 +84,8 @@ type
 
   TClient = class; // forward
 
+  TForEachClient = reference to procedure(aClient: TCLient);
+
   TClientSubscribable = class
   constructor Create;
   destructor Destroy; override;
@@ -99,6 +101,7 @@ type
     function HandleClientUnsubscribe(aClient: TClient): Boolean; virtual;
     procedure HandleFirstSubscriber; virtual;
     procedure HandleLastSubscriber; virtual;
+    procedure forEachClient(aForEachClient: TForEachClient);
   end;
 
   TDiffLayer = class(TClientSubscribable)
@@ -145,7 +148,6 @@ type
   protected
     procedure SendErrorMessage(const aMessage: string);
     procedure SendMeasures();
-    procedure SendDomains(const aPrefix: string);
     procedure SendSession();
     procedure SendMeasuresHistory();
     procedure UpdateSession();
@@ -168,6 +170,7 @@ type
     procedure SendRefreshRef(const aElementID, aTimeStamp, aRef: string);
     procedure SendRefreshDiff(const aElementID, aTimeStamp, aDiff: string);
     procedure SendPreview(const aElementID, aPreviewBASE64: string);
+    procedure SendDomains(const aPrefix: string);
 
     procedure HandleElementRemove(aElement: TClientSubscribable);
     procedure HandleScenarioRemove(aScenario: TScenario);
@@ -422,7 +425,7 @@ type
     fCharts: TObjectDictionary<string, TChart>; // owns
     fAddbasicLayers: Boolean;
     function getElementID: string; override;
-    function selectLayersOnCategories(const aSelectedCategories: TArray<string>; aLayers: TList<TLayer>): Boolean;
+    function selectLayersOnCategories(const aSelectCategories: TArray<string>; aLayers: TList<TLayer>): Boolean;
   public
     property project: TProject read fProject;
     property ID: string read fID;
@@ -441,12 +444,12 @@ type
     function AddChart(aChart: TChart): TChart;
   public
     // select objects
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; virtual;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; virtual;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aQuery: string): string; overload; virtual;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aSelectedIDs: TArray<string>): string; overload; virtual;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; virtual;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; virtual;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string; overload; virtual;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aSelectedIDs: TArray<string>): string; overload; virtual;
     // select object properties
-    function selectObjectsProperties(aClient: TClient; const aSelectedCategories, aSelectedObjects: TArray<string>): string; virtual;
+    function selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string; virtual;
   end;
 
   TScenarioLink = class
@@ -559,7 +562,7 @@ type
     procedure timerTilerStatusAsHeartbeat(aTimer: TTimer);
     procedure newClient(aClient: TClient); virtual;
     function getMeasuresHistoryJSON: string; virtual;
-    procedure handleClientMessage(aJSONObject: TJSONObject); virtual;
+    procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); virtual;
   public
     function AddClient(const aClientID: string): TClient;
     procedure ReadBasicData(); virtual; abstract;
@@ -593,6 +596,8 @@ type
     procedure SendRefresh();
     procedure SendPreview();
     procedure SendString(const aString: string);
+
+    procedure forEachClient(aForEachClient: TForEachClient);
   end;
 
   // empty model control entries
@@ -629,12 +634,15 @@ function isObjectValue(aJSONObject: TJSONObject; const aValueName: string; var a
 
 procedure jsonAdd(var aCurrent: string; const aAdd: string);
 function jsonArrayOfDoubleToStr(const aValues: TArray<double>): string;
+function jsonString(const aText: string): string;
 function geoJsonFeatureCollection(const aFeatures: string): string;
 function geoJsonFeature(const aGeometry: string; const aProperties: string=''): string;
 
 function ZoomLevelFromDeltaLon(aDeltaLon: Double): Integer;
+function ZoomLevelFromDeltaLat(aDeltaLat: Double): Integer;
 
 function BuildDiscreteLegendJSON(aPalette: TDiscretePalette; aLegendFormat: TLegendFormat): string;
+function BuildRamplLegendJSON(aPalette: TRampPalette; aWidth: Integer=300; aLogScale: Boolean=False; aTickFontSize: Integer=11): string;
 function CreateBasicPalette: TWDPalette;
 
 implementation
@@ -672,6 +680,18 @@ begin
   do jsonAdd(Result, Double.ToString(aValues[i], dotFormat));
 end;
 
+function jsonString(const aText: string): string;
+var
+  jsonS: TJSONString;
+begin
+  jsonS := TJSONString.Create(aText);
+  try
+    Result := jsonS.toJSON;
+  finally
+    jsonS.Free;
+  end;
+end;
+
 function geoJsonFeatureCollection(const aFeatures: string): string;
 begin
   Result := '{"type":"FeatureCollection",'+'"features":['+afeatures+']'+'}';
@@ -685,6 +705,7 @@ begin
 end;
 
 function ZoomLevelFromDeltaLon(aDeltaLon: Double): Integer;
+// todo: need correction for lat?
 begin
   try
     if aDeltaLon>0 then
@@ -692,6 +713,25 @@ begin
       if aDeltaLon<=180 then
       begin
         Result := Trunc(ln(360/aDeltaLon)/ln(2));
+        if Result>19
+        then Result := 19;
+      end
+      else Result := 0;
+    end
+    else Result := 19;
+  except
+    Result := 0;
+  end;
+end;
+
+function ZoomLevelFromDeltaLat(aDeltaLat: Double): Integer;
+begin
+  try
+    if aDeltaLat>0 then
+    begin
+      if aDeltaLat<=180 then
+      begin
+        Result := Trunc(ln(360/aDeltaLat)/ln(2));
         if Result>19
         then Result := 19;
       end
@@ -734,6 +774,66 @@ begin
   end;
 end;
 
+function BuildDiffLegendJSON(
+  const aTitle: string;
+  aValueLess: Double; const aColorLess, aLabelLess: string;
+  aValueNoChange: Double; const aColorNoChange, aLabelNoChange: string;
+  aValueMore: Double; const aColorMore, aLabelMore: string): string;
+begin
+  Result :=
+    '"scale": {'+
+      '"width": "300px",'+
+      '"title":'+jsonString(aTitle)+','+
+      '"logScale":0,'+
+      '"tickFontSize": "11px",'+
+      '"gradients":['+
+        '{"color":"'+aColorLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+        '{"color":"'+aColorNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+        '{"color":"'+aColorMore+'","position":'+aValueMore.toString(dotFormat)+'}'+
+      '],'+
+      '"labels":['+
+        '{"description":"'+aLabelLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+        '{"description":"'+aLabelNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+        '{"description":"'+aLabelMore+'","position":'+aValueMore.ToString(dotFormat)+'}'+
+      ']}';
+end;
+
+function BuildRamplLegendJSON(aPalette: TRampPalette; aWidth: Integer; aLogScale: Boolean; aTickFontSize: Integer): string;
+var
+  gradients: string;
+  labels: string;
+  e: TRampPaletteEntry;
+begin
+  gradients := '';
+  labels := '';
+  for e in aPalette.entries do
+  begin
+    if gradients<>''
+    then gradients := gradients+',';
+    gradients := gradients+'{"color":"'+ColorToJSON(e.color)+'","position":'+e.value.ToString(dotFormat)+'}';
+    if labels<>''
+    then labels := labels+',';
+    labels := labels+'{"description":'+jsonString(e.description)+',"position":'+e.value.ToString(dotFormat)+'}';
+  end;
+  Result :=
+    '"scale": {'+
+      '"width": "'+aWidth.ToString+'px",'+
+      '"title":'+jsonString(aPalette.description)+','+
+      '"logScale":'+Ord(aLogScale).ToString+','+
+      '"tickFontSize": "'+aTickFontSize.ToString+'px",'+
+      '"gradients":['+gradients+
+        //'{"color":"'+aColorLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+        //'{"color":"'+aColorNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+        //'{"color":"'+aColorMore+'","position":'+aValueMore.toString(dotFormat)+'}'+
+      '],'+
+      '"labels":['+labels+
+        //'{"description":"'+aLabelLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
+        //'{"description":"'+aLabelNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
+        //'{"description":"'+aLabelMore+'","position":'+aValueMore.ToString(dotFormat)+'}'+
+      ']'+
+    '}';
+end;
+
 function CreateBasicPalette: TWDPalette;
 begin
   Result := TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicFill, colorBasicOutline));
@@ -766,34 +866,42 @@ begin
 end;
 
 destructor TClientSubscribable.Destroy;
-var
-  client: TClient;
 begin
-  TMonitor.Enter(fClients);
-  try
-    for client in fClients
-    do client.HandleElementRemove(Self);
-  finally
-    TMonitor.Exit(fClients);
-  end;
+  forEachClient(procedure(aClient: TClient)
+    begin
+      aClient.HandleElementRemove(Self);
+    end);
   FreeAndNil(fClients);
   inherited;
 end;
 
+procedure TClientSubscribable.forEachClient(aForEachClient: TForEachClient);
+var
+  client: TClient;
+begin
+  TMonitor.Enter(clients);
+  try
+    for client in clients
+    do aForEachClient(client);
+  finally
+    TMonitor.Exit(clients);
+  end;
+end;
+
 function TClientSubscribable.HandleClientSubscribe(aClient: TClient): Boolean;
 begin
-  TMonitor.Enter(fClients);
+  TMonitor.Enter(clients);
   try
-    if fClients.IndexOf(aClient)<0 then
+    if clients.IndexOf(aClient)<0 then
     begin
-      fClients.Add(aClient);
-      if fClients.Count=1
+      clients.Add(aClient);
+      if clients.Count=1
       then HandleFirstSubscriber;
       Result := True;
     end
     else Result := False;
   finally
-    TMonitor.Exit(fClients);
+    TMonitor.Exit(clients);
   end;
 end;
 
@@ -801,19 +909,19 @@ function TClientSubscribable.HandleClientUnsubscribe(aClient: TClient): Boolean;
 var
   i: Integer;
 begin
-  TMonitor.Enter(fClients);
+  TMonitor.Enter(clients);
   try
-    i := fClients.IndexOf(aClient);
+    i := clients.IndexOf(aClient);
     if i>=0 then
     begin
-      fClients.Delete(i);
-      if fClients.Count=0
+      clients.Delete(i);
+      if clients.Count=0
       then HandleLastSubscriber;
       Result := True;
     end
     else Result := False;
   finally
-    TMonitor.Exit(fClients);
+    TMonitor.Exit(clients);
   end;
 end;
 
@@ -884,37 +992,6 @@ begin
   then fTilerLayer.signalRegisterLayer(fCurrentLayer.scenario.project.tiler, 'diff-'+fCurrentLayer.Description+'-'+fReferenceLayer.description);
 end;
 
-function BuildDiffLegendJSON(
-  const aTitle: string;
-  aValueLess: Double; const aColorLess, aLabelLess: string;
-  aValueNoChange: Double; const aColorNoChange, aLabelNoChange: string;
-  aValueMore: Double; const aColorMore, aLabelMore: string): string;
-var
-  jsonTitle: TJSONString;
-begin
-  jsonTitle := TJSONString.Create(aTitle);
-  try
-    Result :=
-      '"scale": {'+
-        '"width": "300px",'+
-        '"title":'+jsonTitle.ToJSON+','+
-        '"logScale":0,'+
-        '"tickFontSize": "11px",'+
-        '"gradients":['+
-          '{"color":"'+aColorLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
-          '{"color":"'+aColorNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
-          '{"color":"'+aColorMore+'","position":'+aValueMore.toString(dotFormat)+'}'+
-        '],'+
-        '"labels":['+
-          '{"description":"'+aLabelLess+'","position":'+aValueLess.ToString(dotFormat)+'},'+
-          '{"description":"'+aLabelNoChange+'","position":'+aValueNoChange.ToString(dotFormat)+'},'+
-          '{"description":"'+aLabelMore+'","position":'+aValueMore.ToString(dotFormat)+'}'+
-        ']}';
-  finally
-    jsonTitle.Free;
-  end;
-end;
-
 procedure TDiffLayer.handleTilerInfo(aTilerLayer: TTilerLayer);
 var
   diffPalette: TWDPalette;
@@ -941,19 +1018,15 @@ end;
 procedure TDiffLayer.handleTilerPreview(aTilerLayer: TTilerLayer);
 var
   pvBASE64: string;
-  client: TClient;
 begin
   if Assigned(fTilerLayer) then
   begin
     pvBASE64 := fTilerLayer.previewAsBASE64;
     // layer clients
-    TMonitor.Enter(clients);
-    try
-      for client in clients
-      do client.SendPreview(elementID, pvBASE64);
-    finally
-      TMonitor.Exit(clients);
-    end;
+    forEachClient(procedure(aClient: TClient)
+      begin
+        aClient.SendPreview(elementID, pvBASE64);
+      end);
     Log.WriteLn('send diff preview on '+elementID);
   end;
 end;
@@ -967,7 +1040,6 @@ begin
       var
         timeStampStr: string;
         tiles: string;
-        client: TClient;
       begin
         if aTimeStamp<>0
         then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
@@ -977,29 +1049,19 @@ begin
 
         Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+' ('+timeStampStr+'): '+tiles);
 
-        TMonitor.Enter(clients);
-        try
-          for client in clients do
+        forEachClient(procedure(aClient: TClient)
           begin
-            client.SendRefresh(elementID {fCurrentLayer.elementID}, timeStampStr, tiles); // todo: extra processing needed?
-            Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', direct subscribed client: '+client.fClientID, llNormal, 1);
-          end;
-        finally
-          TMonitor.Exit(clients);
-        end;
+            aClient.SendRefresh(elementID {fCurrentLayer.elementID}, timeStampStr, tiles); // todo: extra processing needed?
+            Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', direct subscribed client: '+aClient.fClientID, llNormal, 1);
+          end);
         // signal current layer of diff layer refresh
         if Assigned(fCurrentLayer) then
         begin
-          TMonitor.Enter(fCurrentLayer.clients);
-          try
-            for client in fCurrentLayer.clients do
+          fCurrentLayer.forEachClient(procedure(aClient: TClient)
             begin
-              client.SendRefreshDiff(fCurrentLayer.elementID, timeStampStr, Self.refJSON);
-              Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', current layer subscribed client: '+client.fClientID, llNormal, 1);
-            end;
-          finally
-            TMonitor.Exit(fCurrentLayer.clients);
-          end;
+              aClient.SendRefreshDiff(fCurrentLayer.elementID, timeStampStr, Self.refJSON);
+              Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', current layer subscribed client: '+aClient.fClientID, llNormal, 1);
+            end);
         end;
       end);
   end;
@@ -1070,14 +1132,14 @@ begin
       if aInt=actionDelete then
       begin
         Log.WriteLn('unlink from '+event.eventName);
-        TMonitor.Enter(fProject.fClients);
+        TMonitor.Enter(fProject.clients);
         try
           fClientEvent := nil;
           event.unPublish;
           event.unSubscribe;
-          fProject.fClients.Remove(Self);
+          fProject.clients.Remove(Self);
         finally
-          TMonitor.Exit(fProject.fClients);
+          TMonitor.Exit(fProject.clients);
         end;
       end;
     end);
@@ -1101,7 +1163,10 @@ begin
   signalString('{"login": {}}');
   // do default registration
   SendSession();
-  SendMeasures();
+  if fProject.measuresEnabled
+  then SendMeasures();
+  if fProject.measuresHistoryEnabled
+  then SendMeasuresHistory();
   SendDomains('domains');
   fProject.newClient(Self);
 end;
@@ -1343,7 +1408,7 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     resp: string;
   begin
     // selectCategories
-    sca := aSelectObjectsProperties.getValue<TJSONArray>('selectedCategories');
+    sca := aSelectObjectsProperties.getValue<TJSONArray>('selectCategories');
     setLength(sc, sca.count);
     for i := 0 to sca.count-1
     do sc[i] := sca.Items[i].Value;
@@ -1384,7 +1449,7 @@ begin
         else if isObject(jsonObject, 'selectObjectsProperties', jsonPair)
         then selectObjectsProperties(jsonPair.JsonValue)
         // handle all other messages on the connected project
-        else fProject.handleClientMessage(jsonObject);
+        else fProject.handleClientMessage(jsonObject, fCurrentScenario);
 
 //        if isObject(jsonObject, 'applyMeasures', jsonPair)
 //        then applyMeasures(jsonPair.JsonValue as TJSONObject)
@@ -1854,16 +1919,17 @@ begin
     then colors := fLayer.tilerLayer.palette.ValueToColors(fValue)
     else colors := TGeoColors.Create($FF000000); // black
     Result := '{ '+
-      '"type":"Feature",'+
-      '"geometry":{'+
-        '"type":"'+fLayer.GeometryType+'",'+
-        '"coordinates":'+fGeometryPoint.GeoJSON2D[aType]+
-      '},'+
-      '"properties":{'+
-        '"id":"'+string(ID)+'",'+
-        '"color": "'+ColorToJSON(colors.mainColor)+'"'+
-      '}'+
-    '}'
+        '"type":"Feature",'+
+        '"geometry":{'+
+          '"type":"'+fLayer.GeometryType+'",'+
+          '"coordinates":'+fGeometryPoint.GeoJSON2D[aType]+
+        '},'+
+        '"properties":{'+
+          '"id":"'+string(ID)+'",'+
+          '"color": "'+ColorToJSON(colors.mainColor)+'",'+
+          '"fillOpacity":'+Double((colors.mainColor shr 24)/$FF).ToString(dotFormat)+
+        '}'+
+    	'}';
   end
   else Result := '';
 end;
@@ -2078,27 +2144,21 @@ begin
     then colors := fLayer.tilerLayer.palette.ValueToColors(fValue)
     else colors := TGeoColors.Create($FF000000); // black
     Result := '{ '+
-      '"type":"Feature",'+
-      '"geometry":{'+
-        '"type":"'+fLayer.GeometryType+'",'+
-        '"coordinates":'+fGeometry.GeoJSON2D[aType]+
-      '},'+
-      '"properties":{'+
-        '"id":"'+string(ID)+'",'+
-        '"color": "'+ColorToJSON(colors.mainColor)+'"'+
-      '}'+
-    '}'
+        '"type":"Feature",'+
+        '"geometry":{'+
+          '"type":"'+fLayer.GeometryType+'",'+
+          '"coordinates":'+fGeometry.GeoJSON2D[aType]+
+        '},'+
+        '"properties":{'+
+          '"id":"'+string(ID)+'",'+
+          '"color": "'+ColorToJSON(colors.mainColor)+'",'+
+          '"fillOpacity":'+Double((colors.mainColor shr 24)/$FF).ToString(dotFormat)+
+        '}'+
+    	'}';
   end
   else Result := '';
 end;
-{
-function TGeometryLayerObject.getJSONColor: string;
-begin
-  if Assigned(fLayer.palette)
-  then Result := fLayer.palette.ValueToColorJSON(fValue)
-  else Result := '#000000'; // black, default
-end;
-}
+
 function TGeometryLayerObject.getValidGeometry: Boolean;
 begin
   Result := Assigned(fGeometry);
@@ -2125,7 +2185,6 @@ end;
 procedure TLayer.addDiffLayer(aDiffLayer: TDiffLayer);
 var
   i: Integer;
-  client: TClient;
 begin
   TMonitor.Enter(fDependentDiffLayers);
   try
@@ -2134,13 +2193,10 @@ begin
     begin
       fDependentDiffLayers.Add(aDiffLayer);
       // subscribe all clients to this diff layer also
-      TMonitor.Enter(fClients);
-      try
-        for client in fClients
-        do aDiffLayer.HandleClientSubscribe(client);
-      finally
-        TMonitor.Exit(fClients);
-      end;
+      forEachClient(procedure(aClient: TClient)
+        begin
+          aDiffLayer.HandleClientSubscribe(aClient);
+        end);
     end;
   finally
     TMonitor.Exit(fDependentDiffLayers);
@@ -2416,7 +2472,6 @@ end;
 procedure TLayer.removeDiffLayer(aDiffLayer: TDiffLayer);
 var
   i: Integer;
-  client: TClient;
 begin
   TMonitor.Enter(fDependentDiffLayers);
   try
@@ -2425,13 +2480,10 @@ begin
     begin
       fDependentDiffLayers.Delete(i);
       // unsubscribe all clients from this diff layer also
-      TMonitor.Enter(fClients);
-      try
-        for client in fClients
-        do aDiffLayer.HandleClientUnsubscribe(client);
-      finally
-        TMonitor.Exit(fClients);
-      end;
+      forEachClient(procedure(aClient: TClient)
+        begin
+          aDiffLayer.HandleClientUnsubscribe(aClient);
+        end);
     end;
   finally
     TMonitor.Exit(fDependentDiffLayers);
@@ -2534,6 +2586,7 @@ begin
   if (objects.Count<=MaxDirectSendObjectCount) and (fGeometryType<>'Point')
   then Result := Result+',"objects": '+objectsJSON;
 end;
+
 function TLayer.HandleClientSubscribe(aClient: TClient): Boolean;
 var
   diffLayer: TDiffLayer;
@@ -2610,28 +2663,19 @@ end;
 procedure TLayer.handleTilerPreview(aTilerLayer: TTilerLayer);
 var
   pvBASE64: string;
-  client: TClient;
 begin
   pvBASE64 := previewBASE64;
   // layer clients
-  TMonitor.Enter(clients);
-  try
-    for client in clients
-    do client.SendPreview(elementID, pvBASE64);
-  finally
-    TMonitor.Exit(clients);
-  end;
-  // scenario clients
-  TMonitor.Enter(fScenario.clients);
-  try
-    for client in fScenario.clients do
+  forEachClient(procedure(aClient: TClient)
     begin
-      if not clients.Contains(client)
-      then client.SendPreview(elementID, pvBASE64);
-    end;
-  finally
-    TMonitor.Exit(fScenario.clients);
-  end;
+      aClient.SendPreview(elementID, pvBASE64);
+    end);
+  // scenario clients
+  fScenario.forEachClient(procedure(aClient: TClient)
+    begin
+      if not clients.Contains(aClient)
+      then aClient.SendPreview(elementID, pvBASE64);
+    end);
   Log.WriteLn('send normal preview on '+elementID);
 end;
 
@@ -2644,31 +2688,21 @@ begin
       var
         timeStampStr: string;
         tiles: string;
-        client: TClient;
       begin
         if aTimeStamp<>0
         then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
         else timeStampStr := '';
         // signal refresh to layer client
         tiles := uniqueObjectsTilesLink;
-        TMonitor.Enter(clients);
-        try
-          for client in clients
-          do client.SendRefresh(elementID, timeStampStr, tiles);
-        finally
-          TMonitor.Exit(clients);
-        end;
-        // signal refresh to scenario client
-        TMonitor.Enter(fScenario.clients);
-        try
-          for client in fScenario.clients do
+        forEachClient(procedure(aClient: TClient)
           begin
-            if not clients.Contains(client)
-            then client.SendRefresh(elementID, timeStampStr, tiles);
-          end;
-        finally
-          TMonitor.Exit(fScenario.clients);
-        end;
+            aClient.SendRefresh(elementID, timeStampStr, tiles);
+          end);
+        // signal refresh to scenario client
+        fScenario.forEachClient(procedure(aClient: TClient)
+          begin
+            aClient.SendRefresh(elementID, timeStampStr, tiles);
+          end);
       end);
   end;
   // refresh preview also
@@ -2703,28 +2737,18 @@ end;
 procedure TKPI.Update;
 var
   _json: string;
-  client: TClient;
-begin
-  // send update to clients
+begin
+  // send update to clients
   _json := '{"updatekpi":{'+JSON+'}}';
-  TMonitor.Enter(clients);
-  try
-    for client in clients
-    do client.signalString(_json);
-  finally
-    TMonitor.Exit(clients);
-  end;
+  forEachClient(procedure(aClient: TClient)
+    begin
+      aClient.signalString(_json);
+    end);
   // send also to clients on scenario for udpate of preview
-  with fScenario do
-  begin
-    TMonitor.Enter(clients);
-    try
-      for client in clients
-      do client.signalString(_json);
-    finally
-      TMonitor.Exit(clients);
-    end;
-  end;
+  fScenario.forEachClient(procedure(aClient: TClient)
+    begin
+      aClient.signalString(_json);
+    end);
 end;
 
 { TChartGroupRow }
@@ -2859,18 +2883,18 @@ begin
   do layer.RegisterLayer;
 end;
 
-function TScenario.selectLayersOnCategories(const aSelectedCategories: TArray<string>; aLayers: TList<TLayer>): Boolean;
+function TScenario.selectLayersOnCategories(const aSelectCategories: TArray<string>; aLayers: TList<TLayer>): Boolean;
 var
   ilp: TPair<string, TLayer>;
   cat: string;
 begin
   Result := False;
-  if length(aSelectedCategories)>0  then
+  if length(aSelectCategories)>0  then
   begin
     // select basic layers on categories
     for ilp in fLayers do
     begin
-      for cat in aSelectedCategories do
+      for cat in aSelectCategories do
       begin
         if ilp.Key.ToUpper=cat.ToUpper then
         begin
@@ -2894,27 +2918,27 @@ begin
   end;
 end;
 
-function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories, aSelectedIDs: TArray<string>): string;
+function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aSelectedIDs: TArray<string>): string;
 begin
   Result := '';
 end;
 
-function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aGeometry: TWDGeometry): string;
+function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string;
 begin
   Result := '';
 end;
 
-function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; aX, aY, aRadius: Double): string;
+function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string;
 begin
   Result := '';
 end;
 
-function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectedCategories: TArray<string>; const aQuery: string): string;
+function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string;
 begin
   Result := '';
 end;
 
-function TScenario.selectObjectsProperties(aClient: TClient; const aSelectedCategories, aSelectedObjects: TArray<string>): string;
+function TScenario.selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string;
 begin
   Result := '';
 end;
@@ -3064,11 +3088,11 @@ end;
 function TProject.AddClient(const aClientID: string): TClient;
 begin
   Result := TClient.Create(Self, fCurrentScenario, fRefScenario, aClientID);
-  TMonitor.Enter(fClients);
+  TMonitor.Enter(clients);
   try
-    fClients.Add(Result);
+    clients.Add(Result);
   finally
-    TMonitor.Exit(fClients);
+    TMonitor.Exit(clients);
   end;
 end;
 
@@ -3161,6 +3185,19 @@ begin
   else Result := aCurrent.elementID+'-'+aReference.elementID+'-diff';
 end;
 
+procedure TProject.forEachClient(aForEachClient: TForEachClient);
+var
+  client: TClient;
+begin
+  TMonitor.Enter(clients);
+  try
+    for client in clients
+    do aForEachClient(client);
+  finally
+    TMonitor.Exit(clients);
+  end;
+end;
+
 function TProject.getMeasuresHistoryJSON: string;
 begin
   Result := ''; // default no measures history
@@ -3176,7 +3213,7 @@ begin
   else Result := '[]';
 end;
 
-procedure TProject.handleClientMessage(aJSONObject: TJSONObject);
+procedure TProject.handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario);
 begin
   // default no action
 end;
@@ -3200,83 +3237,66 @@ begin
 end;
 
 procedure TProject.SendPreview;
-var
-  client: TClient;
-  se: TClientSubscribable;
-  preview: string;
 begin
   Log.WriteLn('Sending preview to clients connected to project '+Self.ProjectName);
-  TMonitor.Enter(clients);
-  try
-    for client in clients do
-    begin
-      TMonitor.Enter(client.subscribedElements);
+  forEachClient(procedure(aClient: TClient)
+    var
+      se: TClientSubscribable;
+      preview: string;
+		begin
+      TMonitor.Enter(aClient.subscribedElements);
       try
-        for se in client.subscribedElements do
+        for se in aClient.subscribedElements do
          begin
            if se is TLayer then
            begin
              preview := (se as TLayer).previewBASE64;
              if preview<>'' then
              begin
-               client.SendPreview(se.elementID, preview);
+               aClient.SendPreview(se.elementID, preview);
                Log.WriteLn('Send preview for '+se.elementID);
              end
              else Log.WriteLn('NO preview to send for '+se.elementID);
            end;
          end;
       finally
-        TMonitor.Exit(client.subscribedElements);
+        TMonitor.Exit(aClient.subscribedElements);
       end;
-    end;
-  finally
-    TMonitor.Exit(clients);
-  end;
+    end);
 end;
 
 procedure TProject.SendRefresh;
-var
-  client: TClient;
-  se: TClientSubscribable;
-  tiles: string;
 begin
   Log.WriteLn('Sending refresh to clients connected to project '+Self.ProjectName);
-  TMonitor.Enter(clients);
-  try
-    for client in clients do
+  forEachClient(procedure(aClient: TClient)
+    var
+      se: TClientSubscribable;
+      tiles: string;
     begin
-      TMonitor.Enter(client.subscribedElements);
+      TMonitor.Enter(aClient.subscribedElements);
       try
-        for se in client.subscribedElements do
+        for se in aClient.subscribedElements do
         begin
           if se is TLayer then
           begin
             tiles := (se as TLayer).uniqueObjectsTilesLink;
-            client.SendRefresh(se.elementID, '', tiles);
+            aClient.SendRefresh(se.elementID, '', tiles);
             Log.WriteLn('Send refresh for '+se.elementID+': '+tiles);
           end;
         end;
       finally
-        TMonitor.Exit(client.subscribedElements);
+        TMonitor.Exit(aClient.subscribedElements);
       end;
-    end;
-  finally
-    TMonitor.Exit(clients);
-  end;
+    end);
 end;
 
 procedure TProject.SendString(const aString: string);
-var
-  client: TClient;
 begin
   //Log.WriteLn('Sending string to clients connected to project '+Self.ProjectName);
-  TMonitor.Enter(clients);
-  try
-    for client in clients
-    do client.signalString(aString);
-  finally
-    TMonitor.Exit(clients);
-  end;
+  forEachClient(procedure(aClient: TClient)
+    begin
+      aClient.signalString(aString);
+    end);
 end;
 
 procedure TProject.setMapView(const aValue: TMapView);
@@ -3293,6 +3313,7 @@ begin
   begin
     fMeasuresEnabled := aValue;
     // update session info for all connected clients
+    // todo: check locking and use forEachClient
     for client in clients
     do client.SendMeasuresEnabled;
   end;
@@ -3306,6 +3327,7 @@ begin
   begin
     fMeasuresHistoryEnabled := aValue;
     // update session info for all connected clients
+    // todo: check locking and use forEachClient
     for client in clients
     do client.SendMeasuresHistoryEnabled;
   end;
@@ -3332,6 +3354,7 @@ begin
   begin
     fSelectionEnabled := aValue;
     // update session info for all connected clients
+    // todo: check locking and use forEachClient
     for client in clients
     do client.SendSelectionEnabled;
   end;
@@ -3345,6 +3368,7 @@ begin
   begin
     fTimeSlider := aValue;
     // update session info for all connected clients
+    // todo: check locking and use forEachClient
     for client in clients
     do client.SendTimeSlider;
   end;

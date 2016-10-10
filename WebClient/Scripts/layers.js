@@ -145,8 +145,10 @@ function addLayerToMap(layer, opacity) {
         var geoJsonLayer = L.geoJson(layer.objects ? layer.objects.features : [], {
             opacity: opacity,
             style: function (feature) {
+                if (typeof feature.properties.fillOpacity !== 'undefined')
+                    return { color: feature.properties.color, fillOpacity: feature.properties.fillOpacity, opacity: feature.properties.fillOpacity };
                 // test code for live trafic..
-                if (feature.properties.color == '#000000')
+                else if (feature.properties.color == '#000000')
                     return { color: '#000000', weight: 1 };
                 else
                     return { color: feature.properties.color };
