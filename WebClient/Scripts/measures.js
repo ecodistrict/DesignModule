@@ -182,9 +182,9 @@
         var measureDefinition = this._measuresLookup[L.stamp(e.target)];
         if (measureDefinition) {
             // build modal dialog for possible actions
-            var div = modalDialogCreate(measureDefinition.measure, 
-                this.options.selectCategories.length == 0 ? 
-                    'Select measure to apply' : 
+            var div = modalDialogCreate(measureDefinition.measure,
+                this.options.selectCategories.length == 0 ?
+                    'Select measure to apply' :
                     'Select measure to apply to objects of type: ' + this.options.selectCategories);
             div.style.width = '450px';
             // build dialog form
@@ -197,7 +197,7 @@
                 button.removeAttribute("disabled");
             });
 
-            for (var a in measureDefinition.actions) 
+            for (var a in measureDefinition.actions)
                 this._addMeasureLine(f, measureDefinition.actions[a]);
 
             f.appendChild(document.createElement('br'));
@@ -235,8 +235,9 @@
             }
 
             var selectedRadio = document.querySelector('input[name=measureOption]:checked');
-            if (!selectedRadio)
-                applyButton.setAttribute("disabled", true);
+            if (!selectedRadio) {
+              applyButton.setAttribute("disabled", true);
+            }                
             modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
         }
     },
