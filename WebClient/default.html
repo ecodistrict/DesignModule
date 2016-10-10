@@ -71,6 +71,7 @@
     <script src="Scripts/windDirection.js"></script>
     <script src="Scripts/warningDialog.js"></script>
     <script src="Scripts/start-stop.js"></script>
+    <script src="Scripts/webSocket.js"></script>
     <!-- charts -->
     <script src="Scripts/d3.js"></script> 
     <script src="Scripts/bullet.js"></script>
@@ -85,7 +86,7 @@
             //session = '1234'; // default test session
             //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
             //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerp
-            //session = "SSM";
+            session = "SSM";
             //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
             //session = 'ensel';
         }
@@ -111,7 +112,6 @@
             description: sessionDescription,
             referenceScenario: null
         };
-
 
         // top-right
 
@@ -139,14 +139,12 @@
         map.addControl(measuresControl);
         measuresControl.setSelectCategories([]);
 
-
         //DataManager.wind = L.control.arrow();//L.control.wind({});
         //map.addControl(DataManager.wind);
 
         // bottom-right (reverse order)
 
         //Wind Arrow
-
 
         // time slider
         var tsStart = new Date();
@@ -168,7 +166,6 @@
         map.addControl(crd);
 
         detailsControl.setCRD(crd);
-
 
         // bottom-left (reverse order)
 
@@ -192,314 +189,7 @@
         //GraphManager.MakeGraph();
         //GraphManager.MakeGraph();
         
-        // web socket connection
-        var ws;
-        var wsLastConnectDateTime;
-
-        function wsConnect() {
-            ws = new WebSocket(wsBaseURL + '/sessions?session=' + session);
-            ws.onopen = function (e) {
-                connectionStatus.classList.remove('connection-status-disconnected');
-                connectionStatus.classList.add('connection-status-connected');
-                // todo: remove all basic layers?
-                // todo: remove all non-basic layers?
-                wsLastConnectDateTime = new Date();
-            };
-            ws.onmessage = function (evt) {
-                var message = JSON.parse(evt.data);
-                if (message.measures) {
-                    measuresControl.resetMeasures(message.measures);
-                }
-                else if (message.domains) {
-                    // first domains after login
-                    domainsControl.resetDomains(message.domains);
-                    // remove all basic overlay layers from layers control (and with that from map)
-                    for (var id in layerControl._layers) {
-                        var lcl = layerControl._layers[id];
-                        if (lcl.overlay) {
-                            layerControl.removeLayer(lcl.layer);
-                        }
-                    }
-                    // add basic layers from domains
-                    for (var domainName in message.domains) {
-                        var domain = message.domains[domainName];
-                        for (var id in domain.layers) {
-                            var layer = domain.layers[id];
-                            if (layer.basic)
-                                addBasicLayer(layer);
-                        }
-                    }
-                }
-                else if (message.updatedomains) {
-                    // update of domains (on scenario change)
-                    removeAllDomainLayers();
-                    legendControl.clearLegend(true);
-                    crd.reset(false, false, false);
-                    domainsControl.updateDomains(message.updatedomains);
-                    // replace all basic overlay layers from layers control (and with that from map)
-                    for (var id in layerControl._layers) {
-                        var lcl = layerControl._layers[id];
-                        if (lcl.overlay) {
-                            layerControl.removeLayer(lcl.layer);
-                        }
-                    }
-                    // add basic layers from domains
-                    for (var domainName in message.updatedomains) {
-                        var domain = message.updatedomains[domainName];
-                        for (var id in domain.layers) {
-                            var layer = domain.layers[id];
-                            if (layer.basic)
-                                addBasicLayer(layer);
-                        }
-                    }
-                }
-                else if (message.refresh) {
-                    var elementID = message.refresh;
-                    if (message.tiles && message.tiles != '') {
-                        detailsControl.updateTilesURL(elementID, message.tiles);
-                        // todo: if basic layer -> check and update that url!
-                    }
-                    else if (message.preview)
-                        detailsControl.updatePreview(elementID, message.preview);
-                    else {
-                        refreshOtherLayer(elementID);
-                        // todo: check kpis?
-                        // todo: check charts?
-                    }
-                    
-                }
-                else if (message.updatelayer) {
-                    var elementID = message.updatelayer.id;
-                    // online layer
-                    for (var mlid in map._layers) {
-                        var layer = map._layers[mlid];
-                        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == elementID) {
-                            if (message.updatelayer.newobjects) {
-                                // dictionary of id: feature
-                                for (var id in message.updatelayer.newobjects) {
-                                    layer.addData(message.updatelayer.newobjects[id]);
-                                }
-                            }
-                            else if (message.updatelayer.changedcolors) {
-                                // dictionary of id: color
-                                for (var lid in layer._layers) {
-                                    var fid = layer._layers[lid].feature.properties.id;
-                                    var newColor = message.updatelayer.changedcolors[fid];
-                                    if (newColor)
-                                        layer._layers[lid].feature.properties.color = newColor;
-                                }
-                                layer.setStyle(
-                                    function (feature) {
-                                        // todo: test code for live trafic.. generalize..
-                                        if (feature.properties.color == '#000000')
-                                            return { color: '#000000', weight: 1  };
-                                        else
-                                            return { color: feature.properties.color }
-                                    });
-                            }
-                            else if (message.updatelayer.removedobjects) {
-                                // dictionary id: X
-                                for (var lid in layer._layers) {
-                                    var fid = layer._layers[lid].feature.properties.id;
-                                    if (message.updatelayer.removedobjects[fid])
-                                        layer.removeLayer(layer._layers[lid]);
-                                }
-                            }
-                            if (message.updatelayer.timestamp) {
-                                showLayerTimeStamp(message.updatelayer.timestamp)
-                                
-                            }
-                        }
-                    }
-                    // data in details view
-                }
-                else if (message.updatekpi) {
-                    detailsControl.resetkpi(message.updatekpi);
-                }
-                else if (message.selectedObjects) {
-                    // add selected objects to layer, ut first adjust selected categories
-                    measuresControl.setSelectCategories(message.selectedObjects.selectCategories);
-                    handleObjectSelection(message.selectedObjects);
-                }
-                else if (message.selectedObjectsProperties) {
-                    showSelectedObjectsProperties(message.selectedObjectsProperties)
-                }
-                else if (message.session) {
-                    // handle session message
-                    if (message.session.description) {
-                        DataManager.sessionInfo.description = message.session.description;
-                        projectDescription.options.description = message.session.description;
-                        projectDescription.update();
-                    }
-                    if (message.session.activeScenario) {
-                        DataManager.sessionInfo.scenario = message.session.activeScenario;
-                        projectDescription.options.activeScenario = message.session.activeScenario;
-                    }
-                    if (message.session.referenceScenario) {
-                        DataManager.sessionInfo.referenceScenario = message.session.referenceScenario;
-                        projectDescription.options.referenceScenario = message.session.referenceScenario;
-                    }
-                    else {
-                        DataManager.sessionInfo.referenceScenario = null;
-                        projectDescription.options.referenceScenario = message.session.referenceScenario;
-                    }
-                    if (message.session.scenarios)
-                        projectDescription.options.scenarios = message.session.scenarios;
-                    if (message.session.view) {
-                        map.setView([message.session.view.lat, message.session.view.lon], message.session.view.zoom);
-                    }
-                    if (typeof message.session.timeslider !== 'undefined') {
-                        if (message.session.timeslider) {
-                            if (message.session.timeslider == 1) {
-                                map.addControl(timesliderControl);
-                                timesliderControl._collapse();
-                            }
-                            else if (message.session.timeslider == 2) {
-                                map.addControl(timesliderControl);
-                                timesliderControl._expand();
-                            }
-                        }
-                        else {
-                            timesliderControl._collapse();
-                            map.removeControl(timesliderControl);
-                        }
-                    }
-                    if (typeof message.session.selectionEnabled !== 'undefined') {
-                        if (message.session.selectionEnabled) {
-                            addSelectControl();
-                        }
-                        else {
-                            removeSelectControl();
-                        }
-                    }
-                    if (typeof message.session.measuresEnabled !== 'undefined') {
-                        if (message.session.measuresEnabled)
-                            map.addControl(measuresControl);
-                        else
-                            map.removeControl(measuresControl);
-                    }
-                    if (typeof message.session.measuresHistoryEnabled !== 'undefined') {
-                        if (message.session.measuresHistoryEnabled)
-                            map.addControl(historyControl);
-                        else
-                            map.removeControl(historyControl);
-                    }
-                    if (typeof message.session.simulationControlEnabled !== 'undefined')
-                        if (message.session.simulationControlEnabled)
-                            map.addControl(startControl);
-                        else
-                            map.removeControl(startControl);
-                    else {
-                        map.removeControl(startControl);
-                    }
-                }
-                else if (message.login) {
-                    // login request, return login information
-                    wsSend({ login: { scenario: scenario, userid: userid } });
-                }
-                else if (message.connection) {
-                    // connection specific, from ws2imb
-                    if (message.connection.message)
-                        showUserMessage(message.connection.message, message.connection.messageType);
-                }
-                else if (message.sensor) {
-                    DataManager.NewSensor(message.sensor);
-                }
-                else if (message.complaint) {
-                    DataManager.NewComplaint(message.complaint);
-                }
-                else if (message.sensordata) {
-                    DataManager.NewSensorData(message.sensordata);
-                }
-                else if (message.winddata) {
-                    DataManager.NewWindData(message.winddata);
-                }
-                else if (message.removecomplaint) {
-                    if (typeof message.removecomplaint.complaintid !== 'undefined')
-                        DataManager.RemoveComplaint(message.removecomplaint.complaintid);
-                }
-                else if (message.removesensor) {
-                    if (typeof message.removesensor.sensorid !== 'undefined')
-                        DataManager.RemoveSensor(message.removesensor.sensorid);
-                }
-                else if (message.addhistorymeasures) {
-                    historyControl.addHistoryItems(message.addhistorymeasures);
-                }
-                else if (message.removehistorymeasures) {
-                    historyControl.removeHistoryItems(removehistorymeasures);
-                }
-                else if (message.addcar) {
-                    DataManager.AddCars(message.addcar);
-                }
-                else if (message.updatecar) {
-                    DataManager.UpdateCars(message.updatecar);
-                }
-                else if (message.removecar) {
-                    DataManager.RemoveCars(message.removecar);
-                }
-                else if (message.newGTUsensor)
-                {
-                    //console.log("new GTU sensor: " + message.newGTUsensor);
-                }
-                else if (message.updateGTUsensor)
-                {
-                    //console.log("new GTU sensor reading: " + message.updateGTUsensor);
-                }
-                else if (message.newGTUstatistics)
-                {
-                    for (var i = 0; i < message.newGTUstatistics.length; i++)
-                        GraphManager.MakeGraph(message.newGTUstatistics[i]);
-                }
-                else if (message.updateGTUstatistics)
-                {
-                    GraphManager.UpdateGraphs(message.updateGTUstatistics);
-                }
-                else if (message.simulationControl)
-                {
-                    if (typeof message.simulationControl.start !== "undefined")
-                    {
-                        startControl.SimulationStarted();
-                    }
-                    else if (typeof message.simulationControl.stop !== "undefined")
-                    {
-                        startControl.SimulationStopped();
-                    }
-                    else if (typeof message.simulationControl.speed !== "undefined")
-                    {
-                        DataManager.simSpeed = message.simulationControl.speed;
-                        showUserMessage("Simulation speed changed to: " + message.simulationControl.speed, 1);
-                    }
-                }
-            };
-            ws.onerror = function (evt) {
-                if (evt.message)
-                    showUserMessage("disconnect: " + evt.message);
-                else
-                    showUserMessage("disconnected");
-
-                connectionStatus.classList.remove('connection-status-connected');
-                connectionStatus.classList.add('connection-status-disconnected');
-            };
-            ws.onclose = function (evt) {
-                connectionStatus.classList.remove('connection-status-connected');
-                connectionStatus.classList.add('connection-status-disconnected');
-                var timeDiff = Math.abs(wsLastConnectDateTime.getTime() - new Date().getTime());
-                if (evt.code && evt.code != 1000)
-                    showUserMessage("disconnected (close " + evt.code + ", " + evt.reason + ") after " + Math.round(timeDiff/1000)+ " seconds");
-            };
-        };
-
-        function wsSend(obj) {
-            if (ws) {
-                return ws.readyState && ws.readyState == WebSocket.OPEN ? ws.send(JSON.stringify(obj)) : -1;
-            }
-            else
-                return -2;
-        };
-
-        function wsClose() {
-            ws.close();
-        }
+        
 
         // link up connection control
         var connectionStatus = document.getElementById('connectionStatus');
