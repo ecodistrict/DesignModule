@@ -437,16 +437,18 @@ begin
             palette := TDiscretePalette.CreateFromJSON(iqp.Value.palettejson);
             if iqp.Value.legendjson<>''
             then legendJSON := iqp.Value.legendjson
-            else legendJSON := BuildDiscreteLegendJSON(palette as TDiscretePalette, TLegendFormat.lfVertical); // todo: parameterize
+            else legendJSON := BuildDiscreteLegendJSON(palette as TDiscretePalette, TLegendFormat.lfVertical); // todo: parameterize (from palette json?)
           end;
         wdkPaletteRamp:
           begin
             palette := TRampPalette.CreateFromJSON(iqp.Value.palettejson);
-            legendJSON := iqp.Value.legendjson;
+            if iqp.Value.legendjson<>''
+            then legendJSON := iqp.Value.legendjson
+            else legendJSON := BuildRamplLegendJSON(palette as TRampPalette{, ..}); // todo: parameterize (from palette json?)
           end;
       else
         palette := CreateBasicPalette;
-        legendJSON := iqp.Value.legendjson;
+        legendJSON := iqp.Value.legendjson; // no automatic legend creation because mostly without legend (no value specified anyway..)
       end;
     end
     else
@@ -997,7 +999,7 @@ begin
         except
           on e: exception do
           begin
-            log.WriteLn('exception in TEcodistrictScenario.selectObjectsProperties: '+e.Message, llError);
+            log.WriteLn('exception in TEcodistrictScenario.selectObjectsProperties: '+e.Message+' (sql: '+query.SQL.Text+')', llError);
           end;
         end;
       finally
