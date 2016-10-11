@@ -14,7 +14,10 @@ L.control.legend.onAdd = function (map) {
 
 var legend = null;
 
+
 L.control.legend._moveit = function (e) {
+
+
   if (e.type === 'touchmove') {
     if (legend) {
       legend.style.left = (legend._mdx + e.changedTouches[0].clientX)+'px';
@@ -32,23 +35,25 @@ L.control.legend._moveit = function (e) {
 };
 
 L.control.legend._endmove = function (e) {
+
   window.removeEventListener('mouseup', L.control.legend._endmove, true);
-  window.addEventListener('touchend', L.control.legend._endmove, true);
+  window.removeEventListener('touchend', L.control.legend._endmove, true);
 
   window.removeEventListener('mousemove', L.control.legend._moveit, true);
-  window.addEventListener('touchmove', L.control.legend._moveit, true);
+  window.removeEventListener('touchmove', L.control.legend._moveit, true);
 
   legend = null;
 };
 
 L.control.legend._startmove = function (e) {
 
+
   legend = e.target;
 
   while (legend && ! legend.classList.contains('legend'))
   legend = legend.parentNode;
   if (legend) {
-    
+
     window.addEventListener('mouseup', L.control.legend._endmove, true);
     window.addEventListener('touchend', L.control.legend._endmove, true);
 
@@ -316,3 +321,33 @@ grid: [
 //    this.createLegend(this.definition);
 //}
 };
+
+
+
+if (is_touch_device()) {
+  document.addEventListener('touchstart', function(event) {
+    this.allowUp = (this.scrollTop > 0);
+    this.allowDown = (this.scrollTop < this.scrollHeight - this.clientHeight);
+    this.slideBeginY = event.pageY;
+  });
+
+  document.addEventListener('touchmove', function(event) {
+    var up = (event.pageY > this.slideBeginY);
+    var down = (event.pageY < this.slideBeginY);
+    this.slideBeginY = event.pageY;
+    if ((up && this.allowUp) || (down && this.allowDown)) {
+      event.stopPropagation();
+    }
+    else {
+      event.preventDefault();
+    }
+  });
+}
+function is_touch_device() {
+  try {
+    document.createEvent("TouchEvent");
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
