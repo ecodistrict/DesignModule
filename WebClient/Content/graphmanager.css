@@ -1,37 +1,56 @@
-﻿/*todo: get rights for noun-project icon*/
+/*todo: get rights for noun-project icon*/
 
 
 #graphsContainer {
-    pointer-events: none;
-    position: fixed;
+  pointer-events: none;
+  position: fixed;
+}
+
+.modalDialog-close {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  cursor: pointer;
+  width: 19px;
+  height: 25px;
+  font-size:20px;
 }
 
 .graphDiv {
-    pointer-events: auto;
-    position: absolute;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    border-radius: 4px;
-	background: white;
-    border: 2px solid rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+  position: absolute;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  border-radius: 4px;
+  background: white;
+  border: 2px solid rgba(0, 0, 0, 0.2);
 }
 
 .graph-info {
-    position:absolute;
-    top: 1px;
-    right: 21px;
-    cursor:pointer;
-    width: 16px;
-    height: 16px;
-    background-image: url('images/info.png')
+  position: absolute;
+  top: 6px;
+  right: 28px;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  background-image: url('images/info.png');
 }
 
 .graph-resize {
-    position: absolute;
-    right: 0px;
-    bottom: 0px;
-    width: 10px;
-    height: 10px;
-    background-image: url('images/resize.png');
+  position: absolute;
+  right: 0px;
+  bottom: 0px;
+  width: 25px;
+  height: 25px;
+  background-image: url('images/resize.png');
+  background-position: 0px 0px;
+  background-repeat: no-repeat;
+  padding: 2px;
+  cursor: nwse-resize;
+}
+
+.modalDialog-close:hover, .graph-info:hover, .graph-resize:hover, .modalDialog-close:hover {
+  opacity:0.75;
+  color: hsla(0,0%,0%,0.7);
 }
 
 .axis {
@@ -40,27 +59,27 @@
 }
 
 .xAxis {
-    
+
 }
 
 svg text {
-    
+
 }
 
 .axisLabel {
-    fill: rgba(0, 0, 0, 0.5);
-    font-size: 12px;
+  fill: rgba(0, 0, 0, 0.5);
+  font-size: 12px;
 }
 
 .xAxis line {
-    stroke: black;
+  stroke: black;
 }
 .xAxis path {
-    stroke: black;
+  stroke: black;
 }
 
 path {
-    shape-rendering: crispEdges;
+  shape-rendering: crispEdges;
 }
 
 .yAxis {
@@ -68,9 +87,9 @@ path {
 }
 
 .yAxis line {
-    stroke: black;
+  stroke: black;
 }
 
 .yAxis path {
-    stroke: black;
+  stroke: black;
 }
