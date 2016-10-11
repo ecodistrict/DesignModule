@@ -12,8 +12,10 @@ uses
 
   GisDefs, GisCsSystems,
 
-  System.JSON,
   SessionServerLib,
+
+  System.JSON,
+  System.Generics.Collections,
   SysUtils;
 
 type
@@ -43,6 +45,8 @@ type
     turnIndicatorStatus: string;
     brakingLights: Boolean;
     odometer: Double;
+    // cache
+    latlon: TGIS_Point;
   public
     function getGeoJSON2D(const aType: string): string; override;
     function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; override;
@@ -52,6 +56,8 @@ type
     function new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
     function change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
     function delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
+
+    function toJSONNew: string;
   end;
 
   TSSMSensor = class(TLayerObject)
@@ -88,6 +94,7 @@ type
   end;
 
   TSSMStatistic = class(TLayerObject)
+  constructor Create(aLayer: TLayer; const aID: TWDID);
   public
     // gtuID = TLayerObject.ID
     // timestamps
@@ -129,6 +136,9 @@ type
     function new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
     function change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
     function delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
+
+    function toJSONNew: string;
+    function toJSONChange: string;
   end;
 
   TSSMLayer  = class(TLayer)
@@ -150,6 +160,8 @@ type
     procedure HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
+  public
+    procedure handleNewClient(aClient: TClient);
   end;
 
   TSSMProject  = class(TProject)
@@ -164,7 +176,7 @@ type
   public
     procedure ReadBasicData(); override;
     procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); override;
-  public
+    procedure handleNewClient(aClient: TClient); override;
     property imb3Connection: TIMBConnection read fIMB3Connection;
     property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
   end;
@@ -196,25 +208,24 @@ var
   _y: Double;
   _turnIndicatorStatus: string;
   _brakingLights: boolean;
-  p: TGIS_Point;
 begin
   Result := '';
   // start after timestamp and gtuId
   aPayload.Read(_x);
   aPayload.Read(_y);
   // project point always and use offset as an extra option to put a 0 based network in a location
-  p.X := _x+aOffsetInRD.X;
-  p.Y := _y+aOffsetInRD.Y;
-  p := aSourceProjection.ToGeocs(p);
+  latlon.X := _x+aOffsetInRD.X;
+  latlon.Y := _y+aOffsetInRD.Y;
+  latlon := aSourceProjection.ToGeocs(latlon);
   // check for changes
   if x<>_x then
   begin
-    addResult('lng', DoubleToJSON(p.x));
+    addResult('lng', DoubleToJSON(latlon.x));
     x := _x;
   end;
   if y<>_y then
   begin
-    addResult('lat', DoubleToJSON(p.y));
+    addResult('lat', DoubleToJSON(latlon.y));
     y := _y;
   end;
   aPayload.Read(z);
@@ -290,18 +301,17 @@ function TSSMCar.new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: T
 
 var
   R, G, B: byte;
-  p: TGIS_Point;
 begin
   Result := '';
   // start after timestamp and gtuId
   aPayload.Read(x);
   aPayload.Read(y);
   // project point always and use offset as an extra option to put a 0 based network in a location
-  p.X := x+aOffsetInRD.X;
-  p.Y := y+aOffsetInRD.Y;
-  p := aSourceProjection.ToGeocs(p);
-  addResult('lng', DoubleToJSON(p.X));
-  addResult('lat', DoubleToJSON(p.Y));
+  latlon.X := x+aOffsetInRD.X;
+  latlon.Y := y+aOffsetInRD.Y;
+  latlon := aSourceProjection.ToGeocs(latlon);
+  addResult('lng', DoubleToJSON(latlon.X));
+  addResult('lat', DoubleToJSON(latlon.Y));
   aPayload.Read(z);
   aPayload.Read(rotZ);
   aPayload.Read(networkId);
@@ -315,6 +325,21 @@ begin
   aPayload.Read(B);
   baseColor :=  RGBToAlphaColor(R, G, B);
   //Log.WriteLn('color '+baseColor.ToHexString(8), llNormal, 1);
+  addResult('fill', '"'+ColorToJSON(baseColor)+'"');
+end;
+
+function TSSMCar.toJSONNew: string;
+
+  procedure addResult(const aName, aValue: string);
+  begin
+    if Result<>''
+    then Result := Result+',';
+    Result := Result+'"'+aName+'":'+aValue;
+  end;
+
+begin
+  addResult('lng', DoubleToJSON(latlon.X));
+  addResult('lat', DoubleToJSON(latlon.Y));
   addResult('fill', '"'+ColorToJSON(baseColor)+'"');
 end;
 
@@ -457,6 +482,28 @@ begin
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07", "name": "Voertuigstops", "x": {"label": "simulatie seconden"}, "y": [{"label":"stops","color":"LightBlue"}]}';
 end;
 
+function TSSMStatistic.toJSONChange: string;
+begin
+  Result:='{"id":"'+ string(self.ID)+'-KPI01","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUDistance)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI02","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUTravelTime)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI03","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageGTUSpeed)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI04","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageGTUTravelTime)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI05","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUTimeDelay)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI06","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageTripLength)+']}';
+  Result:=Result + ',{"id":"' + string(self.ID)+'-KPI07","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalNumberStops)+']}';
+end;
+
+function TSSMStatistic.toJSONNew: string;
+begin
+  Result:='{"id":"'+ string(self.ID)+'-KPI01", "name": "Totale voertuigkilometers", "x": {"label": "simulatie seconden"}, "y": [{"label":"meters","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI02", "name": "Totale reistijd", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI03", "name": "Gemiddelde snelheid", "x": {"label": "simulatie seconden"}, "y": [{"label":"m/s","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI04", "name": "Gemiddelde reistijd", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI05", "name": "Voertuigverliesuren", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06", "name": "Gemiddelde ritlengte", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+  Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07", "name": "Voertuigstops", "x": {"label": "simulatie seconden"}, "y": [{"label":"stops","color":"LightBlue"}]}';
+end;
+
 function TSSMStatistic.change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
 
   procedure addResult(const aName, aValue: string);
@@ -492,6 +539,12 @@ begin
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI05","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUTimeDelay)+']}';
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI06","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageTripLength)+']}';
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI07","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalNumberStops)+']}';
+end;
+
+constructor TSSMStatistic.Create(aLayer: TLayer; const aID: TWDID);
+begin
+  newTimestamp := Double.NaN;
+  inherited Create(aLayer, aID);
 end;
 
 function TSSMStatistic.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point):  string;
@@ -613,6 +666,7 @@ begin
           car.deletedTimestamp := timestamp;
           jsonStr := '"id":"'+string(UTF8String(gtuId))+'"'; // +car.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD)}
           scenario.project.SendString('{"removecar": [{'+jsonStr+'}]}');
+          objects.Remove(car.ID);
         end
         else Log.WriteLn('TSSMLayer.HandleGTUEvent: delete, unknown car id '+string(UTF8String(gtuId)), llError);
       end;
@@ -678,6 +732,7 @@ begin
           sensor.deletedTimestamp := timestamp;
           jsonStr := '"id":"'+string(UTF8String(combiId))+'",'+sensor.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
           scenario.project.SendString('{"removeGTUsensor": [{'+jsonStr+'}]}');
+          objects.remove(sensor.id);
         end
         else Log.WriteLn('TSSMLayer.HandleGTUEvent: delete, unknown sensor id '+string(UTF8String(combiId)), llError);
       end;
@@ -733,9 +788,30 @@ begin
           stat.deletedTimestamp := timestamp;
           jsonStr := stat.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
           scenario.project.SendString('{"removeGTUsensor": ['+jsonStr+']}');
+          objects.Remove(stat.id);
         end
         else Log.WriteLn('TSSMLayer.HandleGTUstatisticEvent: delete, unknown sensor id '+string(UTF8String(statisticId)), llError);
       end;
+  end;
+end;
+
+procedure TSSMLayer.handleNewClient(aClient: TClient);
+var
+  iop: TPair<TWDID, TLayerObject>;
+begin
+  // send new cars
+  for iop in objects do
+  begin
+    if iop.Value is TSSMCar then
+    begin
+      aClient.signalString('{"addcar": [{'+'"id":"'+string(UTF8String(iop.Key))+'",'+(iop.Value as TSSMCar).toJSONNew+'}]}');
+    end
+    else if iop.Value is TSSMStatistic then
+    begin
+      aClient.signalString('{"newGTUstatistics": ['+(iop.Value as TSSMStatistic).toJSONNew+']}');
+      if not (iop.Value as TSSMStatistic).newTimestamp.IsNan
+      then aClient.signalString('{"updateGTUstatistics": ['+(iop.Value as TSSMStatistic).toJSONChange+']}');
+    end;
   end;
 end;
 
@@ -812,6 +888,26 @@ begin
     end;
   end
   else ;
+end;
+
+procedure TSSMProject.handleNewClient(aClient: TClient);
+var
+  isp: TPair<string, TScenario>;
+  ilp: TPair<string, TLayer>;
+begin
+  for isp in scenarios do
+  begin
+    try
+      for ilp in isp.value.layers do
+      begin
+        if ilp.Value is TSSMLayer
+        then (ilp.Value as TSSMLayer).handleNewClient(aClient);
+      end;
+    except
+      on E: Exception
+      do Log.WriteLn('Exception in TSSMProject.handleNewClient: '+e.Message, llError);
+    end;
+  end;
 end;
 
 procedure TSSMProject.ReadBasicData;

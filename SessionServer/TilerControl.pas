@@ -315,6 +315,7 @@ var
   fieldInfo: UInt32;
   timeStamp: TDateTime;
   previewsFolder: string;
+  bytes: TBytes;
 begin
   try
     while aCursor<aLimit do
@@ -328,7 +329,7 @@ begin
         (icehTilerURL shl 3) or wtLengthDelimited:
           begin
             fURL := aBuffer.bb_read_string(aCursor);
-            if Assigned(fOnTilerInfo) then
+            if Assigned(fOnTilerInfo) and Assigned(Self) then
             begin
               try
                 fOnTilerInfo(self); // -> AddCommandToQueue(Self, Self.signalObjects);
@@ -341,7 +342,7 @@ begin
         (icehTilerRefresh shl 3) or wt64Bit:
           begin
             timeStamp := aBuffer.bb_read_double(aCursor);
-            if Assigned(fOnRefresh) then
+            if Assigned(fOnRefresh) and Assigned(Self) then
             begin
               try
                 fOnRefresh(self, timeStamp);
@@ -383,22 +384,27 @@ begin
         (icehTilerPreviewImage shl 3) or wtLengthDelimited:
           begin
             try
+              bytes := aBuffer.bb_read_tbytes(aCursor);
               fPreview.Free;
               fPreview := TPngImage.Create;
-              BytesToImage(aBuffer.bb_read_tbytes(aCursor), fPreview);
-              // cache preview
-              previewsFolder := ExtractFilePath(ParamStr(0))+'previews';
-              ForceDirectories(previewsFolder);
-              fPreview.SaveToFile(previewsFolder+'\'+elementID+'.png');
-              if Assigned(fOnPreview) then
+              if Assigned(fPreview) then
               begin
-                try
-                  fOnPreview(self);
-                except
-                  on E: Exception
-              		do Log.WriteLn('Exception TTilerLayer.handleLayerEvent handling OnPreview: '+e.Message, llError);
+                BytesToImage(bytes, fPreview);
+                // cache preview
+                previewsFolder := ExtractFilePath(ParamStr(0))+'previews';
+                ForceDirectories(previewsFolder);
+                fPreview.SaveToFile(previewsFolder+'\'+elementID+'.png');
+                if Assigned(fOnPreview) and Assigned(Self) then
+                begin
+                  try
+                    fOnPreview(self);
+                  except
+                    on E: Exception
+                    do Log.WriteLn('Exception TTilerLayer.handleLayerEvent handling OnPreview: '+e.Message, llError);
+                  end;
                 end;
-              end;
+              end
+              else Log.WriteLn('TTilerLayer.handleLayerEvent handling icehTilerPreviewImage: could not create preview png', llError);
               { ->
               pvBASE64 := previewBASE64;
               // layer clients

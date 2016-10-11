@@ -196,10 +196,11 @@ type
     property domain: string read fDomain;
     property ID: string read fID;
     property name: string read fName;
-    property description: string read fDescription;
     property defaultLoad: Boolean read fDefaultLoad;
     property JSON: string read getJSON;
     property elementID: string read getElementID;
+    // writable
+    property description: string read fDescription write fDescription;
   end;
 
   TLayerObject = class
@@ -566,6 +567,7 @@ type
   public
     function AddClient(const aClientID: string): TClient;
     procedure ReadBasicData(); virtual; abstract;
+    procedure handleNewClient(aClient: TClient); virtual;
   public
     property Connection: TConnection read fConnection;
     property dbConnection: TCustomConnection read fDBConnection;
@@ -1129,18 +1131,23 @@ begin
   fClientEvent.OnIntString.Add(
     procedure(event: TEventEntry; aInt: Integer; const aString: string)
     begin
-      if aInt=actionDelete then
-      begin
-        Log.WriteLn('unlink from '+event.eventName);
-        TMonitor.Enter(fProject.clients);
-        try
-          fClientEvent := nil;
-          event.unPublish;
-          event.unSubscribe;
-          fProject.clients.Remove(Self);
-        finally
-          TMonitor.Exit(fProject.clients);
+      try
+        if aInt=actionDelete then
+        begin
+          Log.WriteLn('unlink from '+event.eventName);
+          TMonitor.Enter(fProject.clients);
+          try
+            fClientEvent := nil;
+            event.unPublish;
+            event.unSubscribe;
+            fProject.clients.Remove(Self);
+          finally
+            TMonitor.Exit(fProject.clients);
+          end;
         end;
+      except
+        on E: Exception
+        do Log.WriteLn('Exception in TClient.Create fClientEvent.OnIntString: '+E.Message, llError);
       end;
     end);
   // add handler for client commands
@@ -1169,6 +1176,7 @@ begin
   then SendMeasuresHistory();
   SendDomains('domains');
   fProject.newClient(Self);
+  fProject.handleNewClient(Self);
 end;
 
 destructor TClient.Destroy;
@@ -1311,6 +1319,7 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     oids: TArray<string>;
     i: Integer;
     resp: string;
+    jsonSelectedObjects: TJSONArray;
   begin
     // decode selection and send back objects
     resp := '';
@@ -1379,7 +1388,13 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
         if Assigned(fCurrentScenario) then
         begin
           // decode objects from measure                         \
-          setLength(oids, 0);
+          if aSelectObjects.TryGetValue<TJSONArray>('selectedObjects', jsonSelectedObjects) then
+          begin
+            setLength(oids, jsonSelectedObjects.Count);
+            for i := 0 to jsonSelectedObjects.Count-1
+            do oids[i] := jsonSelectedObjects.Items[i].value;
+          end
+          else setLength(oids, 0);
           resp := fCurrentScenario.SelectObjects(Self, t, m, sc, oids);
         end;
       end
@@ -3140,10 +3155,15 @@ begin
   fProjectEvent.OnIntString.Add(
     procedure(event: TEventEntry; aInt: Integer; const aString: string)
     begin
-      if aInt=actionNew then
-      begin
-        Log.WriteLn(aProjectId+': link to '+aString);
-        AddClient(aString);
+      try
+        if aInt=actionNew then
+        begin
+          Log.WriteLn(aProjectId+': link to '+aString);
+          AddClient(aString);
+        end;
+      except
+        on E: Exception
+        do Log.WriteLn('Exception in TProject.Create fProjectEvent.OnIntString: '+E.Message, llError);
       end;
     end);
 
@@ -3214,6 +3234,11 @@ begin
 end;
 
 procedure TProject.handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario);
+begin
+  // default no action
+end;
+
+procedure TProject.handleNewClient(aClient: TClient);
 begin
   // default no action
 end;
