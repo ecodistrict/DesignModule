@@ -178,6 +178,7 @@ var GraphManager = {
         //graphDiv.style.position = "absolute";
         //graphDiv.style.backgroundColor = "rgba(" + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", 1)";
         graphDiv.addEventListener("mousedown", GraphManager._startDrag);
+        graphDiv.addEventListener("touchstart", GraphManager._startDrag);
         graphDiv.graphID = graphObject.id;
 
         var div = graphDiv.appendChild(document.createElement('div'));
@@ -195,8 +196,9 @@ var GraphManager = {
         resizeDiv.className = "graph-resize";
         resizeDiv.graphID = graphDiv.graphID;
         resizeDiv.addEventListener("mousedown", GraphManager._startGraphResize);
+        resizeDiv.addEventListener("touchstart", GraphManager._startGraphResize);
 
-        //graphObject = 
+        //graphObject =
         GraphManager.SetGraphParameters(graphObject);
 
         ////only for label testing!
@@ -208,7 +210,7 @@ var GraphManager = {
         GraphManager.alignedGraphs.push(graphDiv);
         GraphManager.PositionGraph(graphDiv, GraphManager.alignedGraphs.length - 1);
 
-        graphDiv.style.visibility = "hidden";
+        // graphDiv.style.visibility = "hidden";
     },
 
     SetGraphParameters: function (graphObject) {
@@ -460,7 +462,7 @@ var GraphManager = {
                 graph.axisYLabel.attr("x", xTransform);
                 graph.axisYLabel.attr("y", height - marginBottom);
                 graph.axisYLabel.attr("transform", "rotate(" + rotation + "," + xTransform + "," + height - marginBottom + ")");
-                
+
                 //graph.axisYLabel.attr("transform", "translate(" + xTransform + ", " + marginTop + ")");
             }
             else {
@@ -473,7 +475,7 @@ var GraphManager = {
                 graph.axisYLabel.attr("x", xTransform);
                 graph.axisYLabel.attr("y", marginTop);
                 graph.axisYLabel.attr("transform", "rotate(" + rotation + "," + xTransform + "," + marginTop + ")");
-                
+
                 //graph.axisXLabel.attr("transform", "translate(" + xTransform + ", " + height - marginBottom + ")");
             }
         }
@@ -623,8 +625,8 @@ var GraphManager = {
 
         }
 
-       
-                                                        
+
+
 
 
     },
@@ -774,28 +776,44 @@ var GraphManager = {
         GraphManager.resizeObject.resizeDiv = graphDiv;
         GraphManager.resizeObject.startDivW = parseInt(graphDiv.style.width);
         GraphManager.resizeObject.startDivH = parseInt(graphDiv.style.height);
-        GraphManager.resizeObject.startMouseX = e.clientX;
-        GraphManager.resizeObject.startMouseY = e.clientY;
+
+        if (typeof(e.clientX) === 'undefined') {
+          GraphManager.resizeObject.startMouseX = e.changedTouches[0].clientX;
+          GraphManager.resizeObject.startMouseY = e.changedTouches[0].clientY;
+        } else {
+          GraphManager.resizeObject.startMouseX = e.clientX;
+          GraphManager.resizeObject.startMouseY = e.clientY;
+        }
+
+
 
         graphDiv.style.opacity = "0.5";
 
-        window.addEventListener("mousemove", GraphManager._resizeGraphMove);
-        window.addEventListener("mouseup", GraphManager._endGraphResize);
+        window.addEventListener("mousemove", GraphManager._dragMove);
+        window.addEventListener('touchmove', GraphManager._dragMove);
+
+        window.addEventListener("mouseup", GraphManager._endDrag);
+        window.addEventListener('touchend', GraphManager._endDrag);
     },
 
     _resizeGraphMove: function (e) {
         e.preventDefault();
         e.stopPropagation();
+        if (typeof(e.clientX) === 'undefined') {
+          var deltaX = e.changedTouches[0].clientX - GraphManager.resizeObject.startMouseX;
+          var deltaY = e.changedTouches[0].clientY - GraphManager.resizeObject.startMouseY;
+        } else {
+          var deltaX = e.clientX - GraphManager.resizeObject.startMouseX;
+          var deltaY = e.clientY - GraphManager.resizeObject.startMouseY;
+        }
 
-        var deltaX = e.clientX - GraphManager.resizeObject.startMouseX;
-        var deltaY = e.clientY - GraphManager.resizeObject.startMouseY;
 
         var width = GraphManager.resizeObject.startDivW + deltaX;
         var height = GraphManager.resizeObject.startDivH + deltaY;
 
         if (GraphManager.defaultValues.maxWidth != null)
             width = Math.min(width, GraphManager.defaultValues.maxWidth);
-        
+
         if (GraphManager.defaultValues.maxHeight != null)
             height = Math.min(height, GraphManager.defaultValues.maxHeight);
 
@@ -817,15 +835,17 @@ var GraphManager = {
         e.preventDefault();
         e.stopPropagation();
         window.removeEventListener("mousemove", GraphManager._resizeGraphMove);
+        window.removeEventListener("touchmove", GraphManager._resizeGraphMove);
+
         window.removeEventListener("mouseup", GraphManager._endGraphResize);
+        window.removeEventListener("touchend", GraphManager._endGraphResize);
+
 
         GraphManager.resizeObject.resizeDiv.style.opacity = "1";
         GraphManager.UpdateGraph(GraphManager.resizeObject.resizeDiv.graph);
     },
 
     _startDrag: function (e) {
-
-
         GraphManager.zIndexManager.focus(e.currentTarget.graphID);
 
         if (!GraphManager.defaultValues.draggable)
@@ -883,14 +903,22 @@ var GraphManager = {
             GraphManager.dragObject.vSign = -1;
         }
 
+        if (typeof(e.clientX) === 'undefined') {
+          GraphManager.dragObject.startMouseX = e.changedTouches[0].clientX;
+          GraphManager.dragObject.startMouseY = e.changedTouches[0].clientY;
+        } else {
+          GraphManager.dragObject.startMouseX = e.clientX;
+          GraphManager.dragObject.startMouseY = e.clientY;
+        }
 
-        GraphManager.dragObject.startMouseX = e.clientX;
-        GraphManager.dragObject.startMouseY = e.clientY;
         GraphManager.dragObject.startDivX = parseInt(graphDiv.style[GraphManager.dragObject.hAlign]);
         GraphManager.dragObject.startDivY = parseInt(graphDiv.style[GraphManager.dragObject.vAlign]);
 
         window.addEventListener("mousemove", GraphManager._dragMove);
+        window.addEventListener('touchmove', GraphManager._dragMove);
+
         window.addEventListener("mouseup", GraphManager._endDrag);
+        window.addEventListener('touchend', GraphManager._endDrag);
     },
 
 
@@ -898,8 +926,14 @@ var GraphManager = {
     _dragMove: function (e) {
         e.preventDefault();
         e.stopPropagation();
-        var deltaX = e.clientX - GraphManager.dragObject.startMouseX;
-        var deltaY = e.clientY - GraphManager.dragObject.startMouseY;
+
+        if (typeof(e.clientX) === 'undefined') {
+          var deltaX = e.touches[0].clientX - GraphManager.dragObject.startMouseX;
+          var deltaY = e.touches[0].clientY - GraphManager.dragObject.startMouseY;
+        } else {
+          var deltaX = e.clientX - GraphManager.dragObject.startMouseX;
+          var deltaY = e.clientY - GraphManager.dragObject.startMouseY;
+        }
 
         var dragDiv = GraphManager.dragObject.dragDiv;
         var dragObject = GraphManager.dragObject;
@@ -907,8 +941,7 @@ var GraphManager = {
         var newX = (GraphManager.dragObject.startDivX + (deltaX * dragObject.hSign));
         var newY = (GraphManager.dragObject.startDivY + (deltaY * dragObject.vSign));
 
-        if (parseInt(dragDiv.style.width) != GraphManager.defaultValues.width || parseInt(dragDiv.style.height) != GraphManager.defaultValues.height)
-        {
+        if (parseInt(dragDiv.style.width) != GraphManager.defaultValues.width || parseInt(dragDiv.style.height) != GraphManager.defaultValues.height) {
             //graph doesn't have default width/height
         }
 
@@ -921,7 +954,7 @@ var GraphManager = {
             }
         }
 
-        if (GraphManager.defaultValues.snapping) // Check snapping on other 
+        if (GraphManager.defaultValues.snapping) // Check snapping on other
         {
             for (var i = 0; i < GraphManager.alignedGraphs.length; i++)
             {
@@ -942,12 +975,15 @@ var GraphManager = {
         e.preventDefault();
         e.stopPropagation();
         window.removeEventListener("mousemove", GraphManager._dragMove);
+        window.removeEventListener('touchmove', GraphManager._dragMove);
+
         window.removeEventListener("mouseup", GraphManager._endDrag);
+        window.removeEventListener('touchend', GraphManager._endDrag);
 
         if (GraphManager.defaultValues.snapping)
         {
             var snapped = false;
-            
+
             var dragObject = GraphManager.dragObject;
             var dragDiv = dragObject.dragDiv;
 
@@ -980,14 +1016,14 @@ var GraphManager = {
             {
                 GraphManager.movedGraphs.push(dragDiv);
             }
-            
+
         }
         else
         {
             GraphManager.movedGraphs.push(GraphManager.dragObject.dragDiv);
         }
 
-        
+
         GraphManager.RepositionGraphs();
     }
 

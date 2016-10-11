@@ -309,7 +309,7 @@
         sessionRequest.selectObjects.measure = item.measure;
         sessionRequest.selectObjects.selectedObjects = item.selectedObjects;
         sessionRequest.selectObjects.selectCategories = item.selectCategories;
-        //sessionRequest.selectObjects.mode = ctrlPressed ? '~' : '='; //tocheck wil je hier nog wat mee?
+        //sessionRequest.selectObjects.mode = ctrlPressed ? '~' : '=';
         wsSend(sessionRequest);
 
         this._refocusOnMap();
