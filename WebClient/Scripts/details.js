@@ -236,7 +236,8 @@
             if (acceptableHeight < this._form.scrollHeight) {
                 L.DomUtil.addClass(this._form, 'leaflet-control-details-scrollbar');
                 this._form.style.height = acceptableHeight + 'px';
-            } else {
+            }
+            else {
                 L.DomUtil.removeClass(this._form, 'leaflet-control-details-scrollbar');
             }
         }

@@ -286,7 +286,7 @@ function wsConnect() {
             }
             else {
                 var messageBuilder = {};
-                //todo: build type/payload object!
+                //build the type/payload message for compatibility with the new standard
                 if (message.measures) {
                     messageBuilder.type = "measures";
                     messageBuilder.payload = message.measures;
@@ -423,9 +423,13 @@ function wsConnect() {
     ws.onclose = function (evt) {
         connectionStatus.classList.remove('connection-status-connected');
         connectionStatus.classList.add('connection-status-disconnected');
-        var timeDiff = Math.abs(wsLastConnectDateTime.getTime() - new Date().getTime());
-        if (evt.code && evt.code != 1000)
-            showUserMessage("disconnected (close " + evt.code + ", " + evt.reason + ") after " + Math.round(timeDiff / 1000) + " seconds");
+        if (typeof wsLastConnectDateTime !== "undefined") {
+            var timeDiff = Math.abs(wsLastConnectDateTime.getTime() - new Date().getTime());
+            if (evt.code && evt.code != 1000)
+                showUserMessage("disconnected (close " + evt.code + ", " + evt.reason + ") after " + Math.round(timeDiff / 1000) + " seconds");
+        }
+        else if (evt.code && evt.code != 1000)
+            showUserMessage("disconnected (close " + evt.code + ", " + evt.reason + ")");
     };
 };
 
