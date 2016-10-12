@@ -194,7 +194,7 @@
 
                 var button = document.querySelector("#measuresApplyButton");
 
-                button.removeAttribute("disabled");
+                button.children[0].removeAttribute("disabled");
             });
 
             for (var a in measureDefinition.actions)
@@ -231,13 +231,13 @@
                 f.children[0].checked = true;
             }
             else {
-                applyButton.setAttribute("disabled", true);
+                applyButton.children[0].setAttribute("disabled", true);
             }
 
             var selectedRadio = document.querySelector('input[name=measureOption]:checked');
             if (!selectedRadio) {
-              applyButton.setAttribute("disabled", true);
-            }                
+              applyButton.children[0].setAttribute("disabled", true);
+            }
             modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
         }
     },

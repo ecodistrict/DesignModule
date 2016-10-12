@@ -28,17 +28,20 @@
         var className = 'leaflet-control-startstop-stopped',
 		    container = this._container = L.DomUtil.create('div', className);
 
+        var className = 'leaflet-control-startstop-stopped',
+        startstopButton = L.DomUtil.create('a', className);
+
+        container.appendChild(startstopButton);
         container.playing = false;
 
         // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
         container.setAttribute('aria-haspopup', true);
 
-
         L.DomEvent.disableClickPropagation(container);
         if (!L.Browser.touch) {
             L.DomEvent.disableScrollPropagation(container);
         }
-        
+
         container.addEventListener("click", this._clickControl);
         container.addEventListener("contextmenu", this._rightClick);
 
@@ -49,11 +52,11 @@
        //modelDialogAddButton(form, "Start", this._startSimulation);
 
        //modelDialogAddButton(form, "Stop", this._stopSimulation);
-        
+
 
         //container.appendChild(form);
-        L.DomUtil.addClass(container, 'leaflet-control-startstop');
-        L.DomUtil.addClass(container, 'leaflet-control-info-collapsed');
+        L.DomUtil.addClass(startstopButton, 'leaflet-control-startstop');
+        L.DomUtil.addClass(startstopButton, 'leaflet-control-info-collapsed');
     },
 
     _rightClick: function (e) {
@@ -134,12 +137,12 @@
     },
 
     _expand: function () {
-        
+
     },
 
 
     _collapse: function () {
-        
+
     },
 
 });

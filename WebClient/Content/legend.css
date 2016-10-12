@@ -1,6 +1,6 @@
 .legend {
   position: absolute;
-  left: 70px;
+  left: 10px;
   bottom: 70px;
   background-color: white;
   box-shadow: 0 1px 5px rgba(0,0,0,0.4);
@@ -9,14 +9,8 @@
   opacity: 0.8;
   cursor: pointer;
 }
-
-.legend-row {
-}
-
-.legend-entry {
-  padding: 2px 6px;
-}
-
+.legend-row { }
+.legend-entry {  padding: 2px 6px }
 .legend-entry-key {
   width: 50px;
   height: 14px;
@@ -24,56 +18,42 @@
   float: left;
   margin: 2px 3px 2px 6px;
 }
-
 .legend-entry-text {
   float: left;
   margin: 2px 6px 2px 3px;
   max-width: 160px;
 }
-
-.legend-entry-text2 {
-  text-align: center;
-}
-
+.legend-entry-text2 {  text-align: center }
 .legend-table {
   margin-right: 24px;
   padding-bottom: 7px;
 }
-.legend-table th {
-  padding-left: 11px;
-}
+.legend-table th {  padding-left: 11px }
 .legend-table tr:first-child {
   height: 29px;
   text-align: left;
 }
-
 .legend-close {
-  position:absolute;
+  position: absolute;
   right: 6px;
   top: 1px;
-  cursor:pointer;
+  cursor: pointer;
   font-size: 20px;
 }
-
-.legend-close:hover {
-  opacity: 0.75;
-}
-
-
+.legend-close:hover {  opacity: 0.75 }
 /* horizontal gradient legend */
-
 .legend-gradient-title {
-
   margin-left: 20px;
   margin-right: 20px;
+  margin-bottom: 8px;
+  font-weight: bold;
+  margin-top: 4px;
 }
-
 .legend-gradient-upper {
   height: 24px;
   margin-left: 20px;
   margin-right: 20px;
 }
-
 .legend-gradient-middle {
   height: 4px;
   margin-top: 1px;
@@ -81,24 +61,21 @@
   margin-right: 20px;
   position: relative;
 }
-
 .legend-gradient-lower {
   /*height: 16px;*/
   margin-left: 20px;
   margin-right: 20px;
   position: relative;
 }
-
 .legend-gradient-tick {
   top: 0;
   position: absolute;
-  transform:translateX(-50%);
+  transform: translateX(-50%);
   border-left: thin solid black;
   height: 100%;
 }
-
 .legend-gradient-marker {
   top: 1px;
   position: absolute;
-  transform:translateX(-50%);
+  transform: translateX(-50%);
 }

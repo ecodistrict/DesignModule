@@ -1,35 +1,29 @@
-﻿.connection-status {
-    position: absolute;
-    left: 64px;
-    top: 14px;
-    width: 27px;
-    height: 27px;
-    background-position: 50% 50%;
-	background-repeat: no-repeat;
-	display: block;
-    z-index: 999;
-    border-radius: 3px;
-	background-color: white;
-    opacity: 0.5;
-    cursor: pointer;
+.connection-status {
+  position: absolute;
+  left: 64px;
+  top: 14px;
+  width: 27px;
+  height: 27px;
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  display: block;
+  z-index: 999;
+  border-radius: 3px;
+  background-color: white;
+  opacity: 0.5;
+  cursor: pointer;
 }
-
-.connection-status:hover {
-    opacity: 0.7;
-}
-
+.connection-status:hover {  opacity: 0.7 }
 .connection-status-connected {
-    background-image: url('images/connected.png');
-    background-size: 16px;
+  background-image: url('images/connected.png');
+  background-size: 16px;
 }
-
 .connection-status-data {
-    background-image: url('images/connected-data.png');
-    background-size: 16px;
-    opacity: 1;
+  background-image: url('images/connected-data.png');
+  background-size: 16px;
+  opacity: 1;
 }
-
 .connection-status-disconnected {
-    background-image: url('images/disconnected.png');
-    background-size: 16px;
+  background-image: url('images/disconnected.png');
+  background-size: 16px;
 }

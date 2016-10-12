@@ -1,29 +1,19 @@
-﻿.leaflet-control-windDirection{
-    background-color: white;
-    border-radius: 5px;
-    border: 2px solid rgba(0, 0, 0, 0.2);
-    animation-duration: 10s;
-    /*top: -30px;*/
+.leaflet-control-windDirection {
+  background-color: white;
+  border-radius: 5px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  animation-duration: 10s;
+  /*top: -30px;*/
 }
-
-#windArrow{
-    width: 100px;
-}
-
-
-.leaflet-control-windDirection-animation{
-    animation-name: sensorFade;
-    
-}
-
+#windArrow {  width: 100px }
+.leaflet-control-windDirection-animation {  animation-name: sensorFade }
 /* Chrome, Safari, Opera */
 @-webkit-keyframes sensorFade {
-    from {background-color: lightgreen;}
-    to {background-color: white;}
+    from {  background-color: lightgreen }
+    to {  background-color: white }
 }
-
 /* Standard syntax */
 @keyframes sensorFade {
-    from {background-color: lightgreen;}
-    to {background-color: white;}
+    from {  background-color: lightgreen }
+    to {  background-color: white }
 }
