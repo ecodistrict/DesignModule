@@ -43,7 +43,7 @@
     <!-- current-reference-difference selector -->
     <div id="currefdiff" class="currefdiff leaflet-container" title="Show the current version of the layer, reference version or difference between those"></div>
     <!-- time related elements-->
-    <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div> 
+    <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div>
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
     <!-- load scripts -->
     <script src="Scripts/leaflet-src.js"></script>
@@ -73,7 +73,7 @@
     <script src="Scripts/start-stop.js"></script>
     <script src="Scripts/webSocket.js"></script>
     <!-- charts -->
-    <script src="Scripts/d3.js"></script> 
+    <script src="Scripts/d3.js"></script>
     <script src="Scripts/bullet.js"></script>
     <script src="Scripts/graphManager.js"></script>
     <!-- local scripts -->
@@ -81,7 +81,7 @@
         // determine parameters and config
         var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
         //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
-        var session = getParameterByName('session', ''); 
+        var session = getParameterByName('session', '');
         if (session == '') {
             //session = '1234'; // default test session
             //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
@@ -185,19 +185,19 @@
         map.addControl(projectDescription);
 
         GraphManager.Initialize();
+        // GraphManager.MakeGraph();
         //GraphManager.MakeGraph();
         //GraphManager.MakeGraph();
-        //GraphManager.MakeGraph();
-        
-        
+
+
 
         // link up connection control
         var connectionStatus = document.getElementById('connectionStatus');
         connectionStatus.classList.add('connection-status-disconnected');
         connectionStatus.onclick = function (e) {
-            if (e.target.classList.contains('connection-status-disconnected')) 
+            if (e.target.classList.contains('connection-status-disconnected'))
                 wsConnect();
-            else 
+            else
                 wsClose();
         };
 
@@ -213,7 +213,7 @@
             window.matchMedia('(orientation: portrait)').addListener(function() {
                 // your code ...
             });
-        } 
+        }
         else {
             // use orientationchange event with timeout (fires to early)
             $(window).on('orientationchange', function() {
@@ -235,5 +235,6 @@
         //addBasicLayer({ name: 'PM25 123',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=123&zoom={z}&x={x}&y={y}', default: 0 });
         //addBasicLayer({ name: 'NO2 tot 134',    tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=134&zoom={z}&x={x}&y={y}', default: 0 });
     </script>
+
 </body>
 </html>

@@ -12,6 +12,7 @@ unit SessionServerEcodistrict;
 interface
 
 uses
+  StdIni,
   Logger,
 
   imb4,
@@ -38,7 +39,7 @@ const
 
   EcodistrictConnectStringSwitchName = 'EcodistrictConnectString';
 
-
+  DisabledKPIsSection = 'DisabledKPIs';
 
 type
   // eco-district
@@ -107,6 +108,7 @@ type
     tableName: string;
     keyFieldName: string;
     editable: Boolean;
+    function toJSON(const aValue: string): string;
   end;
 
   {
@@ -177,6 +179,16 @@ type
     ReturnType: string;
   end;
 
+  TDIMeasure = record
+    id: string; //cat||id as id, application as action, objecttype as objecttypes, benefits as description
+    category: string;
+    measure: string;
+    action: string;
+    objecttypes: string;
+    description: string;
+    query: string;
+  end;
+
   TDIMeasureHistory = record
     id: TGUID;
     measure: string; // combined cat||id
@@ -213,6 +225,7 @@ type
     function getDMQueries: TDictionary<string, TDMQuery>;
     function getDIQueries: TDictionary<string, TDIQuery>;
     function getDIObjectProperties: TObjectList<TDIObjectProperty>;
+    function getDIMeasures: TDictionary<string, TDIMeasure>;
     function getDIMeasuresHistory: TDictionary<TGUID, TDIMeasureHistory>;
   protected
     fDIObjectProperties: TObjectList<TDIObjectProperty>;
@@ -220,6 +233,7 @@ type
     fDIQueries: TDictionary<string, TDIQuery>;
     fDIMeasuresHistory: TDictionary<TGUID, TDIMeasureHistory>;
     fKpiList: TObjectDictionary<string, TEcodistrictKPI>;
+    fDIMeasures: TDictionary<string, TDIMeasure>;
 
     function getMeasuresJSON: string; override;
     function getMeasuresHistoryJSON: string; override;
@@ -235,12 +249,15 @@ type
     property DMQueries: TDictionary<string, TDMQuery> read getDMQueries;
     property DIQueries: TDictionary<string, TDIQuery> read getDIQueries;
     property DIObjectProperties: TObjectList<TDIObjectProperty> read getDIObjectProperties;
+    property DIMeasures: TDictionary<string, TDIMeasure> read getDIMeasures;
     property DIMeasuresHistory: TDictionary<TGUID, TDIMeasureHistory> read getDIMeasuresHistory;
     // (re-)read items
     function ReadDMQueries: Boolean;
     function ReadDIQueries: Boolean;
     function ReadDIObjectProperties: Boolean;
+    function ReadDIMeasures: Boolean;
     function ReadDIMeasuresHistory: Boolean;
+
     procedure AddDIMeasureHistory(aMeasureHistory: TDIMeasureHistory);
 
     function ReadScenario(const aID: string): TScenario; override;
@@ -276,6 +293,7 @@ type
     function forceReadOfDIQueries(const aCaseId: string): Boolean; // todo: does not reload layers!
     function forceReadOfDIObjectProperties(const aCaseId: string): Boolean;
     function forceReadOfDIMeasuresHistory(const aCaseId: string): Boolean;
+    function forceReadOfDIMeasures(const aCaseId: string): Boolean;
 
     function GetOrAddCase(const aCaseId: string; aKPIList: TObjectList<TEcodistrictKPI>): TProject;
     function HandleModuleCase(const aCaseId, aCaseTitle,  aCaseDescription: string; const aMapView: TMapView; aKPIList: TObjectList<TEcodistrictKPI>): TProject;
@@ -300,6 +318,12 @@ begin
   if (aVariantId='') or (aVariantId='null') or (aVariantId='None')
   then Result := EcoDistrictCasePrefix + aCaseId
   else Result := EcoDistrictCasePrefix + aCaseId + '_' + aVariantId;
+end;
+
+function CheckSQLValue(const aValue: string): string;
+begin
+  // remove escape quotes in values used in sql statements
+  Result := aValue.Replace('''', '"')
 end;
 
 { TEcodistrictLayer }
@@ -366,7 +390,7 @@ function TEcodistrictScenario.AddLayerFromTable(const aDomain, aID, aName, aDesc
 begin
   Result := TEcodistrictLayer.Create(self, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, aLayerType, aPalette, aLegendJSON, aBasicLayer);
   try
-    Result.query := PGSVGPathsQuery('"'+aSchema+'".'+aTableName.Replace('{case_id}', aSchema), aIDFieldName, aGeometryFieldName, aDataFieldName);
+    Result.query := PGSVGPathsQuery(aSchema+'.'+aTableName.Replace('{case_id}', aSchema), aIDFieldName, aGeometryFieldName, aDataFieldName);
     ReadObjectFromQuery(Result);
     Result.RegisterLayer;
     // todo: other palette types..?
@@ -388,20 +412,18 @@ const
 
 procedure TEcodistrictScenario.ReadBasicData;
 var
-  schema: string;
+  scenarioSchema: string;
   palette: TWDPalette;
   legendJSON: string;
   iqp: TPair<string, TDIQuery>;
   jsonPalette: TJSONValue;
   layer: TLayer;
   ikpip: TPair<string, TEcodistrictKpi>;
-  lowerColor: TAlphaRGBPixel;
-  higherColor: TAlphaRGBPixel;
 begin
   // read ecodistrict data
   if fID=fProject.ProjectID
-  then schema := EcoDistrictSchemaId(fID)
-  else schema := EcoDistrictSchemaId(fProject.ProjectID, fID);
+  then scenarioSchema := EcoDistrictSchemaId(fID)
+  else scenarioSchema := EcoDistrictSchemaId(fProject.ProjectID, fID);
 
   // build layers from di_queries
   for iqp in (project as TEcodistrictProject).DIQueries do
@@ -415,16 +437,18 @@ begin
             palette := TDiscretePalette.CreateFromJSON(iqp.Value.palettejson);
             if iqp.Value.legendjson<>''
             then legendJSON := iqp.Value.legendjson
-            else legendJSON := BuildDiscreteLegendJSON(palette as TDiscretePalette, TLegendFormat.lfVertical); // todo: parameterize
+            else legendJSON := BuildDiscreteLegendJSON(palette as TDiscretePalette, TLegendFormat.lfVertical); // todo: parameterize (from palette json?)
           end;
         wdkPaletteRamp:
           begin
             palette := TRampPalette.CreateFromJSON(iqp.Value.palettejson);
-            legendJSON := iqp.Value.legendjson;
+            if iqp.Value.legendjson<>''
+            then legendJSON := iqp.Value.legendjson
+            else legendJSON := BuildRamplLegendJSON(palette as TRampPalette{, ..}); // todo: parameterize (from palette json?)
           end;
       else
         palette := CreateBasicPalette;
-        legendJSON := iqp.Value.legendjson;
+        legendJSON := iqp.Value.legendjson; // no automatic legend creation because mostly without legend (no value specified anyway..)
       end;
     end
     else
@@ -454,7 +478,7 @@ begin
         AddLayerFromTable(
           iqp.Value.domain, iqp.key,  iqp.Value.name, iqp.Value.description, iqp.Value.objecttypes, iqp.Value.geometrytype,
           iqp.Value.defaultload=1, iqp.Value.basiclayer=1,
-          schema, iqp.Value.tablename, iqp.Value.idfieldname, iqp.Value.geometryfieldname, iqp.Value.datafieldname,
+          scenarioSchema, iqp.Value.tablename, iqp.Value.idfieldname, iqp.Value.geometryfieldname, iqp.Value.datafieldname,
           iqp.Value.layertype, palette, legendJSON);
       end
       else
@@ -462,7 +486,7 @@ begin
         AddLayerFromQuery(
           iqp.Value.domain, iqp.key,  iqp.Value.name, iqp.Value.description, iqp.Value.objecttypes, iqp.Value.geometrytype,
           iqp.Value.defaultload=1, iqp.Value.basiclayer=1,
-          schema, iqp.Value.sql,
+          scenarioSchema, iqp.Value.sql,
           iqp.Value.layertype, palette, legendJSON);
       end;
     end;
@@ -476,52 +500,60 @@ begin
       // bad = same ammount lower/higher then excelent-sufficient
       // todo: check suffient higher then excellent
 
+      if not StandardIni.ValueExists(DisabledKPIsSection, ikpip.key) then
+      begin
+        Log.WriteLn('eco kpi layer '+ikpip.key+': bad '+ikpip.Value.bad.ToString+', sufficient '+ikpip.Value.sufficient.tostring+', '+'excellent '+ikpip.Value.excellent.ToString, llNormal, 1);
+        if ikpip.Value.sufficient<ikpip.Value.excellent then
+        begin
+          palette := TRampPalette.Create(ikpip.Value.name, [
+              TRampPaletteEntry.Create(ecoKPIBadColor, ikpip.Value.bad, 'bad'),
+              TRampPaletteEntry.Create(ecoKPISufficiantColor, ikpip.Value.sufficient, 'sufficient'),
+              TRampPaletteEntry.Create(ecoKPIExcellentColor, ikpip.Value.excellent, 'excellent')],
+            ecoKPIBadColor,
+            ecoKPINoDataColor,
+            ecoKPIExcellentColor);
+        end
+        else
+        begin
+          palette := TRampPalette.Create(ikpip.Value.name, [
+              TRampPaletteEntry.Create(ecoKPIExcellentColor, ikpip.Value.excellent, 'excellent'),
+              TRampPaletteEntry.Create(ecoKPISufficiantColor, ikpip.Value.sufficient, 'sufficient'),
+              TRampPaletteEntry.Create(ecoKPIBadColor, ikpip.Value.bad, 'bad')
+              ],
+            ecoKPIExcellentColor,
+            ecoKPINoDataColor,
+            ecoKPIBadColor);
+        end;
 
-      Log.WriteLn('eco kpi layer '+ikpip.key, llNormal, 1);
-      if ikpip.Value.sufficient<ikpip.Value.excellent then
-      begin
-        lowerColor := ecoKPIBadColor;
-        higherColor := ecoKPIExcellentColor;
+        legendJSON := BuildRamplLegendJSON(palette as TRampPalette);
+        if Layers.TryGetValue(ikpip.key, layer) then
+        begin
+          // todo: check: does this work?
+          (layer as TEcodistrictLayer).fPalette.Free;
+          (layer as TEcodistrictLayer).fPalette := palette;
+          (layer as TEcodistrictLayer).description := ikpip.Value.name+' (bad '+ikpip.Value.bad.ToString+', sufficient '+ikpip.Value.sufficient.tostring+', '+'excellent '+ikpip.Value.excellent.ToString+')';
+          layer.legendJSON := legendJSON;
+          layer.RegisterSlice;
+          ReadObjectFromQuery(layer);
+          // assume that on update the registration on the tiler already succeeded so we can just start signaling objects
+          // todo: maybe check if already registered on tiler?
+          layer.signalObjects(nil);
+        end
+        else
+        begin
+          // todo: assuming for now always building
+          // todo: table ie type can be derived from kpi_results table field: kpi_type..
+          AddLayerFromQuery(
+            'KPI', ikpip.Value.id, ikpip.Value.name, ikpip.Value.name+' (bad '+ikpip.Value.bad.ToString+', sufficient '+ikpip.Value.sufficient.tostring+', '+'excellent '+ikpip.Value.excellent.ToString+')', '"building"', 'MultiPolygon',
+            False, False,
+            scenarioSchema,
+            'SELECT building_id as id, ST_AsSVG(lod0footprint) as geometry, kpi_value as value '+
+            'FROM {case_id}.building join {case_id}.kpi_results on {case_id}.building.building_id={case_id}.kpi_results.gml_id '+
+            'WHERE kpi_id='''+ikpip.Value.id+'''',
+            stGeometry, palette, legendJSON);
+        end;
       end
-      else
-      begin
-        lowerColor := ecoKPIExcellentColor;
-        higherColor := ecoKPIBadColor;
-      end;
-
-      palette := TRampPalette.Create(ikpip.Value.name, [
-          TRampPaletteEntry.Create(ecoKPIBadColor, ikpip.Value.bad, 'bad'),
-          TRampPaletteEntry.Create(ecoKPISufficiantColor, ikpip.Value.sufficient, 'sufficient'),
-          TRampPaletteEntry.Create(ecoKPIExcellentColor, ikpip.Value.excellent, 'excellent')],
-        lowerColor,
-        ecoKPINoDataColor,
-        higherColor);
-      legendJSON := BuildRamplLegendJSON(palette as TRampPalette);
-      if Layers.TryGetValue(ikpip.key, layer) then
-      begin
-        // todo: check: does this work?
-        (layer as TEcodistrictLayer).fPalette.Free;
-        (layer as TEcodistrictLayer).fPalette := palette;
-        layer.legendJSON := legendJSON;
-        layer.RegisterSlice;
-        ReadObjectFromQuery(layer);
-        // assume that on update the registration on the tiler already succeeded so we can just start signaling objects
-        // todo: maybe check if already registered on tiler?
-        layer.signalObjects(nil);
-      end
-      else
-      begin
-        // todo: assuming for now always building
-        // todo: table ie type can be derived from kpi_results table field: kpi_type..
-        AddLayerFromQuery(
-          'KPI', ikpip.Value.id, ikpip.Value.name, ikpip.Value.name, '"building"', 'MultiPolygon',
-          False, False,
-          schema,
-          'SELECT building_id as id, ST_AsSVG(lod0footprint) as geometry, kpi_value as value '+
-          'FROM {case_id}.building join {case_id}.kpi_results on {case_id}.building.building_id={case_id}.kpi_results.gml_id '+
-          'WHERE kpi_id='''+ikpip.Value.id+'''',
-          stGeometry, palette, legendJSON);
-      end;
+      else Log.WriteLn('ignoring disabled kpi '+ikpip.key, llWarning);
     end;
   except
     on E: Exception
@@ -838,6 +870,8 @@ begin
         // select objects in layer that match first
 
       end;
+
+
     end;
     // todo: else warning?
   finally
@@ -849,27 +883,141 @@ function TEcodistrictScenario.selectObjectsProperties(aClient: TClient; const aS
 // todo: implement
 var
   layers: TList<TLayer>;
-  l: TLayer;
+  //l: TLayer;
+  category: string;
+  tableName: string;
+  fields: string;
+  op: TDIObjectProperty;
+  key: string;
+  selectedObjects: string;
+  so: string;
+  query: TFDQuery;
+  f: Integer;
+  value: string;
+  fieldMin: TField;
+  fieldMax: TField;
+  jsonProperties: string;
+  scenarioSchema: string;
 begin
   Result := '';
   layers := TList<TLayer>.Create;
   try
-    if selectLayersOnCategories(aSelectCategories, layers) then
-    begin
-      // find aSelectedObjects in layers and get properties
-      for l in layers do
-      begin
-        if Result<>''
-        then Result := Result+',';
-        //Result := Result+'{"id":"'++'",'++'}';
-        // get properties per category
+    if fID=fProject.ProjectID
+    then scenarioSchema := EcoDistrictSchemaId(fID)
+    else scenarioSchema := EcoDistrictSchemaId(fProject.ProjectID, fID);
 
+    for category in aSelectCategories do
+    begin
+      tableName := '';
+      key := '';
+      fields := '';
+      jsonProperties := '';
+      for op in (project as TEcodistrictProject).DIObjectProperties do
+      begin
+        if category=op.category then
+        begin
+          if tableName=''
+          then tableName := op.tableName;
+          if key=''
+          then key := op.keyFieldName;
+          if fields<>''
+          then fields := fields+',';
+          fields := fields+'min('+op.fieldName+') as '+op.fieldName+',max('+op.fieldName+') as '+op.fieldName+'_compare';
+        end;
+      end;
+      selectedObjects := '';
+      for so in aSelectedObjects do
+      begin
+        if selectedObjects<>''
+        then selectedObjects := selectedObjects+',';
+        selectedObjects := selectedObjects+''''+so+'''';
+      end;
+
+      query := TFDQuery.Create(nil);
+      try
+        query.Connection := project.dbConnection as TFDConnection;
+        query.SQL.Text :=
+          'SELECT '+fields+' '+
+          'FROM '+scenarioSchema+'.'+tableName+' '+
+          'WHERE '+key+' in ('+selectedObjects+')';
+        try
+          query.Open();
+          query.First();
+          while not query.Eof do
+          begin
+            // should only be 1 entry!
+            f := 0;
+            while f<query.FieldCount do
+            begin
+              fieldMin := query.Fields[f];
+              fieldMax := query.Fields[f+1];
+              if fieldMin.IsNull or fieldMax.IsNull
+              then value := 'null'
+              else
+              begin
+                if fieldMin.AsString=fieldMax.AsString then
+                begin
+                  case query.Fields[f].DataType of
+                    ftWideMemo,
+                    ftString,
+                    ftWideString: // todo: check widestring conversion..
+                      value := '"'+query.Fields[f].AsString+'"';
+                    ftInteger:
+                      value := fieldMin.AsInteger.ToString;
+                    ftLargeint:
+                      value := fieldMin.AsLargeInt.ToString;
+                    ftFloat,
+                    ftExtended,
+                    ftSingle:
+                      value := fieldMin.AsFloat.ToString(dotFormat);
+                    ftBoolean:
+                      if fieldMin.AsBoolean
+                      then value := 'true'
+                      else value := 'false';
+                  else
+                    Log.WriteLn('Unsupported DataType in getData TABLE request: '+Ord(fieldMin.DataType).toString, llWarning);
+                    value := 'null';
+                  end;
+                end
+                else value := 'null';
+              end;
+
+              for op in (project as TEcodistrictProject).DIObjectProperties do
+              begin
+                if (category=op.category) and (query.Fields[f].FieldName=op.fieldName) then
+                begin
+                  // add entry to result for field
+                  if jsonProperties<>''
+                  then jsonProperties := jsonProperties+',';
+                  jsonProperties := jsonProperties+'{'+op.toJSON(value)+'}';
+                end;
+              end;
+              f := f+2;
+            end;
+            query.Next();
+          end;
+        except
+          on e: exception do
+          begin
+            log.WriteLn('exception in TEcodistrictScenario.selectObjectsProperties: '+e.Message+' (sql: '+query.SQL.Text+')', llError);
+          end;
+        end;
+      finally
+        query.Free;
+      end;
+      // rebuild to final result if contains data
+      if jsonProperties<>'' then
+      begin
+        Result :=
+          '"selectedObjectsProperties":'+
+            '{'+
+              '"selectedCategories": ["'+category+'"],'+
+              '"properties":['+jsonProperties+'],'+
+              '"selectedObjects":['+selectedObjects.Replace('''','"')+']'+
+            '}';
+        break;
       end;
     end;
-    // todo: else warning?
-
-    if Result<>''
-    then Result := '"selectedObjectsProperties":{"objects":['+Result+']}';
   finally
     layers.Free;
   end;
@@ -878,6 +1026,16 @@ end;
 function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aSelectedIDs: TArray<string>): string;
 var
   layers: TList<TLayer>;
+  categories: string;
+  catList: TDictionary<string, integer>;
+  objectsGeoJSON: string;
+  totalObjectCount: Integer;
+  l: TLayer;
+  //o: TPair<TWDID, TLayerObject>;
+  oi: string;
+  lo: TLayerObject;
+  c: Integer;
+  cat: string;
 begin
   Result := '';
   layers := TList<TLayer>.Create;
@@ -895,6 +1053,56 @@ begin
         // select objects in layer that match first
 
       end;
+
+      categories := '';
+      objectsGeoJSON := '';
+      totalObjectCount := 0;
+      catList := TDictionary<string, integer>.Create;
+      try
+        for l in layers do
+        begin
+          for oi in aSelectedIDs do
+          begin
+            if l.objects.TryGetValue(TWDID(oi), lo) then
+            begin
+              if catList.TryGetValue(l.ID, c)
+              then catList[l.ID] := c+1
+              else catList.AddOrSetValue(l.ID, 1);
+              if objectsGeoJSON<>''
+              then objectsGeoJSON := objectsGeoJSON+',';
+              objectsGeoJSON := objectsGeoJSON+lo.GeoJSON2D[l.geometryType];
+              totalObjectCount := totalObjectCount+1;
+            end;
+          end;
+          if (aMode='+') and (catList.Count>0)
+          then break;
+        end;
+        if catList.Count>0 then
+        begin
+          if catList.Count>1 then
+          begin
+            for cat in catList.Keys do
+            begin
+              if categories=''
+              then categories := '"'+cat+'"'
+              else categories := categories+',"'+cat+'"';
+            end;
+          end
+          else categories := '"'+catList.Keys.ToArray[0]+'"';
+        end;
+
+
+      finally
+        catList.Free;
+      end;
+      Result :=
+        '{"selectedObjects":{"selectCategories":['+categories+'],'+
+         '"mode":"'+aMode+'",'+
+         '"objects":['+objectsGeoJSON+']}}';
+      Log.WriteLn('select on radius:  found '+totalObjectCount.ToString+' objects in '+categories);
+
+
+
     end;
     // todo: else warning?
   finally
@@ -902,19 +1110,57 @@ begin
   end;
 end;
 
+{ TDIObjectProperty }
+
+function TDIObjectProperty.toJSON(const aValue: string): string;
+
+  function jsonEditable: string;
+  begin
+    if editable
+    then Result := 'Y'
+    else Result := 'N';
+  end;
+
+  function jsonForced: string;
+  begin
+    // todo: not in database (yet?)
+    if true
+    then Result := 'Y'
+    else Result := 'N';
+  end;
+
+begin
+  {
+    "name" : "Height",
+    "value" : 5 | "Marie" | false, 300.3
+    "type" : "list" | "string" | "int" | "float" | "bool",
+    "editable" : "Y" | "N",
+    "options" : [1, 3, 343, 5],
+    "forced" : "Y" | "N"
+  }
+
+  Result :=
+    '"name":"'+propertyName+'",'+
+    '"type":"'+propertyType+'",'+
+    '"editable":"'+jsonEditable+'",'+
+    '"options":['+selection+'],'+
+    '"forced":"'+jsonForced+'",'+
+    '"value":'+aValue;
+end;
+
 { TEcodistrictProject }
 
 procedure TEcodistrictProject.AddDIMeasureHistory(aMeasureHistory: TDIMeasureHistory);
 var
-  schema: string;
+  projectSchema: string;
 begin
   // store locally (read if not loaded)
   DIMeasuresHistory.Add(aMeasureHistory.id, aMeasureHistory);
   // store to database
-  schema := EcoDistrictSchemaId(projectID);
+  projectSchema := EcoDistrictSchemaId(projectID);
 
   (fDBConnection as TFDConnection).ExecSQL(
-    'INSERT INTO '+schema+'.di_measureshistory (id, measure, object_ids, timeutc, variants, categories) '+
+    'INSERT INTO '+projectSchema+'.di_measureshistory (id, measure, object_ids, timeutc, variants, categories) '+
     'VALUES ('+
       ''''+aMeasureHistory.id.ToString+''','+
       ''''+aMeasureHistory.measure+''','+
@@ -938,6 +1184,7 @@ begin
   fDMQueries := nil;
   fDIQueries := nil;
   fDIMeasuresHistory := nil;
+  fDIMeasures := nil;
   fTiler.onTilerStatus := handleTilerStatus;
 end;
 
@@ -994,9 +1241,11 @@ end;
 
 function TEcodistrictProject.getMeasuresJSON: string;
 var
-  schema: string;
+  projectSchema: string;
 begin
-  schema := EcoDistrictSchemaId(projectID);
+  // todo: switch to DIMeasures in project
+  projectSchema := EcoDistrictSchemaId(projectID);
+
   Result := FDReadJSON(
     fDBConnection as TFDConnection,
     'select array_to_json(array_agg(row_to_json(categories)))::text as categories '+
@@ -1007,16 +1256,16 @@ begin
           'select typology as measure, '+
           '(select array_to_json(array_agg(row_to_json(actions))) as actions from '+
             '(select cat||id as id, application as action, objecttype as objecttypes, benefits as description '+
-            'from '+schema+'.di_measures m '+
+            'from '+projectSchema+'.di_measures m '+
             'where m.id>=0 and m.category=j.category and m.typology=j.typology '+
             'order by id) as actions) '+
-          'from '+schema+'.di_measures j '+
+          'from '+projectSchema+'.di_measures j '+
           'where j.id>=0 '+
           'group by category, typology '+
           'having category=c.category '+
         ') as typologies '+
       ') as measures '+
-      'from '+schema+'.di_measures c '+
+      'from '+projectSchema+'.di_measures c '+
       'where c.id>=0 '+
       'group by category '+
       'order by category '+
@@ -1035,6 +1284,13 @@ begin
       'from measures j group by category, typology '+
 		') as t');
     }
+end;
+
+function TEcodistrictProject.getDIMeasures: TDictionary<string, TDIMeasure>;
+begin
+  if not Assigned(fDIMeasures)
+  then ReadDIMeasures();
+  Result := fDIMeasures;
 end;
 
 function TEcodistrictProject.getDIMeasuresHistory: TDictionary<TGUID, TDIMeasureHistory>;
@@ -1079,12 +1335,13 @@ var
   jsonObjectID: TJSONValue;
   sql: string;
   objectIDs: string;
-  schemaProject: string;
-  schemaVariant: string;
+  projectSchema: string;
+  scenarioSchema: string;
   mh: TDIMeasureHistory;
   jsonMeasureCategories: TJSONArray;
   jsonCategory: TJSONValue;
   measure: TJSONObject;
+  jsonApplyObjectsProperties: TJSONArray;
 begin
   if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
   begin
@@ -1110,32 +1367,32 @@ begin
         then categories := categories+',';
         categories := categories+jsonCategory.ToJSON;
       end;
-      schemaProject := EcoDistrictSchemaId(projectID);
+      projectSchema := EcoDistrictSchemaId(projectID);
       if Assigned(aScenario) and (aScenario.ID<>projectID)
-      then schemaVariant := EcoDistrictSchemaId(projectID, aScenario.ID)
-      else schemaVariant := schemaProject;
+      then scenarioSchema := EcoDistrictSchemaId(projectID, aScenario.ID)
+      else scenarioSchema := projectSchema;
+      // todo: switch to DIMeasures in project
       sql := FDReadJSON(
     	  fDBConnection as TFDConnection,
     		'SELECT query '+
-    		'FROM '+schemaProject+'.di_measures '+
-    		'WHERE cat||id='''+measureId+'''').Replace('{case_id}', schemaVariant).Replace('{ids}', objectIDs.Replace('"', ''''));
+    		'FROM '+projectSchema+'.di_measures '+
+    		'WHERE cat||id='''+measureId+'''').Replace('{case_id}', scenarioSchema).Replace('{ids}', objectIDs.Replace('"', ''''));
       if sql<>'' then
       begin
         // todo:
-        //(fDBConnection as TFDConnection).ExecSQL(sql);
+        (fDBConnection as TFDConnection).ExecSQL(sql);
         Log.WriteLn('Applied measure '+measureId+' ('+categories+'): '+sql);
         // add measure to history
         mh.id := TGUID.NewGuid;
         mh.measure := measure.ToJSON;
         mh.object_ids := objectIDs;
         mh.timeutc := Now; // todo: convert to utc?
-        mh.variants := schemaVariant;
+        mh.variants := scenarioSchema;
         mh.categories := categories;
         AddDIMeasureHistory(mh);
       end
       else Log.WriteLn('Could not build SQL to apply measure '+measureId+' ('+categories+'): '+objectIDs);
     end;
-
   end
   else if isObject(aJSONObject, 'scenarioRefresh', jsonPair) then
   begin
@@ -1151,7 +1408,43 @@ begin
     end
     else Log.WriteLn('scenario '+dictScenariosID+' not found to refresh', llWarning);
   end
-  else ;
+  else if aJSONObject.TryGetValue<TJSONArray>('applyObjectsProperties', jsonApplyObjectsProperties) then
+  begin
+    // todo: implement
+
+    (*
+    {
+      "selectedCategories": ["'+category+'"],
+      "properties":[[{
+          "name" : "Height",
+          "value" : 5,
+          "type" : "list",
+          "editable" : "Y",
+          "options" : [1, 3, 343, 5],
+          "forced" : "Y",
+          "id" : "Height"
+        }, {
+          "name" : "Klant",
+          "value" : "Marie",
+          "type" : "list",
+          "editable" : "N",
+          "options" : ["Marie", "Toby", "Henk", "Jantje"],
+          "forced" : "N",
+          "id" : "Klant"
+        }
+        ],
+      "selectedObjects":["id1","id2"]
+    }
+    *)
+
+
+  end
+  else
+  begin
+    if Assigned(aScenario)
+    then Log.WriteLn('Unhandled client event for scenario '+aScenario.elementID+': '+aJSONObject.ToJSON, llWarning)
+    else Log.WriteLn('Unhandled client event for base scenario: '+aJSONObject.ToJSON, llWarning);
+  end;
 end;
 
 function TEcodistrictProject.handleTilerStatus(aTiler: TTiler): string;
@@ -1178,11 +1471,57 @@ begin
   do readScenario(schemaName);
 end;
 
+function TEcodistrictProject.ReadDIMeasures: Boolean;
+var
+  query: TFDQuery;
+  m: TDIMeasure;
+  projectSchema: string;
+begin
+  // todo: implement
+  projectSchema := EcoDistrictSchemaId(projectId);
+  fDIMeasures.Free;
+  fDIMeasures := TDictionary<string, TDIMeasure>.Create;
+  query := TFDQuery.Create(nil);
+  try
+    query.Connection := fDBConnection as TFDConnection;
+    query.SQL.Text :=
+      'SELECT cat||id as id, category, typology as measure, application as action, objecttype as objecttypes, benefits as description, query '+
+      'FROM '+projectSchema+'.di_measures';
+    try
+      query.Open();
+      query.First();
+      while not query.Eof do
+      begin
+        m.id := query.Fields[0].AsString; //cat||id as id, application as action, objecttype as objecttypes, benefits as description
+        m.category  := query.Fields[1].AsString;
+        m.measure  := query.Fields[2].AsString;
+        m.action  := query.Fields[3].AsString;
+        m.objecttypes  := query.Fields[4].AsString;
+        m.description  := query.Fields[5].AsString;
+        m.query  := query.Fields[6].AsString;
+        fDIMeasures.Add(m.id, m);
+        query.Next();
+      end;
+      Result := True;
+    except
+      on e: exception do
+      begin
+        log.WriteLn('exception in TEcodistrictProject.ReadDIMeasures: '+e.Message, llError);
+        Result := False;
+      end;
+    end;
+  finally
+    query.Free;
+  end;
+end;
+
 function TEcodistrictProject.ReadDIMeasuresHistory: Boolean;
 var
   query: TFDQuery;
   mh: TDIMeasureHistory;
+  projectSchema: string;
 begin
+  projectSchema := EcoDistrictSchemaId(projectId);
   fDIMeasuresHistory.Free;
   fDIMeasuresHistory := TObjectDictionary<TGUID, TDIMeasureHistory>.Create;
   query := TFDQuery.Create(nil);
@@ -1190,7 +1529,7 @@ begin
     query.Connection := fDBConnection as TFDConnection;
     query.SQL.Text :=
       'SELECT id, measure, object_ids, timeutc, variants, categories '+
-      'FROM '+EcoDistrictSchemaId(projectId)+'.di_measuresHistory';
+      'FROM '+projectSchema+'.di_measuresHistory';
     try
       query.Open();
       query.First();
@@ -1222,7 +1561,9 @@ function TEcodistrictProject.ReadDIObjectProperties: Boolean;
 var
   query: TFDQuery;
   op: TDIObjectProperty;
+  projectSchema: string;
 begin
+  projectSchema := EcoDistrictSchemaId(projectId);
   fDIObjectProperties.Free;
   fDIObjectProperties := TObjectList<TDIObjectProperty>.Create;
   query := TFDQuery.Create(nil);
@@ -1230,7 +1571,7 @@ begin
     query.Connection := fDBConnection as TFDConnection;
     query.SQL.Text :=
       'SELECT category, propertyName, propertyType, selection, fieldName, tablename, keyfieldname, editable '+
-      'FROM '+EcoDistrictSchemaId(projectId)+'.di_objectproperties '+
+      'FROM '+projectSchema+'.di_objectproperties '+
       'ORDER BY category, propertyName';
     try
       query.Open();
@@ -1270,7 +1611,9 @@ function TEcodistrictProject.ReadDIQueries: Boolean;
 var
   query: TFDQuery;
   DIQuery: TDIQuery;
+  projectSchema: string;
 begin
+  projectSchema := EcoDistrictSchemaId(projectId);
   fDIQueries.Free;
   fDIQueries := TDictionary<string, TDIQuery>.Create;
   query := TFDQuery.Create(nil);
@@ -1283,7 +1626,7 @@ begin
         'sql, tablename, idfieldname, geometryfieldname, datafieldname, '+ // text
         'layertype, '+ // integer
         'palettejson, legendjson '+ // text
-			'FROM '+EcoDistrictSchemaId(projectID)+'.di_queries '+
+			'FROM '+projectSchema+'.di_queries '+
       'WHERE defaultload >= 0'; // only load layers where default load >= 0 to make disabling layers easier
     try
       query.open();
@@ -1326,7 +1669,9 @@ function TEcodistrictProject.ReadDMQueries: Boolean;
 var
   query: TFDQuery;
   DMQuery: TDMQuery;
+  projectSchema: string;
 begin
+  projectSchema := EcoDistrictSchemaId(projectId);
   fDMQueries.Free;
   fDMQueries := TDictionary<string, TDMQuery>.Create;
   query := TFDQuery.Create(nil);
@@ -1335,7 +1680,7 @@ begin
     // * will not pin order of fields !
     query.SQL.Text :=
       'SELECT object_id, returntype, request, query, module '+
-			'FROM '+EcoDistrictSchemaId(projectID)+'.dm_queries';
+			'FROM '+projectSchema+'.dm_queries';
     try
       query.open();
       query.First;
@@ -1406,6 +1751,7 @@ begin
   PingDatabase('TEcodistrictProject.ReadSchemaNames');
 
   projectSchema := EcoDistrictSchemaId(fProjectID);
+
   setLength(Result, 0);
   query := TFDQuery.Create(nil);
   try
@@ -1500,6 +1846,25 @@ begin
   inherited;
 end;
 
+function TEcodistrictModule.forceReadOfDIMeasures(const aCaseId: string): Boolean;
+var
+  project: TProject;
+  isp: TPair<string, TScenario>;
+begin
+  if fProjects.TryGetValue(aCaseId, project) then
+  begin
+    Result := (project as TEcodistrictProject).ReadDIMeasures;
+    for isp in project.scenarios do
+    begin
+      isp.Value.forEachClient(procedure(aClient: TClient)
+        begin
+          // todo: update measures? aClient.SendDomains('updatedomains');
+        end);
+    end;
+  end
+  else Result := False;
+end;
+
 function TEcodistrictModule.forceReadOfDIMeasuresHistory(const aCaseId: string): Boolean;
 var
   project: TProject;
@@ -1513,6 +1878,7 @@ begin
     begin
       isp.Value.forEachClient(procedure(aClient: TClient)
         begin
+          // todo: correct?
           aClient.SendDomains('updatedomains');
         end);
     end;
@@ -1758,6 +2124,7 @@ var
   name: string;
   value: string;
   id: string;
+  schema: string;
 begin
   try
     if not (fDBConnection as TFDConnection).ping
@@ -1868,7 +2235,7 @@ begin
             begin
               if (_variantId='') or (_variantId='null') or (_variantId='None') then
               begin
-                if SchemaExists(EcoDistrictSchemaId(_caseId, _variantId)) then
+                if not SchemaExists(EcoDistrictSchemaId(_caseId)) then
                 begin
                   _status := 'Success - schema already deleted before';
                 end
@@ -1877,7 +2244,7 @@ begin
                   _status := 'In progress - deleting cascading schemas';
                   jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
                   DataEvent.signalString(JSONresponse.ToString);
-                  SchemaDelete(EcoDistrictSchemaId(_caseId, _variantId));
+                  SchemaDelete(EcoDistrictSchemaId(_caseId));
                   _status := 'Success - schema deleted';
                 end;
                 HandleModuleCaseDelete(_caseId);
@@ -1987,6 +2354,8 @@ begin
                           begin
                             if (dataquery.module.Contains(_moduleId)) then
                             begin
+                              // todo: rebuild to {case_id}
+                              // todo: first update dm_queries to always use {case_id} (not all are adjusted!)
                               (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
                               try
                                 query := TFDQuery.Create(nil);
@@ -2001,25 +2370,17 @@ begin
                                     query.First;
                                     if dataquery.ReturnType='INT' then
                                     begin
-                                      if not query.Eof then
-                                      begin
-            //                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
-            //                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsInteger.toString()+'"';
-                                        jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsInteger));
-                                      end;
+                                      if not query.Eof
+                                      then jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsInteger));
                                     end
                                     else if dataquery.ReturnType='FLOAT' then
                                     begin
-                                      if not query.Eof then
-                                      begin
-            //                            if dataresponse<>'' then dataresponse:=dataresponse+ ',';
-            //                            dataresponse:=dataresponse + '"'+ datafield + '": "'+query.Fields[0].AsFloat.toString()+'"';
-                                        jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsFloat));
-                                      end;
+                                      if not query.Eof
+                                      then jsonDataResponse.AddPair(datafield, TJSONNumber.Create(query.Fields[0].AsFloat));
                                     end
                                     else if dataquery.ReturnType='GEOJSON' then
-                                    begin // geojson as string
-            //we expect the query to return: a geojson object as text
+                                    begin
+                                      // we expect the query to return: a geojson object as text
                                       if not query.Eof then
                                       begin
                                         geojsonObjectAsString := query.Fields[0].AsString;
@@ -2049,7 +2410,6 @@ begin
                                           then jsonList.AddPair(query.FieldByName('attr_name').AsString, TJSONNumber.Create(StrToFloat(query.FieldByName('double_value').AsString, dotFormat)))
                                           else if not query.FieldByName('int_value').IsNull
                                           then jsonList.AddPair(query.FieldByName('attr_name').AsString, TJSONNumber.Create(query.FieldByName('int_value').AsLargeInt));
-                                          //jsonList.AddPair(query.FieldByName('attr_name').AsString, attr_value);
                                           query.Next;
                                         end;
                                       finally
@@ -2064,7 +2424,7 @@ begin
                                         begin
                                           rowObject := TJSONObject.Create;
                                           try
-                                            // todo: convert all fields to json object
+                                            // convert all fields to json object
                                             for f in query.fields do
                                             begin
                                               if not f.IsNull then
@@ -2072,7 +2432,7 @@ begin
                                                 case f.DataType of
                                                   ftWideMemo,
                                                   ftString,
-                                                  ftWideString: // todo: check widestring conversion..
+                                                  ftWideString:
                                                     rowObject.AddPair(f.FieldName, TJSONString.Create(f.AsString));
                                                   ftInteger:
                                                     rowObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsInteger));
@@ -2108,7 +2468,7 @@ begin
                                           propertiesObject := TJSONObject.Create;
                                           geometryObject := nil;
                                           try
-                                            // todo: convert all fields to GEOJSON object
+                                            // convert all fields to GEOJSON object
                                             // assume first object is geometry
                                             first := True;
                                             for f in query.fields do
@@ -2125,7 +2485,7 @@ begin
                                                   case f.DataType of
                                                     ftWideMemo,
                                                     ftString,
-                                                    ftWideString: // todo: check widestring conversion..
+                                                    ftWideString:
                                                       propertiesObject.AddPair(f.FieldName, TJSONString.Create(f.AsString));
                                                     ftInteger:
                                                       propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsInteger));
@@ -2137,7 +2497,7 @@ begin
                                                       propertiesObject.AddPair(f.FieldName, TJSONNumber.Create(f.AsFloat));
                                                   end;
                                                 end
-                                                else propertiesObject.AddPair(f.FieldName, TJSONNull.Create); // todo: check!
+                                                else propertiesObject.AddPair(f.FieldName, TJSONNull.Create);
                                               end;
                                             end;
                                           finally
@@ -2305,24 +2665,38 @@ begin
                     if Assigned(jsonObject.GetValue('kpiValueList')) then _kpiValueList := jsonObject.getValue<TJSONArray>('kpiValueList') else _kpiValueList:=nil;
                     if Assigned(_kpiValueList) then
                     begin
-                      jsonIterator :=_kpiValueList.GetEnumerator;
-                      while jsonIterator.MoveNext do
-                      begin
-                        jsonKpi:=jsonIterator.Current;
-                        _kpi_type:=jsonKpi.GetValue<string>('type', 'None');
-                        _gml_id:=jsonKpi.GetValue<string>('gml_id', 'None');
-                        _kpi_value:=jsonKpi.GetValue<double>('kpiValue', 0);
-                        (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
-                        try
-                        	// SQL delete from kpi_results where kpi_type=... and gml_id= and kpi_id =
-                          (fDBConnection as TFDConnection).ExecSQL('DELETE FROM kpi_results WHERE kpi_type='''+_kpi_type+''' AND gml_id='''+_gml_id+''' AND kpi_id='''+_kpiId+''';');
+                      try
+                        schema := EcoDistrictSchemaId(_caseId, _variantId);
+                        jsonIterator :=_kpiValueList.GetEnumerator;
+                        while jsonIterator.MoveNext do
+                        begin
+                          jsonKpi := jsonIterator.Current;
+                          _kpi_type := CheckSQLValue(jsonKpi.GetValue<string>('type', 'None'));
+                          _gml_id := CheckSQLValue(jsonKpi.GetValue<string>('gml_id', 'None'));
+                          _kpi_value := jsonKpi.GetValue<double>('kpiValue', 0);
+
+                          (fDBConnection as TFDConnection).ExecSQL(
+                            'DELETE '+
+                            'FROM '+schema+'.kpi_results '+
+                            'WHERE kpi_type='''+_kpi_type+''' AND gml_id='''+_gml_id+''' AND kpi_id='''+_kpiId+''';');
                           // SQL insert into kpi_results (kpi_type, kpi_id, gml_id, kpi_value) values ()
-                          (fDBConnection as TFDConnection).ExecSQL('INSERT INTO kpi_results (kpi_type, kpi_id, gml_id, kpi_value) VALUES ('''+_kpi_type+''', '''+_kpiId+''', '''+_gml_id+''','+_kpi_value.ToString()+');');
-                          _status := 'Success - data added to the database';
-                        finally
-                          (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
+                          (fDBConnection as TFDConnection).ExecSQL(
+                            'INSERT INTO '+schema+'.kpi_results (kpi_type, kpi_id, gml_id, kpi_value) '+
+                            'VALUES ('''+_kpi_type+''', '''+_kpiId+''', '''+_gml_id+''','+_kpi_value.ToString(dotFormat)+');');
+                        end;
+                        _status := 'Success - data added to the database';
+                      except
+                        on E: Exception do
+                        begin
+                          Log.WriteLn('exception in TEcodistrictModule.HandleDataEvent, setKpiResult ('+schema+') for '+_kpiId+': '+e.Message, llError);
+                          _status := 'failed - exception '+E.Message;
                         end;
                       end;
+                      // signal refresh data
+                      // _caseId, _variantId, _kpiId
+
+                      // todo: via timer
+                      HandleModuleScenarioRefresh(_caseId, _variantId);
                     end;
                   end;
                 end
@@ -2349,8 +2723,10 @@ begin
                   end
                   else
                   begin
-                    (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
+//                    (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
+//                    try
                     try
+                      schema := EcoDistrictSchemaId(_caseId, _variantId);
                       jsonArray:=TJSONArray.Create; // will be owned by jsonResponse
                       try
                         query := TFDQuery.Create(nil);
@@ -2358,7 +2734,7 @@ begin
                           query.Connection := fDBConnection as TFDConnection;
                           query.SQL.Text :=
                             'SELECT id, kpi_id, gml_id, kpi_value, kpi_type '+
-                            'FROM kpi_results '+
+                            'FROM '+schema+'.kpi_results '+
                             'WHERE kpi_id='''+_kpiId+'''';
                           query.Open();
                           try
@@ -2384,10 +2760,17 @@ begin
                       finally
                         jsonResponse.AddPair('kpiValue', jsonArray);
                       end;
-                    finally
-                      (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
                       _status := 'Success';
+                    except
+                      on E: Exception do
+                      begin
+                        Log.WriteLn('exception in TEcodistrictModule.HandleDataEvent, getKpiResult ('+schema+') for '+_kpiId+': '+e.Message, llError);
+                        _status := 'failed - exception '+E.Message;
+                      end;
                     end;
+//                    finally
+//                      (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
+//                    end;
                   end;
                 end
                 else _status := 'failed - no kpiId found in request';
@@ -2416,8 +2799,7 @@ begin
             jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
             DataEvent.signalString(JSONresponse.ToString);
           end
-          else
-          if _method='readDIObjectProperties' then
+          else if _method='readDIObjectProperties' then
           begin
             if forceReadOfDIObjectProperties(_caseId)
             then _status := 'Success - read object properties'
@@ -2425,8 +2807,15 @@ begin
             jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
             DataEvent.signalString(JSONresponse.ToString);
           end
-          else
-          if _method='readDIMeasuresHistory' then
+          else if _method='readDIMeasures' then
+          begin
+            if forceReadOfDIMeasures(_caseId)
+            then _status := 'Success - read measures'
+            else _status := 'failed - case not loaded to read di-measures for or no measures found';
+            jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
+            DataEvent.signalString(JSONresponse.ToString);
+          end
+          else if _method='readDIMeasuresHistory' then
           begin
             if forceReadOfDIMeasuresHistory(_caseId)
             then _status := 'Success - read measures history'
@@ -2434,8 +2823,7 @@ begin
             jsonResponse.get('status').JsonValue:= TJSONString.Create(_status);
             DataEvent.signalString(JSONresponse.ToString);
           end
-          else
-          if _method='refresh' then
+          else if _method='refresh' then
           begin
             if not ((_caseId = 'null') or (_caseId = '')) then
             begin
