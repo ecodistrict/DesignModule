@@ -43,12 +43,10 @@
         if (this.options.collapsed) {
             if (!L.Browser.android) {
                 L.DomEvent.on(container, {
-                    mouseenter: this._expand
+                    mouseenter: this._expand,
+                    mouseleave: this._collapse
                 }, this);
-            }
-
-            //,
-            // mouseleave: this._collapse
+            }            
 
             var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
@@ -238,7 +236,7 @@
     },
 
     _expand: function () {
-      L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation); 
+      L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
         if (this.hasElements()) {
             L.DomUtil.addClass(this._container, 'leaflet-control-details-expanded');
             this._form.style.height = null;

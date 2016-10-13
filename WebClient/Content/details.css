@@ -185,7 +185,7 @@
 
 /* telefoon */
 
-#phone {
+#phone.leaflet-control-details-base {
   width:280px !important;
 }
 

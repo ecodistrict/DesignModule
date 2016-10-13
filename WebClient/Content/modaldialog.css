@@ -77,3 +77,56 @@
   display: inline-block;
   margin: 5px;
 }
+
+/* phone */
+.modalDialog #phone {
+  position: relative;
+  margin: 10px auto;
+  padding: 5px 10px 13px 10px;
+  border-radius: 4px;
+  background: white;
+  max-width:96%;
+}
+
+#phone .selectByQueryForm {
+  background-color: orange;
+}
+#phone .queryDialogLine {
+  position: relative;
+  width:90%;
+}
+
+#phone .queryDialogLine input, #phone .queryDialogLine select.datalist {
+  margin: 0px;
+  height: 20px;
+  border-radius:3px;
+  padding:2px 3px;
+  border:1px solid darkgrey;
+  width:40%;
+  float:left;
+  box-sizing: border-box;
+}
+#phone .queryDialogLine img {
+  position: absolute;
+  top:2px;
+}
+#phone .queryDialogLine img.addQuery {
+  right:-39px;
+}
+#phone .queryDialogLine img.removeQuery {
+  right:-21px;
+}
+
+#phone .queryDialogLine select.optionList {
+  width:18%;
+  border:1px solid darkgrey;
+  text-align: center;
+  height: 20px;
+  float:left;
+  margin: 0px;
+  margin-left:1% !important;
+  margin-right:1% !important;
+  text-align-last:center;
+  padding:0px 5px
+  box-sizing: border-box;
+}

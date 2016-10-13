@@ -61,3 +61,9 @@ body,
   line-height: 24px; /* same as height div? */
 }
 .timestamp-hidden {  display: none }
+
+
+.leaflet-right .leaflet-control a:hover {
+  background-color: #f4f4f4;
+  border-radius: 5px;
+}
