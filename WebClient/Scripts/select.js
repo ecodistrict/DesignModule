@@ -145,7 +145,7 @@ function ApplyNewProperties() {
         else {
             inputNode = table.querySelectorAll("select")[0];
             if (properties[i].value != inputNode.options[inputNode.selectedIndex].value) {
-                changes = true;
+                changes = true
                 properties[i].value = inputNode.options[inputNode.selectedIndex].value;
             }
         }
@@ -154,7 +154,11 @@ function ApplyNewProperties() {
 
     if (changes) {
         // send to Server (publishing server)
-        wsSend(objProps);
+
+        var request = {};
+        request.applyObjectsProperties = objProps.selectedObjectsProperties;
+
+        wsSend(request);
     }
     //No closing on apply??
     modalDialogClose();
