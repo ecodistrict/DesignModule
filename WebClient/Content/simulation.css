@@ -1,0 +1,20 @@
+/* .leaflet-control-history derived from .leaflet--control-layers (leaflet.css) */
+.leaflet-control-simulation-toggle {
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  display: block;
+}
+/* history control */
+.leaflet-control-simulation-toggle {
+  background-image: url('images/simulation.png');
+  width: 36px;
+  height: 36px;
+}
+.leaflet-retina .leaflet-control-simulation-toggle {
+  background-image: url('images/simulation-2x.png');
+  background-size: 26px 26px;
+}
+.leaflet-touch .leaflet-control-simulation-toggle {
+  width: 44px;
+  height: 44px;
+}
