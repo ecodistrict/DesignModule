@@ -27,7 +27,7 @@
     },
 
     _initLayout: function () {
-        var className = 'leaflet-control-startstop-stopped',
+        var className = 'leaflet-control-startstop-stopped  leaflet-control-startstop',
 		    container = this._container = L.DomUtil.create('div', className);
 
         var className = 'leaflet-control-startstop-stopped',
@@ -68,7 +68,7 @@
         this.container.style.opacity = 0.7;
         this.container.removeEventListener("click", this._clickControl);
         this.container.removeEventListener("contextmenu", this._rightClick);
-        this.container.style.cursor = "default";
+        this.container.style.cursor = "not-allowed";
     },
 
     enable: function() {
