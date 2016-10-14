@@ -173,7 +173,7 @@
         container.appendChild(h);
 
         // determine elements per row
-        var maxElementCount = Math.max(Object.keys(this._kpis).length, Object.keys(this._charts).length, Object.keys(this._layers).length);
+        var maxElementCount = Math.max(Object.keys(this._kpis).length, Object.keys(this._charts).length, Object.keys(this._layers).length, GraphManager.graphs.length);
         var elementsPerRow = maxElementCount >0 ? Math.ceil(Math.sqrt(maxElementCount)) : 1;
         this.kpis = document.createElement('div');
         this.kpis.className = 'detailskpis';
@@ -186,6 +186,7 @@
         this.charts.className = 'detailscharts';
         this.charts.style.width = (/*this.options.*/elementsPerRow * this.options.elementWidth) + 'px';
         container.appendChild(this.charts);
+
 
         var hr2 = container.appendChild(document.createElement('hr'));
 
@@ -201,8 +202,15 @@
         }
         
         var chartCount = 0;
-        for (var chartid in this._charts) {
-            addChart(this.charts, this._charts[chartid], this.options.chartWidth, this.options.chartHeight, false, false, true);
+        //for (var chartid in this._charts) {
+        //    //addChart(this.charts, this._charts[chartid], this.options.chartWidth, this.options.chartHeight, false, false, true);
+        //    chartCount++;
+
+        //}
+
+        for (var i = 0; i < GraphManager.graphs.length; i++)
+        {
+            GraphManager.graphs[i].graph.GetPreview(this.charts);
             chartCount++;
         }
 
@@ -224,6 +232,8 @@
         for (var chart in this._charts)
             return true;
         for (var layer in this._layers)
+            return true;
+        for (var graph in GraphManager.graphs)
             return true;
         return false;
     },

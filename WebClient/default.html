@@ -72,10 +72,12 @@
     <script src="Scripts/warningDialog.js"></script>
     <script src="Scripts/start-stop.js"></script>
     <script src="Scripts/webSocket.js"></script>
+    <script src="Scripts/syncManager.js"></script>
     <!-- charts -->
     <script src="Scripts/d3.js"></script>
     <script src="Scripts/bullet.js"></script>
     <script src="Scripts/graphManager.js"></script>
+    <script src="Scripts/Graphs/lineGraphs.js"></script>
     <!-- local scripts -->
     <script>
         // determine parameters and config
@@ -86,7 +88,7 @@
             //session = '1234'; // default test session
             //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
             //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerp
-            //session = "SSM";
+            session = "SSM";
             //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
             //session = 'ensel';
         }
@@ -119,13 +121,18 @@
         var domainsControl = L.control.domains({});
         map.addControl(domainsControl);
 
-        // details
-        var detailsControl = L.control.details({
+        DataManager.detailsInfo = {
             elementWidth: 140,
             kpiWidth: 134, kpiHeight: 20,
             chartWidth: 134, chartHeight: 100,
-            layerWidth: 134, layerHeight: 140
-        });
+            layerWidth: 134, layerHeight: 140,
+            padding: 2,
+            border: 1,
+            graphMargin: 5
+        }
+
+        // details
+        var detailsControl = L.control.details(DataManager.detailsInfo);
         map.addControl(detailsControl);
 
        //history

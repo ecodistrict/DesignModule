@@ -253,8 +253,12 @@ var wsLookup = {
 
         if (typeof payload.speed !== "undefined") {
             DataManager.simSpeed = payload.speed;
+            console.log(payload.speed);
             showUserMessage("Simulation speed changed to: " + payload.speed, 1);
         }
+    },
+    cc: function (payload) {
+        SyncManager.handleMessage(payload);
     }
 }
 
@@ -399,6 +403,10 @@ function wsConnect() {
                 else if (message.simulationControl) {
                     messageBuilder.type = "simulationcontrol";
                     messageBuilder.payload = message.simulationControl;
+                }
+                else if (message.cc) {
+                    messageBuilder.type = "cc";
+                    messageBuilder.payload = message.cc;
                 }
                 else {
                     console.log("unknown message:");

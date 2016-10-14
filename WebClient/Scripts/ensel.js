@@ -184,12 +184,12 @@ DataManager = {
 
         var circle = L.circle([aCar.lat, aCar.lng], 2, {
             color: aCar.fill,
-            opacity: 0,
+            opacity: 1,
             fillColor: aCar.fill,
-            fillOpacity: 0.8
+            fillOpacity: 0.8,
         }).addTo(DataManager.drawLayer);
 
-        console.log(aCar.fill);
+        circle.setStyle({ color: aCar.fill, opacity: 1 });
 
         aCar.circle = circle;
         DataManager.cars.push(aCar);
@@ -248,7 +248,7 @@ DataManager = {
             }
             else
             {
-                car.circle.setStyle( {color: car.fill, opacity: 0})
+                car.circle.setStyle( {color: car.fill, opacity: 1})
             }
         }
 

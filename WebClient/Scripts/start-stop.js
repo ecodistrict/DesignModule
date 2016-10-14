@@ -3,7 +3,8 @@
         collapsed: false,
         position: 'topright',
         autoZIndex: true,
-        hideSingleBase: false
+        hideSingleBase: false,
+        disabled: false
     },
 
     initialize: function () {
@@ -22,6 +23,7 @@
     },
 
     onRemove: function () {
+
     },
 
     _initLayout: function () {
@@ -50,10 +52,30 @@
 
        //modelDialogAddButton(form, "Stop", this._stopSimulation);
         
-
+        this.container = container;
         //container.appendChild(form);
         L.DomUtil.addClass(container, 'leaflet-control-startstop');
         L.DomUtil.addClass(container, 'leaflet-control-info-collapsed');
+    },
+
+    disable: function() {
+        if (this.options.disabled)
+            return;
+        this.options.disabled = true;
+        this.container.style.opacity = 0.7;
+        this.container.removeEventListener("click", this._clickControl);
+        this.container.removeEventListener("contextmenu", this._rightClick);
+        this.container.style.cursor = "default";
+    },
+
+    enable: function() {
+        if (!this.options.disabled)
+            return;
+        this.options.disabled = false;
+        this.container.style.opacity = 1;
+        this.container.addEventListener("click", this._clickControl);
+        this.container.addEventListener("contextmenu", this._rightClick);
+        this.container.style.cursor = "pointer";
     },
 
     _rightClick: function (e) {
@@ -111,6 +133,16 @@
         }
     },
 
+    SyncStartCommand: function() {
+        this.SimulationStarted();
+        this.SendSimStart();
+    },
+
+    SyncStopCommand: function() {
+        this.SimulationStopped();
+        this.SendSimStop();
+    },
+
     SimulationStarted: function() {
         this._container.playing = true;
         L.DomUtil.removeClass(this._container, 'leaflet-control-startstop-stopped');
@@ -125,11 +157,19 @@
 
     _startSimulation: function (e) {
         //alert("Now the simulation should start");
-        wsSend({ simulationControl: { start: true } });
+        this.SendSimStart();
     },
 
     _stopSimulation: function (e) {
         //alert("Now the simulation must stop");
+        this.SendSimStop();
+    },
+
+    SendSimStart: function() {
+        wsSend({ simulationControl: { start: true } });
+    },
+
+    SendSimStop: function() {
         wsSend({ simulationControl: { stop: true } });
     },
 

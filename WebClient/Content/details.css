@@ -199,6 +199,29 @@
     stroke-width: 1.0px;
 }
 
+.graphDetails {
+    background-color: white;
+    border: 1px solid grey;
+    border-radius: 3px;
+    margin: 2px;
+    float: left;
+    pointer-events: auto;
+}
+
+.chartPreviewActive
+{
+    border: 1px solid dodgerblue !important;
+}
+
+.graphDetailTitle {
+    text-align: center;
+    height: 12px;
+    overflow-y: visible;
+}
+
+.preview-svg-container {
+}
+
 /* layers in details */
 
 .layerDetails {
