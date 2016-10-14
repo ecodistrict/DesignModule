@@ -25,8 +25,8 @@
     f.appendChild(document.createElement('hr'));
     var mddb = f.appendChild(document.createElement('div'));
     mddb.className = 'modalDialogDevideButtons';
-    modelDialogAddButton(mddb, 'Apply', queryDialogApply);
     modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
+    modelDialogAddButton(mddb, 'Apply', queryDialogApply);
 }
 
 function queryDialogApply() {

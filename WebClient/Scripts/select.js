@@ -33,7 +33,7 @@ function loadJSONLocal(callback) {
 
 
 function initSelectedObjectsProperties(e) {
-    
+
     //// add close button
     //var mddb = objectPropertiesDialog.appendChild(document.createElement('div'));
     //mddb.className = 'modalDialogDevideButtons';
@@ -43,7 +43,7 @@ function initSelectedObjectsProperties(e) {
     command.selectObjectsProperties = {};
     command.selectObjectsProperties.selectCategories = selectCategories = measuresControl.options.selectCategories;
     command.selectObjectsProperties.selectedObjects = getSelectedObjects();
-    wsSend(command);
+    // wsSend(command);
 
     //
     // debug only, read the JSON file for the properties of selected objects
@@ -51,14 +51,14 @@ function initSelectedObjectsProperties(e) {
 
     // todo: server repsonse to showSelectedObjectsProperties(objectProps); below
 
-    
-    //loadJSONLocal(function (response) {
-    //    var objectProps = JSON.parse(response);
-    //    if (objectProps.selectedObjectsProperties.properties.length == 0)
-    //        return;
-    //    showSelectedObjectsProperties(objectProps);
-    //});
-    
+
+    loadJSONLocal(function (response) {
+       var objectProps = JSON.parse(response);
+       if (objectProps.selectedObjectsProperties.properties.length == 0)
+           return;
+       showSelectedObjectsProperties(objectProps);
+    });
+
 }
 
 function showSelectedObjectsProperties(aSelectedObjectsProperties) {
@@ -158,11 +158,11 @@ function ApplyNewProperties() {
         var request = {};
         request.applyObjectsProperties = objProps.selectedObjectsProperties;
 
-        wsSend(request);
+        // wsSend(request);
     }
     //No closing on apply??
     modalDialogClose();
-    
+
 }
 
 function createAttributeTable(aAttribute, aElem) {
@@ -478,4 +478,3 @@ function getSelectedObjects() {
         objects.push(selectedItems._layers[lid].feature.properties.id);
     return objects;
 }
-
