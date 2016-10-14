@@ -54,8 +54,8 @@
        //modelDialogAddButton(form, "Start", this._startSimulation);
 
        //modelDialogAddButton(form, "Stop", this._stopSimulation);
-        
         this.container = container;
+
         //container.appendChild(form);
         L.DomUtil.addClass(startstopButton, 'leaflet-control-startstop');
         L.DomUtil.addClass(startstopButton, 'leaflet-control-info-collapsed');

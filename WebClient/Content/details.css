@@ -1,264 +1,232 @@
-﻿
-
-
-
 /* .leaflet-control-details derived from .leaflet--control-layers (leaflet.css) */
-
-
 /* details control */
-
 .leaflet-control-details {
-	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
-	background: #fff;
-	border-radius: 5px;
-	}
+  box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  background: #fff;
+  border-radius: 5px;
+}
 .leaflet-control-details-toggle {
-	background-position: 50% 50%;
-	background-repeat: no-repeat;
-	display: block;
-	background-image: url('images/details.png');
-    width: 36px;
-	height: 36px;
-	}
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  display: block;
+  background-image: url('images/details.png');
+  width: 36px;
+  height: 36px;
+}
 .leaflet-retina .leaflet-control-details-toggle {
-	background-image: url('images/details-2x.png');
-	background-size: 26px 26px;
-	}
+  background-image: url('images/details-2x.png');
+  background-size: 26px 26px;
+}
 .leaflet-touch .leaflet-control-details-toggle {
-    width: 44px;
-	height: 44px;
-	}
+  width: 44px;
+  height: 44px;
+}
 .leaflet-control-details .leaflet-control-details-list,
-.leaflet-control-details-expanded .leaflet-control-details-toggle {
-	display: none;
-	}
+.leaflet-control-details-expanded .leaflet-control-details-toggle {  display: none }
 .leaflet-control-details-expanded .leaflet-control-details-list {
-	display: block;
-	position: relative;
-	}
+  display: block;
+  position: relative;
+}
 .leaflet-control-details-expanded {
-	padding: 6px 10px 6px 6px;
-	color: #333;
-	background: #fff;
-    height: auto;
-	}
+  padding: 6px 10px 6px 6px;
+  color: #333;
+  background: #fff;
+  height: auto;
+}
 .leaflet-control-details-scrollbar {
-	overflow-y: scroll;
-	padding-right: 5px;
-	}
+  overflow-y: scroll;
+  padding-right: 5px;
+}
 .leaflet-control-details-selector {
-	margin-top: 2px;
-	position: relative;
-	top: 1px;
-	}
-.leaflet-control-details label {
-	/*display: block;*/
-	}
+  margin-top: 2px;
+  position: relative;
+  top: 1px;
+}
+.leaflet-control-details label {  /*display: block;_NO__DOTCOMMA__AFTER__*/ }
 .leaflet-control-details-separator {
-	height: 0;
-	border-top: 1px solid #ddd;
-	margin: 5px -10px 5px -6px;
-	}
-
-
-
+  height: 0;
+  border-top: 1px solid #ddd;
+  margin: 5px -10px 5px -6px;
+}
 .leaflet-control-details h4 {
-    margin: 0;
-    padding: 0;
-    }
-
+  margin: 0;
+  padding: 0;
+}
 .leaflet-control-details ul {
-    list-style-type: none;
-    margin: 0;
-    padding: 0;
-    }
-
-.leaflet-control-details li  {
-    padding-left: 10px;
-    }
-
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+.leaflet-control-details li {  padding-left: 10px }
 .leaflet-control-details li ul li {
-    padding-left: 20px;
-    padding-right: 10px;
-    line-height: 22px;
-    }
-
-.leaflet-control-details li ul li:hover {
-    background: #f0f0f0;
-    }
-
-.leaflet-control-details li a:link, .leaflet-control-details li a:visited {
-    text-decoration: none;
-    color: #000;
-    display: block;
-    font-size: 16px;
+  padding-left: 20px;
+  padding-right: 10px;
+  line-height: 22px;
 }
-
-.details-name {
-    
+.leaflet-control-details li ul li:hover {  background: #f0f0f0 }
+.leaflet-control-details li a:link,
+.leaflet-control-details li a:visited {
+  text-decoration: none;
+  color: #000;
+  display: block;
+  font-size: 16px;
 }
-
+.details-name { }
 .details-line {
-    display: block;
-    font-size: 16px;
-    padding: 2px 16px 2px 16px;
-    cursor: pointer;
-    background-color: white;
+  display: block;
+  font-size: 16px;
+  padding: 2px 16px 2px 16px;
+  cursor: pointer;
+  background-color: white;
 }
-
 .details-plus {
-    float: right;
-    height: 16px;
-    width: 16px;
-    margin-left: 10px;
-    background-image: url('images/domainadd2.png');
+  float: right;
+  height: 16px;
+  width: 16px;
+  margin-left: 10px;
+  background-image: url('images/domainadd2.png');
 }
-
-.details-line:hover {
-    background-color: dodgerblue;
-}
-
+.details-line:hover {  background-color: dodgerblue }
 .details-line-selected {
-    background-color: lightgray;
-    font-style:italic;
+  background-color: lightgray;
+  font-style: italic;
 }
-
-.details-line .details-select:checked {
-
-}
-
+.details-line .details-select:checked { }
 /* touch */
-
 .leaflet-touch .leaflet-control-details {
-	box-shadow: none;
-	border: 2px solid rgba(0,0,0,0.2);
-	background-clip: padding-box;
-	}
-
-
-.leaflet-oldie .leaflet-control-details {
-	border: 1px solid #999;
-	}
-
-
-
+  box-shadow: none;
+  border: 2px solid rgba(0,0,0,0.2);
+  background-clip: padding-box;
+}
+.leaflet-oldie .leaflet-control-details {  border: 1px solid #999 }
 /* elements in details */
-
-.bullet { 
-    font: 8px sans-serif; 
-    pointer-events:all;
+.bullet {
+  font: 8px sans-serif;
+  pointer-events: all;
 }
-.bullet .marker { stroke: #000; stroke-width: 2px; }
-.bullet .tick line { stroke: #666; stroke-width: .5px; }
-.bullet .range.s0 { fill: #eee; }
-.bullet .range.s1 { fill: #ddd; }
-.bullet .range.s2 { fill: #ccc; }
-.bullet .measure.s0 { fill: lightsteelblue; }
-.bullet .measure.s1 { fill: steelblue; }
-.bullet .title { font-size: 10px; font-weight: bold; }
-.bullet .subtitle { fill: #999; }
-.detailskpis .tick { display: none; }
-
-.bullet:hover .title {
-    fill: dodgerblue;
+.bullet .marker {
+  stroke: #000;
+  stroke-width: 2px;
 }
-
-
+.bullet .tick line {
+  stroke: #666;
+  stroke-width: .5px;
+}
+.bullet .range.s0 {  fill: #eee }
+.bullet .range.s1 {  fill: #ddd }
+.bullet .range.s2 {  fill: #ccc }
+.bullet .measure.s0 {  fill: lightsteelblue }
+.bullet .measure.s1 {  fill: steelblue }
+.bullet .title {
+  font-size: 10px;
+  font-weight: bold;
+}
+.bullet .subtitle {  fill: #999 }
+.detailskpis .tick {  display: none }
+.bullet:hover .title {  fill: dodgerblue }
 /* charts input details */
-
 .chartDiv {
-    border-radius: 3px;
-    border: 1px solid gray;
-    margin: 2px;
+  border-radius: 3px;
+  border: 1px solid gray;
+  margin: 2px;
 }
-
-.chartDiv:hover {
-    border-color: dodgerblue;
-}
-
-.chartDetailsMainGroup {
-    pointer-events:all;
-}
-
+.chartDiv:hover {  border-color: dodgerblue }
+.chartDetailsMainGroup {  pointer-events: all }
 /* details chart and on hover select */
-
 .chartDetailsRect {
-    fill: none;
-    stroke: black; 
-    stroke-width: 0.9px;
+  fill: none;
+  stroke: black;
+  stroke-width: 0.9px;
 }
-
-.chartDetailsMainGroup:hover .chartDetailsRect {
-    stroke: dodgerblue; 
-}
-
-
+.chartDetailsMainGroup:hover .chartDetailsRect {  stroke: dodgerblue }
 .lineChartLine {
-    fill: none;
-    stroke: steelblue;
-    stroke-width: 1.0px;
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.0px;
 }
-
-.graphDetails {
-    background-color: white;
-    border: 1px solid grey;
-    border-radius: 3px;
-    margin: 2px;
-    float: left;
-    pointer-events: auto;
-}
-
-.chartPreviewActive
-{
-    border: 1px solid dodgerblue !important;
-}
-
-.graphDetailTitle {
-    text-align: center;
-    height: 12px;
-    overflow-y: visible;
-}
-
-.preview-svg-container {
-}
-
 /* layers in details */
-
 .layerDetails {
-    border-radius: 3px;
-    border: 1px solid gray;
-    margin: 2px;
-    /*display: inline-block;*/
-    float:left;
+  border-radius: 3px;
+  border: 1px solid gray;
+  margin: 2px;
+  /*display: inline-block;*/
+  float: left;
+  position: relative;
 }
-
 .layerDetails:hover {
-    border-color: dodgerblue;
+  border-color: dodgerblue;
+  cursor:pointer;
 }
-
 .layerDetailsTitle {
-    /*margin: auto auto;*/
-    text-align:center;
+  /*margin: auto auto;*/
+  text-align: center;
 }
-
 .layerDetailsImg {
-    /*left: 6px;*/
-    top: 10px;
-    position: relative;
-    display: block;
-    margin: auto auto;
+  /*left: 6px;*/
+  top: 10px;
+  position: relative;
+  display: block;
+  margin: auto auto;
 }
-
 .layerDetailsSelected {
-    top: 45px;
-    left:5px;
-    position: relative;
-    width: 12px;
-    height: 7px;
-    background-image: url('images/detailsSelected.png');
-	background-size: 12px 7px;
+  bottom: 10px;
+  left: 5px;
+  position: absolute;;
+  width: 12px;
+  height: 7px;
+  background-image: url('images/detailsSelected.png');
+  background-size: 12px 7px;
+}
+.layerDetailsSelectedHidden {  display: none }
+
+
+
+
+
+/* telefoon */
+
+#phone.leaflet-control-details-base {
+  width:280px !important;
 }
 
-.layerDetailsSelectedHidden {
-    display: none;
+#phone .layerDetailsTitle {
+  font-size: 11px !important;
+  text-align: left !important;
+  padding-left: 31px !important;
+  line-height: 14px;
+  padding-top: 4px;
+}
+
+#phone .detailslayers {
+  width: 100% !important;
+  box-sizing: border-box;
+  min-height: 10px;
+  overflow-y: scroll !important; /* has to be scroll, not auto */
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 300px !important;
+}
+#phone .layerDetails {
+  width: 100% !important;
+  height: 23px !important;
+  float: left;
+  margin: 2px 0px !important;
+  position: relative;
+  box-sizing: border-box;
+}
+
+#phone .layerDetailsImg {
+  left: 6px;
+  top: 4px;
+  position: absolute;
+  display: block;
+  margin: auto auto;
+  float: left;
+  height: 16px;
+}
+
+#phone .layerDetailsSelected {
+    top: 8px !important;
+    left: auto !important;
+    right: 5px !important;
+    position: absolute !important;
 }
