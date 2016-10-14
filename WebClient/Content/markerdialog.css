@@ -1,7 +1,6 @@
-﻿.informationList {
-    list-style-type: none;
+.informationList {
+  list-style-type: none
 }
-
 #complaintDialog {
-    width: 600px;
+  width: 600px
 }

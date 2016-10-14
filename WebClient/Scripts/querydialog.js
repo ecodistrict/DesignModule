@@ -3,18 +3,21 @@
     // todo: build dialog based on measuresControl.options.selectCategories
 
     var div = modalDialogCreate('Select objects by query', 'Select objects based on values of their attributes');
-    div.style.width = '400px';
-    //div.style.margin = '5% auto';
+
+    if (window.outerWidth < 500) {
+      div.style.width = '100%';
+      div.style.boxSizing = "border-box";
+      div.setAttribute("id", "phone");
+      //div.style.margin = '5% auto';
+    } else {
+      div.style.width = '400px';
+      //div.style.margin = '5% auto';
+    }
+
 
     // build dialog form
     var f = div.appendChild(document.createElement('form'));
     f.id = 'selectByQueryForm';
-    // datalist with  options
-    var dl = f.appendChild(document.createElement('datalist'));
-    dl.id = 'queryAttributes';
-    dl.appendChild(document.createElement('option')).value = 'inhabitants';
-    dl.appendChild(document.createElement('option')).value = 'height';
-    dl.appendChild(document.createElement('option')).value = 'surface area';
     var mdl = f.appendChild(document.createElement('div'));
     mdl.id = 'queryDialogLines';
     mdl.appendChild(selectByQueryAddLine());
@@ -22,8 +25,8 @@
     f.appendChild(document.createElement('hr'));
     var mddb = f.appendChild(document.createElement('div'));
     mddb.className = 'modalDialogDevideButtons';
-    modelDialogAddButton(mddb, 'Apply', queryDialogApply);
     modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
+    modelDialogAddButton(mddb, 'Apply', queryDialogApply);
 }
 
 function queryDialogApply() {
@@ -46,17 +49,18 @@ function queryDialogApply() {
 function selectByQueryAddLine(e) {
     // we are the last entry
     // add new entry
+
     var newQueryLine = document.createElement('div');
     newQueryLine.className = 'queryDialogLine';
-    newQueryLine.innerHTML = 
-        '<input type="text" placeholder="attribute name" list="queryAttributes" />'+
-        '<select><option value="<">&lt;</option><option value="<=" selected>&le;</option><option value="=" selected>=</option><option value="<>">&ne;</option><option value=">">&gt;</option><option value=">=">&ge;</option><option value="in">in</option></select>'+
+    newQueryLine.innerHTML =
+        '<select class="datalist"><option value="Inhabitants">Inhabitants</option><option value="Height">Height</option><option value="Surface_area">Surface area</option></select>'+
+        '<select class="optionList"><option value="<">&lt;</option><option value="<=" selected>&le;</option><option value="=" selected>=</option><option value="<>">&ne;</option><option value=">">&gt;</option><option value=">=">&ge;</option><option value="in">in</option></select>'+
         '<input type="text" placeholder="value" />'+
-        '<img src="Content/images/historyremove.png" class="queryDialogAddRemoveButton" onclick="selectByQueryRemoveLine(this)" title="..remove this line from the query" />' +
-        '<img src="Content/images/domainadd.png" class="queryDialogAddRemoveButton" onclick="selectByQueryAddLine(this)" title="..add a new line to the query" />';
+        '<img class="removeQuery" src="Content/images/historyremove.png" class="queryDialogAddRemoveButton" onclick="selectByQueryRemoveLine(this)" title="..remove this line from the query" />' +
+        '<img class="addQuery" src="Content/images/domainadd.png" class="queryDialogAddRemoveButton" onclick="selectByQueryAddLine(this)" title="..add a new line to the query" />';
     if (e) {
         e.parentNode.parentNode.appendChild(newQueryLine);
-        // remove add-line-image from current entry 
+        // remove add-line-image from current entry
         e.parentNode.removeChild(e);
     }
     return newQueryLine;
@@ -76,6 +80,7 @@ function selectByQueryRemoveLine(e) {
             img.onclick = function () { selectByQueryAddLine(img); };
             img.style['vertical-align'] = 'text-bottom';
             img.title = 'Add a new line to the query';
+            img.className = 'addQuery';
             currentQueryLines.lastElementChild.appendChild(img);
         }
     }

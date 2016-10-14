@@ -1,156 +1,105 @@
-﻿.leaflet-title {
-    position: absolute;
-    left: 96px;
-    top: 0;
+.leaflet-title {
+  position: absolute;
+  left: 96px;
+  top: 0;
 }
-
 .projectDescription {
-    color: white;
-    pointer-events: none;
+  color: white;
+  pointer-events: none;
 }
-
-#projectDescriptionH2{
-       background-color: rgba(0, 0, 0, 0.0);
-       border-radius: 3px;
-       padding-left: 3px;
-       padding-right: 3px;
-       margin-top: 14px;
-       text-overflow: ellipsis;
-       white-space: nowrap;
-       overflow: hidden;
-       display: inline-block;
-       color: white;
-       text-shadow: 1px 1px black;
-       pointer-events: none;
+#projectDescriptionH2 {
+  background-color: rgba(0, 0, 0, 0.0);
+  border-radius: 3px;
+  padding-left: 3px;
+  padding-right: 3px;
+  margin-top: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  display: inline-block;
+  color: white;
+  text-shadow: 1px 1px black;
+  pointer-events: none;
 }
-
-#projectDescriptionH2:hover{
-    white-space: normal;
-    word-wrap: break-word;
+#projectDescriptionH2:hover {
+  white-space: normal;
+  word-wrap: break-word;
 }
-
-#projectDescriptionTextBox{
-    pointer-events: auto;
-    cursor: pointer;
-    position: relative;
+#projectDescriptionTextBox {
+  pointer-events: auto;
+  cursor: pointer;
+  position: relative;
 }
-
-#projectDescriptionTextBox:hover{
-    cursor: pointer;
-    pointer-events: auto;
+#projectDescriptionTextBox:hover {
+  cursor: pointer;
+  pointer-events: auto;
 }
-
 /* select scenario form */
-
 .selectScenarioUL {
-    list-style-type: none;
-    margin-left: 0;
+  list-style-type: none;
+  margin-left: 0;
 }
-
 .selectScenarioUR {
-    display: block;
-    align: right;
-    width: 10px;
+  display: block;
+  align: right;
+  width: 10px;
 }
-
-.selectScenarioLI {
-    white-space:nowrap;
-}
-
+.selectScenarioLI {  white-space: nowrap }
 .selectActiveScenarioRadio {
-    margin: 0 0 0 24px;
-    float: left;
-    display: none;
+  margin: 0 0 0 24px;
+  float: left;
+  display: none;
 }
-
 .selectActiveScenarioLabel {
-    margin: 4px 0 4px 24px;
-    font-size: 16px;
-    display: block;
-
-    background-color: white;
-    border: 1px solid white;
-    border-radius: 3px;
-
+  margin: 4px 0 4px 24px;
+  font-size: 16px;
+  display: block;
+  background-color: white;
+  border: 1px solid white;
+  border-radius: 3px;
 }
-
 #list {
-	width: 85%;
-	list-style-type: none;
+  width: 85%;
+  list-style-type: none;
 }
-
 .listItem {
-	width: auto;
-	height: auto;
+  width: auto;
+  height: auto;
 }
-
-.subList {
-	list-style-type: none;
-}
-
-.subListItem {
-	height: auto;
-}
-
-
+.subList {  list-style-type: none }
+.subListItem {  height: auto }
 /* --- Table Stuff --- */
 .scenarioTable {
-	width: 100%;
-	border: 0;
-	border-collapse: collapse;
-    font-size: 16px;
+  width: 100%;
+  border: 0;
+  border-collapse: collapse;
+  font-size: 16px;
 }
-
-.tableRow {
-	height: auto;
-}
-
+.tableRow {  height: auto }
 .cell1 {
-	width: auto;
-    cursor: default;
+  width: auto;
+  cursor: default;
 }
-
 .cell2 {
-	width: 20px;
-    cursor: default;
+  width: 20px;
+  cursor: default;
 }
-
-
 .cell3 {
-	width:30px;
-	border-left: 3px solid LightGrey;
-    cursor: default;
+  width: 30px;
+  border-left: 3px solid LightGrey;
+  cursor: default;
 }
-
-#noRefRightRadio:hover {
-	background-color: #d6adeb;
-}
-
+#noRefRightRadio:hover {  background-color: #d6adeb }
 #refTextCell {
-	width: 30px;
-	border-left: 3px solid LightGrey;
+  width: 30px;
+  border-left: 3px solid LightGrey;
 }
-
-#activeTextCell {
-	width: 20px;
-}
-
-#noRefTextCell {
-	width: 20px;
-}
-
-
-
+#activeTextCell {  width: 20px }
+#noRefTextCell {  width: 20px }
 /* --- Text Fields --- */
-#activeTextSpan {
-	margin-right: 3px;
-}
-
-#refTextSpan {
-	padding-left: 3px;
-}
-
+#activeTextSpan {  margin-right: 3px }
+#refTextSpan {  padding-left: 3px }
 #noRefSpan {
-	margin-right: 3px;
-    white-space: nowrap;
+  margin-right: 3px;
+  white-space: nowrap;
 }

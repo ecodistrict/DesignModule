@@ -5,9 +5,7 @@
   padding-left: 0;
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
 }
-.leaflet-toolbar-0 > li {
-  position: relative;
-}
+.leaflet-toolbar-0 > li {  position: relative }
 .leaflet-toolbar-0 > li > .leaflet-toolbar-icon {
   display: block;
   width: 26px;
@@ -20,9 +18,7 @@
   text-decoration: none;
   background-color: #ffffff;
 }
-.leaflet-toolbar-0 > li > .leaflet-toolbar-icon:hover {
-  background-color: #f4f4f4;
-}
+.leaflet-toolbar-0 > li > .leaflet-toolbar-icon:hover {  background-color: #f4f4f4 }
 .leaflet-toolbar-0 .leaflet-toolbar-1 {
   display: none;
   list-style: none;
@@ -40,16 +36,12 @@
   background-color: #ffffff;
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
   -webkit-transform: rotate(45deg);
-      -ms-transform: rotate(45deg);
-          transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
 }
 /* L.Toolbar.Control */
-.leaflet-control-toolbar {
-  /* Secondary Toolbar */
-}
-.leaflet-control-toolbar > li > .leaflet-toolbar-icon {
-  border-bottom: 1px solid #ccc;
-}
+.leaflet-control-toolbar {  /* Secondary Toolbar */:  }
+.leaflet-control-toolbar > li > .leaflet-toolbar-icon {  border-bottom: 1px solid #ccc }
 .leaflet-control-toolbar > li:first-child > .leaflet-toolbar-icon {
   border-top-left-radius: 4px;
   border-top-right-radius: 4px;
@@ -69,9 +61,7 @@
   white-space: nowrap;
   height: 26px;
 }
-.leaflet-control-toolbar .leaflet-toolbar-1 > li {
-  display: inline-block;
-}
+.leaflet-control-toolbar .leaflet-toolbar-1 > li {  display: inline-block }
 .leaflet-control-toolbar .leaflet-toolbar-1 > li > .leaflet-toolbar-icon {
   display: block;
   background-color: #919187;
@@ -84,16 +74,10 @@
   padding-right: 10px;
   height: 26px;
 }
-.leaflet-control-toolbar .leaflet-toolbar-1 > li > .leaflet-toolbar-icon:hover {
-  background-color: #a0a098;
-}
+.leaflet-control-toolbar .leaflet-toolbar-1 > li > .leaflet-toolbar-icon:hover {  background-color: #a0a098 }
 /* L.Toolbar.Popup */
-.leaflet-popup-toolbar {
-  position: relative;
-}
-.leaflet-popup-toolbar > li {
-  float: left;
-}
+.leaflet-popup-toolbar {  position: relative }
+.leaflet-popup-toolbar > li {  float: left }
 .leaflet-popup-toolbar > li:first-child > .leaflet-toolbar-icon {
   border-top-left-radius: 4px;
   border-bottom-left-radius: 4px;

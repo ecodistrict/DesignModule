@@ -1,11 +1,8 @@
 /*todo: get rights for noun-project icon*/
-
-
 #graphsContainer {
   pointer-events: none;
   position: fixed;
 }
-
 .modalDialog-close {
   position: absolute;
   top: 3px;
@@ -13,9 +10,8 @@
   cursor: pointer;
   width: 19px;
   height: 25px;
-  font-size:20px;
+  font-size: 20px;
 }
-
 .graphDiv {
   pointer-events: auto;
   position: absolute;
@@ -24,7 +20,6 @@
   background: white;
   border: 2px solid rgba(0, 0, 0, 0.2);
 }
-
 .graph-info {
   position: absolute;
   top: 6px;
@@ -34,7 +29,6 @@
   height: 20px;
   background-image: url('images/info.png');
 }
-
 .graph-resize {
   position: absolute;
   right: 0px;
@@ -47,49 +41,26 @@
   padding: 2px;
   cursor: nwse-resize;
 }
-
-.modalDialog-close:hover, .graph-info:hover, .graph-resize:hover, .modalDialog-close:hover {
-  opacity:0.75;
+.modalDialog-close:hover,
+.graph-info:hover,
+.graph-resize:hover,
+.modalDialog-close:hover {
+  opacity: 0.75;
   color: hsla(0,0%,0%,0.7);
 }
-
 .axis {
   shape-rendering: crispEdges;
   font-size: 10px;
 }
-
-.xAxis {
-
-}
-
-svg text {
-
-}
-
+.xAxis { }
+svg text { }
 .axisLabel {
   fill: rgba(0, 0, 0, 0.5);
   font-size: 12px;
 }
-
-.xAxis line {
-  stroke: black;
-}
-.xAxis path {
-  stroke: black;
-}
-
-path {
-  shape-rendering: crispEdges;
-}
-
-.yAxis {
-
-}
-
-.yAxis line {
-  stroke: black;
-}
-
-.yAxis path {
-  stroke: black;
-}
+.xAxis line {  stroke: black }
+.xAxis path {  stroke: black }
+path {  shape-rendering: crispEdges }
+.yAxis { }
+.yAxis line {  stroke: black }
+.yAxis path {  stroke: black }

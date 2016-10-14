@@ -46,11 +46,12 @@
                     mouseenter: this._expand,
                     mouseleave: this._collapse
                 }, this);
-            }
+            }            
 
             var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
             link.title = 'Details of selected domains in KPIs, charts and map layers';
+
 
             if (L.Browser.touch) {
                 L.DomEvent
@@ -59,6 +60,7 @@
             } else {
                 L.DomEvent.on(link, 'focus', this._expand, this);
             }
+
 
             // work around for Firefox Android issue https://github.com/Leaflet/Leaflet/issues/2033
             /*
@@ -73,6 +75,11 @@
         }
 
         this._detailList = L.DomUtil.create('div', className + '-base', form);
+
+        if (window.innerWidth < 500) {
+          this._detailList.setAttribute("id", "phone");
+        }
+
 
         container.appendChild(form);
     },
@@ -107,14 +114,14 @@
             if (kpiName == aKPI.name) {
                 this._kpis[aKPI.name] = aKPI;
                 // rebuild details elements
-                this._update(); 
+                this._update();
                 return;
             }
         }
         // todo: kpi not found.. add?
     },
 
-    
+
     updatePreview: function (aElementID, preview) {
         if (this.layers) {
             var img = document.getElementById(aElementID);
@@ -162,7 +169,7 @@
         if (changed)
             updateTilesLayerOnMap(aElementID, aTilesURL);
     },
-    
+
     _update: function () {
         if (!this._container) { return this; }
 
@@ -200,7 +207,7 @@
             addKPI(this.kpis, this._kpis[kpiid], this.options.kpiWidth, this.options.kpiHeight);
             kpiCount++;
         }
-        
+
         var chartCount = 0;
         //for (var chartid in this._charts) {
         //    //addChart(this.charts, this._charts[chartid], this.options.chartWidth, this.options.chartHeight, false, false, true);
@@ -239,6 +246,7 @@
     },
 
     _expand: function () {
+      L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
         if (this.hasElements()) {
             L.DomUtil.addClass(this._container, 'leaflet-control-details-expanded');
             this._form.style.height = null;
