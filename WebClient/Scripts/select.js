@@ -57,7 +57,7 @@ function initSelectedObjectsProperties(e) {
             return;
         showSelectedObjectsProperties(objectProps);
     });
-    
+
 }
 
 function showSelectedObjectsProperties(aSelectedObjectsProperties) {
@@ -468,7 +468,10 @@ function handleObjectSelection(aSelectedObjects) {
 }
 
 function handleObjectsDeselect() {
+
     selectedItems.clearLayers();
+    measuresControl.setSelectCategories([]);
+
 }
 
 function getSelectedObjects() {

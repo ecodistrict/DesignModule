@@ -261,7 +261,7 @@
     },
 
     _expand: function () {
-        if (this._measuredefinitions.length > 0) {
+        if (this.options.selectCategories.length > 0) {
             L.DomUtil.addClass(this._container, 'leaflet-control-measures-expanded');
             this._form.style.height = null;
             var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
