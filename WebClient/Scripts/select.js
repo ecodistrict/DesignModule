@@ -51,13 +51,14 @@ function initSelectedObjectsProperties(e) {
 
     // todo: server repsonse to showSelectedObjectsProperties(objectProps); below
 
+
     //loadJSONLocal(function (response) {
     //    var objectProps = JSON.parse(response);
     //    if (objectProps.selectedObjectsProperties.properties.length == 0)
     //        return;
     //    showSelectedObjectsProperties(objectProps);
     //});
-    
+
 }
 
 function showSelectedObjectsProperties(aSelectedObjectsProperties) {
@@ -468,7 +469,10 @@ function handleObjectSelection(aSelectedObjects) {
 }
 
 function handleObjectsDeselect() {
+
     selectedItems.clearLayers();
+    measuresControl.setSelectCategories([]);
+
 }
 
 function getSelectedObjects() {

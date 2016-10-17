@@ -91,14 +91,9 @@
   background-color: lightgray;
   font-style: italic;
 }
-.details-line .details-select:checked { }
-/* touch */
-.leaflet-touch .leaflet-control-details {
-  box-shadow: none;
-  border: 2px solid rgba(0,0,0,0.2);
-  background-clip: padding-box;
+.leaflet-oldie .leaflet-control-details {
+  border: 1px solid #999;
 }
-.leaflet-oldie .leaflet-control-details {  border: 1px solid #999 }
 /* elements in details */
 .bullet {
   font: 8px sans-serif;

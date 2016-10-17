@@ -1,0 +1,32 @@
+
+/* touch */
+
+.leaflet-touch .leaflet-bar {  box-shadow: none }
+.leaflet-touch .leaflet-control-history {  box-shadow: none }
+.leaflet-touch .leaflet-control-details {  box-shadow: none }
+.leaflet-touch .leaflet-control-layers {  box-shadow: none; border: 0px solid #fff;}
+.leaflet-touch .leaflet-control-domains {  box-shadow: none }
+.leaflet-touch .leaflet-control-simulation { box-shadow: none }
+
+.leaflet-touch [class^="leaflet-control-"] > a {
+  box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  border-radius: 5px;
+}
+
+
+
+
+/*.leaflet-touch [class^="leaflet-control-"] {
+box-shadow: none;
+border: 2px solid rgba(0,0,0,0.2);
+background-clip: padding-box;
+}*/
+
+
+
+/*
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+border: 2px solid rgba(0,0,0,0.2);
+background-clip: padding-box;
+}*/
