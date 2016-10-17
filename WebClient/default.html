@@ -1,262 +1,283 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
-    <title>Design module</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="stylesheet" href="Content/leaflet.css" />
-    <link rel="stylesheet" href="Content/leaflet.draw.css" />
-    <link rel="stylesheet" href="Content/leaflet.contextmenu.css" />
-    <link rel="stylesheet" href="Content/button.css" />
-    <link rel="stylesheet" href="Content/modaldialog.css" />
-    <link rel="stylesheet" href="Content/querydialog.css" />
-    <link rel="stylesheet" href="Content/measures.css" />
-    <link rel="stylesheet" href="Content/info.css" />
-    <link rel="stylesheet" href="Content/legend.css" />
-    <link rel="stylesheet" href="Content/domains.css" />
-    <link rel="stylesheet" href="Content/currefdiff.css" />
-    <link rel="stylesheet" href="Content/details.css" />
-    <link rel="stylesheet" href="Content/kpis.css" />
-    <link rel="stylesheet" href="Content/history.css" />
-    <link rel="stylesheet" href="Content/simulation.css" />
-    <link rel="stylesheet" href="Content/projectdescription.css" />
-    <link rel="stylesheet" href="Content/connectionstatus.css" />
-    <link rel="stylesheet" href="Content/userMessages.css" />
-    <link rel="stylesheet" href="Content/select.css" />
-    <link rel="stylesheet" href="Content/timeslider.css" />
-    <link rel="stylesheet" href="Content/windDirection.css" />
-    <link rel="stylesheet" href="Content/markerdialog.css" />
-    <link rel="stylesheet" href="Content/map.css" />
-    <link rel="stylesheet" href="Content/ensel.css" />
-    <link rel="stylesheet" href="Content/warningDialog.css" />
-    <link rel="stylesheet" href="Content/startstop.css" />
-    <link rel="stylesheet" href="Content/graphmanager.css" />
-    <link rel="stylesheet" href="Content/right-control.css" />
+  <title>Design module</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="Content/leaflet.css" />
+  <link rel="stylesheet" href="Content/leaflet.draw.css" />
+  <link rel="stylesheet" href="Content/leaflet.contextmenu.css" />
+  <link rel="stylesheet" href="Content/button.css" />
+  <link rel="stylesheet" href="Content/modaldialog.css" />
+  <link rel="stylesheet" href="Content/querydialog.css" />
+  <link rel="stylesheet" href="Content/measures.css" />
+  <link rel="stylesheet" href="Content/info.css" />
+  <link rel="stylesheet" href="Content/legend.css" />
+  <link rel="stylesheet" href="Content/domains.css" />
+  <link rel="stylesheet" href="Content/currefdiff.css" />
+  <link rel="stylesheet" href="Content/details.css" />
+  <link rel="stylesheet" href="Content/kpis.css" />
+  <link rel="stylesheet" href="Content/history.css" />
+  <link rel="stylesheet" href="Content/simulation.css" />
+  <link rel="stylesheet" href="Content/projectdescription.css" />
+  <link rel="stylesheet" href="Content/connectionstatus.css" />
+  <link rel="stylesheet" href="Content/userMessages.css" />
+  <link rel="stylesheet" href="Content/select.css" />
+  <link rel="stylesheet" href="Content/timeslider.css" />
+  <link rel="stylesheet" href="Content/windDirection.css" />
+  <link rel="stylesheet" href="Content/markerdialog.css" />
+  <link rel="stylesheet" href="Content/map.css" />
+  <link rel="stylesheet" href="Content/ensel.css" />
+  <link rel="stylesheet" href="Content/warningDialog.css" />
+  <link rel="stylesheet" href="Content/startstop.css" />
+  <link rel="stylesheet" href="Content/graphmanager.css" />
+  <link rel="stylesheet" href="Content/right-control.css" />
+
+  <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
+  <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
+  <link rel="apple-touch-icon" sizes="72x72" href="favicon/apple-icon-72x72.png">
+  <link rel="apple-touch-icon" sizes="76x76" href="favicon/apple-icon-76x76.png">
+  <link rel="apple-touch-icon" sizes="114x114" href="favicon/apple-icon-114x114.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="favicon/apple-icon-120x120.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="favicon/apple-icon-144x144.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="favicon/apple-icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-icon-180x180.png">
+  <link rel="icon" type="image/png" sizes="192x192"  href="favicon/android-icon-192x192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="favicon/favicon-96x96.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+  <link rel="manifest" href="favicon/manifest.json">
+  <meta name="msapplication-TileColor" content="#ffffff">
+  <meta name="msapplication-TileImage" content="favicon/ms-icon-144x144.png">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="shortcut icon" href="favicon/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="favicon/favicon.ico" type="image/x-icon">
+
 </head>
 <body>
-    <!-- main map -->
-    <div id="map"></div>
-    <!-- static modal dialog place holder -->
-    <div id="modalDialog" class="modalDialog"></div>
-    <!-- connection status -->
-    <div id="connectionStatus" class="connection-status connection-status-disconnected" ></div>
-    <!-- error messages -->
-    <div id="userMessages" class="userMessages userMessages-hidden"><p id="userMessage">There is a message</p></div>
-    <!-- current-reference-difference selector -->
-    <div id="currefdiff" class="currefdiff leaflet-container" title="Show the current version of the layer, reference version or difference between those"></div>
-    <!-- time related elements-->
-    <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div>
-    <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
-    <!-- load scripts -->
-    <script src="Scripts/leaflet-src.js"></script>
-    <script src="Scripts/leaflet.draw-src.js"></script>
-    <script src="Scripts/leaflet.contextmenu-src.js"></script>
-    <script src="Scripts/modaldialog.js"></script>
-    <script src="Scripts/querydialog.js"></script>
-    <script src="Scripts/simulationdialog.js"></script>
-    <script src="Scripts/map.js"></script>
-    <script src="Scripts/ensel.js"></script>
-    <script src="Scripts/userMessages.js"></script>
-    <script src="Scripts/select.js"></script>
-    <script src="Scripts/measures.js"></script>
-    <script src="Scripts/info.js"></script>
-    <script src="Scripts/legend.js"></script>
-    <script src="Scripts/domains.js"></script>
-    <script src="Scripts/currefdiff.js"></script>
-    <script src="Scripts/kpis.js"></script>
-    <script src="Scripts/charts.js"></script>
-    <script src="Scripts/layers.js"></script>
-    <script src="Scripts/details.js"></script>
-    <script src="Scripts/history.js"></script>
-    <script src="Scripts/simulation.js"></script>
-    <script src="Scripts/projectdescription.js"></script>
-    <script src="Scripts/timeslider.js"></script>
-    <script src="Scripts/markerdialog.js"></script>
-    <script src="Scripts/windDirection.js"></script>
-    <script src="Scripts/warningDialog.js"></script>
-    <script src="Scripts/start-stop.js"></script>
-    <script src="Scripts/webSocket.js"></script>
-    <!-- <script src="Scripts/syncManager.js"></script> -->
-    <!-- charts -->
-    <script src="Scripts/d3.js"></script>
-    <script src="Scripts/bullet.js"></script>
-    <script src="Scripts/graphManager.js"></script>
-    <!-- <script src="Scripts/Graphs/lineGraphs.js"></script> -->
-    <!-- local scripts -->
-    <script>
-        // determine parameters and config
-        var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
-        //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
-        var session = getParameterByName('session', '');
-        if (session == '') {
-            //session = '1234'; // default test session
-            // session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
-            session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
-            //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
-            //session = 'ensel';
-            // session = "SSM";
-        }
-        var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
-        var scenario = '';
-        var userid = '';
-        // split session in session id/scenario id/user id
-        var sessionParts = session.split('$');
-        if (sessionParts.length > 1) {
-            session = sessionParts[0];
-            if (sessionParts.length > 2) {
-                scenario = sessionParts[1];
-                userid = sessionParts[2];
-            }
-            else
-                userid = sessionParts[1];
-        }
+  <!-- main map -->
+  <div id="map"></div>
+  <!-- static modal dialog place holder -->
+  <div id="modalDialog" class="modalDialog"></div>
+  <!-- connection status -->
+  <div id="connectionStatus" class="connection-status connection-status-disconnected" ></div>
+  <!-- error messages -->
+  <div id="userMessages" class="userMessages userMessages-hidden"><p id="userMessage">There is a message</p></div>
+  <!-- current-reference-difference selector -->
+  <div id="currefdiff" class="currefdiff leaflet-container" title="Show the current version of the layer, reference version or difference between those"></div>
+  <!-- time related elements-->
+  <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div>
+  <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
+  <!-- load scripts -->
+  <script src="Scripts/leaflet-src.js"></script>
+  <script src="Scripts/leaflet.draw-src.js"></script>
+  <script src="Scripts/leaflet.contextmenu-src.js"></script>
+  <script src="Scripts/modaldialog.js"></script>
+  <script src="Scripts/querydialog.js"></script>
+  <script src="Scripts/simulationdialog.js"></script>
+  <script src="Scripts/map.js"></script>
+  <script src="Scripts/ensel.js"></script>
+  <script src="Scripts/userMessages.js"></script>
+  <script src="Scripts/select.js"></script>
+  <script src="Scripts/measures.js"></script>
+  <script src="Scripts/info.js"></script>
+  <script src="Scripts/legend.js"></script>
+  <script src="Scripts/domains.js"></script>
+  <script src="Scripts/currefdiff.js"></script>
+  <script src="Scripts/kpis.js"></script>
+  <script src="Scripts/charts.js"></script>
+  <script src="Scripts/layers.js"></script>
+  <script src="Scripts/details.js"></script>
+  <script src="Scripts/history.js"></script>
+  <script src="Scripts/simulation.js"></script>
+  <script src="Scripts/projectdescription.js"></script>
+  <script src="Scripts/timeslider.js"></script>
+  <script src="Scripts/markerdialog.js"></script>
+  <script src="Scripts/windDirection.js"></script>
+  <script src="Scripts/warningDialog.js"></script>
+  <script src="Scripts/start-stop.js"></script>
+  <script src="Scripts/webSocket.js"></script>
+  <!-- <script src="Scripts/syncManager.js"></script> -->
+  <!-- charts -->
+  <script src="Scripts/d3.js"></script>
+  <script src="Scripts/bullet.js"></script>
+  <script src="Scripts/graphManager.js"></script>
+  <!-- <script src="Scripts/Graphs/lineGraphs.js"></script> -->
+  <!-- local scripts -->
+  <script>
+  // determine parameters and config
+  var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
+  //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
+  var session = getParameterByName('session', '');
+  if (session == '') {
+    //session = '1234'; // default test session
+    // session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
+    session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
+    //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
+    //session = 'ensel';
+    // session = "SSM";
+  }
+  var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
+  var scenario = '';
+  var userid = '';
+  // split session in session id/scenario id/user id
+  var sessionParts = session.split('$');
+  if (sessionParts.length > 1) {
+    session = sessionParts[0];
+    if (sessionParts.length > 2) {
+      scenario = sessionParts[1];
+      userid = sessionParts[2];
+    }
+    else
+    userid = sessionParts[1];
+  }
 
-        DataManager.sessionInfo = {
-            session: session,
-            scenario: scenario,
-            userid: userid,
-            description: sessionDescription,
-            referenceScenario: null
-        };
+  DataManager.sessionInfo = {
+    session: session,
+    scenario: scenario,
+    userid: userid,
+    description: sessionDescription,
+    referenceScenario: null
+  };
 
-        // top-right
+  // top-right
 
-        // domains
-        var domainsControl = L.control.domains({});
-        map.addControl(domainsControl);
+  // domains
+  var domainsControl = L.control.domains({});
+  map.addControl(domainsControl);
 
-        DataManager.detailsInfo = {
-            elementWidth: 140,
-            kpiWidth: 134, kpiHeight: 20,
-            chartWidth: 134, chartHeight: 100,
-            layerWidth: 134, layerHeight: 140,
-            padding: 2,
-            border: 1,
-            graphMargin: 5
-        }
+  DataManager.detailsInfo = {
+    elementWidth: 140,
+    kpiWidth: 134, kpiHeight: 20,
+    chartWidth: 134, chartHeight: 100,
+    layerWidth: 134, layerHeight: 140,
+    padding: 2,
+    border: 1,
+    graphMargin: 5
+  }
 
-        // details
-        var detailsControl = L.control.details(DataManager.detailsInfo);
-        map.addControl(detailsControl);
-
-
-
-       //history
-        var historyControl = L.control.history(baseLayers); // todo (NK): why pass baseLayers as options?
-        map.addControl(historyControl);
-        DataManager.HistoryControl = historyControl;
-
-
-        //simulation
-         var simulationControl = L.control.simulation(baseLayers); // todo (NK): why pass baseLayers as options?
-         map.addControl(simulationControl);
-         DataManager.simulationControl = simulationControl;
+  // details
+  var detailsControl = L.control.details(DataManager.detailsInfo);
+  map.addControl(detailsControl);
 
 
 
-        // top-left
+  //history
+  var historyControl = L.control.history(baseLayers); // todo (NK): why pass baseLayers as options?
+  map.addControl(historyControl);
+  DataManager.HistoryControl = historyControl;
 
-        //measures
-        var measuresControl = L.control.measures([], historyControl);
-        map.addControl(measuresControl);
-        measuresControl.setSelectCategories([]);
 
-        //DataManager.wind = L.control.arrow();//L.control.wind({});
-        //map.addControl(DataManager.wind);
-
-        // bottom-right (reverse order)
-
-        //Wind Arrow
-
-        // time slider
-        var tsStart = new Date();
-        tsStart.setDate(tsStart.getDate() - 180);
-        var tsEnd = new Date();
-        tsEnd.setDate(tsEnd.getDate() + 180);
-        addTimeSlider(timeslider, { startRange: tsStart, endRange: tsEnd, minScale: 0.5, maxScale: 500 });
-        // todo: scaling factor of domain (0.5 = 1.25 years (1 jan 2015 till now)/0.5 = 2.5 years; 500 = 2 years*365 day*24 hours*4 kwarters/35 visible max
-        var timesliderControl = L.control.timeslider(timeslider);
-        map.addControl(timesliderControl);
-
-        //start-stop
-        var startControl = L.control.startstop();
-        map.addControl(startControl);
-        //startControl.setPosition("bottomright");
-
-        // current-reference-difference control
-        var crd = L.control.crd({ parent: currefdiff });
-        map.addControl(crd);
-
-        detailsControl.setCRD(crd);
-
-        // bottom-left (reverse order)
-
-        // info
-        var infoControl = L.control.info();
-        map.addControl(infoControl);
-
-        // legend
-        var legendControl = L.control.legend;
-        map.addControl(legendControl);
-
-        // other
-
-        // project description
-        var projectDescription = L.control.projectDescription;
-        projectDescription.options.description = sessionDescription;
-        map.addControl(projectDescription);
-
-        GraphManager.Initialize();
-        // GraphManager.MakeGraph();
-        //GraphManager.MakeGraph();
-        //GraphManager.MakeGraph();
+  //simulation
+  var simulationControl = L.control.simulation(baseLayers); // todo (NK): why pass baseLayers as options?
+  map.addControl(simulationControl);
+  DataManager.simulationControl = simulationControl;
 
 
 
-        // link up connection control
-        var connectionStatus = document.getElementById('connectionStatus');
-        connectionStatus.classList.add('connection-status-disconnected');
-        connectionStatus.onclick = function (e) {
-            if (e.target.classList.contains('connection-status-disconnected'))
-                wsConnect();
-            else
-                wsClose();
-        };
+  // top-left
 
-        // default: try to connect
-        wsConnect();
+  //measures
+  var measuresControl = L.control.measures([], historyControl);
+  map.addControl(measuresControl);
+  measuresControl.setSelectCategories([]);
 
-        // todo: handling window resize and orientation change
-        // http://stackoverflow.com/questions/5284878/how-do-i-correctly-detect-orientation-change-using-javascript-and-phonegap-in-io
-        /*
-        var matchMedia = window.msMatchMedia || window.MozMatchMedia || window.WebkitMatchMedia || window.matchMedia;
-        if (typeof(matchMedia) !== 'undefined') {
-            // use matchMedia function to detect orientationchange
-            window.matchMedia('(orientation: portrait)').addListener(function() {
-                // your code ...
-            });
-        }
-        else {
-            // use orientationchange event with timeout (fires to early)
-            $(window).on('orientationchange', function() {
-                window.setTimeout(function() {
-                    // your code ...
-                }, 300)
-            });
-        }
-        */
+  //DataManager.wind = L.control.arrow();//L.control.wind({});
+  //map.addControl(DataManager.wind);
 
-        // test layers live air
-        //addBasicLayer({ name: 'Eindh NO2 1',    tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=1&zoom={z}&x={x}&y={y}',  default: 0 });
-        //addBasicLayer({ name: 'Eindh PM10 2',   tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=2&zoom={z}&x={x}&y={y}',  default: 0 });
-        //addBasicLayer({ name: 'Eindh PM25 3',   tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=3&zoom={z}&x={x}&y={y}',  default: 0 });
-        //addBasicLayer({ name: 'PM10 102',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=102&zoom={z}&x={x}&y={y}', default: 0 });
-        //addBasicLayer({ name: 'PM25 103',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=103&zoom={z}&x={x}&y={y}', default: 0 });
-        //addBasicLayer({ name: '? 114',          tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=114&zoom={z}&x={x}&y={y}', default: 0 });
-        //addBasicLayer({ name: 'PM10 122',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=122&zoom={z}&x={x}&y={y}', default: 0 });
-        //addBasicLayer({ name: 'PM25 123',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=123&zoom={z}&x={x}&y={y}', default: 0 });
-        //addBasicLayer({ name: 'NO2 tot 134',    tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=134&zoom={z}&x={x}&y={y}', default: 0 });
-    </script>
+  // bottom-right (reverse order)
+
+  //Wind Arrow
+
+  // time slider
+  var tsStart = new Date();
+  tsStart.setDate(tsStart.getDate() - 180);
+  var tsEnd = new Date();
+  tsEnd.setDate(tsEnd.getDate() + 180);
+  addTimeSlider(timeslider, { startRange: tsStart, endRange: tsEnd, minScale: 0.5, maxScale: 500 });
+  // todo: scaling factor of domain (0.5 = 1.25 years (1 jan 2015 till now)/0.5 = 2.5 years; 500 = 2 years*365 day*24 hours*4 kwarters/35 visible max
+  var timesliderControl = L.control.timeslider(timeslider);
+  map.addControl(timesliderControl);
+
+  //start-stop
+  var startControl = L.control.startstop();
+  map.addControl(startControl);
+  //startControl.setPosition("bottomright");
+
+  // current-reference-difference control
+  var crd = L.control.crd({ parent: currefdiff });
+  map.addControl(crd);
+
+  detailsControl.setCRD(crd);
+
+  // bottom-left (reverse order)
+
+  // info
+  var infoControl = L.control.info();
+  map.addControl(infoControl);
+
+  // legend
+  var legendControl = L.control.legend;
+  map.addControl(legendControl);
+
+  // other
+
+  // project description
+  var projectDescription = L.control.projectDescription;
+  projectDescription.options.description = sessionDescription;
+  map.addControl(projectDescription);
+
+  GraphManager.Initialize();
+  // GraphManager.MakeGraph();
+  //GraphManager.MakeGraph();
+  //GraphManager.MakeGraph();
+
+
+
+  // link up connection control
+  var connectionStatus = document.getElementById('connectionStatus');
+  connectionStatus.classList.add('connection-status-disconnected');
+  connectionStatus.onclick = function (e) {
+    if (e.target.classList.contains('connection-status-disconnected'))
+    wsConnect();
+    else
+    wsClose();
+  };
+
+  // default: try to connect
+  wsConnect();
+
+  // todo: handling window resize and orientation change
+  // http://stackoverflow.com/questions/5284878/how-do-i-correctly-detect-orientation-change-using-javascript-and-phonegap-in-io
+  /*
+  var matchMedia = window.msMatchMedia || window.MozMatchMedia || window.WebkitMatchMedia || window.matchMedia;
+  if (typeof(matchMedia) !== 'undefined') {
+  // use matchMedia function to detect orientationchange
+  window.matchMedia('(orientation: portrait)').addListener(function() {
+  // your code ...
+});
+}
+else {
+// use orientationchange event with timeout (fires to early)
+$(window).on('orientationchange', function() {
+window.setTimeout(function() {
+// your code ...
+}, 300)
+});
+}
+*/
+
+// test layers live air
+//addBasicLayer({ name: 'Eindh NO2 1',    tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=1&zoom={z}&x={x}&y={y}',  default: 0 });
+//addBasicLayer({ name: 'Eindh PM10 2',   tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=2&zoom={z}&x={x}&y={y}',  default: 0 });
+//addBasicLayer({ name: 'Eindh PM25 3',   tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=3&zoom={z}&x={x}&y={y}',  default: 0 });
+//addBasicLayer({ name: 'PM10 102',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=102&zoom={z}&x={x}&y={y}', default: 0 });
+//addBasicLayer({ name: 'PM25 103',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=103&zoom={z}&x={x}&y={y}', default: 0 });
+//addBasicLayer({ name: '? 114',          tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=114&zoom={z}&x={x}&y={y}', default: 0 });
+//addBasicLayer({ name: 'PM10 122',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=122&zoom={z}&x={x}&y={y}', default: 0 });
+//addBasicLayer({ name: 'PM25 123',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=123&zoom={z}&x={x}&y={y}', default: 0 });
+//addBasicLayer({ name: 'NO2 tot 134',    tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=134&zoom={z}&x={x}&y={y}', default: 0 });
+</script>
 
 </body>
 </html>
