@@ -48,8 +48,8 @@ L.Control.History = L.Control.extend({
         }, this);
       }
 
-        // ,
-        // mouseleave: this._collapse
+      // ,
+      // mouseleave: this._collapse
 
       var link = this._layersLink = L.DomUtil.create('a', className + '-toggle', container);
       link.href = '#';

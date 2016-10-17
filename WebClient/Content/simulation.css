@@ -8,7 +8,7 @@
 .leaflet-control-simulation-toggle {
   background-image: url('images/simulation.png');
   width: 36px;
-  height: 36px;
+  height: 36px;  
 }
 .leaflet-retina .leaflet-control-simulation-toggle {
   background-image: url('images/simulation-2x.png');
@@ -17,4 +17,33 @@
 .leaflet-touch .leaflet-control-simulation-toggle {
   width: 44px;
   height: 44px;
+}
+.selected {
+  background-color:dodgerBlue !important;
+  color:#fff;
+}
+
+#simulationForm > label {
+  font-weight:bold;
+}
+
+div[id*="-option-row"] > button:active,
+div[id*="-option-row"] > button:focus {
+  background-image: none;
+  outline: 0;
+  -webkit-box-shadow: none;
+          box-shadow: none;
+}
+
+div[id*="-option-row"] > button {
+  flex-basis: 100%;
+  background-color: #fff;
+  border: 1px solid #b8d5ff;
+  border-radius: 3px;
+  margin:0px 2px;
+  cursor: pointer;
+}
+div[id*="-option-row"] {
+  display:flex;
+  overflow:scroll;
 }

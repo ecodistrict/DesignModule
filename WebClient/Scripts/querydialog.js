@@ -77,8 +77,7 @@ function selectByQueryRemoveLine(e) {
         if (addNewQueryLineImage) {
             var img = document.createElement('img');
             img.src = 'Content/images/domainadd.png';
-            img.onclick = function () { selectByQueryAddLine(img); };
-            img.style['vertical-align'] = 'text-bottom';
+            img.onclick = function () { selectByQueryAddLine(img); };            
             img.title = 'Add a new line to the query';
             img.className = 'addQuery';
             currentQueryLines.lastElementChild.appendChild(img);
