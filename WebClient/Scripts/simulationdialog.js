@@ -20,35 +20,58 @@
     f.id = 'simulationForm';
 
 
+    var label, options;
 
-    var PenetrationSelect = document.createElement('select');
-    PenetrationSelect.className = 'test';
+    var Penetration_rateSelect = document.createElement('select');
+    Penetration_rateSelect.id = 'PenetrationRateSelect';
 
     var Opvolggedrag = document.createElement('select');
+    Opvolggedrag.id = 'followOn';
     var Hb = document.createElement('select');
+    Hb.id = 'Br';
 
-    var options = ['0%','25%','50%','75%'];
-    fillOptions(options, penetration_rateSelect);
+    options = ['0%','25%','50%','75%'];
+    fillOptions(options, Penetration_rateSelect, "Penetration rateSelect", "PenetrationRateSelect");
 
-    var options = ['0%','25%','50%','75%'];
-    fillOptions(options, Opvolggedrag);
+    options = ['0%','25%','50%','75%'];
+    fillOptions(options, Opvolggedrag, "Follow-on behavior", "followOn");
 
-    var options = ['-10%','0%','10%'];
-    fillOptions(options, Hb);
+    options = ['-10%','0%','10%'];
+    fillOptions(options, Hb, "Br", "Br");
 
-    function fillOptions(options, selectedSelect) {
+    function fillOptions(options, selectedSelect, labelText, idName) {
+      var optionWrapper = document.createElement('div');
+      optionWrapper.id = 'test';
       for (var i = 0; i < options.length; i++) {
         option = options[i];
         var opt = document.createElement('option');
+        var button = document.createElement('button');
+        button.innerText = option;
+        button.value = option;
+        button.name = idName;
+        button.addEventListener("click", function (e) {
+          e.preventDefault();          
+          e.target.className = 'selected';
+          var selectedSelect = document.getElementById(e.target.name);
+          selectedSelect.value = e.target.value
+        });
+
+
         opt.value = option;
         opt.innerHTML = option;
+        selectedSelect.className = idName;
         selectedSelect.appendChild(opt);
+        optionWrapper.appendChild(button);
       }
+      label = document.createElement('label');
+      label.innerHTML = labelText;
+      f.appendChild(label);
+      f.appendChild(optionWrapper);
+      f.appendChild(selectedSelect);
+      f.appendChild(document.createElement('br'));
     }
 
-    f.appendChild(penetration_rateSelect);
-    f.appendChild(Opvolggedrag);
-    f.appendChild(Hb);
+
 
 
     // newQueryLine.className = 'queryDialogLine';
