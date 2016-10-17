@@ -20,7 +20,7 @@ var GraphManager = {
     position: null,
     container: null,
     zIndexManager: {
-        baseIndex: 600,
+        baseIndex: 1000,
         graphDivs: [],
         updateIndexes: function () {
             for (var i = o; i < GraphManager.zIndexManager.graphDivs.length; i++) {

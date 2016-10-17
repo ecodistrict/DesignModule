@@ -43,7 +43,7 @@ function initSelectedObjectsProperties(e) {
     command.selectObjectsProperties = {};
     command.selectObjectsProperties.selectCategories = selectCategories = measuresControl.options.selectCategories;
     command.selectObjectsProperties.selectedObjects = getSelectedObjects();
-    // wsSend(command);
+    wsSend(command);
 
     //
     // debug only, read the JSON file for the properties of selected objects
@@ -51,12 +51,12 @@ function initSelectedObjectsProperties(e) {
 
     // todo: server repsonse to showSelectedObjectsProperties(objectProps); below
 
-    loadJSONLocal(function (response) {
-        var objectProps = JSON.parse(response);
-        if (objectProps.selectedObjectsProperties.properties.length == 0)
-            return;
-        showSelectedObjectsProperties(objectProps);
-    });
+    //loadJSONLocal(function (response) {
+    //    var objectProps = JSON.parse(response);
+    //    if (objectProps.selectedObjectsProperties.properties.length == 0)
+    //        return;
+    //    showSelectedObjectsProperties(objectProps);
+    //});
     
 }
 
@@ -69,7 +69,7 @@ function showSelectedObjectsProperties(aSelectedObjectsProperties) {
 
     objProps = aSelectedObjectsProperties;
 
-    document.querySelector(".modalDialog h2").innerText = objProps.selectedObjectsProperties.selectCategories[0] + " properties";
+    document.querySelector(".modalDialog h2").innerText = objProps.selectedCategories[0] + " properties";
 
     var modalDialogDiv = document.querySelector(".modalDialog div");
 
@@ -89,9 +89,9 @@ function buildAttributesTable(container) {
     var tableContainer = container.appendChild(document.createElement("div"));
     tableContainer.id = "tableContainer";
 
-    for (var i = 0; i < objProps.selectedObjectsProperties.properties.length; i++) {
-        objProps.selectedObjectsProperties.properties[i].id = objProps.selectedObjectsProperties.properties[i].name.replace(/\s+/g, '');
-        createAttributeTable(objProps.selectedObjectsProperties.properties[i], tableContainer);
+    for (var i = 0; i < objProps.properties.length; i++) {
+        objProps.properties[i].id = objProps.properties[i].name.replace(/\s+/g, '');
+        createAttributeTable(objProps.properties[i], tableContainer);
     }
 
     container.appendChild(document.createElement("br"));
@@ -119,7 +119,7 @@ function buildAttributesTable(container) {
 
 function ApplyNewProperties() {
     var changes = false;
-    var properties = objProps.selectedObjectsProperties.properties;
+    var properties = objProps.properties;
 
     for (var i = 0; i < properties.length; i++) {
 
@@ -155,9 +155,9 @@ function ApplyNewProperties() {
         // send to Server (publishing server)
 
         var request = {};
-        request.applyObjectsProperties = objProps.selectedObjectsProperties;
+        request.applyObjectsProperties = objProps;
 
-        // wsSend(request);
+        wsSend(request);
     }
     //No closing on apply??
     modalDialogClose();
