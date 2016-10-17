@@ -62,7 +62,7 @@
             e.preventDefault();
 
             for (var i = 0; i < e.target.parentElement.children.length; i++) {
-              e.target.parentElement.children[i].classList = '';
+              e.target.parentElement.children[i].classList = ''; 
             }
             e.target.className = 'selected';
 
