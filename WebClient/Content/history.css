@@ -18,6 +18,9 @@
   width: 44px;
   height: 44px;
 }
+.leaflet-control-history-expanded {
+  max-width:300px;
+}
 .leaflet-control-history .leaflet-control-history-list,
 .leaflet-control-history-expanded .leaflet-control-history-toggle {  display: none }
 .leaflet-control-history-expanded .leaflet-control-history-list {
@@ -122,12 +125,7 @@
   display: block;
   margin: 0 auto;
 }
-/* touch */
-.leaflet-touch .leaflet-control-history {  box-shadow: none }
-.leaflet-touch .leaflet-control-history {
-  border: 2px solid rgba(0,0,0,0.2);
-  background-clip: padding-box;
-}
+
 .leaflet-oldie .leaflet-control-history {  border: 1px solid #999 }
 
 

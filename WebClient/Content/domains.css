@@ -117,10 +117,5 @@
     margin: 0 auto;
 }
 */
-/* touch */
-.leaflet-touch .leaflet-control-domains {  box-shadow: none }
-.leaflet-touch .leaflet-control-domains {
-  border: 2px solid rgba(0,0,0,0.2);
-  background-clip: padding-box;
-}
+
 .leaflet-oldie .leaflet-control-domains {  border: 1px solid #999 }

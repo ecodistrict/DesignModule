@@ -31,6 +31,7 @@
     <link rel="stylesheet" href="Content/warningDialog.css" />
     <link rel="stylesheet" href="Content/startstop.css" />
     <link rel="stylesheet" href="Content/graphmanager.css" />
+    <link rel="stylesheet" href="Content/right-control.css" />
 </head>
 <body>
     <!-- main map -->
@@ -89,11 +90,11 @@
         var session = getParameterByName('session', '');
         if (session == '') {
             //session = '1234'; // default test session
-            //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
-            //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
+            // session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
+            session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
             //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
             //session = 'ensel';
-            session = "SSM";
+            // session = "SSM";
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
