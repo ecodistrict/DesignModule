@@ -84,17 +84,19 @@ type
 
   TClient = class; // forward
 
+  TGroup = TObjectList<TClient>;
+
   TForEachClient = reference to procedure(aClient: TCLient);
 
   TClientSubscribable = class
   constructor Create;
   destructor Destroy; override;
   private
-    fClients: TObjectList<TClient>; // refs, lock with TMonitor
+    fClients: TGroup; // refs, lock with TMonitor
   protected
     function getElementID: string; virtual; abstract;
   public
-    property clients: TObjectList<TClient> read fClients; // refs, lock with TMonitor
+    property clients: TGroup read fClients; // refs, lock with TMonitor
     property elementID: string read getElementID;
   public
     function HandleClientSubscribe(aClient: TClient): Boolean; virtual;
@@ -120,6 +122,8 @@ type
     procedure handleTilerInfo(aTilerLayer: TTilerLayer);
     procedure handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
     procedure handleTilerPreview(aTilerLayer: TTilerLayer);
+
+    procedure handleRefreshTrigger(aTimeStamp: TDateTime);
   public
     property tilerLayer: TTilerLayer read fTilerLayer;
     property refJSON: string read getRefJSON;
@@ -306,6 +310,8 @@ type
     procedure handleTilerInfo(aTilerLayer: TTilerLayer);
   	procedure handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
   	procedure handleTilerPreview(aTilerLayer: TTilerLayer);
+
+    procedure handleRefreshTrigger(aTimeStamp: TDateTime);
   public
     property objects: TObjectDictionary<TWDID, TLayerObject> read fObjects;
     property geometryType: string read fGeometryType;
@@ -537,7 +543,7 @@ type
     //fTilerEvent: TEventEntry;
     fDBConnection: TCustomConnection; // owns
     fProjectEvent: TEventEntry;
-    fClients: TObjectList<TClient>; // owns, lock with TMonitor
+    fClients: TGroup; // owns, lock with TMonitor
     fTimers: TTimerPool;
     fDiffLayers: TObjectDictionary<string, TDiffLayer>; // owns, lock with TMonitor
     // data
@@ -564,6 +570,7 @@ type
     procedure newClient(aClient: TClient); virtual;
     function getMeasuresHistoryJSON: string; virtual;
     procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); virtual;
+    procedure processTypedMessage(const aMessageType: string; var aJSONObject: TJSONObject); virtual;
   public
     function AddClient(const aClientID: string): TClient;
     procedure ReadBasicData(); virtual; abstract;
@@ -580,7 +587,7 @@ type
     property tiler: TTiler read fTiler;
     property Timers: TTimerPool read fTimers;
     property scenarios: TObjectDictionary<string, TScenario> read fScenarios; // owns, lock with TMonitor
-    property clients: TObjectList<TClient> read fClients; // owns, lock with TMonitor
+    property clients: TGroup read fClients; // owns, lock with TMonitor
 
     property measuresJSON: string read getMeasuresJSON;
     property measures: TObjectDictionary<string, TMeasure> read fMeasures;
@@ -600,6 +607,18 @@ type
     procedure SendString(const aString: string);
 
     procedure forEachClient(aForEachClient: TForEachClient);
+  private
+    fGroups: TObjectDictionary<string, TGroup>;
+  public
+    // group mamanagement
+    property groups: TObjectDictionary<string, TGroup> read fGroups;
+    function addGroup(const aGroup: string; aPresenter: TClient): Boolean;
+    function addGroupMember(const aGroup: string; aMember: TClient): Boolean;
+    function getGroupMembersNoLocking(const aGroup: string; aMembers: TGroup): Boolean; // NO locking in function!
+    function isPresenterNoLocking(const aGroup: string; aMember: TClient): Boolean; // NO locking in function!
+    function removeGroupMember(const aGroup: string; aMember: TClient): Boolean;
+    function removeGroupNoLocking(const aGroup: string; aNoSendCloseMember: TClient): Boolean; // NO locking in function!
+    function removeMemberFromAllGroups(aMember: TClient): Boolean;
   end;
 
   // empty model control entries
@@ -644,7 +663,7 @@ function ZoomLevelFromDeltaLon(aDeltaLon: Double): Integer;
 function ZoomLevelFromDeltaLat(aDeltaLat: Double): Integer;
 
 function BuildDiscreteLegendJSON(aPalette: TDiscretePalette; aLegendFormat: TLegendFormat): string;
-function BuildRamplLegendJSON(aPalette: TRampPalette; aWidth: Integer=300; aLogScale: Boolean=False; aTickFontSize: Integer=11): string;
+function BuildRamplLegendJSON(aPalette: TRampPalette; aReverse: Boolean=False; aWidth: Integer=300; aLogScale: Boolean=False; aTickFontSize: Integer=11): string;
 function CreateBasicPalette: TWDPalette;
 
 implementation
@@ -800,7 +819,7 @@ begin
       ']}';
 end;
 
-function BuildRamplLegendJSON(aPalette: TRampPalette; aWidth: Integer; aLogScale: Boolean; aTickFontSize: Integer): string;
+function BuildRamplLegendJSON(aPalette: TRampPalette; aReverse: Boolean; aWidth: Integer; aLogScale: Boolean; aTickFontSize: Integer): string;
 var
   gradients: string;
   labels: string;
@@ -808,15 +827,26 @@ var
 begin
   gradients := '';
   labels := '';
-  for e in aPalette.entries do
+  // todo: manual reverse or detect high to low values? reverse order of legend (palette stays the same..)
+  {
+  if (aPalette.entries.Count>1) and aReverse then
+
+  end
+  else
   begin
-    if gradients<>''
-    then gradients := gradients+',';
-    gradients := gradients+'{"color":"'+ColorToJSON(e.color)+'","position":'+e.value.ToString(dotFormat)+'}';
-    if labels<>''
-    then labels := labels+',';
-    labels := labels+'{"description":'+jsonString(e.description)+',"position":'+e.value.ToString(dotFormat)+'}';
+  }
+    for e in aPalette.entries do
+    begin
+      if gradients<>''
+      then gradients := gradients+',';
+      gradients := gradients+'{"color":"'+ColorToJSON(e.color)+'","position":'+e.value.ToString(dotFormat)+'}';
+      if labels<>''
+      then labels := labels+',';
+      labels := labels+'{"description":'+jsonString(e.description)+',"position":'+e.value.ToString(dotFormat)+'}';
+    end;
+  {
   end;
+  }
   Result :=
     '"scale": {'+
       '"width": "'+aWidth.ToString+'px",'+
@@ -864,7 +894,7 @@ end;
 constructor TClientSubscribable.Create;
 begin
   inherited Create;
-  fClients := TObjectList<TClient>.Create(False); // refs
+  fClients := TGroup.Create(False); // refs
 end;
 
 destructor TClientSubscribable.Destroy;
@@ -986,6 +1016,35 @@ begin
   then Result := Result+',"legend":{'+legendJSON+'}';
 end;
 
+procedure TDiffLayer.handleRefreshTrigger(aTimeStamp: TDateTime);
+var
+  timeStampStr: string;
+  tiles: string;
+begin
+  if aTimeStamp<>0
+  then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
+  else timeStampStr := '';
+  // signal refresh to layer client
+  tiles := fTilerLayer.URLTimeStamped;
+
+  Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+' ('+timeStampStr+'): '+tiles);
+
+  forEachClient(procedure(aClient: TClient)
+    begin
+      aClient.SendRefresh(elementID {fCurrentLayer.elementID}, timeStampStr, tiles); // todo: extra processing needed?
+      Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', direct subscribed client: '+aClient.fClientID, llNormal, 1);
+    end);
+  // signal current layer of diff layer refresh
+  if Assigned(fCurrentLayer) then
+  begin
+    fCurrentLayer.scenario.forEachClient(procedure(aClient: TClient)
+      begin
+        aClient.SendRefreshDiff(fCurrentLayer.elementID, timeStampStr, Self.refJSON);
+        Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', current layer subscribed client: '+aClient.fClientID, llNormal, 1);
+      end);
+  end;
+end;
+
 procedure TDiffLayer.HandleSubLayerInfo(aLayer: TLayer);
 begin
   if (tilerLayer.URL='') and
@@ -1035,40 +1094,28 @@ end;
 
 procedure TDiffLayer.handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
 begin
-  if Assigned(fSendRefreshTimer) then
-  begin
-    fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*5),
-      procedure(aTimer: TTimer)
-      var
-        timeStampStr: string;
-        tiles: string;
-      begin
-        if aTimeStamp<>0
-        then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
-        else timeStampStr := '';
-        // signal refresh to layer client
-        tiles := fTilerLayer.URLTimeStamped;
-
-        Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+' ('+timeStampStr+'): '+tiles);
-
-        forEachClient(procedure(aClient: TClient)
-          begin
-            aClient.SendRefresh(elementID {fCurrentLayer.elementID}, timeStampStr, tiles); // todo: extra processing needed?
-            Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', direct subscribed client: '+aClient.fClientID, llNormal, 1);
-          end);
-        // signal current layer of diff layer refresh
-        if Assigned(fCurrentLayer) then
+  try
+    if Assigned(fSendRefreshTimer) then
+    begin
+      fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*5),
+        procedure (aTimer: TTimer)
         begin
-          fCurrentLayer.forEachClient(procedure(aClient: TClient)
-            begin
-              aClient.SendRefreshDiff(fCurrentLayer.elementID, timeStampStr, Self.refJSON);
-              Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', current layer subscribed client: '+aClient.fClientID, llNormal, 1);
-            end);
-        end;
-      end);
+          handleRefreshTrigger(aTimeStamp);
+        end);
+    end
+    else handleRefreshTrigger(aTimeStamp);
+    // refresh preview also
+    if Assigned(fPreviewRequestTimer)
+    then fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10)
+    else
+    begin
+      Log.WriteLn('triggered preview timer for '+elementID);
+      fTilerLayer.signalRequestPreview;
+    end;
+  except
+    on E: Exception
+    do Log.WriteLn('Exception in TDiffLayer.handleTilerRefresh for ('+self.elementID+'): '+E.Message, llError);
   end;
-  // refresh preview also
-  fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10);
 end;
 
 { TClientDomain }
@@ -1183,6 +1230,7 @@ destructor TClient.Destroy;
 var
   se: TClientSubscribable;
 begin
+  fProject.removeMemberFromAllGroups(Self);
   if Assigned(fClientEvent) then
   begin
     fClientEvent.signalIntString(actionDelete, '');
@@ -1440,9 +1488,162 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     end;
   end;
 
+  procedure processTypedMessage(const aMessageType: string; var aJSONObject: TJSONObject);
+  var
+    group: string;
+    members: TGroup;
+    member: TClient;
+    command: string;
+    payload: TJSONObject;
+  begin
+    if aMessageType='ccv' then // send to viewers
+    begin
+      if aJSONObject.TryGetValue<string>('group', group) then
+      begin
+        members := TGroup.Create(false); // refs
+        try
+          TMonitor.Enter(fProject.groups);
+          try
+            if fProject.getGroupMembersNoLocking(group, members) then
+            begin
+              for member in members do
+              begin
+                if (member<>Self) and (member<>members[0])
+                then member.signalString(aJSONObject.ToJSON);
+              end;
+            end;
+          finally
+            TMonitor.Exit(fProject.groups);
+          end;
+        finally
+          members.Free;
+        end;
+      end;
+    end
+    else if aMessageType='ccp' then // send to presenter
+    begin
+      if aJSONObject.TryGetValue<string>('group', group) then
+      begin
+        members := TGroup.Create(false); // refs
+        try
+          TMonitor.Enter(fProject.groups);
+          try
+            fProject.getGroupMembersNoLocking(group, members);
+            if (members.Count>0) and (members[0]<>Self)
+            then members[0].signalString(aJSONObject.ToJSON);
+          finally
+            TMonitor.Exit(fProject.groups);
+          end;
+        finally
+          members.Free;
+        end;
+      end;
+    end
+    else if aMessageType='ccb' then // broadcast
+    begin
+      if aJSONObject.TryGetValue<string>('group', group) then
+      begin
+        members := TGroup.Create(false); // refs
+        try
+          TMonitor.Enter(fProject.groups);
+          try
+            if fProject.getGroupMembersNoLocking(group, members) then
+            begin
+              for member in members do
+              begin
+                if member<>Self
+                then member.signalString(aJSONObject.ToJSON);
+              end;
+            end;
+          finally
+            TMonitor.Exit(fProject.groups);
+          end;
+        finally
+          members.Free;
+        end;
+      end;
+    end
+    else if aMessagetype='groupcontrol' then
+    begin
+      (*
+      
+      *)
+      (*
+      {
+        "type":"groupcontrol"
+        "payload":
+        {
+          "command":"presenteron"|"presenteroff"|"vieweron"|"vieweroff"|"leaveallgroups"
+          ["group":""] (not on "leaveallgroups")
+        }
+      }
+      answer:
+      {
+        "type":"groupcontrol"
+        "payload":
+        {
+          "command": "..."
+          ["group": "..."]
+          "result":"success"|"groupalreadyexists"|"groupdoesnotexist"
+        }
+      }
+      *)
+      if aJSONObject.TryGetValue<TJSONObject>('payload', payload) and
+         payload.TryGetValue<string>('command', command) and
+         payload.TryGetValue<string>('group', group) then
+      begin
+        if command='presenteron' then
+        begin
+          if fProject.addGroup(group, Self)
+          then payload.AddPair('result', 'success')
+          else payload.AddPair('result', 'groupalreadyexists');
+          signalString(aJSONObject.ToJSON);
+          Log.WriteLn(aJSONObject.ToJSON, llRemark);
+        end
+        else if command='presenteroff' then
+        begin
+          TMonitor.Enter(fProject.groups);
+          try
+            if fProject.isPresenterNoLocking(group, Self) and fProject.removeGroupNoLocking(group, nil)
+            then payload.AddPair('result', 'success')
+            else payload.AddPair('result', 'groupdoesnotexist');
+            signalString(aJSONObject.ToJSON);
+            Log.WriteLn(aJSONObject.ToJSON, llRemark);
+          finally
+            TMonitor.Exit(fProject.groups);
+          end;
+        end
+        else if command='vieweron' then
+        begin
+          if fProject.addGroupMember(group, Self)
+          then payload.AddPair('result', 'success')
+          else payload.AddPair('result', 'groupdoesnotexist');
+          signalString(aJSONObject.ToJSON);
+          Log.WriteLn(aJSONObject.ToJSON, llRemark);
+        end
+        else if command='vieweroff' then
+        begin
+          if fProject.removeGroupMember(group, Self)
+          then payload.AddPair('result', 'success')
+          else payload.AddPair('result', 'groupdoesnotexist');
+          signalString(aJSONObject.ToJSON);
+          Log.WriteLn(aJSONObject.ToJSON, llRemark);
+        end
+        else if command='leaveallgroups' then
+        begin
+          fProject.removeMemberFromAllGroups(Self);
+          Log.WriteLn(aJSONObject.ToJSON, llRemark);
+        end
+        else Log.WriteLn('Unknown on command "'+command+'" in "groupcontrol" message', llWarning);
+      end;
+    end
+    else fProject.processTypedMessage(aMessageType, aJSONObject);
+  end;
+
 var
   jsonObject: TJSONObject;
   jsonPair: TJSONPair;
+  messageType: string;
 begin
   try
     if Assigned(fProject) and Assigned(fClientEvent) then
@@ -1451,7 +1652,9 @@ begin
       // process message
       jsonObject := TJSONObject.ParseJSONValue(aJSONString) as TJSONObject;
       try
-        if isObject(jsonObject, 'subscribe', jsonPair)
+        if jsonObject.TryGetValue<string>('type', messageType)
+        then processTypedMessage(messageType, jsonObject)
+        else if isObject(jsonObject, 'subscribe', jsonPair)
         then addClient(sessionModel.FindElement(jsonPair.JsonValue.Value))
         else if isObject(jsonObject, 'unsubscribe', jsonPair)
         then removeClient(sessionModel.FindElement(jsonPair.JsonValue.Value))
@@ -1465,17 +1668,6 @@ begin
         then selectObjectsProperties(jsonPair.JsonValue)
         // handle all other messages on the connected project
         else fProject.handleClientMessage(jsonObject, fCurrentScenario);
-
-//        if isObject(jsonObject, 'applyMeasures', jsonPair)
-//        then applyMeasures(jsonPair.JsonValue as TJSONObject)
-//        else ;
-
-        // todo:
-        // setObjectProperties
-        // applyMeasures
-        // selectedTime: "now" | "yyyy-mm-dd hh:nn"
-
-        // rest
       finally
         jsonObject.Free;
       end;
@@ -1698,23 +1890,23 @@ end;
 
 procedure TClient.SendPreview(const aElementID, aPreviewBASE64: string);
 begin
-  signalString('{"refresh":"'+aElementID+'","preview":"'+aPreviewBASE64+'"}');
+  signalString('{"type":"refresh","payload":{"id":"'+aElementID+'","preview":"'+aPreviewBASE64+'"}}');
 end;
 
 procedure TClient.SendRefresh(const aElementID, aTimeStamp, aObjectsTilesLink: string);
 begin
-  signalString('{"refresh":"'+aElementID+'","timestamp":"'+aTimeStamp+'","tiles":"'+aObjectsTilesLink+'"}');
+  signalString('{"type":"refresh","payload":{"id":"'+aElementID+'","timestamp":"'+aTimeStamp+'","tiles":"'+aObjectsTilesLink+'"}}');
 end;
 
 procedure TClient.SendRefreshDiff(const aElementID, aTimeStamp, aDiff: string);
 begin
-  signalString('{"refresh":"'+aElementID+'","timestamp":"'+aTimeStamp+'","diff":{'+aDiff+'}}');
+  signalString('{"type":"refresh","payload":{"id":"'+aElementID+'","timestamp":"'+aTimeStamp+'","diff":{'+aDiff+'}}}');
 end;
 
 procedure TClient.SendRefreshRef(const aElementID, aTimeStamp, aRef: string);
 begin
   // todo: how te see that a layer is a ref layer for this client?
-  signalString('{"refresh":"'+aElementID+'","timestamp":"'+aTimeStamp+'","ref":{'+aRef+'}}');
+  signalString('{"type":"refresh","payload":{"id":"'+aElementID+'","timestamp":"'+aTimeStamp+'","ref":{'+aRef+'}}}');
 end;
 
 procedure TClient.SendSelectionEnabled;
@@ -1927,12 +2119,14 @@ end;
 function TGeometryPointLayerObject.getGeoJSON2D(const aType: string): string;
 var
   colors: TGeoColors;
+  opacity: double;
 begin
   if Assigned(fGeometryPoint) then
   begin
     if Assigned(fLayer.tilerLayer) and Assigned(fLayer.tilerLayer.palette)
     then colors := fLayer.tilerLayer.palette.ValueToColors(fValue)
     else colors := TGeoColors.Create($FF000000); // black
+    opacity := (colors.mainColor shr 24)/$FF;
     Result := '{ '+
         '"type":"Feature",'+
         '"geometry":{'+
@@ -1942,7 +2136,7 @@ begin
         '"properties":{'+
           '"id":"'+string(ID)+'",'+
           '"color": "'+ColorToJSON(colors.mainColor)+'",'+
-          '"fillOpacity":'+Double((colors.mainColor shr 24)/$FF).ToString(dotFormat)+
+          '"fillOpacity":'+opacity.ToString(dotFormat)+
         '}'+
     	'}';
   end
@@ -2152,12 +2346,14 @@ end;
 function TGeometryLayerObject.getGeoJSON2D(const aType: string): string;
 var
   colors: TGeoColors;
+  opacity: double;
 begin
   if Assigned(fGeometry) then
   begin
     if Assigned(fLayer.tilerLayer) and Assigned(fLayer.tilerLayer.palette)
     then colors := fLayer.tilerLayer.palette.ValueToColors(fValue)
     else colors := TGeoColors.Create($FF000000); // black
+    opacity := (colors.mainColor shr 24)/$FF;
     Result := '{ '+
         '"type":"Feature",'+
         '"geometry":{'+
@@ -2167,7 +2363,7 @@ begin
         '"properties":{'+
           '"id":"'+string(ID)+'",'+
           '"color": "'+ColorToJSON(colors.mainColor)+'",'+
-          '"fillOpacity":'+Double((colors.mainColor shr 24)/$FF).ToString(dotFormat)+
+          '"fillOpacity":'+opacity.ToString(dotFormat)+
         '}'+
     	'}';
   end
@@ -2660,6 +2856,27 @@ begin
   end;
 end;
 }
+procedure TLayer.handleRefreshTrigger(aTimeStamp: TDateTime);
+var
+  timeStampStr: string;
+  tiles: string;
+begin
+  if aTimeStamp<>0
+  then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
+  else timeStampStr := '';
+  // signal refresh to layer client
+  tiles := uniqueObjectsTilesLink;
+  forEachClient(procedure(aClient: TClient)
+    begin
+      aClient.SendRefresh(elementID, timeStampStr, tiles);
+    end);
+  // signal refresh to scenario client
+  fScenario.forEachClient(procedure(aClient: TClient)
+    begin
+      aClient.SendRefresh(elementID, timeStampStr, tiles);
+    end);
+end;
+
 procedure TLayer.handleTilerInfo(aTilerLayer: TTilerLayer);
 var
   dl: TDiffLayer;
@@ -2696,33 +2913,28 @@ end;
 
 procedure TLayer.handleTilerRefresh(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime);
 begin
-  if Assigned(fSendRefreshTimer) then
-  begin
-    fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*5),
-      procedure(aTimer: TTimer)
-      var
-        timeStampStr: string;
-        tiles: string;
-      begin
-        if aTimeStamp<>0
-        then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
-        else timeStampStr := '';
-        // signal refresh to layer client
-        tiles := uniqueObjectsTilesLink;
-        forEachClient(procedure(aClient: TClient)
-          begin
-            aClient.SendRefresh(elementID, timeStampStr, tiles);
-          end);
-        // signal refresh to scenario client
-        fScenario.forEachClient(procedure(aClient: TClient)
-          begin
-            aClient.SendRefresh(elementID, timeStampStr, tiles);
-          end);
-      end);
+  try
+    if Assigned(fSendRefreshTimer) then
+    begin
+      fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*5),
+        procedure(aTimer: TTimer)
+        begin
+          handleRefreshTrigger(aTimeStamp);
+        end);
+    end
+    else handleRefreshTrigger(aTimeStamp);
+    // refresh preview also
+    if Assigned(fPreviewRequestTimer)
+    then fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10)
+    else
+    begin
+      Log.WriteLn('triggered preview timer for '+elementID);
+      aTilerLayer.signalRequestPreview;
+    end;
+  except
+    on E: Exception
+    do Log.WriteLn('Exception in TLayer.handleTilerRefresh ('+self.elementID+'): '+E.Message, llError);
   end;
-  // refresh preview also
-  if Assigned(fPreviewRequestTimer)
-  then fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10);
 end;
 
 { KPI }
@@ -3111,12 +3323,53 @@ begin
   end;
 end;
 
+function TProject.addGroup(const aGroup: string; aPresenter: TClient): Boolean;
+var
+  group: TGroup;
+begin
+  Result := False; // sentinel
+  TMonitor.Enter(fGroups);
+  try
+    if not fGroups.ContainsKey(aGroup) then
+    begin
+      group := TGroup.Create(False);
+      try
+        group.Add(aPresenter);
+        Result := True;
+      finally
+        fGroups.Add(aGroup, group);
+      end;
+    end;
+  finally
+    TMonitor.Exit(fGroups);
+  end;
+end;
+
+function TProject.addGroupMember(const aGroup: string; aMember: TClient): Boolean;
+var
+  group: TGroup;
+begin
+  Result := False; // sentinel
+  TMonitor.Enter(fGroups);
+  try
+    if fGroups.TryGetValue(aGroup, group) then
+    begin
+      if not group.Contains(aMember)
+      then group.Add(aMember);
+      Result := true;
+    end;
+  finally
+    TMonitor.Exit(fGroups);
+  end;
+end;
+
 constructor TProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
   aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
   aMaxNearestObjectDistanceInMeters: Integer);
 begin
   inherited  Create;
+  fGroups := TObjectDictionary<string, TGroup>.Create([doOwnsValues]);
   fTimeSlider := aTimeSlider;
   fSelectionEnabled := aSelectionEnabled;
   fMeasuresEnabled := aMeasuresEnabled;
@@ -3125,7 +3378,7 @@ begin
   fAddBasicLayers := aAddbasicLayers;
   fSessionModel := aSessionModel;
   fConnection := aConnection;
-  fClients := TObjectList<TClient>.Create;
+  fClients := TGroup.Create(true); // owns
   fScenarios := TObjectDictionary<string, TScenario>.Create([doOwnsValues]);
   fScenarioLinks := TScenarioLink.Create(-1, -1, -1, '', '', '', nil);
   fTimers := TTimerPool.Create;
@@ -3174,6 +3427,7 @@ end;
 
 destructor TProject.Destroy;
 begin
+  FreeAndNil(fGroups);
   FreeAndNil(fDiffLayers);
   FreeAndNil(fTimers);
   FreeAndNil(fClients);
@@ -3218,6 +3472,19 @@ begin
   end;
 end;
 
+function TProject.getGroupMembersNoLocking(const aGroup: string; aMembers: TGroup): Boolean;
+// NO locking
+var
+  group: TGroup;
+begin
+  Result := False; // sentinel
+  if fGroups.TryGetValue(aGroup, group) then
+  begin
+    aMembers.AddRange(group.ToArray);
+    Result := true;
+  end;
+end;
+
 function TProject.getMeasuresHistoryJSON: string;
 begin
   Result := ''; // default no measures history
@@ -3251,14 +3518,102 @@ begin
   do scenario.RegisterLayers;
 end;
 
+function TProject.isPresenterNoLocking(const aGroup: string; aMember: TClient): Boolean;
+var
+  group: TGroup;
+begin
+  Result := fGroups.TryGetValue(aGroup, group) and (group.Count>0) and (group[0]=aMember);
+end;
+
 procedure TProject.newClient(aClient: TClient);
 begin
   // default no actions
 end;
 
+procedure TProject.processTypedMessage(const aMessageType: string; var aJSONObject: TJSONObject);
+begin
+  // default no processing
+end;
+
 function TProject.ReadScenario(const aID: string): TScenario;
 begin
   Result := nil;
+end;
+
+function TProject.removeGroupNoLocking(const aGroup: string; aNoSendCloseMember: TClient): Boolean;
+var
+  group: TGroup;
+  member: TClient;
+begin
+  Result := False; //  sentinel
+  if fGroups.TryGetValue(aGroup, group) then
+  begin
+    // signal clients that group is going 'away'
+    for member in group do
+    begin
+      if member<>aNoSendCloseMember
+      then member.signalString('{"type":"groupcontrol","payload":{"command":"groupclose","group":"'+aGroup+'"}}');
+    end;
+    fGroups.Remove(aGroup);
+    Result := True;
+  end;
+end;
+
+function TProject.removeGroupMember(const aGroup: string; aMember: TClient): Boolean;
+var
+  group: TGroup;
+begin
+  Result := False; // sentinel
+  TMonitor.Enter(fGroups);
+  try
+    if fGroups.TryGetValue(aGroup, group) then
+    begin
+      if group.Contains(aMember) then
+      begin
+        if group[0]<>aMember then
+        begin
+          group.Remove(aMember);
+          Result := True;
+        end;
+      end
+      else Result := True;
+    end;
+  finally
+    TMonitor.Exit(fGroups);
+  end;
+end;
+
+function TProject.removeMemberFromAllGroups(aMember: TClient): Boolean;
+var
+  group: string;
+  removeGroups: TList<string>;
+  ngp: TPair<string, TGroup>;
+begin
+  Result := False; //  sentinel
+  TMonitor.Enter(fGroups);
+  try
+    removeGroups := TList<string>.Create;
+    try
+      for ngp in fGroups do
+      begin
+        if ngp.Value.Contains(aMember) then
+        begin
+          // check for presenter
+          if ngp.Value[0]=aMember
+          then removeGroups.Add(ngp.Key)
+          else ngp.Value.Remove(aMember);
+          Result := true;
+        end;
+      end;
+      // remove groups where aMember was presenter
+      for group in removeGroups
+      do removeGroupNoLocking(group, aMember);
+    finally
+      removeGroups.Free;
+    end;
+  finally
+    TMonitor.Exit(fGroups);
+  end;
 end;
 
 procedure TProject.SendPreview;

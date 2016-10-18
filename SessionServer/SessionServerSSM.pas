@@ -623,9 +623,9 @@ var
   lo: TLayerObject;
   car: TSSMCar;
   jsonStr: string;
-  l: Integer;
+  //l: Integer;
 begin
-  l := aPayload.Length;
+  //l := aPayload.Length;
   aPayload.Read(action);
   aPayload.Read(timestamp);
   aPayload.Read(gtuId);
@@ -685,9 +685,9 @@ var
   lo: TLayerObject;
   sensor: TSSMSensor;
   jsonStr: string;
-  l: Integer;
+  //l: Integer;
 begin
-  l := aPayload.Length;
+  //l := aPayload.Length;
   aPayload.Read(action);
   aPayload.Read(timestamp);
   aPayload.Read(networkId);
@@ -747,9 +747,9 @@ var
   lo: TLayerObject;
   stat: TSSMStatistic;
   jsonStr: string;
-  l: Integer;
+  //l: Integer;
 begin
-  l := aPayload.Length;
+  //l := aPayload.Length;
   aPayload.Read(action);
   aPayload.Read(timestamp);
   aPayload.Read(statisticId);

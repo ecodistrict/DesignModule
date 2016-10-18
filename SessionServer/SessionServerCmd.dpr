@@ -10,12 +10,17 @@ uses
   LogConsole,
   StdIni,
   imb4,
+
+  Ora,
+  Data.DB,
+
   CommandQueue,
   TilerControl,
+
   SessionServerLib,
   SessionServerDB,
   SessionServerGIS,
-  //SessionServerUS,
+  SessionServerUS,
   //SessionServerEnSel,
   //SessionServerNWBLive,
   SessionServerEcodistrict,
@@ -54,6 +59,18 @@ var
   sessionModel: TSessionModel;
   tilerFQDN: string;
   ecodistrictModule: TEcodistrictModule;
+
+  { SSM
+  mapView: TMapView;
+  piSSM: Integer;
+  {}
+
+  { SSM/US
+  piUSSSM: Integer;
+  usDBConnection: TCustomConnection;
+  scenario: TScenario;
+  layer: TLayer;
+  }
 begin
   ecodistrictModule := nil; // sentinel
   FileLogger.SetLogDef(AllLogLevels, [llsTime]);
@@ -69,12 +86,14 @@ begin
         try
           tilerFQDN := GetSetting(TilerNameSwitch, DefaultTilerName);
           Log.WriteLn('Tiler name: '+tilerFQDN);
+          {
           // nwb live feed
-//          CreateSessionProject(sessionModel, '1234'{'rotterdam'}, 'Rotterdam dashboard', ptNWBLiveFeed, tilerFQDN, '', '',
-//            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters)); {todo: NWBLiveFeedProjectName}
+          CreateSessionProject(sessionModel, 'rotterdam', 'Rotterdam dashboard', ptNWBLiveFeed, tilerFQDN, '', '',
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters)); // todo: NWBLiveFeedProjectName
+          }
+
 
           // ecodistrict module
-
           ecodistrictModule := TEcodistrictModule.Create(
             sessionModel,
             imbConnection,
@@ -88,9 +107,45 @@ begin
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
 
+
+          {
           // ssm module
-          sessionModel.Projects.Add(
-            TSSMProject.Create(sessionModel, imbConnection, 'SSM', 'SSM', '', '', nil, 0, false, false, false, True, false, 0));
+          // mapView := TMapView.Create(52.08457, 4.88909, 14); // woerden
+          // mapView := TMapView.Create(52.08606, 5.17689, 11); // loenen a/d vecht?
+          mapView := TMapView.Create(52.313939, 4.683429, 14); //  N201 bij schiphol
+
+          piSSM := sessionModel.Projects.Add(
+            TSSMProject.Create(sessionModel, imbConnection, 'SSM', 'SSM', '', '', nil, 0, false, false, false, True, false, mapView, 0));
+
+
+          { ssm with us
+          usDBConnection := ConnectToUSProject('us_schiedam_2016/us_schiedam_2016@app-usdata01.tsn.tno.nl/uspsde', 'us_schiedam_2016', mapView);
+          mapView := getUSMapView(usDBConnection as TOraSession, );
+          mapView := getUSMapView(usDBConnection as TOraSession, );
+
+          piUSSSM := sessionModel.Projects.Add(
+            TUSProject.Create(
+              sessionModel,
+              imbConnection,
+              'USSSM',
+              'USSSM',
+              tilerFQDN,
+              GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+              usDBConnection,
+              mapView,
+              False,
+              GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters)));
+
+          // add US layer to ssm
+          for scenario in (sessionModel.Projects[piUSSSM]as TSSMProject).scenarios.Values do
+          begin
+            for layer in scenario.Layers.Values do
+            begin
+              sessionModel.Projects[piSSM].scenarios.Values.ToArray[0].Layers.Add(layer.ID, layer);
+            end;
+          end;
+          }
+
           // inquire existing session and rebuild internal sessions..
           imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(
             procedure(event: TEventEntry; aInt: Integer; const aString: string)
