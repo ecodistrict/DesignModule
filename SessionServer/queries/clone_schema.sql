@@ -397,7 +397,7 @@ BEGIN
 
        WHERE attrelid = tbl_oid
 
-         AND attnum > 0
+         AND attnum > 0 AND NOT attisdropped
 
     LOOP
 
