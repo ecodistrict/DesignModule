@@ -46,7 +46,7 @@
                     mouseenter: this._expand,
                     mouseleave: this._collapse
                 }, this);
-            }            
+            }
 
             var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
@@ -153,7 +153,7 @@
                 //else if (layer.ref && layer.tilesLayer && layer.tilesLayer.idShowing == aElementID) {
                 //    if (layer.ref.tiles != aTilesURL) {
                 //        layer.ref.tiles = aTilesURL;
-                        
+
                 //        // only reload layer if not showing the objects directly (ie is using tiles)
                 //        if (!layer.ref.objects)
                 //            changed = true;

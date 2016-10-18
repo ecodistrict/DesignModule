@@ -163,8 +163,9 @@
   margin-bottom:5px;
 }
 span[class^="history-name"]:hover {
-  border:1px solid #d5e4fb;
+  border:1px solid rgba(173, 216, 230, 0.4);
   color:#000;
+  background: rgba(173, 216, 230, 0.1);
 }
 #phone span[class^="history-name"], span[class^="history-name"] {
   width:100%;
@@ -177,11 +178,11 @@ span[class^="history-name"]:hover {
   border-radius: 3px;
   border:1px solid lightblue;
 }
-
 #phone .history-name, .history-name {
-  background-color:#d5e4fb;
+  background: rgba(173, 216, 230, 1);
   color:#000;
 }
 #phone .history-name-inactive, .history-name-inactive {
-  background-color:aliceblue;
+  background: rgba(173, 216, 230, 0.6);
+  color:#000;
 }

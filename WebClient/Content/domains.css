@@ -100,19 +100,19 @@
 }
 .domains-line:hover {
   /*background-color: lightblue;*/
-  border: 1px solid #d5e4fb;
-  background: #d5e4fb;
+  border: 1px solid  rgba(173, 216, 230, 0.5);
+  background: rgba(173, 216, 230, 0.5);
 }
 .domains-line-selected:hover {
-  border: 1px solid #d5e4fb;
-  background: #e9eef7;
+  border: 1px solid rgba(173, 216, 230, 0.5);
+  background: rgba(173, 216, 230, 0.5);
 }
 .domains-line-selected {
   /*background-color: lightgray;*/
   /*font-weight: bolder;*/
-  background: #d5e4fb;
+  background: rgba(173, 216, 230, 1);
   color:#000;
-  border: 1px solid #d5e4fb;
+  border: 1px solid rgba(173, 216, 230, 1);
   border-radius: 3px;
 }
 .domains-line .domains-select:checked {  /*background: red;_NO__DOTCOMMA__AFTER__*/ }

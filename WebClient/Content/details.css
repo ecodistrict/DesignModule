@@ -86,7 +86,7 @@
   margin-left: 10px;
   background-image: url('images/domainadd2.png');
 }
-.details-line:hover {  background-color: #d5e4fb }
+.details-line:hover {  background-color: rgba(173, 216, 230, 0.5) }
 .details-line-selected {
   background-color: lightgray;
 }
@@ -117,14 +117,14 @@
 }
 .bullet .subtitle {  fill: #999 }
 .detailskpis .tick {  display: none }
-.bullet:hover .title {  fill: #d5e4fb }
+.bullet:hover .title {  fill: rgba(173, 216, 230, 1) }
 /* charts input details */
 .chartDiv {
   border-radius: 3px;
   border: 1px solid gray;
   margin: 2px;
 }
-.chartDiv:hover {  border-color: #d5e4fb }
+.chartDiv:hover {  border-color: rgba(173, 216, 230, 0.5) }
 .chartDetailsMainGroup {  pointer-events: all }
 /* details chart and on hover select */
 .chartDetailsRect {
@@ -132,7 +132,7 @@
   stroke: black;
   stroke-width: 0.9px;
 }
-.chartDetailsMainGroup:hover .chartDetailsRect {  stroke: #d5e4fb }
+.chartDetailsMainGroup:hover .chartDetailsRect {  stroke: rgba(173, 216, 230, 0.5) }
 .lineChartLine {
   fill: none;
   stroke: steelblue;
@@ -148,7 +148,7 @@
   position: relative;
 }
 .layerDetails:hover {
-  border-color: dodgerblue;
+  border-color: rgba(173, 216, 230, 0.5);
   cursor:pointer;
 }
 .layerDetailsTitle {
@@ -187,7 +187,7 @@
 }
 
 .chartPreviewActive {
-    border: 1px solid #d5e4fb !important;
+    border: 1px solid rgba(173, 216, 230, 1) !important;
 }
 
 

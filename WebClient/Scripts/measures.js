@@ -186,7 +186,7 @@ _chooseMeasureOption: function (e) {
       this.options.selectCategories.length == 0 ?
       'Select measure to apply' :
       'Select measure to apply to objects of type: ' + this.options.selectCategories);
-      if (window.outerWidth < 500) {        
+      if (window.outerWidth < 500) {
         div.style.width = '100%';
         div.style.boxSizing = "border-box";
         div.setAttribute("id", "phone");

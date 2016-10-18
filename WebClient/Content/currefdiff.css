@@ -33,4 +33,4 @@
   border: 1px solid lightblue;
   border-radius: 3px;
 }
-.crdRadioButton span:hover {  border: 1px solid #d5e4fb }
+.crdRadioButton span:hover {  border: 1px solid rgba(173, 216, 230, 1) }

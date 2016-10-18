@@ -15,7 +15,7 @@
   text-decoration: none;
   font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
   border: 1px solid aliceblue;
-  background-color:#d5e4fb;
+  background-color:rgba(173, 216, 230, 1);
   color:#000;
   -webkit-border-radius: 5px;
   -moz-border-radius: 5px;
@@ -24,7 +24,7 @@
 }
 .button:hover {
   text-decoration: none;
-  opacity: 0.8;
+  opacity: 0.5;
   cursor:pointer;
 }
 .button:active {
@@ -39,7 +39,7 @@
 div[id*="-option-row"] > button {
   flex-basis: 100%;
   background-color: #fff;
-  border: 1px solid #b8d5ff;
+  border: 1px solid rgba(173, 216, 230, 1);
   border-radius: 3px;
   margin: 0px 2px;
   cursor: pointer;
@@ -52,14 +52,14 @@ input.form-control:disabled {
 input.form-control {
   flex-basis: 100%;
   background-color: #fff;
-  border: 1px solid #b8d5ff;
+  border: 1px solid rgba(173, 216, 230, 1);
   border-radius: 3px;
   padding:2px 5px;
 }
 select.form-control {
   flex-basis: 100%;
   background-color: #fff;
-  border: 1px solid #b8d5ff;
+  border: 1px solid rgba(173, 216, 230, 1);
   border-radius: 3px;
   padding:2px 3px;
 }
