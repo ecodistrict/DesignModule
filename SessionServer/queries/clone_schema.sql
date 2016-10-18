@@ -2,6 +2,10 @@
 
 -- DROP FUNCTION public.clone_schema(text, text, boolean);
 
+-- dd 2016-10-18
+-- fixed dropped column problem: https://www.postgresql.org/docs/9.1/static/catalog-pg-attribute.html
+-- added extra check for column statistics: AND NOT attisdropped
+
 CREATE OR REPLACE FUNCTION public.clone_schema(
     source_schema text,
     dest_schema text,
