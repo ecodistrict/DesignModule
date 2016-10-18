@@ -86,10 +86,9 @@
   margin-left: 10px;
   background-image: url('images/domainadd2.png');
 }
-.details-line:hover {  background-color: dodgerblue }
+.details-line:hover {  background-color: #d5e4fb }
 .details-line-selected {
   background-color: lightgray;
-  font-style: italic;
 }
 .leaflet-oldie .leaflet-control-details {
   border: 1px solid #999;
@@ -118,14 +117,14 @@
 }
 .bullet .subtitle {  fill: #999 }
 .detailskpis .tick {  display: none }
-.bullet:hover .title {  fill: dodgerblue }
+.bullet:hover .title {  fill: #d5e4fb }
 /* charts input details */
 .chartDiv {
   border-radius: 3px;
   border: 1px solid gray;
   margin: 2px;
 }
-.chartDiv:hover {  border-color: dodgerblue }
+.chartDiv:hover {  border-color: #d5e4fb }
 .chartDetailsMainGroup {  pointer-events: all }
 /* details chart and on hover select */
 .chartDetailsRect {
@@ -133,7 +132,7 @@
   stroke: black;
   stroke-width: 0.9px;
 }
-.chartDetailsMainGroup:hover .chartDetailsRect {  stroke: dodgerblue }
+.chartDetailsMainGroup:hover .chartDetailsRect {  stroke: #d5e4fb }
 .lineChartLine {
   fill: none;
   stroke: steelblue;
@@ -188,7 +187,7 @@
 }
 
 .chartPreviewActive {
-    border: 1px solid dodgerBlue !important;
+    border: 1px solid #d5e4fb !important;
 }
 
 

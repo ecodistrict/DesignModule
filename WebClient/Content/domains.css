@@ -100,15 +100,19 @@
 }
 .domains-line:hover {
   /*background-color: lightblue;*/
-  border: 1px solid dodgerblue;
+  border: 1px solid #d5e4fb;
+  background: #d5e4fb;
+}
+.domains-line-selected:hover {
+  border: 1px solid #d5e4fb;
+  background: #e9eef7;
 }
 .domains-line-selected {
   /*background-color: lightgray;*/
-  font-style: italic;
   /*font-weight: bolder;*/
-  background: dodgerblue;
-  color:#fff;
-  border: 1px solid dodgerblue;
+  background: #d5e4fb;
+  color:#000;
+  border: 1px solid #d5e4fb;
   border-radius: 3px;
 }
 .domains-line .domains-select:checked {  /*background: red;_NO__DOTCOMMA__AFTER__*/ }

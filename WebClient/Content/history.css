@@ -57,6 +57,8 @@
   border-top: 1px solid #ddd;
   margin: 5px -10px 5px -6px;
   position: relative;
+  box-sizing: border-box;
+    width: 100%;
 }
 .leaflet-control-history h4 {
   margin: 0;
@@ -86,7 +88,7 @@
   display: block;
   font-size: 16px;
 }
-.history-remove-button {  background-image: url(images/historyremoveWhite.png) }
+.history-remove-button {  background-image: url(images/historyremove.png) }
 .history-icon-button {
   background-repeat: no-repeat;
   width: 16px;
@@ -161,7 +163,8 @@
   margin-bottom:5px;
 }
 span[class^="history-name"]:hover {
-  border:1px solid dodgerblue;
+  border:1px solid #d5e4fb;
+  color:#000;
 }
 #phone span[class^="history-name"], span[class^="history-name"] {
   width:100%;
@@ -176,8 +179,8 @@ span[class^="history-name"]:hover {
 }
 
 #phone .history-name, .history-name {
-  background-color:dodgerblue;
-  color:#fff;
+  background-color:#d5e4fb;
+  color:#000;
 }
 #phone .history-name-inactive, .history-name-inactive {
   background-color:aliceblue;

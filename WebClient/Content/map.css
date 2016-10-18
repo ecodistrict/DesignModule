@@ -11,12 +11,11 @@ body,
 /* adjust layer selection control */
 .leaflet-control-layers-selector {  display: none }
 .leaflet-control-layers-selector:checked + span {
-  font-style: italic;
   /*font-weight: bolder;*/
-  background: dodgerblue;
-  border: 1px solid dodgerblue;
+  background: #d5e4fb;
+  border: 1px solid #d5e4fb;
   border-radius: 3px;
-  color:#fff;
+  color:#000;
 }
 .leaflet-control-layers-base span {
   font-size: 16px;
@@ -28,7 +27,10 @@ body,
   border: 1px solid white;
   border-radius: 3px;
 }
-.leaflet-control-layers-base span:hover {  border: 1px solid dodgerblue }
+.leaflet-control-layers-base span:hover {
+  border: 1px solid #d5e4fb;
+  background-color: #e9eef7;
+}
 .leaflet-control-layers-overlays span {
   font-size: 16px;
   padding: 2px 0 2px 4px;
@@ -39,7 +41,10 @@ body,
   border: 1px solid white;
   border-radius: 3px;
 }
-.leaflet-control-layers-overlays span:hover {  border: 1px solid dodgerblue }
+.leaflet-control-layers-overlays span:hover {
+  border: 1px solid #d5e4fb;
+  background-color: #e9eef7;
+}
 .timestamp {
   height: 24px;
   width: 150px;

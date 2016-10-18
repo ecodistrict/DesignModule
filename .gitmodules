@@ -28,3 +28,15 @@
 [submodule "TilerServer/logger"]
 	path = TilerServer/logger
 	url = git@bitbucket.org:cornelissenja/logger-delphi.git
+[submodule "Publish/logger"]
+	path = Publish/logger
+	url = git@bitbucket.org:cornelissenja/logger-delphi.git
+	branch = master
+[submodule "Publish/imb"]
+	path = Publish/imb
+	url = git@bitbucket.org:cornelissenja/imb-client-delphi.git
+	branch = master
+[submodule "Publish/world"]
+	path = Publish/world
+	url = git@bitbucket.org:cornelissenja/world-delphi.git
+	branch = master

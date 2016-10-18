@@ -29,9 +29,8 @@
 }
 .crdRadioButtonInput {  display: none }
 .crdRadioButtonInput:checked + span {
-  font-style: italic;
   background: lightblue;
   border: 1px solid lightblue;
   border-radius: 3px;
 }
-.crdRadioButton span:hover {  border: 1px solid dodgerblue }
+.crdRadioButton span:hover {  border: 1px solid #d5e4fb }
