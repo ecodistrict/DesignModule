@@ -140,7 +140,14 @@
   position: relative;
   margin-bottom:5px;
 }
-
+.leaflet-control-history-list {
+  width: 100% !important;
+  box-sizing: border-box;
+  min-height: 10px;
+  overflow-y: scroll !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 300px !important;
+}
 #phone .history-add-button, #phone .history-remove-button, .history-add-button, .history-remove-button {
   position: absolute;
   right: 0px;
