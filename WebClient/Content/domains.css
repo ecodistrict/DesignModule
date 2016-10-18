@@ -95,7 +95,7 @@
 .domains-line {
   margin: 2px 0 2px 0;
   background-color: white;
-  border: 1px solid white;
+  border: 1px solid lightblue;
   border-radius: 3px;
 }
 .domains-line:hover {
@@ -106,8 +106,9 @@
   /*background-color: lightgray;*/
   font-style: italic;
   /*font-weight: bolder;*/
-  background: lightblue;
-  border: 1px solid lightblue;
+  background: dodgerblue;
+  color:#fff;
+  border: 1px solid dodgerblue;
   border-radius: 3px;
 }
 .domains-line .domains-select:checked {  /*background: red;_NO__DOTCOMMA__AFTER__*/ }

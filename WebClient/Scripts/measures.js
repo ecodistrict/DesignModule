@@ -205,6 +205,7 @@
             var mddb = f.appendChild(document.createElement('div'));
             mddb.className = 'modalDialogDevideButtons';
             var _this = this;
+            modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
             var applyButton = modelDialogAddButton(mddb, 'Apply', function () {
                 // todo: add selected measure to history
                 var selectedRadio = document.querySelector('input[name=measureOption]:checked');
@@ -238,7 +239,7 @@
             if (!selectedRadio) {
               applyButton.children[0].setAttribute("disabled", true);
             }
-            modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
+
         }
     },
 

@@ -1,15 +1,15 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Design module</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- leaflet css -->
     <link rel="stylesheet" href="Content/leaflet.css" />
     <link rel="stylesheet" href="Content/leaflet.draw.css" />
     <link rel="stylesheet" href="Content/leaflet.contextmenu.css" />
-    <link rel="stylesheet" href="Content/button.css" />
-    <link rel="stylesheet" href="Content/modaldialog.css" />
-    <link rel="stylesheet" href="Content/querydialog.css" />
+
     <link rel="stylesheet" href="Content/measures.css" />
     <link rel="stylesheet" href="Content/info.css" />
     <link rel="stylesheet" href="Content/legend.css" />
@@ -25,13 +25,15 @@
     <link rel="stylesheet" href="Content/select.css" />
     <link rel="stylesheet" href="Content/timeslider.css" />
     <link rel="stylesheet" href="Content/windDirection.css" />
-    <link rel="stylesheet" href="Content/markerdialog.css" />
+
     <link rel="stylesheet" href="Content/map.css" />
     <link rel="stylesheet" href="Content/ensel.css" />
-    <link rel="stylesheet" href="Content/warningDialog.css" />
     <link rel="stylesheet" href="Content/startstop.css" />
     <link rel="stylesheet" href="Content/graphmanager.css" />
-  <link rel="stylesheet" href="Content/right-control.css" />
+
+    <link rel="stylesheet" href="Content/default.css" />
+    <link rel="stylesheet" href="Content/control.css" />
+    <link rel="stylesheet" href="Content/dialog.css" />
 
   <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
   <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
@@ -69,13 +71,21 @@
     <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div>
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
     <!-- load scripts -->
+
+    <!-- leaflet js -->
     <script src="Scripts/leaflet-src.js"></script>
     <script src="Scripts/leaflet.draw-src.js"></script>
     <script src="Scripts/leaflet.contextmenu-src.js"></script>
+
+    <script src="Scripts/map.js"></script>
+
+    <!-- modal dialogs -->
     <script src="Scripts/modaldialog.js"></script>
     <script src="Scripts/querydialog.js"></script>
     <script src="Scripts/simulationdialog.js"></script>
-    <script src="Scripts/map.js"></script>
+    <script src="Scripts/markerdialog.js"></script>
+    <script src="Scripts/warningDialog.js"></script>
+
     <script src="Scripts/ensel.js"></script>
     <script src="Scripts/userMessages.js"></script>
     <script src="Scripts/select.js"></script>
@@ -92,9 +102,7 @@
     <script src="Scripts/simulation.js"></script>
     <script src="Scripts/projectdescription.js"></script>
     <script src="Scripts/timeslider.js"></script>
-    <script src="Scripts/markerdialog.js"></script>
-    <script src="Scripts/windDirection.js"></script>
-    <script src="Scripts/warningDialog.js"></script>
+    <script src="Scripts/windDirection.js"></script>    
     <script src="Scripts/start-stop.js"></script>
     <script src="Scripts/webSocket.js"></script>
   <!-- <script src="Scripts/syncManager.js"></script> -->
@@ -112,8 +120,8 @@
         if (session == '') {
             //session = '1234'; // default test session
             //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
-    //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
-            session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
+            session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
+            //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
             //session = 'ensel';
             //session = "SSM";
         }
@@ -169,9 +177,9 @@
 
 
         //simulation
-        //var simulationControl = L.control.simulation(baseLayers); // todo (NK): why pass baseLayers as options?
-        //map.addControl(simulationControl);
-        //DataManager.simulationControl = simulationControl;
+        var simulationControl = L.control.simulation(baseLayers); // todo (NK): why pass baseLayers as options?
+        map.addControl(simulationControl);
+        DataManager.simulationControl = simulationControl;
 
 
 

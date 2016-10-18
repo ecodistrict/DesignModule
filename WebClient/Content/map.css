@@ -13,9 +13,10 @@ body,
 .leaflet-control-layers-selector:checked + span {
   font-style: italic;
   /*font-weight: bolder;*/
-  background: lightblue;
-  border: 1px solid lightblue;
+  background: dodgerblue;
+  border: 1px solid dodgerblue;
   border-radius: 3px;
+  color:#fff;
 }
 .leaflet-control-layers-base span {
   font-size: 16px;

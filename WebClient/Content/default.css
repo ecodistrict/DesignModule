@@ -1,0 +1,67 @@
+/* buttons */
+.button:disabled {
+  background-color:grey;
+  cursor:default !important;
+}
+.button:disabled:hover {
+  opacity: 1 !important;
+}
+.button {
+	display: inline-block;
+	outline: none;
+	cursor: pointer;
+	text-align: center;
+	text-decoration: none;
+	font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+	border: 1px solid aliceblue;
+	background-color:dodgerBlue;
+	color:#fff;
+	-webkit-border-radius: 3px;
+	-moz-border-radius: 3px;
+	border-radius: 3px;
+}
+.button:hover {
+	text-decoration: none;
+	opacity: 0.8;
+	cursor:pointer;
+}
+.button:active {
+	position: relative;
+	top: 1px;
+}
+
+.leaflet-control-layers label span {
+  border:1px solid lightblue;
+}
+
+div[id*="-option-row"] > button {
+	flex-basis: 100%;
+	background-color: #fff;
+	border: 1px solid #b8d5ff;
+	border-radius: 3px;
+	margin: 0px 2px;
+	cursor: pointer;
+}
+input.form-control:disabled {
+  background-color:#eee;
+  cursor:default !important;
+}
+
+input.form-control {
+	flex-basis: 100%;
+	background-color: #fff;
+	border: 1px solid #b8d5ff;
+	border-radius: 3px;
+	padding:2px 5px;
+}
+select.form-control {
+  flex-basis: 100%;
+	background-color: #fff;
+	border: 1px solid #b8d5ff;
+	border-radius: 3px;
+	padding:2px 3px;
+}
+
+#simulationName {
+	    display: flex;
+}
