@@ -45,5 +45,4 @@ div[id*="-option-row"] > button {
 }
 div[id*="-option-row"] {
   display:flex;
-  overflow:scroll;
 }
