@@ -1,3 +1,7 @@
+input, select, textarea {
+  -webkit-appearance: none;
+}
+
 /* buttons */
 .button:disabled {
   background-color:#ddd;
