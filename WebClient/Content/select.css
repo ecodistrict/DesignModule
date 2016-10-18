@@ -3,7 +3,7 @@
   display: block;
 }
 .attributeTable {
-  display: block;
+  display: inline-block;
   width: 250px;
   margin: 0px 2px 0px 2px;
 }
@@ -26,4 +26,11 @@
 }
 .textInput {
   width: 106px
+}
+#phone #tableContainer, #phone #tableContainer .attributeTable, #phone .floatRow {
+  width:100% !important;
+}
+
+#phone .floatLeftCell, #phone .floatRightCell {
+  width:50%;
 }

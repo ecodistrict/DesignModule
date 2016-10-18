@@ -8,7 +8,7 @@
 .leaflet-control-simulation-toggle {
   background-image: url('images/simulation.png');
   width: 36px;
-  height: 36px;  
+  height: 36px;
 }
 .leaflet-retina .leaflet-control-simulation-toggle {
   background-image: url('images/simulation-2x.png');
@@ -19,8 +19,8 @@
   height: 44px;
 }
 .selected {
-  background-color:dodgerBlue !important;
-  color:#fff;
+  background-color:#d5e4fb !important;
+  color:#000;
 }
 
 #simulationForm > label {
@@ -34,7 +34,9 @@ div[id*="-option-row"] > button:focus {
   -webkit-box-shadow: none;
           box-shadow: none;
 }
-
+div[id*="-option-row"] > button:hover {
+  background-color:#e9eef7;
+}
 div[id*="-option-row"] > button {
   flex-basis: 100%;
   background-color: #fff;

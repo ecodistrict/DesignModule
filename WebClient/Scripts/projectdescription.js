@@ -1,4 +1,4 @@
-﻿// create project description control 
+﻿// create project description control
 L.control.projectDescription = L.control();
 
 L.control.projectDescription.showOptions = function (e) {
@@ -23,7 +23,7 @@ L.control.projectDescription.showScenarios = function () {
         div.style.margin = '5% auto';
 
         Scenarios = options.scenarios;
-        
+
         // build dialog form
 
         var f = div.appendChild(document.createElement('form'));
@@ -52,6 +52,8 @@ L.control.projectDescription.showScenarios = function () {
         var mddb = f.appendChild(document.createElement('div'));
         mddb.className = 'modalDialogDevideButtons';
         var _this = this;
+
+        modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
         modelDialogAddButton(mddb, 'Apply', function () {
             var selectedRadio = document.querySelector('input[name=activeScenario]:checked');
             options.activeScenario = selectedRadio ? selectedRadio.value : -1;
@@ -65,7 +67,6 @@ L.control.projectDescription.showScenarios = function () {
             });
             modalDialogClose();
         });
-        modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
 
         CheckCurrentScenarios(options);
     }
@@ -470,4 +471,3 @@ function AdjustRadioColor(target, color) {
         }
     }
 }
-
