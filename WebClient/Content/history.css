@@ -18,6 +18,9 @@
   width: 44px;
   height: 44px;
 }
+.leaflet-control-history-expanded {
+  max-width:300px;
+}
 .leaflet-control-history .leaflet-control-history-list,
 .leaflet-control-history-expanded .leaflet-control-history-toggle {  display: none }
 .leaflet-control-history-expanded .leaflet-control-history-list {
@@ -83,7 +86,7 @@
   display: block;
   font-size: 16px;
 }
-.history-remove-button {  background-image: url(images/historyremove.png) }
+.history-remove-button {  background-image: url(images/historyremoveWhite.png) }
 .history-icon-button {
   background-repeat: no-repeat;
   width: 16px;
@@ -120,14 +123,9 @@
 .leaflet-control-history-apply { }
 .history-button {
   display: block;
-  margin: 0 auto;
+  float:right;
 }
-/* touch */
-.leaflet-touch .leaflet-control-history {  box-shadow: none }
-.leaflet-touch .leaflet-control-history {
-  border: 2px solid rgba(0,0,0,0.2);
-  background-clip: padding-box;
-}
+
 .leaflet-oldie .leaflet-control-history {  border: 1px solid #999 }
 
 
@@ -155,7 +153,9 @@
   width:100%;
   margin-bottom:5px;
 }
-
+span[class^="history-name"]:hover {
+  border:1px solid dodgerblue;
+}
 #phone span[class^="history-name"], span[class^="history-name"] {
   width:100%;
   padding-right:25px;
@@ -165,10 +165,12 @@
   float:left;
   position: relative;
   border-radius: 3px;
+  border:1px solid lightblue;
 }
 
 #phone .history-name, .history-name {
-  background-color:lightblue;
+  background-color:dodgerblue;
+  color:#fff;
 }
 #phone .history-name-inactive, .history-name-inactive {
   background-color:aliceblue;

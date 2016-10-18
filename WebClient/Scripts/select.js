@@ -43,7 +43,7 @@ function initSelectedObjectsProperties(e) {
     command.selectObjectsProperties = {};
     command.selectObjectsProperties.selectCategories = selectCategories = measuresControl.options.selectCategories;
     command.selectObjectsProperties.selectedObjects = getSelectedObjects();
-    // wsSend(command);
+    wsSend(command);
 
     //
     // debug only, read the JSON file for the properties of selected objects
@@ -51,13 +51,14 @@ function initSelectedObjectsProperties(e) {
 
     // todo: server repsonse to showSelectedObjectsProperties(objectProps); below
 
-    loadJSONLocal(function (response) {
-        var objectProps = JSON.parse(response);
-        if (objectProps.selectedObjectsProperties.properties.length == 0)
-            return;
-        showSelectedObjectsProperties(objectProps);
-    });
-    
+
+    //loadJSONLocal(function (response) {
+    //    var objectProps = JSON.parse(response);
+    //    if (objectProps.selectedObjectsProperties.properties.length == 0)
+    //        return;
+    //    showSelectedObjectsProperties(objectProps);
+    //});
+
 }
 
 function showSelectedObjectsProperties(aSelectedObjectsProperties) {
@@ -69,7 +70,7 @@ function showSelectedObjectsProperties(aSelectedObjectsProperties) {
 
     objProps = aSelectedObjectsProperties;
 
-    document.querySelector(".modalDialog h2").innerText = objProps.selectedObjectsProperties.selectCategories[0] + " properties";
+    document.querySelector(".modalDialog h2").innerText = objProps.selectedCategories[0] + " properties";
 
     var modalDialogDiv = document.querySelector(".modalDialog div");
 
@@ -88,10 +89,10 @@ function showSelectedObjectsProperties(aSelectedObjectsProperties) {
 function buildAttributesTable(container) {
     var tableContainer = container.appendChild(document.createElement("div"));
     tableContainer.id = "tableContainer";
-
-    for (var i = 0; i < objProps.selectedObjectsProperties.properties.length; i++) {
-        objProps.selectedObjectsProperties.properties[i].id = objProps.selectedObjectsProperties.properties[i].name.replace(/\s+/g, '');
-        createAttributeTable(objProps.selectedObjectsProperties.properties[i], tableContainer);
+    console.log(objProps);
+    for (var i = 0; i < objProps.properties.length; i++) {
+        objProps.properties[i].id = objProps.properties[i].name.replace(/\s+/g, '');
+        createAttributeTable(objProps.properties[i], tableContainer);
     }
 
     container.appendChild(document.createElement("br"));
@@ -99,8 +100,9 @@ function buildAttributesTable(container) {
 
     var buttonContainer = container.appendChild(document.createElement("div"));
     buttonContainer.className = 'modalDialogDevideButtons';
-    modelDialogAddButton(buttonContainer, "Apply", ApplyNewProperties);
+
     modelDialogAddButton(buttonContainer, "Cancel", modalDialogClose);
+    modelDialogAddButton(buttonContainer, "Apply", ApplyNewProperties);
     //var applyButton = buttonContainer.appendChild(document.createElement("input"));
     //applyButton.type = "button";
     //applyButton.value = "Apply";
@@ -119,7 +121,7 @@ function buildAttributesTable(container) {
 
 function ApplyNewProperties() {
     var changes = false;
-    var properties = objProps.selectedObjectsProperties.properties;
+    var properties = objProps.properties;
 
     for (var i = 0; i < properties.length; i++) {
 
@@ -155,9 +157,9 @@ function ApplyNewProperties() {
         // send to Server (publishing server)
 
         var request = {};
-        request.applyObjectsProperties = objProps.selectedObjectsProperties;
+        request.applyObjectsProperties = objProps;
 
-        // wsSend(request);
+        wsSend(request);
     }
     //No closing on apply??
     modalDialogClose();
@@ -191,7 +193,7 @@ function createIntTable(aAttribute, aElem) {
     leftCell.appendChild(document.createTextNode(aAttribute.name));
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "number";
-    inputField.className = "intInput";
+    inputField.className = "intInput form-control";
     inputField.value = aAttribute.value;
     inputField.disabled = !BoolParse(aAttribute.editable);
 }
@@ -207,7 +209,7 @@ function createFloatTable(aAttribute, aElem) {
     leftCell.appendChild(document.createTextNode(aAttribute.name));
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "number";
-    inputField.className = "intInput";
+    inputField.className = "intInput form-control";
     inputField.value = aAttribute.value;
     inputField.oldValue = aAttribute.value;
     inputField.disabled = !BoolParse(aAttribute.editable);
@@ -238,7 +240,7 @@ function createForcedListTable(aAttribute, aElem) {
         selectOption.value = aAttribute.options[i];
         selectOption.innerText = aAttribute.options[i];
     }
-    inputField.className = "forcedListInput";
+    inputField.className = "forcedListInput form-control";
     inputField.disabled = !BoolParse(aAttribute.editable);
     inputField.value = aAttribute.value;
 }
@@ -254,7 +256,7 @@ function createFreeListTable(aAttribute, aElem) {
     leftCell.appendChild(document.createTextNode(aAttribute.name));
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "text";
-    inputField.className = "textInput";
+    inputField.className = "textInput form-control";
     inputField.value = aAttribute.value;
     inputField.disabled = !BoolParse(aAttribute.editable);
 
@@ -271,7 +273,7 @@ function createStringTable(aAttribute, aElem) {
     leftCell.appendChild(document.createTextNode(aAttribute.name));
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "text";
-    inputField.className = "textInput";
+    inputField.className = "textInput form-control";
     inputField.value = aAttribute.value;
     inputField.disabled = !BoolParse(aAttribute.editable);
 }
@@ -287,7 +289,7 @@ function createBoolTable(aAttribute, aElem) {
     leftCell.appendChild(document.createTextNode(aAttribute.name));
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "checkbox";
-    inputField.className = "boolInput";
+    inputField.className = "boolInput form-control";
     inputField.checked = BoolParse(aAttribute.value);
     inputField.disabled = !BoolParse(aAttribute.editable);
 }
@@ -468,7 +470,10 @@ function handleObjectSelection(aSelectedObjects) {
 }
 
 function handleObjectsDeselect() {
+
     selectedItems.clearLayers();
+    measuresControl.setSelectCategories([]);
+
 }
 
 function getSelectedObjects() {

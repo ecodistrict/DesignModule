@@ -20,35 +20,92 @@
     f.id = 'simulationForm';
 
 
+    var label, options;
 
-    var PenetrationSelect = document.createElement('select');
-    PenetrationSelect.className = 'test';
+    var simulationName = document.createElement('div');
+    simulationName.id = 'simulationName';
+
+
+    var Penetration_rateSelect = document.createElement('select');
+    Penetration_rateSelect.id = 'PenetrationRateSelect';
+    Penetration_rateSelect.style.display = "none";
 
     var Opvolggedrag = document.createElement('select');
+    Opvolggedrag.id = 'followOn';
+    Opvolggedrag.style.display = "none";
+
     var Hb = document.createElement('select');
+    Hb.id = 'Br';
+    Hb.style.display = "none";
 
-    var options = ['0%','25%','50%','75%'];
-    fillOptions(options, penetration_rateSelect);
+    fillOptions(false, simulationName, 'Simulation name', 'simulationName', 'input');
 
-    var options = ['0%','25%','50%','75%'];
-    fillOptions(options, Opvolggedrag);
+    options = ['0%','25%','50%','75%'];
+    fillOptions(options, Penetration_rateSelect, "Penetration rate", "PenetrationRateSelect", "select");
 
-    var options = ['-10%','0%','10%'];
-    fillOptions(options, Hb);
+    // options = ['0%','25%','50%','75%'];
+    options = ['0%','25%','50%','75%'];
+    fillOptions(options, Opvolggedrag, "Follow-on behavior", "followOn", "select");
 
-    function fillOptions(options, selectedSelect) {
-      for (var i = 0; i < options.length; i++) {
-        option = options[i];
-        var opt = document.createElement('option');
-        opt.value = option;
-        opt.innerHTML = option;
-        selectedSelect.appendChild(opt);
+    options = ['-10%','0%','10%'];
+    fillOptions(options, Hb, "Br", "Br", "select");
+
+    function fillOptions(options, selectedSelect, labelText, idName, formElement) {
+
+
+      var optionWrapper = document.createElement('div');
+
+
+      if (formElement === 'input') {
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control';
+        input.placeholder = 'Simulation name';
+        selectedSelect.appendChild(input);
       }
+
+      if (formElement === 'select') {
+        optionWrapper.id = idName + '-option-row';
+        optionWrapper.className = 'form-control';
+        for (var i = 0; i < options.length; i++) {
+          option = options[i];
+          var opt = document.createElement('option');
+          var button = document.createElement('button');
+          button.innerText = option;
+          button.value = option;
+          button.name = idName;
+          button.addEventListener("click", function (e) {
+            e.preventDefault();
+
+            for (var i = 0; i < e.target.parentElement.children.length; i++) {
+              e.target.parentElement.children[i].classList.remove('selected');
+            }
+            e.target.className = 'selected';
+
+            var selectedSelect = document.getElementById(e.target.name);
+            selectedSelect.value = e.target.value
+          });
+
+
+          opt.value = option;
+          opt.innerHTML = option;
+          selectedSelect.className = idName;
+          selectedSelect.appendChild(opt);
+          optionWrapper.appendChild(button);
+        }
+      }
+
+
+
+      label = document.createElement('label');
+      label.innerHTML = labelText;
+      f.appendChild(label);
+      f.appendChild(optionWrapper);
+      f.appendChild(selectedSelect);
+      f.appendChild(document.createElement('br'));
     }
 
-    f.appendChild(penetration_rateSelect);
-    f.appendChild(Opvolggedrag);
-    f.appendChild(Hb);
+
 
 
     // newQueryLine.className = 'queryDialogLine';

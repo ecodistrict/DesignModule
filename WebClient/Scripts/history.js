@@ -49,7 +49,6 @@ L.Control.History = L.Control.extend({
         }, this);
       }
 
-
       var link = this._layersLink = L.DomUtil.create('a', className + '-toggle', container);
       link.href = '#';
       link.title = 'History of applied measures and commit new measures';
@@ -317,7 +316,7 @@ L.Control.History = L.Control.extend({
     sessionRequest.selectObjects.measure = item.measure;
     sessionRequest.selectObjects.selectedObjects = item.selectedObjects;
     sessionRequest.selectObjects.selectCategories = item.selectCategories;
-    //sessionRequest.selectObjects.mode = ctrlPressed ? '~' : '=';
+    sessionRequest.selectObjects.mode = e.ctrlKey ? '~' : '=';
     wsSend(sessionRequest);
 
     this._refocusOnMap();

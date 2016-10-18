@@ -169,8 +169,8 @@ function updateTilesLayerOnMap(aElementID, aTilesURL) {
         var layer = map._layers[mlid];
         // todo: check ref or diff IDs also..
 
-        if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == aElementID) {
-            layer.setUrl(aTilesURL, false);
+        if (layer.domainLayer && layer.idShowing && layer.idShowing == aElementID) {
+            layer.setUrl(aTilesURL);
            // var domainLayer = layer.domainLayer;
             //if (domainLayer.tiles != aTilesURL || !layer.redraw) {
             //    // update tiles url

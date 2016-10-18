@@ -136,37 +136,55 @@
 
     updateTilesURL: function (aElementID, aTilesURL) {
         // update data
-        var changed = false;
+        var changedActive = false;
         if (this._layers) {
             for (var layerName in this._layers) {
                 var layer = this._layers[layerName];
                 // check current, reference and diff layer for element id
-                if (layer.id == aElementID) {
-                    if (layer.tiles != aTilesURL) {
-                        layer.tiles = aTilesURL;
-                        changed = true;
-                        // only reload layer if not showing the objects directly (ie is using tiles)
-                        if (!layer.objects)
-                            changed = true;
-                    }
+                //if (layer.id == aElementID && layer.tilesLayer && layer.tilesLayer.idShowing == aElementID) {
+                //    if (layer.tiles != aTilesURL) {
+                //        layer.tiles = aTilesURL;
+                //        changed = true;
+                //        // only reload layer if not showing the objects directly (ie is using tiles)
+                //        if (!layer.objects)
+                //            changed = true;
+                //    }
+                //}
+                //else if (layer.ref && layer.tilesLayer && layer.tilesLayer.idShowing == aElementID) {
+                //    if (layer.ref.tiles != aTilesURL) {
+                //        layer.ref.tiles = aTilesURL;
+                        
+                //        // only reload layer if not showing the objects directly (ie is using tiles)
+                //        if (!layer.ref.objects)
+                //            changed = true;
+                //    }
+                //}
+                //else if (layer.diff && layer.tilesLayer && layer.tilesLayer.idShowing == aElementID) {
+                //    if (layer.diff.tiles != aTilesURL) {
+                //        layer.diff.tiles = aTilesURL;
+                //        changed = true; // diff always through tiler, no layer.diff.objects checking needed
+                //    }
+                //}
+                if (layer.id == aElementID)
+                {
+                    layer.tiles = aTilesURL;
                 }
-                else if (layer.ref && layer.ref.id == aElementID) {
-                    if (layer.ref.tiles != aTilesURL) {
-                        layer.ref.tiles = aTilesURL;
-                        // only reload layer if not showing the objects directly (ie is using tiles)
-                        if (!layer.ref.objects)
-                            changed = true;
-                    }
+                else if (layer.ref && layer.ref.id == aElementID)
+                {
+                    layer.ref.tiles = aTilesURL;
                 }
-                else if (layer.diff && layer.diff.id == aElementID) {
-                    if (layer.diff.tiles != aTilesURL) {
-                        layer.diff.tiles = aTilesURL;
-                        changed = true; // diff always through tiler, no layer.diff.objects checking needed
-                    }
+                else if (layer.diff && layer.diff.id == aElementID)
+                {
+                    layer.diff.tiles = aTilesURL;
+                }
+                if (layer.tileLayer && layer.tileLayer.idShowing == aElementID)
+                {
+                    changedActive = true;
                 }
             }
         }
-        if (changed)
+        console.log(changedActive);
+        if (changedActive)
             updateTilesLayerOnMap(aElementID, aTilesURL);
     },
 

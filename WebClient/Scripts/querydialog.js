@@ -25,8 +25,10 @@
     f.appendChild(document.createElement('hr'));
     var mddb = f.appendChild(document.createElement('div'));
     mddb.className = 'modalDialogDevideButtons';
+
     modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
     modelDialogAddButton(mddb, 'Apply', queryDialogApply);
+
 }
 
 function queryDialogApply() {
@@ -53,9 +55,9 @@ function selectByQueryAddLine(e) {
     var newQueryLine = document.createElement('div');
     newQueryLine.className = 'queryDialogLine';
     newQueryLine.innerHTML =
-        '<select class="datalist"><option value="Inhabitants">Inhabitants</option><option value="Height">Height</option><option value="Surface_area">Surface area</option></select>'+
-        '<select class="optionList"><option value="<">&lt;</option><option value="<=" selected>&le;</option><option value="=" selected>=</option><option value="<>">&ne;</option><option value=">">&gt;</option><option value=">=">&ge;</option><option value="in">in</option></select>'+
-        '<input type="text" placeholder="value" />'+
+        '<select class="datalist form-control"><option value="Inhabitants">Inhabitants</option><option value="Height">Height</option><option value="Surface_area">Surface area</option></select>'+
+        '<select class="optionList form-control"><option value="<">&lt;</option><option value="<=" selected>&le;</option><option value="=" selected>=</option><option value="<>">&ne;</option><option value=">">&gt;</option><option value=">=">&ge;</option><option value="in">in</option></select>'+
+        '<input type="text" placeholder="value" class="form-control" />'+
         '<img class="removeQuery" src="Content/images/historyremove.png" class="queryDialogAddRemoveButton" onclick="selectByQueryRemoveLine(this)" title="..remove this line from the query" />' +
         '<img class="addQuery" src="Content/images/domainadd.png" class="queryDialogAddRemoveButton" onclick="selectByQueryAddLine(this)" title="..add a new line to the query" />';
     if (e) {
@@ -78,7 +80,6 @@ function selectByQueryRemoveLine(e) {
             var img = document.createElement('img');
             img.src = 'Content/images/domainadd.png';
             img.onclick = function () { selectByQueryAddLine(img); };
-            img.style['vertical-align'] = 'text-bottom';
             img.title = 'Add a new line to the query';
             img.className = 'addQuery';
             currentQueryLines.lastElementChild.appendChild(img);

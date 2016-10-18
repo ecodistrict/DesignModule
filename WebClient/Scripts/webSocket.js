@@ -51,10 +51,17 @@ var wsLookup = {
         }
     },
     refresh: function (payload) {
+        console.log(payload);
             var elementID = payload.id;
             if (typeof payload.tiles !== "undefined" && payload.tiles != '') {
                 detailsControl.updateTilesURL(elementID, payload.tiles);
                 // todo: if basic layer -> check and update that url!
+            }
+            else if (typeof payload.ref !== "undefined" && payload.ref.tiles !== "undefined" && payload.ref.tiles != '') {
+                detailsControl.updateTilesURL(payload.ref.id, payload.ref.tiles);
+            }
+            else if (typeof payload.diff !== "undefined" && payload.diff.tiles !== "undefined" && payload.diff.tiles != '') {
+                detailsControl.updateTilesURL(payload.diff.id, payload.diff.tiles);
             }
             else if (typeof payload.preview !== "undefined")
                 detailsControl.updatePreview(elementID, payload.preview);
@@ -309,8 +316,14 @@ function wsConnect() {
                     messageBuilder.payload.id = message.refresh;
                     if (typeof message.tiles !== "undefined")
                         messageBuilder.payload.tiles = message.tiles;
+                    if (typeof message.timestamp !== "undefined")
+                        messageBuilder.timestamp = message.timestamp;
                     if (typeof message.preview !== "undefined")
                         messageBuilder.payload.preview = message.preview;
+                    if (typeof message.diff !== "undefined")
+                        messageBuilder.payload.diff = message.diff;
+                    if (typeof message.ref !== "undefined")
+                        messageBuilder.payload.ref = message.ref;
                 }
                 else if (message.updatelayer) {
                     messageBuilder.type = "updatelayer";
