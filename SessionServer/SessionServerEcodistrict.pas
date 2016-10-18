@@ -512,6 +512,7 @@ begin
             ecoKPIBadColor,
             ecoKPINoDataColor,
             ecoKPIExcellentColor);
+          legendJSON := BuildRamplLegendJSON(palette as TRampPalette, false);
         end
         else
         begin
@@ -523,9 +524,8 @@ begin
             ecoKPIExcellentColor,
             ecoKPINoDataColor,
             ecoKPIBadColor);
+          legendJSON := BuildRamplLegendJSON(palette as TRampPalette, true);
         end;
-
-        legendJSON := BuildRamplLegendJSON(palette as TRampPalette);
         if Layers.TryGetValue(ikpip.key, layer) then
         begin
           // todo: check: does this work?
@@ -883,7 +883,6 @@ function TEcodistrictScenario.selectObjectsProperties(aClient: TClient; const aS
 // todo: implement
 var
   layers: TList<TLayer>;
-  //l: TLayer;
   category: string;
   tableName: string;
   fields: string;
@@ -898,6 +897,7 @@ var
   fieldMax: TField;
   jsonProperties: string;
   scenarioSchema: string;
+  selectedCategories: string;
 begin
   Result := '';
   layers := TList<TLayer>.Create;
@@ -914,7 +914,7 @@ begin
       jsonProperties := '';
       for op in (project as TEcodistrictProject).DIObjectProperties do
       begin
-        if category=op.category then
+        if category=op.tableName then
         begin
           if tableName=''
           then tableName := op.tableName;
@@ -925,99 +925,111 @@ begin
           fields := fields+'min('+op.fieldName+') as '+op.fieldName+',max('+op.fieldName+') as '+op.fieldName+'_compare';
         end;
       end;
-      selectedObjects := '';
-      for so in aSelectedObjects do
+      if tableName<>'' then
       begin
-        if selectedObjects<>''
-        then selectedObjects := selectedObjects+',';
-        selectedObjects := selectedObjects+''''+so+'''';
-      end;
-
-      query := TFDQuery.Create(nil);
-      try
-        query.Connection := project.dbConnection as TFDConnection;
-        query.SQL.Text :=
-          'SELECT '+fields+' '+
-          'FROM '+scenarioSchema+'.'+tableName+' '+
-          'WHERE '+key+' in ('+selectedObjects+')';
-        try
-          query.Open();
-          query.First();
-          while not query.Eof do
-          begin
-            // should only be 1 entry!
-            f := 0;
-            while f<query.FieldCount do
-            begin
-              fieldMin := query.Fields[f];
-              fieldMax := query.Fields[f+1];
-              if fieldMin.IsNull or fieldMax.IsNull
-              then value := 'null'
-              else
-              begin
-                if fieldMin.AsString=fieldMax.AsString then
-                begin
-                  case query.Fields[f].DataType of
-                    ftWideMemo,
-                    ftString,
-                    ftWideString: // todo: check widestring conversion..
-                      value := '"'+query.Fields[f].AsString+'"';
-                    ftInteger:
-                      value := fieldMin.AsInteger.ToString;
-                    ftLargeint:
-                      value := fieldMin.AsLargeInt.ToString;
-                    ftFloat,
-                    ftExtended,
-                    ftSingle:
-                      value := fieldMin.AsFloat.ToString(dotFormat);
-                    ftBoolean:
-                      if fieldMin.AsBoolean
-                      then value := 'true'
-                      else value := 'false';
-                  else
-                    Log.WriteLn('Unsupported DataType in getData TABLE request: '+Ord(fieldMin.DataType).toString, llWarning);
-                    value := 'null';
-                  end;
-                end
-                else value := 'null';
-              end;
-
-              for op in (project as TEcodistrictProject).DIObjectProperties do
-              begin
-                if (category=op.category) and (query.Fields[f].FieldName=op.fieldName) then
-                begin
-                  // add entry to result for field
-                  if jsonProperties<>''
-                  then jsonProperties := jsonProperties+',';
-                  jsonProperties := jsonProperties+'{'+op.toJSON(value)+'}';
-                end;
-              end;
-              f := f+2;
-            end;
-            query.Next();
-          end;
-        except
-          on e: exception do
-          begin
-            log.WriteLn('exception in TEcodistrictScenario.selectObjectsProperties: '+e.Message+' (sql: '+query.SQL.Text+')', llError);
-          end;
+        selectedObjects := '';
+        for so in aSelectedObjects do
+        begin
+          if selectedObjects<>''
+          then selectedObjects := selectedObjects+',';
+          selectedObjects := selectedObjects+''''+so+'''';
         end;
-      finally
-        query.Free;
-      end;
-      // rebuild to final result if contains data
-      if jsonProperties<>'' then
-      begin
-        Result :=
-          '"selectedObjectsProperties":'+
-            '{'+
-              '"selectedCategories": ["'+category+'"],'+
-              '"properties":['+jsonProperties+'],'+
-              '"selectedObjects":['+selectedObjects.Replace('''','"')+']'+
+
+        query := TFDQuery.Create(nil);
+        try
+          query.Connection := project.dbConnection as TFDConnection;
+          query.SQL.Text :=
+            'SELECT '+fields+' '+
+            'FROM '+scenarioSchema+'.'+tableName+' '+
+            'WHERE '+key+' in ('+selectedObjects+')';
+          try
+            query.Open();
+            query.First();
+            while not query.Eof do
+            begin
+              // should only be 1 entry!
+              f := 0;
+              while f<query.FieldCount do
+              begin
+                fieldMin := query.Fields[f];
+                fieldMax := query.Fields[f+1];
+                if fieldMin.IsNull or fieldMax.IsNull
+                then value := 'null'
+                else
+                begin
+                  if fieldMin.AsString=fieldMax.AsString then
+                  begin
+                    case query.Fields[f].DataType of
+                      ftWideMemo,
+                      ftString,
+                      ftWideString: // todo: check widestring conversion..
+                        value := '"'+query.Fields[f].AsString+'"';
+                      ftInteger:
+                        value := fieldMin.AsInteger.ToString;
+                      ftLargeint:
+                        value := fieldMin.AsLargeInt.ToString;
+                      ftFloat,
+                      ftExtended,
+                      ftSingle:
+                        value := fieldMin.AsFloat.ToString(dotFormat);
+                      ftBoolean:
+                        if fieldMin.AsBoolean
+                        then value := 'true'
+                        else value := 'false';
+                    else
+                      Log.WriteLn('Unsupported DataType in getData TABLE request: '+Ord(fieldMin.DataType).toString, llWarning);
+                      value := 'null';
+                    end;
+                  end
+                  else value := 'null';
+                end;
+
+                for op in (project as TEcodistrictProject).DIObjectProperties do
+                begin
+                  if (category=op.tableName) and (query.Fields[f].FieldName=op.fieldName) then
+                  begin
+                    // add entry to result for field
+                    if jsonProperties<>''
+                    then jsonProperties := jsonProperties+',';
+                    jsonProperties := jsonProperties+'{'+op.toJSON(value)+'}';
+                  end;
+                end;
+                f := f+2;
+              end;
+              query.Next();
+            end;
+          except
+            on e: exception do
+            begin
+              log.WriteLn('exception in TEcodistrictScenario.selectObjectsProperties: '+e.Message+' (sql: '+query.SQL.Text+')', llError);
+            end;
+          end;
+        finally
+          query.Free;
+        end;
+        // rebuild to final result if contains data
+        if jsonProperties<>'' then
+        begin
+          Result :=
+            '{"selectedObjectsProperties":'+
+              '{'+
+                '"selectedCategories": ["'+category+'"],'+
+                '"properties":['+jsonProperties+'],'+
+                '"selectedObjects":['+selectedObjects.Replace('''','"')+']'+
+              '}'+
             '}';
-        break;
+          exit;
+        end;
       end;
     end;
+    selectedCategories := '';
+    for category in aSelectCategories do
+    begin
+      if selectedCategories<>''
+      then selectedCategories := selectedCategories+',';
+      selectedCategories := selectedCategories+category;
+    end;
+    log.WriteLn('TEcodistrictScenario.selectObjectsProperties: no table name found for selected categories ('+selectedCategories+')', llWarning);
   finally
     layers.Free;
   end;
@@ -2605,18 +2617,18 @@ begin
                             name := entry.Pairs[p].JsonString.Value;
                             value := entry.Pairs[p].JsonValue.Value;
                             // todo: use '' around value if text
-                            if entry.Pairs[p].JsonValue is TJSONString
+                            if not (entry.Pairs[p].JsonValue is TJSONNumber)
                             then value := ''''+value+'''';
                             if name=idField
                             then id := value
                             else
                             begin
-                              if sql=''
+                              if sql<>''
                               then sql := sql+',';
                               sql := sql+name+'='+value;
                             end;
                           end;
-                          if id<>'' then
+                          if (id<>'') and (sql<>'') then
                           begin
                             // update table <tableName> on key [<idField>]
                             sql :=
@@ -2625,6 +2637,14 @@ begin
                               'WHERE '+idField+'='+id;
                             // execute query
                             (fDBConnection as TFDConnection).ExecSQL(sql);
+                          end
+                          else
+                          begin
+                            if id<>''
+                            then Log.WriteLn('setData: no field updates found', llWarning)
+                            else if sql<>''
+                            then Log.WriteLn('setData: no id specified', llWarning)
+                            else Log.WriteLn('setData: no id or field updates specified', llWarning);
                           end;
                         end;
                       except

@@ -335,7 +335,7 @@ begin
                 fOnTilerInfo(self); // -> AddCommandToQueue(Self, Self.signalObjects);
               except
                 on e: Exception
-                do Log.WriteLn('Exception TTilerLayer.handleLayerEvent handling OnTilerInfo: '+e.Message, llError);
+                do Log.WriteLn('Exception TTilerLayer.handleLayerEvent ('+Self.fElementID+') handling OnTilerInfo: '+e.Message, llError);
               end;
             end;
           end;
@@ -348,7 +348,7 @@ begin
                 fOnRefresh(self, timeStamp);
               except
                 on e: Exception
-                do Log.WriteLn('Exception TTilerLayer.handleLayerEvent handling OnRefresh: '+e.Message, llError);
+                do Log.WriteLn('Exception TTilerLayer.handleLayerEvent ('+Self.fElementID+') handling OnRefresh: '+e.Message, llError);
               end;
             end;
             {

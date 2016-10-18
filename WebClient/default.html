@@ -182,7 +182,6 @@
         // DataManager.simulationControl = simulationControl;
 
 
-
         // top-left
 
         //measures
@@ -236,11 +235,6 @@
         map.addControl(projectDescription);
 
         GraphManager.Initialize();
-        // GraphManager.MakeGraph();
-        //GraphManager.MakeGraph();
-        //GraphManager.MakeGraph();
-
-
 
         // link up connection control
         var connectionStatus = document.getElementById('connectionStatus');
@@ -254,37 +248,6 @@
 
         // default: try to connect
         wsConnect();
-
-        // todo: handling window resize and orientation change
-        // http://stackoverflow.com/questions/5284878/how-do-i-correctly-detect-orientation-change-using-javascript-and-phonegap-in-io
-        /*
-        var matchMedia = window.msMatchMedia || window.MozMatchMedia || window.WebkitMatchMedia || window.matchMedia;
-        if (typeof(matchMedia) !== 'undefined') {
-            // use matchMedia function to detect orientationchange
-            window.matchMedia('(orientation: portrait)').addListener(function() {
-                // your code ...
-            });
-        }
-        else {
-            // use orientationchange event with timeout (fires to early)
-            $(window).on('orientationchange', function() {
-                window.setTimeout(function() {
-                    // your code ...
-                }, 300)
-            });
-        }
-        */
-
-        // test layers live air
-        //addBasicLayer({ name: 'Eindh NO2 1',    tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=1&zoom={z}&x={x}&y={y}',  default: 0 });
-        //addBasicLayer({ name: 'Eindh PM10 2',   tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=2&zoom={z}&x={x}&y={y}',  default: 0 });
-        //addBasicLayer({ name: 'Eindh PM25 3',   tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=3&zoom={z}&x={x}&y={y}',  default: 0 });
-        //addBasicLayer({ name: 'PM10 102',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=102&zoom={z}&x={x}&y={y}', default: 0 });
-        //addBasicLayer({ name: 'PM25 103',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=103&zoom={z}&x={x}&y={y}', default: 0 });
-        //addBasicLayer({ name: '? 114',          tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=114&zoom={z}&x={x}&y={y}', default: 0 });
-        //addBasicLayer({ name: 'PM10 122',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=122&zoom={z}&x={x}&y={y}', default: 0 });
-        //addBasicLayer({ name: 'PM25 123',       tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=123&zoom={z}&x={x}&y={y}', default: 0 });
-        //addBasicLayer({ name: 'NO2 tot 134',    tiles: 'http://web-ecodistrict.tno.nl/tiler/TilerWebService.dll/tiles?layer=134&zoom={z}&x={x}&y={y}', default: 0 });
     </script>
 
 </body>
