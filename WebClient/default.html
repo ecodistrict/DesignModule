@@ -121,7 +121,7 @@
             //session = '1234'; // default test session
             //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
             session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
-            //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
+            // session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
             //session = 'ensel';
             //session = "SSM";
         }
@@ -147,6 +147,13 @@
             description: sessionDescription,
             referenceScenario: null
         };
+        // Mobile
+        if (window.innerWidth < 500) {
+          document.body.setAttribute("id", "phone");
+        } else {
+          document.body.removeAttribute("id");
+        }
+
 
         // top-right
 
@@ -176,10 +183,10 @@
         DataManager.HistoryControl = historyControl;
 
 
-        // //simulation
-        // var simulationControl = L.control.simulation(baseLayers); // todo (NK): why pass baseLayers as options?
-        // map.addControl(simulationControl);
-        // DataManager.simulationControl = simulationControl;
+        //simulation
+        var simulationControl = L.control.simulation(baseLayers); // todo (NK): why pass baseLayers as options?
+        map.addControl(simulationControl);
+        DataManager.simulationControl = simulationControl;
 
 
         // top-left

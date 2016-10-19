@@ -50,6 +50,8 @@ L.Control.History = L.Control.extend({
       }
 
 
+      //
+
       var link = this._layersLink = L.DomUtil.create('a', className + '-toggle', container);
       link.href = '#';
       link.title = 'History of applied measures and commit new measures';
@@ -79,10 +81,6 @@ L.Control.History = L.Control.extend({
     innerButton.value = 'Apply';
 
     container.appendChild(form);
-
-    if (window.innerWidth < 500) {
-      this._historyList.setAttribute("id", "phone");
-    }
 
   },
 
@@ -348,21 +346,15 @@ L.Control.History = L.Control.extend({
       L.DomUtil.addClass(this._container, 'leaflet-control-history-expanded');
       this._form.style.height = null;
       var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
+
       if (acceptableHeight < this._form.clientHeight) {
         L.DomUtil.addClass(this._form, 'leaflet-control-history-scrollbar');
         this._form.style.height = acceptableHeight + 'px';
       } else {
         L.DomUtil.removeClass(this._form, 'leaflet-control-history-scrollbar');
       }
-
-
       L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
-      // L.DomEvent.addListener(this._form, 'touchstart', function () {
-      //   console.log('test');
-      // });
-      // L.DomEvent.addListener(this._form, 'touchmove', function () {
-      //   L.DomEvent.stopPropagation;
-      // });
+
     }
   },
 

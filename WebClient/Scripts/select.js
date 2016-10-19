@@ -81,7 +81,6 @@ function showSelectedObjectsProperties(aSelectedObjectsProperties) {
     if (window.outerWidth < 500) {
       modalDialogDiv.style.width = '100%';
       modalDialogDiv.style.boxSizing = "border-box";
-      modalDialogDiv.setAttribute("id", "phone");
       //div.style.margin = '5% auto';
     } else {
       modalDialogDiv.style.maxWidth = '90%';
