@@ -59,6 +59,7 @@
   position: relative;
   box-sizing: border-box;
     width: 100%;
+    clear: both;
 }
 .leaflet-control-history h4 {
   margin: 0;
