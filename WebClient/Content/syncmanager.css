@@ -1,0 +1,34 @@
+﻿.viewerControlContainer {
+  border: 2px solid grey;
+  border-radius: 3px;
+  margin: auto;
+  position: absolute;
+  display: block;
+  background-color: white;
+}
+
+.viewerControlButtonContainer {
+
+}
+
+.viewerControlButton {
+  /*background-position: 50% 50%;*/
+  background-repeat: no-repeat;
+  display: block;
+  border: 1px solid black;
+  border-radius: 3px;
+  width: 52px;
+  height: 52px;
+  display: inline-block;
+  margin-left: 4px;
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.viewerControlTimeButton {
+    background-image: url('images/time-synchronize-2x.png');
+}
+
+.viewerControlMoveButton {
+    background-image: url('images/move-synchronize-2x.png');
+}
