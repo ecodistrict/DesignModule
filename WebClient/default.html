@@ -148,6 +148,13 @@
             description: sessionDescription,
             referenceScenario: null
         };
+        // Mobile
+        if (window.innerWidth < 500) {
+          document.body.setAttribute("id", "phone");
+        } else {
+          document.body.removeAttribute("id");
+        }
+
 
         // top-right
 

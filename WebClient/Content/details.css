@@ -51,6 +51,8 @@
 .leaflet-control-details h4 {
   margin: 0;
   padding: 0;
+  font-size:11px;
+  margin-top: 5px;
 }
 .leaflet-control-details ul {
   list-style-type: none;
@@ -163,31 +165,34 @@
   margin: auto auto;
 }
 .layerDetailsSelected {
-  bottom: 10px;
-  left: 5px;
-  position: absolute;;
-  width: 12px;
-  height: 7px;
-  background-image: url('images/detailsSelected.png');
-  background-size: 12px 7px;
+  bottom: 0px;
+  left: 0px;
+  position: absolute;
+  background-color: rgba(173,216,230,0.05);
+  right: 0px;
+  top: 0px;
+  opacity: 1;
+  z-index: -99999;
+  border: 2px solid lightblue;
+  border-radius: 2px;
 }
 .layerDetailsSelectedHidden {  display: none }
 
 .graphDetails {
-    float: left;
-    border: 1px solid grey;
-    border-radius: 3px;
-    margin: 2px;
+  float: left;
+  border: 1px solid grey;
+  border-radius: 3px;
+  margin: 2px;
 }
 
 .graphDetailTitle {
-    text-align: center;
-    height: 12px;
-    overflow-y: visible;
+  text-align: center;
+  height: 12px;
+  overflow-y: visible;
 }
 
 .chartPreviewActive {
-    border: 1px solid rgba(173, 216, 230, 1) !important;
+  border: 1px solid rgba(173, 216, 230, 1) !important;
 }
 
 
@@ -204,6 +209,9 @@
   padding-left: 31px !important;
   line-height: 14px;
   padding-top: 4px;
+}
+#phone .leaflet-control-details h4 {
+  margin-top:0px;
 }
 
 #phone .detailslayers {
@@ -234,8 +242,8 @@
 }
 
 #phone .layerDetailsSelected {
-    top: 8px !important;
-    left: auto !important;
-    right: 5px !important;
-    position: absolute !important;
+  top: 0px;
+  left: 0px !important;
+  right: 0px;
+  position: absolute !important;
 }
