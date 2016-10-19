@@ -75,6 +75,13 @@ const
   //  DefaultRemoteHost = 'localhost';
   RemotePortSwitch = 'RemotePort';
 
+  ModelNameSwitch = 'ModelName';
+    DefaultModelName = 'Tiler';
+  ModelIDSwitch = 'ModelID';
+    DefaultModelID =  13;
+  PrefixSwitch = 'Prefix';
+    DefaultPrefix = 'USIdle';
+
   MaxEdgeLengthSwitch = 'MaxEdgeLength';
     DefaultMaxEdgeLength = 250;
 
@@ -85,6 +92,7 @@ const
     DefaultCacheFolder = 'TileCache';
 
   TilerURLSwitch = 'TilerURL';
+  TilerEventNameSwitch  = 'TilerEventName';
 
   LayerIDsSection = 'LayerIDs';
 
@@ -1479,9 +1487,9 @@ begin
       begin
         // get distance in lat/lon (degrees) for x and y in middle of extent for disabling triangles
         distLatLon := TDistanceLatLon.Create(fMaxExtent.YMin, fMaxExtent.YMax);
-        Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': before fNet.Triangulate');
+        //Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': before fNet.Triangulate');
         fNet.Triangulate(fLayer.MaxEdgeLengthInMeters/distLatLon.m_per_deg_lon, fLayer.MaxEdgeLengthInMeters/distLatLon.m_per_deg_lat, NaN, aThreadPool);
-        Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': before fNet.Triangulate');
+        //Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': before fNet.Triangulate');
         Result := True;
       end
       else
@@ -1636,7 +1644,7 @@ begin
               if i<0 then
               begin
                 fNet.Points.Add(TDLPoint.Create(point.x, point.y, value, StrToIntDef(string(id), -1)));
-                Log.WriteLn('new point '+point.x.ToString+' , '+point.y.ToString+': '+value.toString);
+                //Log.WriteLn('new point '+point.x.ToString+' , '+point.y.ToString+': '+value.toString);
               end
               else
               begin
@@ -1645,12 +1653,12 @@ begin
                   fNet.Points[i].x  := point.x;
                   fNet.Points[i].y  := point.y;
                   point.x := NaN;
-                  Log.WriteLn('update point '+point.x.ToString+' , '+point.y.ToString);
+                  //Log.WriteLn('update point '+point.x.ToString+' , '+point.y.ToString);
                 end;
                 if not IsNaN(value) then
                 begin
                   fNet.Points[i].Value := value;
-                  Log.WriteLn('update value '+value.ToString());
+                  //Log.WriteLn('update value '+value.ToString());
                   value := NaN;
                 end;
               end;
@@ -3946,8 +3954,10 @@ begin
     inherited Create;
     fMaxEdgeLengthInMeters := aMaxEdgeLengthInMeters;
     fConnectedServices := TStringList.Create;
-    fConnection := TSocketConnection.Create('Tiler', 1, 'USIdle',
-      GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
+    fConnection := TSocketConnection.Create(
+      GetStdIniSetting(ModelNameSwitch, DefaultModelName), GetStdIniSetting(ModelIDSwitch, DefaultModelID),
+      GetStdIniSetting(PrefixSwitch, DefaultPrefix),
+      GetStdIniSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetStdIniSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
 
     fConnection.onDisconnect := HandleDisconnect;
     fConnection.onException := HandleException;
@@ -3970,10 +3980,11 @@ begin
     ClearCache;
     Log.WriteLn('Cleared non-persistent cache');
     fWS2IMBEvent := fConnection.publish('Sessions.WS2IMB'); // for gettings status from ws2imb services
-    fTilerEvent := fConnection.subscribe('Tilers.'+GetFQDN.Replace('.', '_'));
+    fTilerEvent := fConnection.subscribe('Tilers.'+GetStdIniSetting(TilerEventNameSwitch, GetFQDN.Replace('.', '_')));
     fTilerEvent.OnEvent.Add(HandleTilerEvent);
     fTilerEvent.OnString.Add(HandleTilerStatus);
     fTilerEvent.OnIntString.Add(HandleTilerStatusRequest);
+    Log.WriteLn(TilerEventNameSwitch+': '+fTilerEvent.eventName);
     fTilerEvent.signalEvent(TByteBuffer.bb_tag_double(icehTilerStartup, now));
     Log.WriteLn('Finished startup');
   finally
@@ -4599,6 +4610,9 @@ initialization
   FileLogger.MakeModuleFileName;
   FileLogger.SetLogDef(AllLogLevels, [llsTime, llsThreadID]);
   Log.Start();
+
+  // SetStdIniFileFolder(
+  Log.WriteLn('Ini file: '+StandardIni.FileName);
 
   maxEdgeLengthInMeters := GetStdIniSetting(MaxEdgeLengthSwitch, DefaultMaxEdgeLength);
   threadCount := GetStdIniSetting(ThreadCountSwitch, DefaultThreadCount);

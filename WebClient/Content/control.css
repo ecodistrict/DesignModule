@@ -1,0 +1,30 @@
+
+/* touch */
+
+.leaflet-touch .leaflet-bar {  box-shadow: none }
+.leaflet-touch .leaflet-control-history {  box-shadow: none }
+.leaflet-touch .leaflet-control-details {  box-shadow: none }
+.leaflet-touch .leaflet-control-layers {  box-shadow: none; border: 0px solid #fff;}
+.leaflet-touch .leaflet-control-domains {  box-shadow: none }
+.leaflet-touch .leaflet-control-simulation { box-shadow: none }
+
+.leaflet-touch [class^="leaflet-control-"] > a {
+  box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  border-radius: 5px;
+}
+
+
+/* overrides draw toolbar style */
+.leaflet-draw-toolbar a {
+  background-image: url('images/dmspritesheet.png');
+  background-repeat: no-repeat;
+}
+.leaflet-retina .leaflet-draw-toolbar a {
+  background-image: url('images/dmspritesheet-2x.png');
+  background-size: 360px 30px;
+}
+.leaflet-draw-draw-query {
+  cursor: pointer; /* does not show correctly without it seems */
+}
+.leaflet-touch .leaflet-draw-toolbar .leaflet-draw-draw-query {  background-position: -270px -1px }
+.leaflet-draw-toolbar .leaflet-draw-draw-query {  background-position: -272px -2px }

@@ -32,7 +32,7 @@ const
   PreLoadScenariosSwitch = 'PreLoadScenarios';
 
   WebClientURISwitch = 'WebClientURI';
-    DefaultWebClientURI = 'HTTP://vps17642.public.cloudvps.com:4501';
+    DefaultWebClientURI = 'HTTP://vps17642.public.cloudvps.com';
 
   IMB4RemoteHostSwitch = 'IMB4RemoteHost';
   IMB4RemotePortSwitch = 'IMB4RemotePort';

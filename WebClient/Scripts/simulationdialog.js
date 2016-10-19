@@ -22,6 +22,10 @@
 
     var label, options;
 
+    var simulationName = document.createElement('div');
+    simulationName.id = 'simulationName';
+
+
     var Penetration_rateSelect = document.createElement('select');
     Penetration_rateSelect.id = 'PenetrationRateSelect';
     Penetration_rateSelect.style.display = "none";
@@ -34,8 +38,10 @@
     Hb.id = 'Br';
     Hb.style.display = "none";
 
+    fillOptions(false, simulationName, 'Simulation name', 'simulationName', 'input');
+
     options = ['0%','25%','50%','75%'];
-    fillOptions(options, Penetration_rateSelect, "Penetration rateSelect", "PenetrationRateSelect", "select");
+    fillOptions(options, Penetration_rateSelect, "Penetration rate", "PenetrationRateSelect", "select");
 
     // options = ['0%','25%','50%','75%'];
     options = ['0%','25%','50%','75%'];
@@ -49,8 +55,18 @@
 
       var optionWrapper = document.createElement('div');
 
+
+      if (formElement === 'input') {
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control';
+        input.placeholder = 'Simulation name';
+        selectedSelect.appendChild(input);
+      }
+
       if (formElement === 'select') {
         optionWrapper.id = idName + '-option-row';
+        optionWrapper.className = 'form-control';
         for (var i = 0; i < options.length; i++) {
           option = options[i];
           var opt = document.createElement('option');
@@ -62,7 +78,7 @@
             e.preventDefault();
 
             for (var i = 0; i < e.target.parentElement.children.length; i++) {
-              e.target.parentElement.children[i].classList = ''; 
+              e.target.parentElement.children[i].classList.remove('selected');
             }
             e.target.className = 'selected';
 

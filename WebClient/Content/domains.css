@@ -95,19 +95,24 @@
 .domains-line {
   margin: 2px 0 2px 0;
   background-color: white;
-  border: 1px solid white;
+  border: 1px solid lightblue;
   border-radius: 3px;
 }
 .domains-line:hover {
   /*background-color: lightblue;*/
-  border: 1px solid dodgerblue;
+  border: 1px solid  rgba(173, 216, 230, 0.5);
+  background: rgba(173, 216, 230, 0.5);
+}
+.domains-line-selected:hover {
+  border: 1px solid rgba(173, 216, 230, 0.5);
+  background: rgba(173, 216, 230, 0.5);
 }
 .domains-line-selected {
   /*background-color: lightgray;*/
-  font-style: italic;
   /*font-weight: bolder;*/
-  background: lightblue;
-  border: 1px solid lightblue;
+  background: rgba(173, 216, 230, 1);
+  color:#000;
+  border: 1px solid rgba(173, 216, 230, 1);
   border-radius: 3px;
 }
 .domains-line .domains-select:checked {  /*background: red;_NO__DOTCOMMA__AFTER__*/ }

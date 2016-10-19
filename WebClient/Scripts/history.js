@@ -49,6 +49,7 @@ L.Control.History = L.Control.extend({
         }, this);
       }
 
+
       var link = this._layersLink = L.DomUtil.create('a', className + '-toggle', container);
       link.href = '#';
       link.title = 'History of applied measures and commit new measures';

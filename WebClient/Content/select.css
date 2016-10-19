@@ -4,18 +4,16 @@
 }
 .attributeTable {
   display: inline-block;
-  width: 200px;
-  border: 1px solid black;
+  width: 250px;
   margin: 0px 2px 0px 2px;
 }
 .attributeLeftCell {
-  width: 75px;
+  width: 125px;
   text-align: right;
   padding-right: 3px;
   height: 25px;
 }
 .attributeRightCell {
-  border-left: 1px solid black;
   padding-left: 3px;
   width: auto;
   height: 25px;
@@ -28,4 +26,11 @@
 }
 .textInput {
   width: 106px
+}
+#phone #tableContainer, #phone #tableContainer .attributeTable, #phone .floatRow {
+  width:100% !important;
+}
+
+#phone .floatLeftCell, #phone .floatRightCell {
+  width:50%;
 }

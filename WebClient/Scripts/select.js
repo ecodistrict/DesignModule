@@ -78,6 +78,16 @@ function showSelectedObjectsProperties(aSelectedObjectsProperties) {
 
     container.id = "attributesContainer";
 
+    if (window.outerWidth < 500) {
+      modalDialogDiv.style.width = '100%';
+      modalDialogDiv.style.boxSizing = "border-box";
+      modalDialogDiv.setAttribute("id", "phone");
+      //div.style.margin = '5% auto';
+    } else {
+      modalDialogDiv.style.maxWidth = '90%';
+      //div.style.margin = '5% auto';
+    }
+
 
 
     buildAttributesTable(container);
@@ -89,7 +99,7 @@ function showSelectedObjectsProperties(aSelectedObjectsProperties) {
 function buildAttributesTable(container) {
     var tableContainer = container.appendChild(document.createElement("div"));
     tableContainer.id = "tableContainer";
-
+    console.log(objProps);
     for (var i = 0; i < objProps.properties.length; i++) {
         objProps.properties[i].id = objProps.properties[i].name.replace(/\s+/g, '');
         createAttributeTable(objProps.properties[i], tableContainer);
@@ -100,8 +110,9 @@ function buildAttributesTable(container) {
 
     var buttonContainer = container.appendChild(document.createElement("div"));
     buttonContainer.className = 'modalDialogDevideButtons';
-    modelDialogAddButton(buttonContainer, "Apply", ApplyNewProperties);
+
     modelDialogAddButton(buttonContainer, "Cancel", modalDialogClose);
+    modelDialogAddButton(buttonContainer, "Apply", ApplyNewProperties);
     //var applyButton = buttonContainer.appendChild(document.createElement("input"));
     //applyButton.type = "button";
     //applyButton.value = "Apply";
@@ -192,7 +203,7 @@ function createIntTable(aAttribute, aElem) {
     leftCell.appendChild(document.createTextNode(aAttribute.name));
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "number";
-    inputField.className = "intInput";
+    inputField.className = "intInput form-control";
     inputField.value = aAttribute.value;
     inputField.disabled = !BoolParse(aAttribute.editable);
 }
@@ -208,7 +219,7 @@ function createFloatTable(aAttribute, aElem) {
     leftCell.appendChild(document.createTextNode(aAttribute.name));
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "number";
-    inputField.className = "intInput";
+    inputField.className = "intInput form-control";
     inputField.value = aAttribute.value;
     inputField.oldValue = aAttribute.value;
     inputField.disabled = !BoolParse(aAttribute.editable);
@@ -239,7 +250,7 @@ function createForcedListTable(aAttribute, aElem) {
         selectOption.value = aAttribute.options[i];
         selectOption.innerText = aAttribute.options[i];
     }
-    inputField.className = "forcedListInput";
+    inputField.className = "forcedListInput form-control";
     inputField.disabled = !BoolParse(aAttribute.editable);
     inputField.value = aAttribute.value;
 }
@@ -255,7 +266,7 @@ function createFreeListTable(aAttribute, aElem) {
     leftCell.appendChild(document.createTextNode(aAttribute.name));
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "text";
-    inputField.className = "textInput";
+    inputField.className = "textInput form-control";
     inputField.value = aAttribute.value;
     inputField.disabled = !BoolParse(aAttribute.editable);
 
@@ -272,7 +283,7 @@ function createStringTable(aAttribute, aElem) {
     leftCell.appendChild(document.createTextNode(aAttribute.name));
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "text";
-    inputField.className = "textInput";
+    inputField.className = "textInput form-control";
     inputField.value = aAttribute.value;
     inputField.disabled = !BoolParse(aAttribute.editable);
 }
@@ -288,7 +299,7 @@ function createBoolTable(aAttribute, aElem) {
     leftCell.appendChild(document.createTextNode(aAttribute.name));
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "checkbox";
-    inputField.className = "boolInput";
+    inputField.className = "boolInput form-control";
     inputField.checked = BoolParse(aAttribute.value);
     inputField.disabled = !BoolParse(aAttribute.editable);
 }

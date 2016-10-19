@@ -50,6 +50,7 @@
                 }, this);
             }
 
+            
             var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
             link.title = 'Domains';
@@ -68,7 +69,7 @@
         }
 
         this._domainList = L.DomUtil.create('div', className + '-base', form);
-        
+
         container.appendChild(form);
     },
 
@@ -109,7 +110,7 @@
         holder.innerHTML = domainName;
         this._updateDomainNode(domainEnabled, holder);
         L.DomEvent.on(holder, 'click', this._onDomainClick, this);
-        
+
         var container = this._domainList;
         container.appendChild(holder);
 

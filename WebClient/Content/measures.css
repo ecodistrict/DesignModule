@@ -64,7 +64,6 @@
   margin: 0;
   padding: 0;
 }
-.leaflet-control-measures li {  padding-left: 10px }
 .leaflet-control-measures li ul li {
   padding-left: 0px;
   padding-right: 10px;
@@ -75,7 +74,8 @@
   border-radius: 3px;
 }
 .leaflet-control-measures li a:hover {
-  background-color: lightblue !important;
+  background-color: rgba(173, 216, 230, 0.5);
+  color:#000 !important;
 }
 .leaflet-control-measures li a:link,
 .leaflet-control-measures li a:visited {
@@ -93,16 +93,22 @@
 .leaflet-oldie .leaflet-control-measures {  border: 1px solid #999 }
 /* categories */
 .measure-enabled a{
-  background-color:aliceblue !important;
+  background-color:#fff;
   border-radius: 3px;
-  border:1px solid #fff;
+  border:1px solid lightblue;
   padding:3px 5px;
 }
 .measure-enabled a:hover {
-  border:1px solid #f0f0f0;
+  border:1px solid rgba(173, 216, 230, 0.5);
+
 }
 .measure-disabled {  display: none }
-.measure-category-enabled { }
+li.measure-category-enabled {
+  font-weight:bold;
+}
+li.measure-category-enabled > ul {
+  font-weight:normal;
+}
 .measure-category-disabled {  display: none }
 /* meaure action options form */
 .selectMeasureRadio {
@@ -115,22 +121,25 @@
   margin: 4px 0 4px 0px;
   /*font-size: 16px;*/
   display: block;
-  background-color: aliceblue;
-  border: 1px solid white;
+  background-color: white;
+  border: 1px solid lightblue;
   border-radius: 3px;
 }
 .selectMeasureRadio:checked +.selectMeasureLabel {
-  background: lightblue;
+  background: rgba(173, 216, 230, 1);
+  color:#000;
   border-radius: 3px;
   border: 1px solid lightblue;
   padding: 2px 6px;
 }
 .selectMeasureRadio:checked + .selectMeasureLabel:hover {
-  background-color: lightblue;
+  background: rgba(173, 216, 230, 0.5);
+  color:#000;
   cursor:default;
 }
 .selectMeasureLabel:hover {
-  border:1px solid #f0f0f0;
-  background-color: lightblue;
+  border:1px solid lightblue;
+  background-color: rgba(173, 216, 230, 0.5);
+  color:#000;
   cursor:pointer;
 }

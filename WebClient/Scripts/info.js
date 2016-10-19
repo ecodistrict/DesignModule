@@ -45,7 +45,7 @@
         if (!L.Browser.touch) {
             L.DomEvent.disableScrollPropagation(container);
         }
-        
+
         var form = this._form = L.DomUtil.create('form', className + '-list');
 
         if (this.options.collapsed) {
