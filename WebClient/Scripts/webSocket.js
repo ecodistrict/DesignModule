@@ -264,8 +264,17 @@ var wsLookup = {
             showUserMessage("Simulation speed changed to: " + payload.speed, 1);
         }
     },
-    cc: function (payload) {
-        SyncManager.handleMessage(payload);
+    ccv: function (payload) {
+        SyncManager.handleCCVMessage(payload);
+    },
+    ccm: function (payload) {
+        SyncManager.handleCCMMessage(payload);
+    },
+    ccb: function (payload) {
+        //todo handle broadcast messages
+    },
+    groupcontrol: function (payload) {
+        SyncManager.handleControlMessage(payload);
     }
 }
 
@@ -417,9 +426,21 @@ function wsConnect() {
                     messageBuilder.type = "simulationcontrol";
                     messageBuilder.payload = message.simulationControl;
                 }
-                else if (message.cc) {
-                    messageBuilder.type = "cc";
-                    messageBuilder.payload = message.cc;
+                else if (message.ccv) {
+                    messageBuilder.type = "ccv";
+                    messageBuilder.payload = message.ccv;
+                }
+                else if (message.ccp) {
+                    messageBuilder.type = "ccp";
+                    messageBuilder.payload = message.ccp;
+                }
+                else if (message.ccb) {
+                    messageBuilder.type = "ccb";
+                    messageBuilder.payload = message.ccb;
+                }
+                else if (message.groupcontrol) {
+                    messageBuilder.type = "groupcontrol";
+                    messageBuilder.payload = messave.groupcontrol;
                 }
                 else {
                     console.log("unknown message:");

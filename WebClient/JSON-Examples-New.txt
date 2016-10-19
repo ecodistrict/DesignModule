@@ -173,3 +173,30 @@ Simulation Control message //note: speed can be combined with either start or st
 		"speed": 0.1/0.2/0.5/1/2/5/10/20/50/100/200/500/1000/Double.MaxValue //(optional) indicates (change in) simulation speed
 	}
 }
+
+Sync message
+{
+	"type": "cc",
+	"group": "group",
+	"payload": { //client to client communication, payload is handled in client, server only has to forward
+	}
+}
+
+Sync Control message client 2 server
+{
+	"type": "synccontrol",
+	"payload": {
+		"presenter": "group" //sets this client as master of a new group with groupid;
+		"viewer": "group" //sets this client as viewer of an existing groupid
+	}
+}
+
+Sync Control message server 2 client
+{
+	"type": "synccontrol",
+	"payload": {
+		"succeeded": true/false, //says whether the request succeeded or not
+		"presenter": "group" //request was with presenter/group combo
+		"viewer": "group" //request was with viewer/group combo
+	}
+}
