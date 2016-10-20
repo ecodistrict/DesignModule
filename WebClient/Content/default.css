@@ -1,4 +1,4 @@
-input, select, textarea {
+#phone input,#phone select,#phone textarea {
   -webkit-appearance: none;
 }
 
@@ -54,6 +54,13 @@ input.form-control:disabled {
 }
 
 input.form-control {
+  flex-basis: 100%;
+  background-color: #fff;
+  border: 1px solid rgba(173, 216, 230, 1);
+  border-radius: 3px;
+  padding:2px 5px;
+}
+textarea.form-control {
   flex-basis: 100%;
   background-color: #fff;
   border: 1px solid rgba(173, 216, 230, 1);

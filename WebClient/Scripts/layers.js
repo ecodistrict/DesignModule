@@ -126,7 +126,10 @@ function addLayerToMap(layer, opacity) {
         showLayerTimeStamp(layer.timestamp);
     else
         hideLayerTimeStamp();
-    if (layer.tiles && layer.tiles != '' && !layer.objects) {
+    if (!layer.objects)
+        layer.showingTiles = true;
+
+    if (typeof layer.tiles !== "undefined" && !layer.objects) { //layer.tiles != '' && 
         var tileLayer;
         tileLayer = L.tileLayer(layer.tiles, {
             opacity: opacity,
@@ -135,7 +138,6 @@ function addLayerToMap(layer, opacity) {
         tileLayer.domainLayer = layer;  // to identify that this is domain layer
         tileLayer.setZIndex(999);
         tileLayer.addTo(map);
-        wsSend({ subscribe: layer.id });
         layer.tileLayer = tileLayer;
         layer.tileLayer.idShowing = layer.id;
         layer.geoJsonLayer = undefined;
@@ -157,11 +159,11 @@ function addLayerToMap(layer, opacity) {
         geoJsonLayer.domainLayer = layer;  // to identify that this is domain layer
         geoJsonLayer.setZIndex(999);
         geoJsonLayer.addTo(map);
-        wsSend({ subscribe: layer.id });
         layer.geoJsonLayer = geoJsonLayer;
         layer.tileLayer = undefined;
         return geoJsonLayer._leaflet_id;
     }
+    wsSend({ subscribe: layer.id });
 }
 
 function updateTilesLayerOnMap(aElementID, aTilesURL) {

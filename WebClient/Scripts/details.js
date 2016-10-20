@@ -48,6 +48,9 @@
                 }, this);
             }
 
+            // ,
+            // mouseleave: this._collapse
+
             var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
             link.title = 'Details of selected domains in KPIs, charts and map layers';
@@ -75,11 +78,6 @@
         }
 
         this._detailList = L.DomUtil.create('div', className + '-base', form);
-
-        if (window.innerWidth < 500) {
-          this._detailList.setAttribute("id", "phone");
-        }
-
 
         container.appendChild(form);
     },

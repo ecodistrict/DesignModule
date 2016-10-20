@@ -80,17 +80,13 @@
 }
 
 /* phone */
-.modalDialog #phone {
+#phone .modalDialog > div {
   position: relative;
   margin: 10px auto;
   padding: 5px 10px 13px 10px;
   border-radius: 4px;
   background: white;
   max-width:96%;
-}
-
-#phone .selectByQueryForm {
-  background-color: orange;
 }
 #phone .queryDialogLine {
   position: relative;

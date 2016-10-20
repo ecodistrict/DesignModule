@@ -35,7 +35,7 @@ div[id*="-option-row"] > button:focus {
           box-shadow: none;
 }
 div[id*="-option-row"] > button:hover {
-  background-color:#e9eef7;
+  background-color:rgba(173, 216, 230, 0.5) !important;
 }
 div[id*="-option-row"] > button {
   flex-basis: 100%;

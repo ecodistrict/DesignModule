@@ -1,0 +1,150 @@
+* {
+  box-sizing: border-box;
+}
+html,body {
+  font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+  padding: 0px;
+  margin: 0px;
+  background-color: #f9f9f9;
+}
+h1, h2, h3, h4, h5 {
+  color:#1a5b7f;
+}
+p {
+  -webkit-margin-before: 0px;
+  -webkit-margin-after: 0px;
+  -webkit-margin-start: 0px;
+  -webkit-margin-end: 0px;
+  margin:6px 0px;
+}
+.clearBoth {
+  clear:both;
+}
+.horizontalRule {
+  width:100%;
+  height:1px;
+  margin-top: 14px;
+  background-color:rgba(99,99,99,0.6);
+}
+#header, #container {
+  max-width:1000px;
+  z-index: 999;
+}
+#header {
+  width:80%;
+  margin:0 auto;
+  padding:40px 0px;
+  box-sizing: border-box;
+}
+#logo {
+  z-index: 999;
+}
+#header > * {
+    z-index: 999;
+}
+#logo {
+  padding-bottom: 15px;
+}
+#logo a:hover > img {
+  opacity: 0.8;
+}
+#companyLogos {
+  border-top: 1px solid #b0b0b0;
+  padding-top: 20px;
+}
+#companyLogos a {
+  margin-right:10px;
+}
+#companyLogos a:hover img {
+  opacity:0.5;
+}
+#phone [id*="textContainer-"] {
+  width:100%;
+}
+[id*="textContainer-"] {
+  padding:0px;
+  margin:0px;
+  width:50%;
+  float:left;
+  margin-bottom: 42px;
+  transition: opacity 900ms;
+}
+[id*="textContainer-"] h1 {
+  margin-top:0px;
+}
+.buttonContainer {
+  text-align: right;
+}
+#phone [id*="imageContainer-"] {
+  width: 100%;
+}
+[id*="imageContainer-"] {
+  width: 50%;
+  border-right: 10px solid #fff;
+  float: left;
+  position: relative;
+  overflow:hidden;
+  transition: opacity 900ms;
+}
+[id*="imageContainer-"] img {
+  width:100%;
+  height:auto;
+}
+img.overlay {
+  position: absolute;
+  left:0px;
+  top:0px;
+  /*padding-right: 10px;*/
+}
+#container {
+  background-color: transparent;
+  width: 80%;
+  min-height:100%;
+  margin:0 auto;
+  padding:0px 0px;
+  box-sizing: border-box;
+}
+[id*="casus-"] {
+  background-color:#fff;
+  margin-bottom:30px;
+  -webkit-box-shadow: 0px 0px 26px 4px rgba(0,0,0,0.1);
+  -moz-box-shadow: 0px 0px 26px 4px rgba(0,0,0,0.1);
+  box-shadow: 0px 0px 26px 4px rgba(0,0,0,0.1);
+  padding:10px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 999;
+}
+.button {
+  background-color:rgba(26, 91, 127, 1);
+  padding:7px 10px;
+  color:#fff;
+  text-decoration: none;
+  box-sizing: border-box;
+  display: inline-block;
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+}
+#phone .casusBy {
+  left:10px;
+}
+
+.casusBy h2, .casusBy span {
+  float:left;
+  margin:0px;
+  font-size: 18px;
+}
+
+.casusBy {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  margin:0px;
+}
+.button:hover {
+  background-color:rgba(26, 91, 127, 0.5);
+}
+.buttonContainer {
+  transition: opacity 500ms;
+}

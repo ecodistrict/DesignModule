@@ -7,7 +7,6 @@
     if (window.outerWidth < 500) {
       div.style.width = '100%';
       div.style.boxSizing = "border-box";
-      div.setAttribute("id", "phone");
       //div.style.margin = '5% auto';
     } else {
       div.style.width = '400px';

@@ -50,7 +50,7 @@
                 }, this);
             }
 
-            
+
             var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
             link.title = 'Domains';
