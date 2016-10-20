@@ -30,7 +30,7 @@
             SyncManager.sessionData.zoom = message.move.zoom;
             if (SyncManager.syncs.move)
             {
-                map.setView(message.move.center, message.move.zoom);
+                map.flyTo(message.move.center, message.move.zoom);
             }
         }
     },
@@ -251,9 +251,9 @@
             if (SyncManager.sessionData.center)
             {
                 if (SyncManager.sessionData.zoom)
-                    map.setView(SyncManager.sessionData.center, SyncManager.sessionData.zoom);
+                    map.flyTo(SyncManager.sessionData.center, SyncManager.sessionData.zoom);
                 else
-                    map.setView(SyncManager.sessionData.center);
+                    map.flyTo(SyncManager.sessionData.center);
             }
             e.currentTarget.style.opacity = "1";
         }
