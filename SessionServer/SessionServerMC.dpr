@@ -106,52 +106,57 @@ var
   i: Integer;
   dbConnection: TOraSession;
 begin
-  // add parameters with default values
-  // DataSourceParameterName and FederationParameterName parameters should be set to
-  // enable looking up parameter values in database
-  WriteLn('Parameters request');
-  if aParameters.Count>0
-  then WriteLn('   parameters')
-  else WriteLn('## NO parameters defined');
-  for p := 0 to aParameters.Count - 1 do
-  begin
-    WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
-  end;
-
-  //projectName := GetSetting(ProjectNameSwitch,
-  if aParameters.ParameterExists(DataSourceParameterName) then
-  begin
-    // oracle part
-    dbConnection := TOraSession.Create(nil);
-    try
-      dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-      dbConnection.Open;
-      projectID := getUSProjectID(dbConnection, '');
-      if projectID=''
-      then projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
-    finally
-      dbConnection.Free;
+  try
+    // add parameters with default values
+    // DataSourceParameterName and FederationParameterName parameters should be set to
+    // enable looking up parameter values in database
+    WriteLn('Parameters request');
+    if aParameters.Count>0
+    then WriteLn('   parameters')
+    else WriteLn('## NO parameters defined');
+    for p := 0 to aParameters.Count - 1 do
+    begin
+      WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
     end;
 
-    // try to create nice project name..
-    projectName := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-    i := projectName.IndexOf('/');
-    if i>0
-    then projectName := projectName.Substring(0, i);
-    if projectName.ToUpper.StartsWith('US_')
-    then projectName := projectName.Substring(length('US_'));
-    projectName := projectName.Replace('_', ' ');
-    projectName[1] := UpCase(projectName[1]);
-  end
-  else
-  begin
-    projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
-    projectName := GetSetting(ProjectNameSwitch, 'test project'); //aParameters.ParameterByName[FederationParameterName].ValueAsString
+    //projectName := GetSetting(ProjectNameSwitch,
+    if aParameters.ParameterExists(DataSourceParameterName) then
+    begin
+      // oracle part
+      dbConnection := TOraSession.Create(nil);
+      try
+        dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
+        dbConnection.Open;
+        projectID := getUSProjectID(dbConnection, '');
+        if projectID=''
+        then projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
+      finally
+        dbConnection.Free;
+      end;
+
+      // try to create nice project name..
+      projectName := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
+      i := projectName.IndexOf('/');
+      if i>0
+      then projectName := projectName.Substring(0, i);
+      if projectName.ToUpper.StartsWith('US_')
+      then projectName := projectName.Substring(length('US_'));
+      projectName := projectName.Replace('_', ' ');
+      projectName[1] := UpCase(projectName[1]);
+    end
+    else
+    begin
+      projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
+      projectName := GetSetting(ProjectNameSwitch, 'test project'); //aParameters.ParameterByName[FederationParameterName].ValueAsString
+    end;
+    aParameters.Add(TModelParameter.Create(TilerNameSwitch, GetSetting(TilerNameSwitch, DefaultTilerName)));
+    aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
+    aParameters.Add(TModelParameter.Create(ProjectNameSwitch, projectName));
+    aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, GetSetting(PreLoadScenariosSwitch, True)));
+  except
+    on E: Exception
+    do log.WriteLn('Exception in TModel.ParameterRequest: '+E.Message, llError);
   end;
-  aParameters.Add(TModelParameter.Create(TilerNameSwitch, GetSetting(TilerNameSwitch, DefaultTilerName)));
-  aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
-  aParameters.Add(TModelParameter.Create(ProjectNameSwitch, projectName));
-  aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, GetSetting(PreLoadScenariosSwitch, True)));
 end;
 
 procedure TModel.StartModel(aParameters: TModelParameters);
@@ -165,56 +170,66 @@ var
   preLoadScenarios: Boolean;
   tilerName: string;
 begin
-  // execute actions needed to stop the model
-  WriteLn('Start model');
-  if aParameters.Count>0
-  then WriteLn('   parameters')
-  else WriteLn('## NO parameters defined');
-  for p := 0 to aParameters.Count - 1 do
-  begin
-    WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
+  try
+    // execute actions needed to stop the model
+    WriteLn('Start model');
+    if aParameters.Count>0
+    then WriteLn('   parameters')
+    else WriteLn('## NO parameters defined');
+    for p := 0 to aParameters.Count - 1 do
+    begin
+      WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
+    end;
+
+    fIMBLogger := AddIMBLogger(Self.Connection);
+
+    dbConnection := TOraSession.Create(nil);
+    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
+    dbConnection.Open;
+    projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
+    setUSProjectID(dbConnection, projectID); // store project id in database
+    projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
+    mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
+    Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
+    preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
+    tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
+    project := TUSProject.Create(
+      fSessionModel, fSessionModel.Connection,
+      projectID, projectName,
+      tilerName,
+      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+      dbConnection,
+      mapView,
+      preLoadScenarios,
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+    fSessionModel.Projects.Add(project);
+
+    // for now
+    Log.WriteLn('URL: '+GetSetting(WebClientURISwitch, DefaultWebClientURI)+'?session='+projectID, llOK);
+
+    // signal we are busy so we do not get killed (this model is different from the standard model)
+    SignalModelState(msBusy);
+    SignalModelProgress(0); // 0-100% or count down to zero
+  except
+    on E: Exception
+    do log.WriteLn('Exception in TModel.StartModel: '+E.Message, llError);
   end;
-
-  fIMBLogger := AddIMBLogger(Self.Connection);
-
-  dbConnection := TOraSession.Create(nil);
-  dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-  dbConnection.Open;
-  projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
-  setUSProjectID(dbConnection, projectID); // store project id in database
-  projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
-  mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
-  Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
-  preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
-  tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
-  project := TUSProject.Create(
-    fSessionModel, fSessionModel.Connection,
-    projectID, projectName,
-    tilerName,
-    GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-    dbConnection,
-    mapView,
-    preLoadScenarios,
-    GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
-  fSessionModel.Projects.Add(project);
-
-  // for now
-  Log.WriteLn('URL: '+GetSetting(WebClientURISwitch, DefaultWebClientURI)+'?session='+projectID, llOK);
-
-  // signal we are busy so we do not get killed (this model is different from the standard model)
-  SignalModelState(msBusy);
-  SignalModelProgress(0); // 0-100% or count down to zero
 end;
 
 procedure TModel.StopModel;
 begin
-  FreeAndNil(fIMBLogger);
-  // execute actions needed to stop the model
-  System.TMonitor.Enter(Log);
   try
-    WriteLn('Stop model');
-  finally
-    System.TMonitor.Exit(Log);
+    FreeAndNil(fIMBLogger);
+    // execute actions needed to stop the model
+    System.TMonitor.Enter(Log);
+    try
+      WriteLn('Stop model');
+    finally
+      System.TMonitor.Exit(Log);
+    end;
+  except
+    on E: Exception
+    do log.WriteLn('Exception in TModel.StopModel: '+E.Message, llError);
   end;
 end;
 
