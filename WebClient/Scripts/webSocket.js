@@ -203,8 +203,9 @@ var wsLookup = {
           map.removeControl(historyControl);
         }
       }
-      if (typeof payload.simulationSettingsEnabled !== 'undefined') {
-        if (payload.simulationSettingsEnabled) {
+      console.log(payload);
+      if (typeof payload.simulationControlEnabled !== 'undefined') {
+        if (payload.simulationControlEnabled) {
           map.addControl(simulationControl);
           InfoTextControl['leaflet-control-simulation'] = {description: 'Click here to config or edit a simulation', active: true, iconPosition:'left'};
         } else {
@@ -230,7 +231,7 @@ var wsLookup = {
       InfoTextControl['leaflet-control-layers-toggle'] = {description: 'Select base layer and switch on/off basic layers for all available object types', active: true, iconPosition:'left'};
       InfoTextControl['leaflet-control-domains-toggle'] = {description: 'Switch domain on/off', active: true, iconPosition:'left'};
       InfoTextControl['leaflet-control-details-toggle'] = {description: 'Switch on/off detail information layers for the selected domains', active: true, iconPosition:'left'};
-      InfoTextControl['projectDescription'] = {description: 'Click here to select a scenario or select an referention scenario', active: true, iconPosition:'bottom'};
+      InfoTextControl['projectDescription'] = {description: 'Click here to select a scenario or select an referention scenario, Click here to select a scenario or select an referention scenario, Click here to select a scenario or select an referention scenario, Click here to select a scenario or select an referention scenario', active: true, iconPosition:'bottom'};
 
     },
     login: function (payload) {

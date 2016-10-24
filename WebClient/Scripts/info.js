@@ -294,6 +294,12 @@ this._checkDisabledLayers();
 
 _collapse: function () {
   L.DomUtil.removeClass(this._container, 'leaflet-control-info-expanded');
+  if (document.body.id === 'phone') {
+    for (var i = 0; i < document.getElementsByClassName('infoText').length; i++) {
+      infoText = document.getElementsByClassName('infoText')[i];
+      infoText.style.display = 'none';
+    }
+  }
 },
 
 _checkDisabledLayers: function () {

@@ -1,7 +1,16 @@
 #phone input,#phone select,#phone textarea {
-  -webkit-appearance: none;
+  /*-webkit-appearance: none;*/
+  -webkit-border-radius:0px;
 }
+#phone #selectScenariosForm {
+  overflow-y: scroll !important; /* has to be scroll, not auto */
+  -webkit-overflow-scrolling: touch !important;
 
+  width: 100% !important;
+  box-sizing: border-box;
+  min-height: 10px;
+  pointer-events: auto !important;
+}
 /* buttons */
 .button:disabled {
   background-color:#ddd;
@@ -84,6 +93,9 @@ select.form-control {
 .leaflet-control-info.leaflet-control-info-expanded {
   border-radius: 5px !important;
 }
+#phone .leaflet-control-info-expanded a {
+  float:left;
+}
 #phone a.leaflet-control-info-toggle {
   display:block;
 }
@@ -102,12 +114,11 @@ select.form-control {
   white-space : nowrap;
 }
 #phone .leaflet-control-info-base div > p {
-
   display: none;
   position: fixed;
   left: 10px;
   bottom: 100px;
-  height: 50px;
+  height: auto;
   white-space: normal;
   right: 10px;
 }
