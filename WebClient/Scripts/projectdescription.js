@@ -17,7 +17,6 @@ L.control.projectDescription.showOptions = function (e) {
 
 L.control.projectDescription.showScenarios = function () {
 
-
   // show modal dialog with all available scenarios
   if (options.scenarios && options.scenarios.length > 0) {
     var div = modalDialogCreate('Scenarios', 'choose the active and the reference scenario');
@@ -36,9 +35,6 @@ L.control.projectDescription.showScenarios = function () {
     f.style.overflow = "auto";
     window.addEventListener("resize", ResizeSelectScenario);
 
-    // f.addEventListener('touchmove',  function(e){
-    //   f.scrollTop = e.touches[0].pageX;
-    // },  false);
 
     var ul = f.appendChild(document.createElement("ul"));
     //var ul = listContainer.appendChild("ul");
@@ -76,6 +72,11 @@ L.control.projectDescription.showScenarios = function () {
 
     CheckCurrentScenarios(options);
   }
+  if (f) {
+    L.DomEvent.addListener(f, 'touchmove', L.DomEvent.stopPropagation);  
+  }
+
+
 };
 
 function ResizeSelectScenario() {
