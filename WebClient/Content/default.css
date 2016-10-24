@@ -78,3 +78,65 @@ select.form-control {
 #simulationName {
   display: flex;
 }
+.leaflet-control-info.leaflet-control {
+  border-radius: 11px !important;
+}
+.leaflet-control-info.leaflet-control-info-expanded {
+  border-radius: 5px !important;
+}
+#phone a.leaflet-control-info-toggle {
+  display:block;
+}
+#phone .leaflet-control-info-base div > p {
+  display:none;
+}
+.leaflet-control-info-base div > p {
+  padding : 5px;
+  margin : 0px;
+  border-radius : 5px;
+  box-shadow : 0 1px 5px rgba(0,0,0,0.5);
+  background-color : #fff;
+  opacity : 0.8;
+  height : auto;
+  z-index : 999;
+  white-space : nowrap;
+}
+#phone .leaflet-control-info-base div > p {
+
+  display: none;
+  position: fixed;
+  left: 10px;
+  bottom: 100px;
+  height: 50px;
+  white-space: normal;
+  right: 10px;
+}
+#phone .leaflet-control-info-toggle-button {
+  display:block;
+}
+
+
+a.leaflet-control-info-toggle {
+  /*display:none;*/
+}
+
+.leaflet-control-info-base a.leaflet-control-info-toggle-button {
+  box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    border-radius: 12px;
+}
+.leaflet-control-info-toggle-button {
+  position: absolute;
+  left: -30px;
+  top:0px;
+  padding: 5px;
+  border-radius: 12px !important;
+  opacity: 1;
+  text-decoration: none;
+  z-index : 999;
+  background-image : url("images/info.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-color: #fff;
+  width : 16px;
+  height : 16px;
+}

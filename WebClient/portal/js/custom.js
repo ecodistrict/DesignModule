@@ -8,11 +8,26 @@ function checkWidthPage() {
     document.body.removeAttribute("id");
     mobile = false;
   }
+
+  if (document.getElementById('container').offsetWidth < document.getElementById('logo').children[0].children[0].naturalWidth) {
+    document.getElementById('logo').children[0].children[0].style.width = "100%";
+  } else {
+    document.getElementById('logo').children[0].children[0].style.width = "";
+  }
 }
 
 var imageContainer, imageContainer, description, outputImages;
 var overlayImages = [];
 var description = {};
+
+description = {
+  'p_1':'ODYSA INCAR is een dynamische groene golf in de auto waarbij op een display wordt weergegeven hoe hard gereden moet worden om bij het volgende verkeerslicht groen te krijgen.',
+  'p_2':'Locatie: Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat',
+  'hr_2':''
+}
+overlayImages = ['a58.png','menu_left.png'];
+createCasus('ODYSA INCAR','ODYSA_INCAR', 'map.jpg', overlayImages, description, 'http://www.google.nl/', 'DTV');
+
 
 description = {
   'p_1':'orem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
@@ -149,7 +164,7 @@ function buildText(description) {
       text += '<h1>' + description[key] + '</h1>';
     } else if (key === 'h2') {
       text += '<h2>' + description[key] + '</h2>';
-    } else if (key === 'hr') {
+    } else if (key.substring(0, 2) === 'hr') {
       text += '<div class="horizontalRule"></div>';
     }
 
@@ -160,11 +175,7 @@ function buildText(description) {
 checkWidthPage()
 window.onresize = function(e) {
   checkWidthPage()
-  if (document.getElementById('container').offsetWidth < document.getElementById('logo').children[0].children[0].naturalWidth) {
-    document.getElementById('logo').children[0].children[0].style.width = "100%";
-  } else {
-    document.getElementById('logo').children[0].children[0].style.width = "";
-  }
+
 
   // var container = document.getElementById('container');
   // var casus,hoogte,ratio,newWidth;

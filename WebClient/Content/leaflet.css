@@ -95,7 +95,7 @@
 }
 .leaflet-right .leaflet-control {  float: right }
 .leaflet-top .leaflet-control {  margin-top: 10px }
-.leaflet-bottom .leaflet-control {  margin-bottom: 10px }
+.leaflet-bottom .leaflet-control {  margin-bottom: 20px }
 .leaflet-left .leaflet-control {  margin-left: 10px }
 .leaflet-right .leaflet-control {  margin-right: 10px }
 /* zoom and fade animations */

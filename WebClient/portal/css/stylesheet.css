@@ -26,6 +26,13 @@ p {
   margin-top: 14px;
   background-color:rgba(99,99,99,0.6);
 }
+#phone #header,#phone #container {
+  width: 100%;
+}
+#phone #logo, #phone #companyLogos {
+  padding-left: 10px;
+  padding-right: 10px;
+}
 #header, #container {
   max-width:1000px;
   z-index: 999;
@@ -77,6 +84,7 @@ p {
 }
 #phone [id*="imageContainer-"] {
   width: 100%;
+  border:0px;
 }
 [id*="imageContainer-"] {
   width: 50%;
