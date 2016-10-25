@@ -165,16 +165,9 @@
   margin: auto auto;
 }
 .layerDetailsSelected {
-  bottom: 10px;
-  left: 5px;
+  bottom: 0px;
+  left: 0px;
   position: absolute;
-  width: 12px;
-  height:7px;
-  background-image: url('images/detailsSelected.png');
-  background-size: 12px 7px;
-
-}
-#phone .layerDetailsSelected {
   background-color: rgba(173,216,230,0.05);
   right: 0px;
   top: 0px;

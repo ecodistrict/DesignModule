@@ -125,7 +125,7 @@ var wsLookup = {
     selectedobjectsproperties: function (payload) {
       showSelectedObjectsProperties(payload);
     },
-    session: function (payload) {
+    session: function (payload) {      
       // handle session message
       if (typeof payload.description !== "undefined") {
         DataManager.sessionInfo.description = payload.description;
@@ -203,7 +203,6 @@ var wsLookup = {
           map.removeControl(historyControl);
         }
       }
-      console.log(payload);
       if (typeof payload.simulationControlEnabled !== 'undefined') {
         if (payload.simulationControlEnabled) {
           map.addControl(simulationControl);

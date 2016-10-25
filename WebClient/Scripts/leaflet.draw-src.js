@@ -308,7 +308,8 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 
 		var lastMarker = this._markers.pop(),
 			poly = this._poly,
-			latlng = this._poly.spliceLatLngs(poly.getLatLngs().length - 1, 1)[0];
+			latlng = this._poly.getLatLngs().splice(poly.getLatLngs().length - 1, 1);
+			// latlng = this._poly.spliceLatLngs(poly.getLatLngs().length - 1, 1)[0];
 
 		this._markerGroup.removeLayer(lastMarker);
 
@@ -550,8 +551,10 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 			this._measurementRunningTotal = 0;
 		} else {
 			previousMarkerIndex = markersLength - (added ? 2 : 1);
-			distance = latlng.distanceTo(this._markers[previousMarkerIndex].getLatLng());
 
+			distance = map.distance(this._markers[previousMarkerIndex].getLatLng(),this._markers[previousMarkerIndex].getLatLng());
+
+			// console.log(distance2);
 			this._measurementRunningTotal += distance * (added ? 1 : -1);
 		}
 	},

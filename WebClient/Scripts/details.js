@@ -181,7 +181,6 @@
                 }
             }
         }
-        console.log(changedActive);
         if (changedActive)
             updateTilesLayerOnMap(aElementID, aTilesURL);
     },
