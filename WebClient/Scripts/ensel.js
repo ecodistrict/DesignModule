@@ -4,6 +4,7 @@ DataManager = {
     complaints: [],
     sensors: [],
     cars: [],
+    carshash: {},
     counter: 99,
     warningGiven: false,
     wind: null,
@@ -168,6 +169,12 @@ DataManager = {
             DataManager.RemoveCar(aCarIds[i].id);
     },
 
+    RemoveAllCars: function () {
+        if (DataManager.drawLayer != null)
+            DataManager.drawLayer.clearLayers();
+        DataManager.carshash = {};
+    },
+
     AddCar: function (aCar) {
         if (DataManager.drawLayer == null)
         {
@@ -176,7 +183,7 @@ DataManager = {
 
         for (var i = 0; i < DataManager.cars.length; i++)
         {
-            if (DataManager.cars[i].id == aCar.id)
+            if (typeof DataManager.carshash[aCar.id] !== "undefined")
             {
                 return;
             }
@@ -192,21 +199,21 @@ DataManager = {
         circle.setStyle({ color: aCar.fill, opacity: 1 });
 
         aCar.circle = circle;
-        DataManager.cars.push(aCar);
+        DataManager.carshash[aCar.id] = aCar;
     },
 
     UpdateCar: function (aCarData) {
-        var car;
-        for (var i = 0; i < DataManager.cars.length; i++)
-        {
-            if (aCarData.id == DataManager.cars[i].id)
-            {
-                car = DataManager.cars[i]
-                break;
-            }
-        }
+        var car = DataManager.carshash[aCarData.id];
+        //for (var i = 0; i < DataManager.cars.length; i++)
+        //{
+        //    if (aCarData.id == DataManager.cars[i].id)
+        //    {
+        //        car = DataManager.cars[i]
+        //        break;
+        //    }
+        //}
 
-        if (car == null)
+        if (typeof car === "undefined")
             return;//car not found
 
 
@@ -258,14 +265,14 @@ DataManager = {
     },
 
     RemoveCar: function (aCarId) {
+        var car = DataManager.carshash[aCarId];
 
-        for (var i = 0; i < DataManager.cars.length; i++) {
-            if (DataManager.cars[i].id == aCarId) {
-                DataManager.drawLayer.removeLayer(DataManager.cars[i].circle);
+        if (typeof car === "undefined")
+            return;
 
-                DataManager.cars.splice(i, 1);
-            }
-        }
+        DataManager.drawLayer.removeLayer(car.circle);
+
+        delete DataManager.carshash[aCarId];
     },
 
     _getDisplayValue: function (concentration) {
@@ -461,7 +468,6 @@ DataManager = {
 
         if (sensor == null) {
             return;
-            console.log("Couldn't find sensor for data!");
         }
 
         //todo logical processing of new data.

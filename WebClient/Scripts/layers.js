@@ -41,13 +41,82 @@
                 var s = element.getElementsByClassName('layerDetailsSelected');
                 for(var i=0; i<s.length; i++)
                     s[i].className = 'layerDetailsSelected layerDetailsSelectedHidden';
-                legendControl.clearLegend(true);
-                crd.reset(false, false, false);
-                // todo: if other layers are visible which legend to show? none for now..
+
+                // check if this layer shows legend -> remove and check if we need to show another legend
+                if (typeof legendControl.legendLayer != "undefined" && (legendControl.legendLayer == layer.id)) {
+                    //legendControl.clearLegend(true);
+
+                    var legendLayer = null;
+
+                    for (maplayer in map._layers) {
+                        if (typeof map._layers[maplayer].domainLayer != "undefined") {
+                            if (legendLayer == null) {
+                                legendLayer = map._layers[maplayer];
+                            }
+                            else if (legendLayer._leaflet_id > map._layers[maplayer]._leaflet_id)
+                                legendLayer = map._layers[maplayer];
+                        }
+                    }
+
+                    if (legendLayer != null) {
+                        if (legendLayer.idShowing == legendLayer.domainLayer.id) {
+                            if (legendLayer.domainLayer.legend)
+                                legendControl.createLegend(legendLayer.domainLayer.legend, legendLayer.domainLayer.id);
+                        }
+                        else if (typeof legendLayer.domainLayer.ref != "undefined" && legendLayer.idShowing == legendLayer.domainLayer.ref.id) {
+                            if (legendLayer.domainLayer.ref.legend)
+                                legendControl.createLegend(legendLayer.domainLayer.ref.legend, legendLayer.domainLayer.id);
+                            else if (legendLayer.domainLayer.legend)
+                                legendControl.createLegend(legendLayer.domainLayer.legend, legendLayer.domainLayer.id);
+                        }
+                        else if (typeof legendLayer.domainLayer.diff != "undefined" && legendLayer.idShowing == legendLayer.domainLayer.diff.id) {
+                            if (legendLayer.domainLayer.diff.legend)
+                                legendControl.createLegend(legendLayer.domainLayer.diff.legend, legendLayer.domainLayer.id)
+                        }
+                        else
+                            legendControl.clearLegend(false, legendLayer.domainLayer.id);
+                    }
+                    else
+                        legendControl.clearLegend(false, null);
+                }
+                // check if this layer has the crd -> remove and check if we need to show another crd
+                if (typeof crd.crdLayer != "undefined" && layer.id == crd.crdLayer) {
+                    var crdlayer = null;
+                    for (maplayer in map._layers)
+                    {
+                        if (typeof map._layers[maplayer].domainLayer != "undefined")
+                        {
+                            if (crdlayer == null)
+                                crdlayer = map._layers[maplayer];
+                            else if (crdlayer._leaflet_id < map._layers[maplayer]._leaflet_id)
+                                crdlayer = map._layers[maplayer];
+                        }
+                    }
+
+                    if (crdlayer != null) {
+                        
+                        if (typeof crdlayer.domainLayer.ref != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.ref.id)
+                        {
+                            crd.reset(crdlayer.domainLayer != undefined, crdlayer.domainLayer.ref != undefined, crdlayer.domainLayer.diff != undefined, crdlayer.domainLayer, crd.reference);
+                        }
+                        else if (typeof crdlayer.domainLayer.diff != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.diff.id)
+                        {
+                            crd.reset(crdlayer.domainLayer != undefined, crdlayer.domainLayer.ref != undefined, crdlayer.domainLayer.diff != undefined, crdlayer.domainLayer, crd.difference);
+                        }
+                        else
+                        {
+                            crd.reset(crdlayer.domainLayer != undefined, crdlayer.domainLayer.ref != undefined, crdlayer.domainLayer.diff != undefined, crdlayer.domainLayer);
+                        }
+                    }
+                    else
+                        crd.reset(false, false, false);
+                }
             }
             else {
                 if (!e.ctrlKey) {
                     removeAllDomainLayers();
+                    legendControl.legendLayer = null;
+                    crd.options.layer = null;
                     var s3 = element.parentNode.getElementsByClassName('layerDetailsSelected');
                     for (var i3 = 0; i3 < s3.length; i3++)
                         s3[i3].className = 'layerDetailsSelected layerDetailsSelectedHidden';
@@ -57,43 +126,54 @@
                 for (var i2 = 0; i2 < s2.length; i2++)
                     s2[i2].className = 'layerDetailsSelected';
                 // cur-ref-diff
-                crd.reset(layer != undefined, layer.ref != undefined, layer.diff != undefined, function (e) {
-                    // handle switching between current, refference and difference layer
-                    // todo: only implement for tiles now
-                    if (e.target == crd.current) {
-                        if (layer.tileLayer) {
-                            layer.tileLayer.setUrl(layer.tiles, false);
-                            layer.tileLayer.idShowing = layer.id;
-                            if (layer.legend)
-                                legendControl.createLegend(layer.legend);
-                            else
-                                legendControl.clearLegend();
-                        }
-                    }
-                    else if (e.target == crd.reference) {
-                        if (layer.tileLayer) {
-                            layer.tileLayer.setUrl(layer.ref.tiles, false);
-                            layer.tileLayer.idShowing = layer.ref.id;
-                            if (layer.legend)
-                                legendControl.createLegend(layer.legend);
-                            else
-                                legendControl.clearLegend();
-                        }
-                    }
-                    else {
-                        if (layer.tileLayer) {
-                            layer.tileLayer.setUrl(layer.diff.tiles, false);
-                            layer.tileLayer.idShowing = layer.diff.id;
-                            if (layer.diff.legend)
-                                legendControl.createLegend(layer.diff.legend);
-                            else
-                                legendControl.clearLegend();
-                        }
-                    }
-                });
-                // show legend
-                if (layer.legend)
-                    legendControl.createLegend(layer.legend);
+                crd.reset(layer != undefined, layer.ref != undefined, layer.diff != undefined, layer);
+                //    function (e) {
+                //    // handle switching between current, refference and difference layer
+                //    // todo: only implement for tiles now
+                //    if (e.target == crd.current) {
+                //        if (layer.tileLayer) {
+                //            layer.tileLayer.setUrl(layer.tiles, false);
+                //            layer.tileLayer.idShowing = layer.id;
+                //            if (layer.legend && legendControl.legendLayer == layer.id)
+                //                legendControl.createLegend(layer.legend, layer.id);
+                //            else if (legendControl.legendLayer == layer.id)
+                //                legendControl.clearLegend(false, layer.id);
+                //        }
+                //    }
+                //    else if (e.target == crd.reference) {
+                //        if (layer.tileLayer) {
+                //            layer.tileLayer.setUrl(layer.ref.tiles, false);
+                //            layer.tileLayer.idShowing = layer.ref.id;
+                //            if (typeof layer.ref != "undefined" && typeof layer.ref.legend != "undefined" && legendControl.legendLayer == layer.id)
+                //            {
+                //                legendControl.createLegend(layer.ref.legend, layer.id);
+                //            }
+                //            else if (typeof layer.legend != "undefined" && legendControl.legendLayer == layer.id) {
+                //                legendControl.createLegend(layer.legend, layer.id);
+                //            }
+                //            else if (legendControl.legendLayer == layer.id) {
+                //                legendControl.clearLegend(false, layer.id);
+                //            }
+                //        }
+                //    }
+                //    else {
+                //        if (layer.tileLayer) {
+                //            layer.tileLayer.setUrl(layer.diff.tiles, false);
+                //            layer.tileLayer.idShowing = layer.diff.id;
+                //            if (layer.diff.legend && legendControl.legendLayer == layer.id)
+                //                legendControl.createLegend(layer.diff.legend, layer.id);
+                //            else if (legendControl.legendLayer == layer.id)
+                //                legendControl.clearLegend(false, layer.id);
+                //        }
+                //    }
+                //});
+                crd.crdLayer = layer.id;
+
+                // show legend if first layer
+                if (layer.legend && legendControl.legendLayer == null)
+                    legendControl.createLegend(layer.legend, layer.id);
+                else if (legendControl.legendLayer == null)
+                    legendControl.legendLayer = layer.id;
             }
             
         }

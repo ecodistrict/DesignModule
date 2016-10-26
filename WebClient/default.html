@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
   <title>Design module</title>
@@ -72,7 +72,7 @@
   <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div>
   <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
   <!-- load scripts -->
-
+    //
   <!-- leaflet js -->
   <script src="Scripts/leaflet-src.js"></script>
   <script src="Scripts/leaflet.draw-src.js"></script>
@@ -107,6 +107,7 @@
   <script src="Scripts/start-stop.js"></script>
   <script src="Scripts/webSocket.js"></script>
   <script src="Scripts/syncManager.js"></script>
+    <script src="Scripts/UnitConverter.js"></script>
   <!-- charts -->
   <script src="Scripts/d3.js"></script>
   <script src="Scripts/bullet.js"></script>
@@ -124,7 +125,6 @@
     // session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
     // session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
     // session = 'ensel';
-    session = "SSM";
   }
   var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
   var scenario = '';
@@ -166,7 +166,7 @@
 
   DataManager.detailsInfo = {
     elementWidth: 140,
-    kpiWidth: 134, kpiHeight: 20,    
+            kpiWidth: 134, kpiHeight: 20,
     chartWidth: 134, chartHeight: 100,
     layerWidth: 134, layerHeight: 140,
     padding: 2,
