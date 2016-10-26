@@ -132,58 +132,70 @@
         }
     },
 
-    updateTilesURL: function (aElementID, aTilesURL) {
+    updateTilesURL: function (payload) {
         // update data
         var changedActive = false;
         if (this._layers) {
             for (var layerName in this._layers) {
                 var layer = this._layers[layerName];
-                // check current, reference and diff layer for element id
-                //if (layer.id == aElementID && layer.tilesLayer && layer.tilesLayer.idShowing == aElementID) {
-                //    if (layer.tiles != aTilesURL) {
-                //        layer.tiles = aTilesURL;
-                //        changed = true;
-                //        // only reload layer if not showing the objects directly (ie is using tiles)
-                //        if (!layer.objects)
-                //            changed = true;
-                //    }
-                //}
-                //else if (layer.ref && layer.tilesLayer && layer.tilesLayer.idShowing == aElementID) {
-                //    if (layer.ref.tiles != aTilesURL) {
-                //        layer.ref.tiles = aTilesURL;
 
-                //        // only reload layer if not showing the objects directly (ie is using tiles)
-                //        if (!layer.ref.objects)
-                //            changed = true;
-                //    }
-                //}
-                //else if (layer.diff && layer.tilesLayer && layer.tilesLayer.idShowing == aElementID) {
-                //    if (layer.diff.tiles != aTilesURL) {
-                //        layer.diff.tiles = aTilesURL;
-                //        changed = true; // diff always through tiler, no layer.diff.objects checking needed
-                //    }
-                //}
-                if (layer.id == aElementID)
+                // check current, reference and diff layer for updates on tiles and legend
+                if (layer.id == payload.id) //note: can we encapsulate everything in this if? does a refresh always contain the id of the base layer?
                 {
-                    layer.tiles = aTilesURL;
+                    if (payload.tiles) {
+                        layer.tiles = payload.tiles;
+                        if (layer.tileLayer && layer.tileLayer.idShowing == payload.id) {
+                            updateTilesLayerOnMap(layer.id, layer.tiles);
+                        }
+                    }
+
+                    if (typeof payload.legend != "undefined")
+                    {
+                        layer.legend = payload.legend;
+                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.id)
+                        {
+                            legendControl.createLegend(layer.legend, layer.id);
+                        }
+                    }
                 }
-                else if (layer.ref && layer.ref.id == aElementID)
+                if (layer.ref && payload.ref && layer.ref.id == payload.ref.id)
                 {
-                    layer.ref.tiles = aTilesURL;
+                    if (typeof payload.ref.tiles != "undefined") {
+                        layer.ref.tiles = payload.ref.tiles;
+                        if (layer.tileLayer && layer.tileLayer.idShowing == payload.ref.id) {
+                            updateTilesLayerOnMap(layer.ref.id, layer.ref.tiles);
+                        }
+                    }
+                    if (typeof payload.ref.legend != "undefined")
+                    {
+                        layer.ref.legend = payload.ref.legend;
+                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.ref.id)
+                        {
+                            legendControl.createLegend(layer.ref.legend, layer.ref.id);
+                        }
+                    }
                 }
-                else if (layer.diff && layer.diff.id == aElementID)
+                if (layer.diff && payload.diff && layer.diff.id == payload.diff.id)
                 {
-                    layer.diff.tiles = aTilesURL;
+                    if (typeof payload.diff.tiles != "undefined") {
+                        layer.diff.tiles = payload.diff.tiles;
+                        if (layer.tileLayer && layer.tileLayer.idShowing == payload.diff.id) {
+                            updateTilesLayerOnMap(layer.diff.id, layer.diff.tiles);
+                        }
+                    }
+
+                    if (typeof payload.diff.legend != "undefined")
+                    {
+                        layer.diff.legend = payload.diff.legend;
+                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.diff.id)
+                        {
+                            legendControl.createLegend(layer.diff.legend, layer.diff.id);
+                        }
+                    }
                 }
-                if (layer.tileLayer && layer.tileLayer.idShowing == aElementID)
-                {
-                    changedActive = true;
-                }
+
             }
         }
-        console.log(changedActive);
-        if (changedActive)
-            updateTilesLayerOnMap(aElementID, aTilesURL);
     },
 
     _update: function () {

@@ -335,9 +335,6 @@ L.Control.History = L.Control.extend({
 
   hasElements: function () {
     return this._measureItems.length > 0 || this._historyItems.length > 0;
-    //for(var he in this._measureItems)
-    //    return true;
-    return false;
   },
 
   _expand: function () {

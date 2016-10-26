@@ -236,7 +236,7 @@
         }
         else
         {
-            container.style.visibility = "visible";
+            SyncManager.viewerControl.style.visibility = "visible";
         }
     },
     _removeViewerControl: function () {

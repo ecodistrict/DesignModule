@@ -66,20 +66,41 @@ function addTimeSlider(aParent, options) {
             .style('pointer-events', 'none')
             .style('font-size', '10px');
 
+    function lineClick(e) {
+        window.addEventListener("mousemove", lineMove);
+        window.addEventListener("mouseup", lineRelease);
+        console.log("start!");
+    }
+
+    function lineMove(e) {
+        console.log("move!");
+    }
+
+    function lineRelease(e) {
+        window.removeEventListener("mousemove", lineMove);
+        window.removeEventListener("mouseup", lineRelease);
+        console.log("stop!");
+    }
+
     var line = svg.append('line')
+        .classed("timeSliderLine", true)
         .attr('x1', rectParent.width / 2)
         .attr('x2', rectParent.width / 2)
         .attr('y1', yMargin)
         .attr('y2', rectParent.height)
-        .style('pointer-events', 'none')
-        .style('stroke', 'rgb(6,120,255)');
+        .style('pointer-events', 'auto')
+        .style('stroke', 'rgb(6,120,255)')
+        .style('stroke-width', '4')
+        .on('click', lineClick);
+
 
     var selectedTime = svg.append('text')
         .attr('x', xSelTextOffset + rectParent.width / 2)
         .attr('y', rectParent.height - ySelTextOffsetBottom)
         .attr('text-anchor', 'start')
-        .style('pointer-events', 'none') // todo: remove and add popup to select date/time specifically
-        .style('font-size', '14px');
+        .style('pointer-events', 'auto') // todo: remove and add popup to select date/time specifically
+        .style('font-size', '14px')
+        .on('click', function (e) { alert("test"); });
 
     rescale();
 

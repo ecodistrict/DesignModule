@@ -7,7 +7,8 @@
 
         current: false,
         reference: false,
-        difference: false
+        difference: false,
+        layer: null
     },
 
     initialize: function (options) {
@@ -48,8 +49,8 @@
         i.name = aGroup;
         i.checked = aChecked;
         i.crd = this;
-        if (this.options.onclick)
-            i.onchange = this.options.onclick;
+        //i.onchange = crd.clickCrd;
+        i.addEventListener("change", this.clickCrd);
         var s = l.appendChild(document.createElement('span'));
         s.className = 'crdRadioButtonSpan';
         s.textContent = aTitle;
@@ -89,16 +90,60 @@
         }
     },
 
-    reset: function (aCurrent, aReference, aDifference, aOnClick, aActive) {
+    reset: function (aCurrent, aReference, aDifference, aLayer, aActive) {
+        this.crdLayer = aLayer ? aLayer.id : null;
         this.options.current = aCurrent;
         this.options.reference = aReference;
         this.options.difference = aDifference;
-        this.options.onclick = aOnClick;
+        this.options.layer = aLayer;
         if (aActive)
             aActive.checked = true;
         else
             this.current.checked = true;
         this._update();
+    },
+
+    clickCrd: function (e) {
+        // handle switching between current, refference and difference layer
+        // todo: only implement for tiles now
+        var layer = crd.options.layer;
+
+        if (e.target == crd.current) {
+            if (layer.tileLayer) {
+                layer.tileLayer.setUrl(layer.tiles, false);
+                layer.tileLayer.idShowing = layer.id;
+                if (layer.legend && legendControl.legendLayer == layer.id)
+                    legendControl.createLegend(layer.legend, layer.id);
+                else if (legendControl.legendLayer == layer.id)
+                    legendControl.clearLegend(false, layer.id);
+            }
+        }
+        else if (e.target == crd.reference) {
+            if (layer.tileLayer) {
+                layer.tileLayer.setUrl(layer.ref.tiles, false);
+                layer.tileLayer.idShowing = layer.ref.id;
+                if (typeof layer.ref != "undefined" && typeof layer.ref.legend != "undefined" && legendControl.legendLayer == layer.id)
+                {
+                    legendControl.createLegend(layer.ref.legend, layer.id);
+                }
+                else if (typeof layer.legend != "undefined" && legendControl.legendLayer == layer.id) {
+                    legendControl.createLegend(layer.legend, layer.id);
+                }
+                else if (legendControl.legendLayer == layer.id) {
+                    legendControl.clearLegend(false, layer.id);
+                }
+            }
+        }
+        else {
+            if (layer.tileLayer) {
+                layer.tileLayer.setUrl(layer.diff.tiles, false);
+                layer.tileLayer.idShowing = layer.diff.id;
+                if (layer.diff.legend && legendControl.legendLayer == layer.id)
+                    legendControl.createLegend(layer.diff.legend, layer.id);
+                else if (legendControl.legendLayer == layer.id)
+                    legendControl.clearLegend(false, layer.id);
+            }
+        }
     }
     /*
     setEnabled: function (aCurrent, aReference, aDifference) {

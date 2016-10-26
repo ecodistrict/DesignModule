@@ -51,17 +51,17 @@ var wsLookup = {
         }
     },
     refresh: function (payload) {
-        console.log(payload);
+        //console.log(payload);
             var elementID = payload.id;
             if (typeof payload.tiles !== "undefined" && payload.tiles != '') {
-                detailsControl.updateTilesURL(elementID, payload.tiles);
+                detailsControl.updateTilesURL(payload);
                 // todo: if basic layer -> check and update that url!
             }
             else if (typeof payload.ref !== "undefined" && payload.ref.tiles !== "undefined" && payload.ref.tiles != '') {
-                detailsControl.updateTilesURL(payload.ref.id, payload.ref.tiles);
+                detailsControl.updateTilesURL(payload);
             }
             else if (typeof payload.diff !== "undefined" && payload.diff.tiles !== "undefined" && payload.diff.tiles != '') {
-                detailsControl.updateTilesURL(payload.diff.id, payload.diff.tiles);
+                detailsControl.updateTilesURL(payload);
             }
             else if (typeof payload.preview !== "undefined")
                 detailsControl.updatePreview(elementID, payload.preview);
@@ -239,9 +239,11 @@ var wsLookup = {
     },
     newgtusensor: function (payload) {
         //not implemented
+
     },
     updategtusensor: function (payload) {
         //not implemented
+
     },
     newgtustatistics: function (payload) {
         for (var i = 0; i < payload.length; i++)
@@ -267,8 +269,8 @@ var wsLookup = {
     ccv: function (payload) {
         SyncManager.handleCCVMessage(payload);
     },
-    ccm: function (payload) {
-        SyncManager.handleCCMMessage(payload);
+    ccp: function (payload) {
+        SyncManager.handleCCPMessage(payload);
     },
     ccb: function (payload) {
         //todo handle broadcast messages
