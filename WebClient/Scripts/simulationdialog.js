@@ -28,8 +28,7 @@ function openSimulationDialog(e) {
   fillOptions('input', 'y', false, 'Simulation name', 'simulationName');
   fillOptions('select', 'y', ['0%','25%','50%','75%'], "Penetration rate", "PenetrationRateSelect");
   fillOptions('select', 'y', ['0%','25%','50%','75%'], "Follow-on behavior", "followOn");
-  fillOptions('select', 'y', ['-10%','0%','10%'], "Br", "Brkeuze");
-  fillOptions('input', 'y', false, 'Simulation name2', 'simulationName2');
+  fillOptions('select', 'y', ['-10%','0%','10%'], "Br", "Brkeuze");  
 
 
   var container,optionWrapper, opt;
