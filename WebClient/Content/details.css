@@ -141,7 +141,7 @@
   stroke-width: 1.0px;
 }
 /* layers in details */
-.layerDetails {
+.layerDetails, .detailContainer {
   border-radius: 3px;
   border: 1px solid gray;
   margin: 2px;
@@ -149,11 +149,11 @@
   float: left;
   position: relative;
 }
-.layerDetails:hover {
+.layerDetails:hover, .detailContainer:hover {
   border-color: rgba(173, 216, 230, 0.5);
   cursor:pointer;
 }
-.layerDetailsTitle {
+.layerDetailsTitle, .detailTitle {
   /*margin: auto auto;*/
   text-align: center;
 }
@@ -163,6 +163,17 @@
   position: relative;
   display: block;
   margin: auto auto;
+}
+.chartPreviewActive:hover {
+  border-color: rgba(173, 216, 230, 0.5) !important;
+  cursor:pointer;
+}
+.chartPreviewActive {
+  background-color: rgba(173,216,230,0.05);
+}
+.leaflet-control-details hr {
+  width: 100%;
+  float: left;
 }
 .layerDetailsSelected {
   bottom: 0px;
@@ -203,7 +214,7 @@
   width:280px !important;
 }
 
-#phone .layerDetailsTitle {
+#phone .layerDetailsTitle, #phone .detailTitle {
   font-size: 11px !important;
   text-align: left !important;
   padding-left: 31px !important;
@@ -214,7 +225,7 @@
   margin-top:0px;
 }
 
-#phone .detailslayers {
+#phone .detailslayers, #phone .detailscharts {
   width: 100% !important;
   box-sizing: border-box;
   min-height: 10px;
@@ -222,7 +233,7 @@
   -webkit-overflow-scrolling: touch !important;
   max-height: 300px !important;
 }
-#phone .layerDetails {
+#phone .layerDetails, #phone .graphDetails {
   width: 100% !important;
   height: 23px !important;
   float: left;
@@ -230,7 +241,17 @@
   position: relative;
   box-sizing: border-box;
 }
-
+#phone .preview-svg-container {
+  left: 0px;
+  top: 0px;
+  position: absolute;
+  display: block;
+  margin: auto auto;
+  float: left;
+  height: 20px;
+  width:20px;
+  border-right: 1px solid rgba(0, 0, 0, 0.32);
+}
 #phone .layerDetailsImg {
   left: 6px;
   top: 4px;
@@ -240,8 +261,10 @@
   float: left;
   height: 16px;
 }
-
-#phone .layerDetailsSelected {
+#phone .chartPreviewActive {
+  border: 1px solid rgba(173, 216, 230, 1) !important;
+}
+#phone .layerDetailsSelected  {
   top: 0px;
   left: 0px !important;
   right: 0px;

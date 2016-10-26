@@ -20,15 +20,16 @@ function openSimulationDialog(e) {
   f.id = 'simulationForm';
   f.name = 'simulationForm';
 
+  var errorLog = document.createElement('div');
+  errorLog.id = 'errorLog';
+  errorLog.style.display = 'none';
+  errorLog.innerHTML = '';
+
   fillOptions('input', 'y', false, 'Simulation name', 'simulationName');
   fillOptions('select', 'y', ['0%','25%','50%','75%'], "Penetration rate", "PenetrationRateSelect");
   fillOptions('select', 'y', ['0%','25%','50%','75%'], "Follow-on behavior", "followOn");
   fillOptions('select', 'y', ['-10%','0%','10%'], "Br", "Brkeuze");
-  fillOptions('radio', 'y', ['-10%','0%','10%'], "radio", "radioKeuze");
-  fillOptions('checkbox', 'y', ['-10%','0%','10%'], "checkbox", "checkboxKeuze");
-  fillOptions('textarea', 'y', false, "textarea", "textarea");
-  fillOptions('select', 'n', ['textarea','textarea','textarea','textarea','textarea','textarea','textarea','textarea'], "grote select", "PenetrationRateSelect2");
-  fillOptions('checkbox', 'y', ['-20%','0%','20%'], "checkbox", "checkboxKeuze2");
+  fillOptions('input', 'y', false, 'Simulation name2', 'simulationName2');
 
 
   var container,optionWrapper, opt;
@@ -39,6 +40,7 @@ function openSimulationDialog(e) {
     if (formElement === 'input') {
       container = document.createElement('div');
       container.id = idName;
+      container.style.display = 'flex';
     } else if (formElement === 'radio') {
       container = document.createElement('div');
       container.id = idName;
@@ -178,6 +180,7 @@ function openSimulationDialog(e) {
 
     f.appendChild(container);
     f.appendChild(document.createElement('br'));
+
   }
 
 
@@ -195,7 +198,9 @@ function openSimulationDialog(e) {
   // }
 
   // buttons section
+
   f.appendChild(document.createElement('hr'));
+  f.appendChild(errorLog);
   var mddb = f.appendChild(document.createElement('div'));
   mddb.className = 'modalDialogDevideButtons';
   modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
@@ -206,6 +211,7 @@ function queryDialogApply() {
   errors = false;
   formResult = [];
   elemValues = [];
+  errorLog.innerHTML = '';
   for (var i = 0; i < document.forms['simulationForm'].elements.length; i++) {
     var elem = document.forms['simulationForm'].elements[i];
 
@@ -214,6 +220,8 @@ function queryDialogApply() {
         if (elem.value === '') {
           errors = true;
           elem.classList.add('empty');
+          errorLog.style.display = 'block';
+          errorLog.innerHTML = errorLog.innerHTML + '<span>' + elem.placeholder + ' is not correct!' + '</span>';
         } else {
           formResult.push({name:elem.name, value:elem.value});
           elem.classList.remove('empty');
@@ -224,6 +232,8 @@ function queryDialogApply() {
         if (elem.value === '') {
           errors = true;
           elem.classList.add('empty');
+          errorLog.style.display = 'block';
+          errorLog.innerHTML = errorLog.innerHTML + elem.name + ' is not correct!';
         } else {
           formResult.push({name:elem.name, value:elem.value});
           elem.classList.remove('empty');
@@ -234,6 +244,7 @@ function queryDialogApply() {
         if (elem.value === '') {
           errors = true;
           elem.classList.add('empty');
+          errorLog.style.display = 'block';
         } else {
           formResult.push({name:elem.name, value:elem.value});
           elem.classList.remove('empty');
@@ -249,9 +260,11 @@ function queryDialogApply() {
         if (document.getElementById('simulationForm')[elem.name].value === '') {
           options = document.getElementById(elem.name + '-option-row');
           options.classList.add('empty');
+          errorLog.style.display = 'block';
         } else {
           options = document.getElementById(elem.name + '-option-row');
           options.classList.remove('empty');
+          errorLog.style.display = 'block';
         }
       }
 
