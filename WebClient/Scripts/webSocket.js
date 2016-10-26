@@ -125,7 +125,7 @@ var wsLookup = {
     selectedobjectsproperties: function (payload) {
       showSelectedObjectsProperties(payload);
     },
-    session: function (payload) {      
+    session: function (payload) {
       // handle session message
       if (typeof payload.description !== "undefined") {
         DataManager.sessionInfo.description = payload.description;
@@ -215,14 +215,14 @@ var wsLookup = {
       if (typeof payload.simulationControlEnabled !== 'undefined') {
         if (payload.simulationControlEnabled) {
           map.addControl(startControl);
-          InfoTextControl['leaflet-control-simulation-toggle'] = {description: 'Config simulation', active: true, iconPosition:'left'};
+          InfoTextControl['leaflet-control-startstop-stopped'] = {description: 'Play/pause simulation', active: true, iconPosition:'left'};
         } else {
           map.removeControl(startControl);
-          InfoTextControl['leaflet-control-simulation-toggle'] = {active: false};
+          InfoTextControl['leaflet-control-startstop-stopped'] = {active: false};
         }
       } else {
         map.removeControl(startControl);
-        InfoTextControl['leaflet-control-simulation-toggle'] = {active: false};
+        InfoTextControl['leaflet-control-startstop-stopped'] = {active: false};
       }
 
       // basic controls
@@ -230,7 +230,7 @@ var wsLookup = {
       InfoTextControl['leaflet-control-layers-toggle'] = {description: 'Select base layer and switch on/off basic layers for all available object types', active: true, iconPosition:'left'};
       InfoTextControl['leaflet-control-domains-toggle'] = {description: 'Switch domain on/off', active: true, iconPosition:'left'};
       InfoTextControl['leaflet-control-details-toggle'] = {description: 'Switch on/off detail information layers for the selected domains', active: true, iconPosition:'left'};
-      InfoTextControl['projectDescription'] = {description: 'Click here to select a scenario or select an referention scenario, Click here to select a scenario or select an referention scenario, Click here to select a scenario or select an referention scenario, Click here to select a scenario or select an referention scenario', active: true, iconPosition:'bottom'};
+      InfoTextControl['projectDescription'] = {description: 'Click here to select a scenario or select an referention scenario', active: true, iconPosition:'bottom'};
 
     },
     login: function (payload) {

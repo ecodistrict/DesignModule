@@ -10,6 +10,15 @@ html,body {
 h1, h2, h3, h4, h5 {
   color:#1a5b7f;
 }
+::-moz-selection {
+  background-color:#1a5b7f;
+  color:#fff;
+}
+::selection {
+  background-color:#1a5b7f;
+  color:#fff;
+}
+
 p {
   -webkit-margin-before: 0px;
   -webkit-margin-after: 0px;
@@ -35,6 +44,10 @@ p {
 }
 #header, #container {
   max-width:1000px;
+  -webkit-transition:width 500ms ease-in-out;
+  -moz-transition:width 500ms ease-in-out;
+  -o-transition:width 500ms ease-in-out;
+  transition:width 500ms ease-in-out;
   z-index: 999;
 }
 #header {
@@ -47,13 +60,15 @@ p {
   z-index: 999;
 }
 #header > * {
-    z-index: 999;
+  z-index: 999;
 }
 #logo {
   padding-bottom: 15px;
+  transition: opacity 300ms;
 }
 #logo a:hover > img {
   opacity: 0.8;
+  transition: opacity 300ms;
 }
 #companyLogos {
   border-top: 1px solid #b0b0b0;
@@ -61,9 +76,11 @@ p {
 }
 #companyLogos a {
   margin-right:10px;
+  transition: opacity 300ms;
 }
 #companyLogos a:hover img {
   opacity:0.5;
+  transition: opacity 300ms;
 }
 #phone [id*="textContainer-"] {
   width:100%;
@@ -133,6 +150,7 @@ img.overlay {
   position: absolute;
   right: 10px;
   bottom: 10px;
+
 }
 #phone .casusBy {
   left:10px;
@@ -152,6 +170,8 @@ img.overlay {
 }
 .button:hover {
   background-color:rgba(26, 91, 127, 0.5);
+
+
 }
 .buttonContainer {
   transition: opacity 500ms;
