@@ -49,7 +49,7 @@ type
   TTiler = class; // forward
 
   TTilerLayer = class
-  constructor Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette=nil; aID: Integer=-1; const aURL: string=''; aPreview: TPngImage=nil);
+  constructor Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette=nil; aID: Integer=-1; const aURL: string='');
   destructor Destroy; override;
   private
     //fTiler: TTiler;
@@ -66,6 +66,8 @@ type
     fOnTilerInfo: TOnTilerInfo;
     fOnRefresh: TOnRefresh;
     fOnPreview: TOnPreview;
+    // refs to event handlers: make removable
+    fHandleLayerEventRef: TOnEvent;
     function getURITimeStamp: string;
     function getURLTimeStamped: string;
     procedure handleLayerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
@@ -78,7 +80,7 @@ type
     property ID: Integer read fID;
     property URL: string read fURL;
     property URLTimeStamped: string read getURLTimeStamped;
-    property preview: TPngImage read fPreview;
+    //property preview: TPngImage read fPreview;
     function previewAsBASE64: string;
     // events
     property onTilerInfo: TOnTilerInfo read fOnTilerInfo write fOnTilerInfo;
@@ -116,6 +118,9 @@ type
     fOnTilerStartup: TOnTilerStartup;
     fOnTilerStatus: TOnTilerStatus;
     fTilerStatusURL: string;
+    // refs to event handlers: make removable
+    fHandleTilerStatusRef: TOnIntString;
+    fHandleTilerEventRef: TOnEvent;
     procedure handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleTilerStatus(aEventEntry: TEventEntry; aInt: Integer; const aString: string);
   public
@@ -265,7 +270,7 @@ end;
 
 { TTilerLayer }
 
-constructor TTilerLayer.Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette; aID: Integer; const aURL: string; aPreview: TPngImage);
+constructor TTilerLayer.Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette; aID: Integer; const aURL: string);
 begin
   inherited Create;
   fElementID := aElementID;
@@ -273,24 +278,22 @@ begin
   fPalette := aPalette;
   fID := aID;
   fURL := aURL;
-  fPreview := aPreview;
+  fPreview := nil;
   fOnTilerInfo := nil;
   fOnRefresh := nil;
   fOnPreview := nil;
-  // try to load preview from cache
-  if not Assigned(fPreview)
-  then LoadPreviewFromCache();
+  fHandleLayerEventRef := handleLayerEvent;
+  LoadPreviewFromCache();
   // define layer event name and make active
   fEvent := aConnection.subscribe('USIdle.Sessions.TileLayers.'+aElementID.Replace(sepElementID, sepEventName), False);
-  fEvent.OnEvent.Add(handleLayerEvent);
+  fEvent.OnEvent.Add(fHandleLayerEventRef);
 end;
 
 destructor TTilerLayer.Destroy;
 begin
   if Assigned(fEvent) then
   begin
-    fEvent.OnEvent.Remove(handleLayerEvent);
-    fEvent.unSubscribe();
+    fEvent.OnEvent.Remove(fHandleLayerEventRef);
     fEvent := nil;
   end;
   FreeAndNil(fPreview);
@@ -351,41 +354,12 @@ begin
                 do Log.WriteLn('Exception TTilerLayer.handleLayerEvent ('+Self.fElementID+') handling OnRefresh: '+e.Message, llError);
               end;
             end;
-            {
-            if timeStamp<>0
-            then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', timeStamp)
-            else timeStampStr := '';
-            // todo: start refresh timer
-            // signal refresh to layer client
-            tiles := uniqueObjectsTilesLink;
-            TMonitor.Enter(clients);
-            try
-              for client in clients
-              do client.SendRefresh(elementID, timeStampStr, tiles);
-            finally
-              TMonitor.Exit(clients);
-            end;
-            // signal refresh to scenario client
-            TMonitor.Enter(fScenario.clients);
-            try
-              for client in fScenario.clients do
-              begin
-                if not clients.Contains(client)
-                then client.SendRefresh(elementID, timeStampStr, tiles);
-              end;
-            finally
-              TMonitor.Exit(fScenario.clients);
-            end;
-            // refresh preview also
-            //Log.WriteLn('set preview timer for '+elementID);
-            fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneMinute/6);
-            }
           end;
         (icehTilerPreviewImage shl 3) or wtLengthDelimited:
           begin
             try
               bytes := aBuffer.bb_read_tbytes(aCursor);
-              fPreview.Free;
+              FreeAndNil(fPreview);
               fPreview := TPngImage.Create;
               if Assigned(fPreview) then
               begin
@@ -405,28 +379,6 @@ begin
                 end;
               end
               else Log.WriteLn('TTilerLayer.handleLayerEvent handling icehTilerPreviewImage: could not create preview png', llError);
-              { ->
-              pvBASE64 := previewBASE64;
-              // layer clients
-              TMonitor.Enter(clients);
-              try
-                for client in fClients
-                do client.SendPreview(elementID, pvBASE64);
-              finally
-                TMonitor.Exit(clients);
-              end;
-              // scenario clients
-              TMonitor.Enter(fScenario.clients);
-              try
-                for client in fScenario.clients do
-                begin
-                  if not clients.Contains(client)
-                  then client.SendPreview(elementID, pvBASE64);
-                end;
-              finally
-                TMonitor.Exit(fScenario.clients);
-              end;
-              }
             except
               on E: Exception
               do Log.WriteLn('Exception TTilerLayer.handleLayerEvent handling icehTilerPreviewImage: '+e.Message, llError);
@@ -451,7 +403,7 @@ begin
     previewFilename := ExtractFilePath(ParamStr(0))+'previews'+'\'+fElementID+'.png';
     if FileExists(previewFilename) then
     begin
-      fPreview.Free;
+      FreeAndNil(fPreview);
       fPreview := TPngImage.Create;
       fPreview.LoadFromFile(previewFilename);
       Result := True;
@@ -593,12 +545,14 @@ begin
   inherited Create;
   fOnTilerStartup := nil;
   fTilerStatusURL := aTilerStatusURL;
+  fHandleTilerStatusRef := handleTilerStatus;
+  fHandleTilerEventRef := handleTilerEvent;
   //fLayers := TObjectDictionary<string, TTilerLayer>.Create([doOwnsValues]);
   fEvent := aConnection.subscribe('USIdle.Tilers.'+aTilerFQDN.Replace('.', '_'), False);
-  if not fEvent.OnEvent.Contains(handleTilerEvent)
-  then fEvent.OnEvent.Add(handleTilerEvent);
-  if not fEvent.OnIntString.Contains(handleTilerStatus)
-  then fEvent.OnIntString.Add(handleTilerStatus);
+  if not fEvent.OnEvent.Contains(fHandleTilerEventRef)
+  then fEvent.OnEvent.Add(fHandleTilerEventRef);
+  if not fEvent.OnIntString.Contains(fHandleTilerStatusRef)
+  then fEvent.OnIntString.Add(fHandleTilerStatusRef);
   // start tiler web service
   if fTilerStatusURL<>''
   then getTilerStatus;
@@ -608,8 +562,8 @@ destructor TTiler.Destroy;
 begin
   if Assigned(fEvent) then
   begin
-    fEvent.OnIntString.remove(handleTilerStatus);
-    fEvent.OnEvent.Remove(handleTilerEvent);
+    fEvent.OnIntString.remove(fHandleTilerStatusRef);
+    fEvent.OnEvent.Remove(fHandleTilerEventRef);
     fEvent := nil;
   end;
   //FreeAndNil(fLayers);

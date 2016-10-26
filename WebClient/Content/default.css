@@ -1,7 +1,16 @@
 #phone input,#phone select,#phone textarea {
-  -webkit-appearance: none;
+  /*-webkit-appearance: none;*/
+  -webkit-border-radius:0px;
 }
+#phone #selectScenariosForm {
+  overflow-y: scroll !important; /* has to be scroll, not auto */
+  -webkit-overflow-scrolling: touch !important;
 
+  width: 100% !important;
+  box-sizing: border-box;
+  min-height: 10px;
+  pointer-events: auto !important;
+}
 /* buttons */
 .button:disabled {
   background-color:#ddd;
@@ -39,7 +48,12 @@
 .leaflet-control-layers label span {
   border:1px solid lightblue;
 }
-
+div.empty > button {
+  border:1px solid red !important;
+}
+input.empty, textarea.empty {
+  border:1px solid red !important;
+}
 div[id*="-option-row"] > button {
   flex-basis: 100%;
   background-color: #fff;
@@ -68,13 +82,78 @@ textarea.form-control {
   padding:2px 5px;
 }
 select.form-control {
-  flex-basis: 100%;
+  width: 100%;
   background-color: #fff;
   border: 1px solid rgba(173, 216, 230, 1);
   border-radius: 3px;
   padding:2px 3px;
+  margin-bottom:10px;
 }
 
 #simulationName {
   display: flex;
+}
+.leaflet-control-info.leaflet-control {
+  border-radius: 11px !important;
+}
+.leaflet-control-info.leaflet-control-info-expanded {
+  border-radius: 5px !important;
+}
+#phone .leaflet-control-info-expanded a {
+  float:left;
+}
+#phone a.leaflet-control-info-toggle {
+  display:block;
+}
+#phone .leaflet-control-info-base div > p {
+  display:none;
+}
+.leaflet-control-info-base div > p {
+  padding : 5px;
+  margin : 0px;
+  border-radius : 5px;
+  box-shadow : 0 1px 5px rgba(0,0,0,0.5);
+  background-color : #fff;
+  opacity : 0.8;
+  height : auto;
+  z-index : 999;
+  white-space : nowrap;
+}
+#phone .leaflet-control-info-base div > p {
+  display: none;
+  position: fixed;
+  left: 10px;
+  bottom: 100px;
+  height: auto;
+  white-space: normal;
+  right: 10px;
+}
+#phone .leaflet-control-info-toggle-button {
+  display:block;
+}
+
+
+a.leaflet-control-info-toggle {
+  /*display:none;*/
+}
+
+.leaflet-control-info-base a.leaflet-control-info-toggle-button {
+  box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    border-radius: 12px;
+}
+.leaflet-control-info-toggle-button {
+  position: absolute;
+  left: -30px;
+  top:0px;
+  padding: 5px;
+  border-radius: 12px !important;
+  opacity: 1;
+  text-decoration: none;
+  z-index : 999;
+  background-image : url("images/info.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-color: #fff;
+  width : 16px;
+  height : 16px;
 }

@@ -1,7 +1,7 @@
-﻿// web socket connection
+// web socket connection
 var ws;
 var wsLastConnectDateTime;
-
+var InfoTextControl = [];
 var wsLookup = {
     //message handlers
     measures: function (payload) {
@@ -155,45 +155,84 @@ var wsLookup = {
                 if (payload.timeslider == 1) {
                     map.addControl(timesliderControl);
                     timesliderControl._collapse();
+            InfoTextControl['leaflet-control-timeslider'] = {active: false};
+
                 }
                 else if (payload.timeslider == 2) {
                     map.addControl(timesliderControl);
                     timesliderControl._expand();
+            InfoTextControl['leaflet-control-timeslider'] = {description: 'Change the time', active: true};
                 }
             }
             else {
                 timesliderControl._collapse();
+          InfoTextControl['leaflet-control-timeslider'] = {active: false};
                 map.removeControl(timesliderControl);
             }
         }
         if (typeof payload.selectionEnabled !== 'undefined') {
             if (payload.selectionEnabled) {
                 addSelectControl();
+          InfoTextControl['leaflet-draw-toolbar'] = {description: 'Select objects', active: true, iconPosition:'right'};
             }
             else {
                 removeSelectControl();
+          InfoTextControl['leaflet-draw-toolbar'] = {active: false};
             }
         }
+
+      if (typeof payload.simulationSettingsEnabled !== 'undefined') {
+
+      }
+
         if (typeof payload.measuresEnabled !== 'undefined') {
-            if (payload.measuresEnabled)
+        if (payload.measuresEnabled) {
                 map.addControl(measuresControl);
-            else
+          InfoTextControl['leaflet-control-measures-toggle'] = {description: 'Select measures to applied on objects', active: true, iconPosition:'right'};
+        } else {
                 map.removeControl(measuresControl);
+          InfoTextControl['leaflet-control-measures-toggle'] = {active: false};
         }
+
+      }
         if (typeof payload.measuresHistoryEnabled !== 'undefined') {
-            if (payload.measuresHistoryEnabled)
+        if (payload.measuresHistoryEnabled) {
+          InfoTextControl['leaflet-control-history-toggle'] = {description: 'Show and apply all selected measures', active: true, iconPosition:'left'};
                 map.addControl(historyControl);
-            else
+        } else {
+          InfoTextControl['leaflet-control-history-toggle'] = {active: false};
                 map.removeControl(historyControl);
         }
-        if (typeof payload.simulationControlEnabled !== 'undefined')
-            if (payload.simulationControlEnabled)
-                map.addControl(startControl);
-            else
-                map.removeControl(startControl);
-        else {
-            map.removeControl(startControl);
+      }
+      if (typeof payload.simulationControlEnabled !== 'undefined') {
+        if (payload.simulationControlEnabled) {
+          map.addControl(simulationControl);
+          InfoTextControl['leaflet-control-simulation'] = {description: 'Click here to config or edit a simulation', active: true, iconPosition:'left'};
+        } else {
+          map.removeControl(simulationControl);
+          InfoTextControl['leaflet-control-simulation'] = {active: false};
         }
+      }
+      if (typeof payload.simulationControlEnabled !== 'undefined') {
+        if (payload.simulationControlEnabled) {
+                map.addControl(startControl);
+          InfoTextControl['leaflet-control-startstop-stopped'] = {description: 'Play/pause simulation', active: true, iconPosition:'left'};
+        } else {
+                map.removeControl(startControl);
+          InfoTextControl['leaflet-control-startstop-stopped'] = {active: false};
+        }
+      } else {
+            map.removeControl(startControl);
+        InfoTextControl['leaflet-control-startstop-stopped'] = {active: false};
+        }
+
+      // basic controls
+      InfoTextControl['leaflet-control-zoom'] = {description: 'Zoom', active: true, iconPosition: 'right'};
+      InfoTextControl['leaflet-control-layers-toggle'] = {description: 'Select base layer and switch on/off basic layers for all available object types', active: true, iconPosition:'left'};
+      InfoTextControl['leaflet-control-domains-toggle'] = {description: 'Switch domain on/off', active: true, iconPosition:'left'};
+      InfoTextControl['leaflet-control-details-toggle'] = {description: 'Switch on/off detail information layers for the selected domains', active: true, iconPosition:'left'};
+      InfoTextControl['projectDescription'] = {description: 'Click here to select a scenario or select an referention scenario', active: true, iconPosition:'bottom'};
+
     },
     login: function (payload) {
         // login request, return login information
@@ -262,7 +301,6 @@ var wsLookup = {
 
         if (typeof payload.speed !== "undefined") {
             DataManager.simSpeed = payload.speed;
-            console.log(payload.speed);
             showUserMessage("Simulation speed changed to: " + payload.speed, 1);
         }
     },
@@ -487,4 +525,4 @@ function wsSend(obj) {
 
 function wsClose() {
     ws.close();
-}
+  }

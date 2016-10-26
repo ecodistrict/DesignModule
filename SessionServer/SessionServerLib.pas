@@ -894,12 +894,13 @@ end;
 constructor TClientSubscribable.Create;
 begin
   inherited Create;
-  fClients := TGroup.Create(False); // refs
+  fClients := TGroup.Create(false); // refs
 end;
 
 destructor TClientSubscribable.Destroy;
 begin
-  forEachClient(procedure(aClient: TClient)
+  forEachClient(
+    procedure(aClient: TClient)
     begin
       aClient.HandleElementRemove(Self);
     end);
@@ -1027,20 +1028,22 @@ begin
   // signal refresh to layer client
   tiles := fTilerLayer.URLTimeStamped;
 
-  Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+' ('+timeStampStr+'): '+tiles);
+  Log.WriteLn('TDiffLayer.handleRefreshTrigger for '+elementID+' ('+timeStampStr+'): '+tiles);
 
-  forEachClient(procedure(aClient: TClient)
+  forEachClient(
+    procedure(aClient: TClient)
     begin
       aClient.SendRefresh(elementID {fCurrentLayer.elementID}, timeStampStr, tiles); // todo: extra processing needed?
-      Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', direct subscribed client: '+aClient.fClientID, llNormal, 1);
+      Log.WriteLn('TDiffLayer.handleRefreshTrigger for '+elementID+', direct subscribed client: '+aClient.fClientID, llNormal, 1);
     end);
   // signal current layer of diff layer refresh
   if Assigned(fCurrentLayer) then
   begin
-    fCurrentLayer.scenario.forEachClient(procedure(aClient: TClient)
+    fCurrentLayer.scenario.forEachClient(
+      procedure(aClient: TClient)
       begin
         aClient.SendRefreshDiff(fCurrentLayer.elementID, timeStampStr, Self.refJSON);
-        Log.WriteLn('TDiffLayer.handleTilerRefresh for '+elementID+', current layer subscribed client: '+aClient.fClientID, llNormal, 1);
+        Log.WriteLn('TDiffLayer.handleRefreshTrigger for '+elementID+', current layer subscribed client: '+aClient.fClientID, llNormal, 1);
       end);
   end;
 end;
@@ -1084,7 +1087,8 @@ begin
   begin
     pvBASE64 := fTilerLayer.previewAsBASE64;
     // layer clients
-    forEachClient(procedure(aClient: TClient)
+    forEachClient(
+      procedure(aClient: TClient)
       begin
         aClient.SendPreview(elementID, pvBASE64);
       end);
@@ -1105,11 +1109,14 @@ begin
     end
     else handleRefreshTrigger(aTimeStamp);
     // refresh preview also
-    if Assigned(fPreviewRequestTimer)
-    then fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10)
+    if Assigned(fPreviewRequestTimer) then
+    begin
+      fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*10);
+      Log.WriteLn('TDiffLayer.handleTilerRefresh: triggered diff preview timer for '+elementID);
+    end
     else
     begin
-      Log.WriteLn('triggered preview timer for '+elementID);
+      Log.WriteLn('TDiffLayer.handleTilerRefresh:  direct trigger diff preview for '+elementID);
       fTilerLayer.signalRequestPreview;
     end;
   except
@@ -2404,7 +2411,8 @@ begin
     begin
       fDependentDiffLayers.Add(aDiffLayer);
       // subscribe all clients to this diff layer also
-      forEachClient(procedure(aClient: TClient)
+      forEachClient(
+        procedure(aClient: TClient)
         begin
           aDiffLayer.HandleClientSubscribe(aClient);
         end);
@@ -2691,7 +2699,8 @@ begin
     begin
       fDependentDiffLayers.Delete(i);
       // unsubscribe all clients from this diff layer also
-      forEachClient(procedure(aClient: TClient)
+      forEachClient(
+        procedure(aClient: TClient)
         begin
           aDiffLayer.HandleClientUnsubscribe(aClient);
         end);
@@ -2864,16 +2873,23 @@ begin
   if aTimeStamp<>0
   then timeStampStr := FormatDateTime('yyyy-mm-dd hh:mm', aTimeStamp)
   else timeStampStr := '';
+
+  Log.WriteLn('TLayer.handleRefreshTrigger for '+elementID+' ('+timeStampStr+'): '+tiles);
+
   // signal refresh to layer client
   tiles := uniqueObjectsTilesLink;
-  forEachClient(procedure(aClient: TClient)
+  forEachClient(
+    procedure(aClient: TClient)
     begin
       aClient.SendRefresh(elementID, timeStampStr, tiles);
+      Log.WriteLn('TLayer.handleRefreshTrigger for '+elementID+', direct subscribed client: '+aClient.fClientID, llNormal, 1);
     end);
   // signal refresh to scenario client
-  fScenario.forEachClient(procedure(aClient: TClient)
+  fScenario.forEachClient(
+    procedure(aClient: TClient)
     begin
       aClient.SendRefresh(elementID, timeStampStr, tiles);
+      Log.WriteLn('TLayer.handleRefreshTrigger for '+elementID+', current layer subscribed client: '+aClient.fClientID, llNormal, 1);
     end);
 end;
 
@@ -2898,12 +2914,14 @@ var
 begin
   pvBASE64 := previewBASE64;
   // layer clients
-  forEachClient(procedure(aClient: TClient)
+  forEachClient(
+    procedure(aClient: TClient)
     begin
       aClient.SendPreview(elementID, pvBASE64);
     end);
   // scenario clients
-  fScenario.forEachClient(procedure(aClient: TClient)
+  fScenario.forEachClient(
+    procedure(aClient: TClient)
     begin
       if not clients.Contains(aClient)
       then aClient.SendPreview(elementID, pvBASE64);
@@ -2967,12 +2985,14 @@ procedure TKPI.Update;
 begin
   // send update to clients
   _json := '{"updatekpi":{'+JSON+'}}';
-  forEachClient(procedure(aClient: TClient)
+  forEachClient(
+    procedure(aClient: TClient)
     begin
       aClient.signalString(_json);
     end);
   // send also to clients on scenario for udpate of preview
-  fScenario.forEachClient(procedure(aClient: TClient)
+  fScenario.forEachClient(
+    procedure(aClient: TClient)
     begin
       aClient.signalString(_json);
     end);
@@ -3332,7 +3352,7 @@ begin
   try
     if not fGroups.ContainsKey(aGroup) then
     begin
-      group := TGroup.Create(False);
+      group := TGroup.Create(false);
       try
         group.Add(aPresenter);
         Result := True;
@@ -3427,10 +3447,10 @@ end;
 
 destructor TProject.Destroy;
 begin
-  FreeAndNil(fGroups);
   FreeAndNil(fDiffLayers);
   FreeAndNil(fTimers);
   FreeAndNil(fClients);
+  FreeAndNil(fGroups);
   FreeAndNil(fScenarios);
   FreeAndNil(fMeasures);
   inherited;
@@ -3619,7 +3639,8 @@ end;
 procedure TProject.SendPreview;
 begin
   Log.WriteLn('Sending preview to clients connected to project '+Self.ProjectName);
-  forEachClient(procedure(aClient: TClient)
+  forEachClient(
+    procedure(aClient: TClient)
     var
       se: TClientSubscribable;
       preview: string;
@@ -3648,7 +3669,8 @@ end;
 procedure TProject.SendRefresh;
 begin
   Log.WriteLn('Sending refresh to clients connected to project '+Self.ProjectName);
-  forEachClient(procedure(aClient: TClient)
+  forEachClient(
+    procedure(aClient: TClient)
     var
       se: TClientSubscribable;
       tiles: string;
@@ -3673,7 +3695,8 @@ end;
 procedure TProject.SendString(const aString: string);
 begin
   //Log.WriteLn('Sending string to clients connected to project '+Self.ProjectName);
-  forEachClient(procedure(aClient: TClient)
+  forEachClient(
+    procedure(aClient: TClient)
     begin
       aClient.signalString(aString);
     end);

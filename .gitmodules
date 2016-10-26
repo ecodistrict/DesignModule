@@ -4,30 +4,39 @@
 [submodule "WS2IMBSvc/imb"]
 	path = WS2IMBSvc/imb
 	url = git@bitbucket.org:cornelissenja/imb-client-csharp.git
+	branch = master
 [submodule "TilerServer/imb"]
 	path = TilerServer/imb
 	url = git@bitbucket.org:cornelissenja/imb-client-delphi.git
+	branch = master
 [submodule "TilerServer/world"]
 	path = TilerServer/world
 	url = git@bitbucket.org:cornelissenja/world-delphi.git
+	branch = master
 [submodule "SessionServer/world"]
 	path = SessionServer/world
 	url = git@bitbucket.org:cornelissenja/world-delphi.git
+	branch = master
 [submodule "SessionServer/imb"]
 	path = SessionServer/imb
 	url = git@bitbucket.org:cornelissenja/imb-client-delphi.git
+	branch = master
 [submodule "SessionServer/logger"]
 	path = SessionServer/logger
 	url = git@bitbucket.org:cornelissenja/logger-delphi.git
+	branch = master
 [submodule "EcoDistrictDebugger/logger"]
 	path = EcoDistrictDebugger/logger
 	url = git@bitbucket.org:cornelissenja/logger-delphi.git
+	branch = master
 [submodule "EcoDistrictDebugger/imb"]
 	path = EcoDistrictDebugger/imb
 	url = git@bitbucket.org:cornelissenja/imb-client-delphi.git
+	branch = master
 [submodule "TilerServer/logger"]
 	path = TilerServer/logger
 	url = git@bitbucket.org:cornelissenja/logger-delphi.git
+	branch = master
 [submodule "Publish/logger"]
 	path = Publish/logger
 	url = git@bitbucket.org:cornelissenja/logger-delphi.git

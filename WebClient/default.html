@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>Design module</title>
@@ -159,6 +159,8 @@
 
         // top-right
 
+
+
         // domains
         var domainsControl = L.control.domains({});
         map.addControl(domainsControl);
@@ -172,7 +174,6 @@
             border: 1,
             graphMargin: 5
         }
-
         // details
         var detailsControl = L.control.details(DataManager.detailsInfo);
         map.addControl(detailsControl);
@@ -186,9 +187,9 @@
 
 
         // //simulation
-        //var simulationControl = L.control.simulation(baseLayers); // todo (NK): why pass baseLayers as options?
-        //map.addControl(simulationControl);
-        //DataManager.simulationControl = simulationControl;
+  var simulationControl = L.control.simulation(baseLayers); // todo (NK): why pass baseLayers as options?
+  map.addControl(simulationControl);
+  DataManager.simulationControl = simulationControl;
 
 
         // top-left
@@ -257,6 +258,7 @@
 
         // default: try to connect
         wsConnect();
+
     </script>
 
 </body>

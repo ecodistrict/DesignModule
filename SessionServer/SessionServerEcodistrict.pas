@@ -2615,10 +2615,10 @@ begin
                           for p := 0 to entry.count-1 do
                           begin
                             name := entry.Pairs[p].JsonString.Value;
-                            value := entry.Pairs[p].JsonValue.Value;
-                            // todo: use '' around value if text
-                            if not (entry.Pairs[p].JsonValue is TJSONNumber)
-                            then value := ''''+value+'''';
+                            // use '' around value if text
+                            if (entry.Pairs[p].JsonValue is TJSONNumber)
+                            then value := (entry.Pairs[p].JsonValue as TJSONNumber).AsDouble.ToString(dotFormat)
+                            else value := ''''+entry.Pairs[p].JsonValue.Value+'''';
                             if name=idField
                             then id := value
                             else
