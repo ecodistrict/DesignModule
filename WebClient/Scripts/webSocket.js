@@ -1,4 +1,4 @@
-// web socket connection
+﻿// web socket connection
 var ws;
 var wsLastConnectDateTime;
 var InfoTextControl = [];
@@ -212,6 +212,9 @@ var wsLookup = {
           map.removeControl(simulationControl);
           InfoTextControl['leaflet-control-simulation'] = {active: false};
         }
+      } else {
+          map.removeControl(simulationControl);
+          InfoTextControl['leaflet-control-simulation'] = { active: false };
       }
       if (typeof payload.simulationControlEnabled !== 'undefined') {
         if (payload.simulationControlEnabled) {
