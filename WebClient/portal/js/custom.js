@@ -25,8 +25,8 @@ description = {
   'p_2':'Locatie: Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat',
   'hr_2':''
 }
-overlayImages = ['a58.png','menu_left.png'];
-createCasus('ODYSA INCAR','ODYSA_INCAR', 'map.jpg', overlayImages, description, 'http://www.google.nl/', 'DTV');
+overlayImages = [{'src':'map_layer_overlay.png','class':'map_overlay'},{'src':'legend.png','class':'legend'}];
+createCasus('ODYSA INCAR','ODYSA_INCAR', 'map_layer.jpg', overlayImages, description, 'http://www.google.nl/', 'DTV');
 
 
 description = {
@@ -38,7 +38,7 @@ description = {
   'p_5':'eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugi',
   'hr':''
 };
-overlayImages = ['a58.png','menu_left.png'];
+overlayImages = [{'src':'a58.png','class':'overlay'}];
 
 createCasus('A58', 'a58', 'map.jpg', overlayImages, description, 'http://www.google.nl/', 'DTV');
 description = {
@@ -48,7 +48,7 @@ description = {
   'p_3':'eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugi',
   'hr':''
 };
-overlayImages = ['platooning.png','menu_bottom.png'];
+overlayImages = [{'src':'platooning.png','class':'platooning'}];
 createCasus('Glosa', 'glosa', 'map.jpg', overlayImages, description, 'http://www.google.nl/', 'DTV');
 
 
@@ -60,7 +60,7 @@ description = {
   'p_5':'eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugi',
   'hr':''
 };
-overlayImages = ['eindhoven.png','menu_left.png'];
+overlayImages = [{'src':'eindhoven.png','class':'eindhoven'}];
 createCasus('Eindhoven', 'eindhoven', 'map.jpg', overlayImages, description, 'http://www.google.nl/', 'DTV');
 
 // title, image, omschrijving
@@ -127,12 +127,14 @@ function showElems(elem) {
 
 function buildImage(imageContainer, overlayImages) {
   outputImages = '';
+
   if (overlayImages.length > 0) {
     for (var i = 0; i < overlayImages.length; i++) {
       images = overlayImages[i];
       outputImage = document.createElement('img');
-      outputImage.src = 'images/' + images;
+      outputImage.src = 'images/' + images.src;
       outputImage.classList.add('overlay');
+      outputImage.classList.add(images.class);
       imageContainer.appendChild(outputImage);
     }
   }
@@ -173,6 +175,45 @@ function buildText(description) {
 }
 
 checkWidthPage()
+
+window.onscroll = function(e) {
+  // console.log(document.body.scrollTop);
+  var overlay = document.getElementsByClassName('map_overlay');
+  for (i = 0; i < overlay.length; i++) {
+    var map_overlay = overlay[i];
+
+    map_overlayPosition = map_overlay.getBoundingClientRect().top;
+    map_overlayHeight = map_overlay.getBoundingClientRect().height;
+
+    // Math.abs(x)
+
+    if (map_overlayPosition < 0 && Math.abs(map_overlayPosition) < map_overlayHeight) {
+
+        hundred = map_overlayHeight;
+        percentage = Math.abs(map_overlayPosition);
+        var value = percentage / hundred;
+        opacity = 0.8 - value.toFixed(2);
+
+        map_overlay.style.opacity = opacity;
+
+
+
+
+    }
+
+    //  && (legendPosition === legendHeight || legendPosition < legendHeight)
+
+
+
+    // if ()
+
+
+  }
+
+  // console.log(document.getElementsByClassName('legend'));
+
+}
+
 window.onresize = function(e) {
   checkWidthPage()
 
