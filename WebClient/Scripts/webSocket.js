@@ -234,10 +234,10 @@ var wsLookup = {
 
         // basic controls
         InfoTextControl['leaflet-control-zoom'] = { description: 'Zoom', active: true, iconPosition: 'right' };
-        InfoTextControl['leaflet-control-layers-toggle'] = { description: 'Select base layer and switch on/off basic layers for all available object types', active: true, iconPosition: 'left' };
-        InfoTextControl['leaflet-control-domains-toggle'] = { description: 'Switch domain on/off', active: true, iconPosition: 'left' };
-        InfoTextControl['leaflet-control-details-toggle'] = { description: 'Switch on/off detail information layers for the selected domains', active: true, iconPosition: 'left' };
-        InfoTextControl['projectDescription'] = { description: 'Click here to select a scenario or select an referention scenario', active: true, iconPosition: 'bottom' };
+        InfoTextControl['leaflet-control-layers-toggle'] = { description: 'Selecteer de basis kaart', active: true, iconPosition: 'left' };
+        InfoTextControl['leaflet-control-domains-toggle'] = { description: 'Selecteer de relevante domeinen door deze aan te klikken', active: true, iconPosition: 'left' };
+        InfoTextControl['leaflet-control-details-toggle'] = { description: 'Selecteer de gewenste kaart uit een overzicht van beschikbare kaarten', active: true, iconPosition: 'left' };
+        InfoTextControl['projectDescription'] = { description: 'Klik hier om een scenario te selecteren en eventueel een referentiescenario aan te geven', active: true, iconPosition: 'bottom' };
 
     },
     login: function (payload) {
