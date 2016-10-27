@@ -105,6 +105,7 @@ type
     procedure signalData(const aData: TByteBuffer; aTimeStamp: TDateTime=0);
     // when any slice is build
     procedure signalRequestPreview;
+    procedure resetURL;
   end;
 
   TOnTilerStartup = reference to procedure(aTiler: TTiler; aStartupTime: TDateTime);
@@ -417,6 +418,11 @@ end;
 function TTilerLayer.previewAsBASE64: string;
 begin
   Result := ImageToBase64(fPreview);
+end;
+
+procedure TTilerLayer.resetURL;
+begin
+  fURL := '';
 end;
 
 procedure TTilerLayer.signalAddDiffPOISlice(aColorRemovedPOI, aColorSamePOI, aColorNewPOI: TAlphaRGBPixel; aCurrentLayerID,

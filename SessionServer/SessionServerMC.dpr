@@ -11,6 +11,7 @@ uses
   Logger, LogConsole, LogFile, LogIMB,
   imb4,
   CommandQueue,
+  TimerPool,
 
   TilerControl,
 
@@ -52,9 +53,11 @@ type
     fSessionModel: TSessionModel;
     fIMBConnection: TConnection; // imb connection to websocket etc.
     fIMBLogger: TIMBLogger;
+    fProject: TProject; // ref
   protected
     procedure HandleException(aConnection: TConnection; aException: Exception);
     procedure HandleDisconnect(aConnection: TConnection);
+    procedure ProgressTimerTick(aTimer: TTimer);
   public
     property sessionModel: TSessionModel read fSessionModel;
     property imbConnection: TConnection read fIMBConnection;
@@ -72,6 +75,7 @@ constructor TModel.Create;
 begin
   inherited Create('Publishing');
   fIMBLogger := nil;
+  fProject := nil;
   // imb4
   fIMBConnection := TSocketConnection.Create('PublishingServerUS', 2, 'nl.imb', GetSetting(IMB4RemoteHostSwitch, imb4.imbDefaultRemoteHost), GetSetting(IMB4RemotePortSwitch, imb4.imbDefaultRemoteSocketPort));
   fIMBConnection.onException := HandleException;
@@ -82,6 +86,7 @@ end;
 
 destructor TModel.Destroy;
 begin
+  fProject := nil;
   FreeAndNil(fSessionModel);
   FreeAndNil(fIMBLogger);
   FreeAndNil(fIMBConnection);
@@ -90,7 +95,9 @@ end;
 
 procedure TModel.HandleDisconnect(aConnection: TConnection);
 begin
-  Log.WriteLn('DISCONNECT from IMB4 connection', llWarning);
+  Log.WriteLn('DISCONNECT from IMB4 connection', llError);
+  Log.WriteLn('FORCING halt', llError);
+  Halt; // todo: force restart in MC mode
 end;
 
 procedure TModel.HandleException(aConnection: TConnection; aException: Exception);
@@ -159,11 +166,17 @@ begin
   end;
 end;
 
+procedure TModel.ProgressTimerTick(aTimer: TTimer);
+begin
+  // report progress to MC about length of command queue
+  if Assigned(fProject)
+  then SignalModelProgress(CommandQueueLength); //Connection.UpdateStatus();
+end;
+
 procedure TModel.StartModel(aParameters: TModelParameters);
 var
   p: Integer;
   dbConnection: TOraSession;
-  project: TProject;
   projectID: string;
   projectName: string;
   mapView: TMapView;
@@ -193,7 +206,7 @@ begin
     Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
     preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
     tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
-    project := TUSProject.Create(
+    fProject := TUSProject.Create(
       fSessionModel, fSessionModel.Connection,
       projectID, projectName,
       tilerName,
@@ -202,7 +215,8 @@ begin
       mapView,
       preLoadScenarios,
       GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
-    fSessionModel.Projects.Add(project);
+    fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+    fSessionModel.Projects.Add(fProject);
 
     // for now
     Log.WriteLn('URL: '+GetSetting(WebClientURISwitch, DefaultWebClientURI)+'?session='+projectID, llOK);
@@ -219,6 +233,7 @@ end;
 procedure TModel.StopModel;
 begin
   try
+    fProject := nil;
     FreeAndNil(fIMBLogger);
     // execute actions needed to stop the model
     System.TMonitor.Enter(Log);
@@ -371,7 +386,7 @@ begin
 
     FileLogger.SetLogDef(AllLogLevels, [llsTime]);
 
-    InitializeCommandQueue(10000, 32);
+    InitializeCommandQueue(20000, 64);
 
     // start the model
     Model := TModel.Create;

@@ -128,7 +128,9 @@ type
     property tilerLayer: TTilerLayer read fTilerLayer;
     property refJSON: string read getRefJSON;
     property legendJSON: string read fLegendJSON;
-    procedure HandleSubLayerInfo(aLayer: TLayer);
+
+    procedure handleSubLayerInfo(aLayer: TLayer);
+    procedure registerOnTiler();
   end;
 
   TLegendFormat = (lfVertical, lfHorizontal); // todo:..
@@ -444,7 +446,7 @@ type
     property Charts: TObjectDictionary<string, TChart> read fCharts;
     property addBasicLayers: Boolean read fAddBasicLayers;
     procedure ReadBasicData(); virtual;
-    procedure RegisterLayers;
+    procedure registerLayers;
   public
     function AddLayer(aLayer: TLayer): TLayer;
     function AddKPI(aKPI: TKPI): TKPI;
@@ -565,8 +567,10 @@ type
     procedure setMeasuresHistoryEnabled(aValue: Boolean);
     function getMeasuresJSON: string; virtual;
     function ReadScenario(const aID: string): TScenario; virtual;
+
     procedure handleTilerStartup(aTiler: TTiler; aStartupTime: TDateTime);
     procedure timerTilerStatusAsHeartbeat(aTimer: TTimer);
+
     procedure newClient(aClient: TClient); virtual;
     function getMeasuresHistoryJSON: string; virtual;
     procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); virtual;
@@ -985,14 +989,14 @@ begin
       fTilerLayer.signalRequestPreview;
     end);
   fSendRefreshTimer := aCurrentLayer.scenario.project.Timers.CreateInactiveTimer;
-  fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*30);
+  fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*20);
   // add event handlers
   fTilerLayer.onTilerInfo := handleTilerInfo;
   fTilerLayer.onRefresh := handleTilerRefresh;
   fTilerLayer.onPreview := handleTilerPreview;
   fCurrentLayer.addDiffLayer(Self);
   fReferenceLayer.addDiffLayer(Self);
-  HandleSubLayerInfo(nil); // if both layers are known on tiler we can start registering now
+  handleSubLayerInfo(nil); // if both layers are known on tiler we can start registering now
 end;
 
 destructor TDiffLayer.Destroy;
@@ -1048,12 +1052,10 @@ begin
   end;
 end;
 
-procedure TDiffLayer.HandleSubLayerInfo(aLayer: TLayer);
+procedure TDiffLayer.handleSubLayerInfo(aLayer: TLayer);
 begin
-  if (tilerLayer.URL='') and
-     Assigned(fCurrentLayer.tilerLayer) and (fCurrentLayer.tilerLayer.URL<>'') and
-     Assigned(fReferenceLayer.tilerLayer) and (fReferenceLayer.tilerLayer.URL<>'')
-  then fTilerLayer.signalRegisterLayer(fCurrentLayer.scenario.project.tiler, 'diff-'+fCurrentLayer.Description+'-'+fReferenceLayer.description);
+  if Assigned(tilerLayer) and (tilerLayer.URL='')
+  then registerOnTiler;
 end;
 
 procedure TDiffLayer.handleTilerInfo(aTilerLayer: TTilerLayer);
@@ -1122,6 +1124,27 @@ begin
   except
     on E: Exception
     do Log.WriteLn('Exception in TDiffLayer.handleTilerRefresh for ('+self.elementID+'): '+E.Message, llError);
+  end;
+end;
+
+procedure TDiffLayer.registerOnTiler;
+var
+  currentLayerTilerUrl: string;
+  referenceLayerTilerUrl: string;
+begin
+  if Assigned(fTilerLayer) and Assigned(fCurrentLayer) and Assigned(fReferenceLayer)
+  then fTilerLayer.signalRegisterLayer(fCurrentLayer.scenario.project.tiler, 'diff-'+fCurrentLayer.Description+'-'+fReferenceLayer.description)
+  else
+  begin
+    if Assigned(fCurrentLayer) and Assigned(fCurrentLayer.tilerLayer)
+    then currentLayerTilerUrl := fCurrentLayer.tilerLayer.URL
+    else currentLayerTilerUrl := '##';
+
+    if Assigned(fReferenceLayer) and Assigned(fReferenceLayer.tilerLayer)
+    then referenceLayerTilerUrl := fReferenceLayer.tilerLayer.URL
+    else referenceLayerTilerUrl := '##';
+
+    Log.WriteLn('TDiffLayer.registerOnTiler '+elementID+', '+Assigned(fTilerLayer).ToString()+': '+currentLayerTilerUrl+', '+referenceLayerTilerUrl, llWarning);
   end;
 end;
 
@@ -1778,12 +1801,17 @@ begin
               // todo: full JSON for ref and diff, to include legend?
               JSON := JSON+',"ref":{'+refLayer.refJSON+'}';
               diffElementID :=  fProject.diffElementID(layer, refLayer);
-              if not fProject.diffLayers.TryGetValue(diffElementID, diffLayer) then
-              begin
-                diffLayer := TDiffLayer.Create(diffElementID, layer, refLayer);
-                fProject.diffLayers.Add(diffElementID, diffLayer);
-                // todo:
+              TMonitor.Enter(fProject.diffLayers);
+              try
+                if not fProject.diffLayers.TryGetValue(diffElementID, diffLayer) then
+                begin
+                  diffLayer := TDiffLayer.Create(diffElementID, layer, refLayer);
+                  fProject.diffLayers.Add(diffElementID, diffLayer);
+                  // todo:
 
+                end;
+              finally
+                TMonitor.Exit(fProject.diffLayers);
               end;
               // todo: temp removed for testing
               JSON := JSON+',"diff":{'+diffLayer.refJSON+'}';
@@ -2454,9 +2482,6 @@ end;
 
 constructor TLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
   const aObjectTypes, aGeometryType: string; aDiffRange: Double; aBasicLayer: Boolean=False);
-//var
-//  previewFileName: string;
-//  previewsFolder: string;
 begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad);
   //fPalette := aPalette;
@@ -2469,61 +2494,27 @@ begin
   fDependentDiffLayers := TObjectList<TDiffLayer>.Create(False);
   fLegendJSON := '';
   fQuery := '';
-  //fObjectsTilesID := -1;
-  //fObjectsTilesLink := '';
-  //fSlicetype := -1;
   fTilerLayer := nil;
-//  fTilerEvent := aTilerEvent;
-//  fTilerEvent.OnEvent.Add(HandleTilerEvent);
-//  fTilerEvent.subscribe;
-  // check fro preview image
-  {
-  previewsFolder := ExtractFilePath(ParamStr(0))+'previews';
-  previewFileName := previewsFolder+'\'+elementID+'.png';
-  try
-    if FileExists(previewFileName) then
-    begin
-      fPreview := TPngImage.Create;
-      fPreview.LoadFromFile(previewFileName);
-    end
-    else fPreview := nil;
-  except
-    on E: Exception do
-    begin
-      Log.WriteLn('Exception creating preview image for '+elementID+': '+e.Message, llError);
-    end;
-  end;
-  }
   fPreviewRequestTimer := scenario.project.Timers.SetTimer(
     procedure (aTimer: TTImer)
     begin
-      Log.WriteLn('triggered preview timer for '+elementID);
-      fTilerLayer.signalRequestPreview;
+      if Assigned(fTilerLayer) then
+      begin
+        Log.WriteLn('triggered preview timer for '+elementID);
+        fTilerLayer.signalRequestPreview;
+      end
+      else Log.WriteLn('## triggered preview timer for '+elementID+' without having a tiler layer', llError);
     end);
   fSendRefreshTimer := scenario.project.Timers.CreateInactiveTimer;// SetTimer(handleLayerRefresh);
-  fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*30);
-//  fOutputEvent.OnEvent.Add(handleOutputEvent);
-//  fOutputEvent.Subscribe;
+  fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*20);
 end;
 
 destructor TLayer.Destroy;
 begin
-//  if Assigned(fTilerEvent) then
-//  begin
-//    fTilerEvent.OnEvent.Remove(handleTilerEvent);
-//    fTilerEvent := nil;
-//  end;
-//  if Assigned(fOutputEvent) then
-//  begin
-//    fOutputEvent.OnEvent.Remove(handleOutputEvent);
-//    fOutputEvent := nil;
-//  end;
   FreeAndNil(fTilerLayer);
   inherited;
   FreeAndNil(fObjects);
   FreeAndNil(fDependentDiffLayers);
-  //FreeAndNil(fPalette);
-  //FreeAndNil(fPreview);
 end;
 
 function TLayer.ExtractObject(aObject: TLayerObject): TLayerObject;
@@ -2656,22 +2647,7 @@ begin
 end;
 
 procedure TLayer.RegisterOnTiler(aPersistent: Boolean; aSliceType: Integer; const aDescription: string; aEdgeLengthInMeters: Double; aPalette: TWDPalette);
-//var
-//  payload: TByteBuffer;
 begin
-  {
-  fSliceType := aSliceType;
-  payload :=
-    TByteBuffer.bb_tag_string(icehTilerEventName, fOutputEvent.eventName);
-  if not IsNaN(aEdgeLengthInMeters)
-  then payload := Payload+
-    TByteBuffer.bb_tag_double(icehTilerEdgeLength, aEdgeLengthInMeters);
-  payload := Payload+
-    TByteBuffer.bb_tag_string(icehTilerLayerDescription, aDescription)+
-    TByteBuffer.bb_tag_bool(icehTilerPersistent, aPersistent)+
-    TByteBuffer.bb_tag_int32(icehTilerRequestNewLayer, aSliceType); // last to trigger new layer request
-  fTilerEvent.signalEvent(payload);
-  }
   fTilerLayer.Free;
   // recreate tiler layer definition
   fTilerLayer := TTilerLayer.Create(scenario.project.Connection, elementID, aSliceType, aPalette);//, -1, '' .addLayer(elementID, aSliceType, aPalette);
@@ -2681,6 +2657,8 @@ begin
   fTilerLayer.onPreview := handleTilerPreview;
   // trigger registration
   fTilerLayer.signalRegisterLayer(scenario.project.tiler, aDescription, aPersistent, aEdgeLengthInMeters);
+  // todo: handle diff layer?
+
 end;
 
 procedure TLayer.RegisterSlice;
@@ -2837,34 +2815,6 @@ begin
   end;
 end;
 
-{
-procedure TLayer.handleTilerEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
-var
-  fieldInfo: UInt32;
-//  tilerStartup: TDateTime;
-begin
-  try
-    // todo:
-    while aCursor<aLimit do
-    begin
-      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-      case fieldInfo of
-        (icehTilerStartup shl 3) or wt64Bit:
-          begin
-            aBuffer.bb_read_double(aCursor);
-            // re-register layer
-            RegisterLayer;
-          end;
-      else
-        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
-      end;
-    end;
-  except
-    on e: Exception
-    do log.WriteLn('exception in TLayer.handleTilerEvent: '+e.Message, llError);
-  end;
-end;
-}
 procedure TLayer.handleRefreshTrigger(aTimeStamp: TDateTime);
 var
   timeStampStr: string;
@@ -2902,7 +2852,7 @@ begin
   TMonitor.Enter(fDependentDiffLayers);
   try
     for dl in fDependentDiffLayers
-    do dl.HandleSubLayerInfo(Self);
+    do dl.handleSubLayerInfo(Self);
   finally
     TMonitor.Exit(fDependentDiffLayers);
   end;
@@ -3122,7 +3072,7 @@ begin
   // default no action
 end;
 
-procedure TScenario.RegisterLayers;
+procedure TScenario.registerLayers;
 var
   layer: TLayer;
 begin
@@ -3441,8 +3391,11 @@ begin
     end);
 
   // todo: start timer for tiler status as a heartbeat
-  if aTilerStatusURL<>''
-  then timers.SetTimer(timerTilerStatusAsHeartbeat, hrtNow+DateTimeDelta2HRT(dtOneHour), DateTimeDelta2HRT(dtOneHour))
+  if aTilerStatusURL<>'' then
+  begin
+    timers.SetTimer(timerTilerStatusAsHeartbeat, hrtNow+DateTimeDelta2HRT(dtOneHour), DateTimeDelta2HRT(dtOneHour));
+    log.WriteLn('Set status timer: '+aTilerStatusURL);
+  end;
 end;
 
 destructor TProject.Destroy;
@@ -3533,9 +3486,26 @@ end;
 procedure TProject.handleTilerStartup(aTiler: TTiler; aStartupTime: TDateTime);
 var
   scenario: TScenario;
+  diffLayer: TDiffLayer;
 begin
   for scenario in fScenarios.Values
-  do scenario.RegisterLayers;
+  do scenario.registerLayers;
+  // diff layers
+  TMonitor.Enter(diffLayers);
+  try
+    for diffLayer in diffLayers.Values do
+    begin
+      if Assigned(diffLayer.tilerLayer) then
+      begin
+        // reset tiler url to avoid invalid url send to client
+        diffLayer.tilerLayer.resetURL;
+        // re-register
+        diffLayer.registerOnTiler;
+      end;
+    end;
+  finally
+    TMonitor.Exit(diffLayers);
+  end;
 end;
 
 function TProject.isPresenterNoLocking(const aGroup: string; aMember: TClient): Boolean;
@@ -3781,6 +3751,7 @@ procedure TProject.timerTilerStatusAsHeartbeat(aTimer: TTimer);
 begin
   // request status from tiler as a heartbeat (keep IIS isapi module a live)
   fTiler.getTilerStatus;
+  Log.WriteLn('keep-a-live tiler status request');
 end;
 
 { TModel }

@@ -44,6 +44,7 @@ procedure InitializeCommandQueue(aMaxQueueDepth: Integer=DefaultMaxQueueDepth; a
 procedure FinalizeCommandQueue();
 
 procedure AddCommandToQueue(aSender: TObject; aReference: TQueueRefObj);
+function CommandQueueLength: Integer;
 
 implementation
 
@@ -90,6 +91,11 @@ begin
     then Log.Progress('Queue: '+queueSize.ToString);
     {$ENDIF}
   end;
+end;
+
+function CommandQueueLength: Integer;
+begin
+  Result := queue.QueueSize;
 end;
 
 { TQueueCommand }

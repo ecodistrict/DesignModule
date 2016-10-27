@@ -3227,7 +3227,7 @@ begin
 
           if bufferExtent.Intersects(isgop.Value.fExtent) then
           begin
-            if IsNaN(isgop.Value.texture) and IsNaN(isgop.Value.texture2) then
+            if (not Assigned(refObj)) or (IsNaN(isgop.Value.texture) and IsNaN(isgop.Value.texture2)) then
             begin // both values are NaN -> draw small black line
               path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
               try
@@ -4379,6 +4379,7 @@ begin
   try
     if Assigned(model.fLayers) then
     begin
+      html := html+'<div>number of layers: '+model.fLayers.Count.ToString()+'</div>'+'<br/><br/>';
       if model.fLayers.Count>0 then
       begin
         for ilp in model.fLayers do
@@ -4391,8 +4392,7 @@ begin
             html := html+
               '<div>'+
                 'layer: '+ilp.Key.ToString+', '+
-                'slice type: '+ilp.Value.SliceType.ToString+', '+
-                'slices: '+ilp.Value.Slices.Count.ToString+', '+
+                'slices ('+ilp.Value.SliceType.ToString+'): '+ilp.Value.Slices.Count.ToString+', '+
                 'range: '+ilp.Value.dateTimeRange+', '+
                 'event: '+ilp.Value.fDataEvent.eventName+', '+
                 '<a href="'+exampleURL+'">'+ilp.Value.fDescription+'</a>'+
@@ -4462,6 +4462,7 @@ begin
     '</body>'+
     '</html>';
   Response.Content := html;
+  log.WriteLn('handled TTilerWebModule.TilerWebModuleRequestStatusAction');
 end;
 
 procedure TTilerWebModule.WebModuleCreate(Sender: TObject);
