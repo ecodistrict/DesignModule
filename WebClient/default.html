@@ -36,25 +36,25 @@
     <link rel="stylesheet" href="Content/control.css" />
     <link rel="stylesheet" href="Content/dialog.css" />
 
-  <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
-  <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
-  <link rel="apple-touch-icon" sizes="72x72" href="favicon/apple-icon-72x72.png">
-  <link rel="apple-touch-icon" sizes="76x76" href="favicon/apple-icon-76x76.png">
-  <link rel="apple-touch-icon" sizes="114x114" href="favicon/apple-icon-114x114.png">
-  <link rel="apple-touch-icon" sizes="120x120" href="favicon/apple-icon-120x120.png">
-  <link rel="apple-touch-icon" sizes="144x144" href="favicon/apple-icon-144x144.png">
-  <link rel="apple-touch-icon" sizes="152x152" href="favicon/apple-icon-152x152.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-icon-180x180.png">
-  <link rel="icon" type="image/png" sizes="192x192"  href="favicon/android-icon-192x192.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="96x96" href="favicon/favicon-96x96.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
-  <link rel="manifest" href="favicon/manifest.json">
-  <meta name="msapplication-TileColor" content="#ffffff">
-  <meta name="msapplication-TileImage" content="favicon/ms-icon-144x144.png">
-  <meta name="theme-color" content="#ffffff">
-  <link rel="shortcut icon" href="favicon/favicon.ico" type="image/x-icon">
-  <link rel="icon" href="favicon/favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="favicon/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="favicon/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="favicon/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="favicon/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="favicon/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="favicon/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="favicon/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+    <link rel="manifest" href="favicon/manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="favicon/ms-icon-144x144.png">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="shortcut icon" href="favicon/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="favicon/favicon.ico" type="image/x-icon">
 
 </head>
 <body>
@@ -63,7 +63,7 @@
     <!-- static modal dialog place holder -->
     <div id="modalDialog" class="modalDialog"></div>
     <!-- connection status -->
-    <div id="connectionStatus" class="connection-status connection-status-disconnected" ></div>
+    <div id="connectionStatus" class="connection-status connection-status-disconnected"></div>
     <!-- error messages -->
     <div id="userMessages" class="userMessages userMessages-hidden"><p id="userMessage">There is a message</p></div>
     <!-- current-reference-difference selector -->
@@ -72,7 +72,7 @@
     <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div>
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
     <!-- load scripts -->
-    //
+
     <!-- leaflet js -->
     <script src="Scripts/leaflet-src.js"></script>
     <script src="Scripts/leaflet.draw-src.js"></script>
@@ -151,9 +151,9 @@
         };
         // Mobile
         if (window.innerWidth < 500) {
-          document.body.setAttribute("id", "phone");
+            document.body.setAttribute("id", "phone");
         } else {
-          document.body.removeAttribute("id");
+            document.body.removeAttribute("id");
         }
 
 
@@ -180,16 +180,23 @@
 
 
 
-       //history
+        //history
         var historyControl = L.control.history(baseLayers); // todo (NK): why pass baseLayers as options?
         map.addControl(historyControl);
+        map.removeControl(historyControl);
         DataManager.HistoryControl = historyControl;
 
 
-        // //simulation
+        //simulation
         var simulationControl = L.control.simulation(baseLayers); // todo (NK): why pass baseLayers as options?
         map.addControl(simulationControl);
+        map.removeControl(simulationControl);
         DataManager.simulationControl = simulationControl;
+
+        //presenter/viewer
+        var presenterViewerControl = L.control.PresenterViewer();
+        //map.addControl(presenterViewerControl);
+        DataManager.presenterViewerControl = presenterViewerControl;
 
 
         // top-left
@@ -197,6 +204,7 @@
         //measures
         var measuresControl = L.control.measures([], historyControl);
         map.addControl(measuresControl);
+        map.removeControl(measuresControl);
         measuresControl.setSelectCategories([]);
 
         //DataManager.wind = L.control.arrow();//L.control.wind({});
@@ -215,10 +223,14 @@
         // todo: scaling factor of domain (0.5 = 1.25 years (1 jan 2015 till now)/0.5 = 2.5 years; 500 = 2 years*365 day*24 hours*4 kwarters/35 visible max
         var timesliderControl = L.control.timeslider(timeslider);
         map.addControl(timesliderControl);
+        timesliderControl._collapse();
+        InfoTextControl['leaflet-control-timeslider'] = { active: false };
+        map.removeControl(timesliderControl);
+        
 
         //start-stop
         var startControl = L.control.startstop();
-        map.addControl(startControl);
+        //map.addControl(startControl);
         //startControl.setPosition("bottomright");
 
         // current-reference-difference control

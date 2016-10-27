@@ -33,3 +33,46 @@
 .viewerControlMoveButton {
     background-image: url('images/move-synchronize-2x.png');
 }
+
+/*presenter/viewer control*/
+.leaflet-control-pv {
+  box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  background: #fff;
+  border-radius: 5px;
+}
+.leaflet-control-pv-toggle {
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  display: block;
+  background-image: url('images/pv.png');
+  width: 36px;
+  height: 36px;
+}
+.leaflet-retina .leaflet-control-pv-toggle {
+  background-image: url('images/pv-2x.png');
+  background-size: 26px 26px;
+}
+.leaflet-touch .leaflet-control-pv-toggle {
+  width: 44px;
+  height: 44px;
+}
+.leaflet-control-pv .leaflet-control-pv-list,
+.leaflet-control-pv-expanded .leaflet-control-pv-toggle {  display: none }
+.leaflet-control-pv-expanded .leaflet-control-pv-list {
+  display: block;
+  position: relative;
+}
+.leaflet-control-details-expanded {
+  padding: 6px 10px 6px 6px;
+  color: #333;
+  background: #fff;
+  height: auto;
+}
+
+.presenterViewerError {
+    color: red;
+}
+
+#presenterViewerDialog {
+    width: 300px;
+}
