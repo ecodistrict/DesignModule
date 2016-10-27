@@ -24,16 +24,20 @@ function openSimulationDialog(e) {
   errorLog.id = 'errorLog';
   errorLog.style.display = 'none';
   errorLog.innerHTML = '';
+  // fillOptions(element, required, options, labelText, idName, extraOptions['steps','postfix']);
 
-  fillOptions('input', 'y', false, 'Simulation name', 'simulationName');
-  fillOptions('select', 'y', ['0%','25%','50%','75%'], "Penetration rate", "PenetrationRateSelect");
-  fillOptions('select', 'y', ['0%','25%','50%','75%'], "Follow-on behavior", "followOn");
-  fillOptions('select', 'y', ['-10%','0%','10%'], "Br", "Brkeuze");  
+  fillOptions('input', 'y', false, 'Simulation name', 'simulationName', false);
+  fillOptions('slider', 'y', ['1','100'], "Slider", "Sliderkeuze", ['1','']);
+
+  fillOptions('select', 'y', ['0%','25%','50%','75%'], "Penetration rate", "PenetrationRateSelect", false);
+  fillOptions('select', 'y', ['0%','25%','50%','75%'], "Follow-on behavior", "followOn", false);
+  fillOptions('select', 'y', ['-10%','0%','10%'], "Br", "Brkeuze", false);
+  fillOptions('slider', 'y', ['0','100'], "Slider", "Sliderkeuze", ['1','%']);
 
 
   var container,optionWrapper, opt;
 
-  function fillOptions(formElement, required, options, labelText, idName) {
+  function fillOptions(formElement, required, options, labelText, idName, extraOptions) {
     // input, select
     // checkbox, textaea, radio,
     if (formElement === 'input') {
@@ -57,6 +61,12 @@ function openSimulationDialog(e) {
       container = document.createElement('div');
       container.id = idName + '-option-row';
       container.style.display = "none";
+    } else if (formElement === 'slider') {
+      container = document.createElement('div');
+      container.id = idName + '-option-row';
+      container.style.display = 'block';
+      var range = document.createElement('div');
+      range.id = 'range_' + idName;
     }
 
 
@@ -175,6 +185,66 @@ function openSimulationDialog(e) {
       textarea.placeholder = labelText;
       textarea.dataset.required = required;
       container.appendChild(textarea);
+    } else if (formElement === 'slider') {
+
+      sliderInput = document.createElement('input');
+      sliderInput.type = 'text';
+      sliderInput.className = 'form-control';
+      sliderInput.placeholder = labelText;
+      sliderInput.name = idName;
+      sliderInput.id = 'input_' + idName;
+      sliderInput.dataset.required = required;
+      sliderInput.style.width = '100%';
+      sliderInput.style.boxSizing = 'border-box';
+      var rangeSlider = noUiSlider.create(range, {
+        connect: true, // Display a colored bar between the handles
+        start: parseInt(options[0]),
+        step: parseInt(extraOptions[0]),
+        behaviour: 'tap',
+        tooltips: true,
+        range: {
+          'min': parseInt(options[0]),
+          'max': parseInt(options[1])
+        },
+        format: {
+          to: function ( value ) {
+            return Math.round(value) + extraOptions[1];
+          },
+          from: function ( value ) {
+            return Math.round(value.replace(extraOptions[1], ''));
+          }
+        }
+      });
+
+      rangeSlider.on('update', function( values, handle ) {
+
+        if (extraOptions[1].length > 0) {
+          formattedValue = values[handle].replace(extraOptions[1], '');
+        } else {
+          formattedValue = values[handle];
+        }
+        if (this.target.parentElement) {
+          this.target.parentElement.children[1].value = formattedValue;
+        }
+
+       });
+
+      range.style.height = '20px';
+      range.style.width = '100%';
+      range.style.margin = '40px auto 10px';
+
+
+
+      sliderInput.addEventListener('change', function(){
+        range.noUiSlider.set(this.value);
+      });
+
+
+
+      // sliderInput.style.display = 'none';
+
+      container.appendChild(range);
+      container.appendChild(sliderInput);
     }
 
     f.appendChild(container);
@@ -213,7 +283,6 @@ function queryDialogApply() {
   errorLog.innerHTML = '';
   for (var i = 0; i < document.forms['simulationForm'].elements.length; i++) {
     var elem = document.forms['simulationForm'].elements[i];
-
     if (elem.type === 'text') {
       if (elem.dataset.required === 'y') {
         if (elem.value === '') {
@@ -287,12 +356,12 @@ function queryDialogApply() {
 
           found = false;
           for (var i2 = 0; i2 < formResult.length; i2++) {
-              if (formResult[i2].name === elem.name) {
-                found = true;
-                options = document.getElementById(elem.name + '-option-row');
-                options.classList.remove('empty');
-                errors = false;
-              }
+            if (formResult[i2].name === elem.name) {
+              found = true;
+              options = document.getElementById(elem.name + '-option-row');
+              options.classList.remove('empty');
+              errors = false;
+            }
           }
           if (!found) {
             formResult.push({name:elem.name, value:vals});
