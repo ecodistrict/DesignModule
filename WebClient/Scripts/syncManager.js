@@ -49,15 +49,28 @@
                 if (message.command == "presenteron") {
                     SyncManager.group = message.group;
                     SyncManager.setPresenter();
-
                 }
                 else if (message.command == "vieweron") {
                     SyncManager.group = message.group;
                     SyncManager.setViewer();
                 }
+
+                if (SyncManager.viewerPresenterDialogInfo)
+                {
+                    SyncManager.viewerPresenterDialogInfo = null;
+                    modalDialogClose();
+                }
             }
             else {
-                //todo: handle error!
+                if (SyncManager.viewerPresenterDialogInfo)
+                {
+                    if (message.result == "groupalreadyexists")
+                        SyncManager.viewerPresenterDialogInfo.errorDiv.innerHTML = "Can't create, session name already in use<p>";
+                    else if (message.result == "groupdoesnotexist")
+                        SyncManager.viewerPresenterDialogInfo.errorDiv.innerHTML = "Can't join, session does not exist<p>";
+                    else
+                        SyncManager.viewerPresenterDialogInfo.errorDiv.innerHTML = "Received error: " + message.result + "<p>";
+                }
             }
         }
         else if (message.command == "groupclose" && message.group == SyncManager.group)
@@ -239,6 +252,12 @@
             SyncManager.viewerControl.style.visibility = "visible";
         }
     },
+
+    _addViewerPresenterControl: function()
+    {
+
+    },
+
     _removeViewerControl: function () {
         if (SyncManager.viewerControl)
             SyncManager.viewerControl.style.visibility = "hidden";
@@ -308,3 +327,153 @@
     }
 
 }
+
+L.Control.PresenterViewer = L.Control.extend({
+    options: {
+        collapsed: true,
+        position: 'topright',
+        autoZIndex: true,
+        hideSingleBase: false
+    },
+
+    initialize: function (options) {
+        L.setOptions(this, options);
+    },
+
+    onAdd: function (map) {
+        this._initLayout();
+        this._update();
+        this._map = map;
+        return this._container;
+    },
+
+    onRemove: function () {
+        //todo, do we want to remove controls?
+    },
+
+    _initLayout: function () {
+        var className = 'leaflet-control-pv',
+            container = this._container = L.DomUtil.create('div', className);
+
+        // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
+        container.setAttribute('aria-haspopup', true);
+
+        L.DomEvent.disableClickPropagation(container);
+        if (!L.Browser.touch) {
+            L.DomEvent.disableScrollPropagation(container);
+        }
+
+        container.addEventListener("click", this.showPresenterViewerDialog);
+
+        var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
+        link.href = '#';
+        link.title = 'Setup a Presenter session or join a session as viewer';
+    },
+
+    showPresenterViewerDialog: function () {
+        var div = modalDialogCreate('Setup Presenter/Viewer session');
+        div.id = "presenterViewerDialog";
+
+        var errorDiv = div.appendChild(document.createElement("div"));
+        errorDiv.className = "presenterViewerError";
+
+        var form = div.appendChild(document.createElement("form"));
+        form.id = "presenterViewerForm";
+
+        var viewerPresenterDiv = form.appendChild(document.createElement("div"));
+
+        var viewerRadio = viewerPresenterDiv.appendChild(document.createElement("input"));
+        viewerRadio.type = "radio";
+        viewerRadio.value = "viewer";
+        viewerRadio.name = "viewerPresenterRadio";
+        viewerRadio.className = "presenterViewerRadio";
+        viewerRadio.checked = true;
+
+        var viewerText = viewerPresenterDiv.appendChild(document.createElement("span"));
+        viewerText.className = "presenterViewerText";
+        viewerText.innerHTML = "Viewer  ";
+
+        var presenterRadio = viewerPresenterDiv.appendChild(document.createElement("input"));
+        presenterRadio.type = "radio";
+        presenterRadio.value = "presenter";
+        presenterRadio.name = "viewerPresenterRadio";
+        presenterRadio.className = "presenterViewerRadio";
+
+        var presenterText = viewerPresenterDiv.appendChild(document.createElement("span"));
+        presenterText.className = "presenterViewerText";
+        presenterText.innerHTML = "Presenter<P>";
+
+        var groupDiv = form.appendChild(document.createElement("div"));
+
+        var groupText = groupDiv.appendChild(document.createElement("div"));
+        groupText.className = "presenterViewerText";
+        groupText.innerHTML = "Session name:";
+
+        var groupInput = groupDiv.appendChild(document.createElement("input"));
+        groupInput.type = "text";
+        groupInput.className = "presenterViewerTextInput";
+
+        SyncManager.viewerPresenterDialogInfo = {
+            errorDiv: errorDiv,
+            viewerRadio: viewerRadio,
+            presenterRadio: presenterRadio,
+            groupInput: groupInput
+        }
+
+        var whiteSpace = groupDiv.appendChild(document.createElement("p"));
+
+        var mddb = form.appendChild(document.createElement("div"));
+        mddb.className = "modalDialogDevideButtons";
+
+        modelDialogAddButton(mddb, 'Cancel', function () {
+            SyncManager.viewerPresenterDialogInfo = null;
+            modalDialogClose();
+        });
+        modelDialogAddButton(mddb, 'Connect', function () {
+
+            if (SyncManager.viewerPresenterDialogInfo)
+            {
+                if (SyncManager.viewerPresenterDialogInfo.groupInput.value == "") {
+                    SyncManager.viewerPresenterDialogInfo.errorDiv.innerHTML = "Please provide a session name<p>";
+                }
+                else {
+                    if (SyncManager.viewerPresenterDialogInfo.viewerRadio.checked)
+                        SyncManager.requestViewer(SyncManager.viewerPresenterDialogInfo.groupInput.value);
+                    else
+                        SyncManager.requestPresenter(SyncManager.viewerPresenterDialogInfo.groupInput.value);
+                }
+            }
+            
+        });
+
+
+    },
+
+    _update: function () {
+
+    },
+
+    _expand: function () {
+        //L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
+        //if (this.hasElements()) {
+        //    L.DomUtil.addClass(this._container, 'leaflet-control-details-expanded');
+        //    this._form.style.height = null;
+        //    var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
+        //    if (acceptableHeight < this._form.scrollHeight) {
+        //        L.DomUtil.addClass(this._form, 'leaflet-control-details-scrollbar');
+        //        this._form.style.height = acceptableHeight + 'px';
+        //    }
+        //    else {
+        //        L.DomUtil.removeClass(this._form, 'leaflet-control-details-scrollbar');
+        //    }
+        //}
+    },
+
+    _collapse: function () {
+        L.DomUtil.removeClass(this._container, 'leaflet-control-details-expanded');
+    },
+});
+
+L.control.PresenterViewer = function (categories, options) {
+    return new L.Control.PresenterViewer(categories, options);
+};

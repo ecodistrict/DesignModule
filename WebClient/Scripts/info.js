@@ -91,7 +91,6 @@ _update: function () {
   var container = this._detailList;
   L.DomUtil.empty(container);
   var h = document.createElement('h3');
-  h.textContent = 'Info project';
   h.style.padding = '10px';
   h.style.margin = '0px';
   container.appendChild(h);
@@ -99,6 +98,7 @@ _update: function () {
   // hack for demo
 
   if (session == '4B95BE74F9A44DA0908A30B27C3E8C99') {
+    h.textContent = 'Deze ‘Client’ versie van Urban Strategy brengt milieu- en leefomgevingsaspecten in kaart, deze zijn via de knoppen rechtsboven te selecteren. Via een klik op de scenarionaam linksboven zijn verschillende scenario’s te selecteren.';
     // var divZoomConnectionDescription = container.appendChild(document.createElement('div'));
     // divZoomConnectionDescription.className = 'leaflet-container info-element info-ZoomConnectionDescription';
     // divZoomConnectionDescription.appendChild(document.createTextNode('Klik hier om een scenario te selecteren en eventueel een referentiescenario aan te geven'));
@@ -117,6 +117,8 @@ _update: function () {
     // divCentral.className = 'leaflet-container info-element info-Central';
     // //divCentral.appendChild(document.createTextNode('Deze ‘Client’ versie van Urban Strategy brengt milieu- en leefomgevingsaspecten in kaart, deze zijn via de knoppen rechtsboven te selecteren. Via een klik op de scenarionaam linksboven zijn verschillende scenario’s te selecteren. Deze zijn vervolgens met elkaar te vergelijken via de drie knoppen rechtsonder.'));
     // divCentral.appendChild(document.createTextNode('Deze ‘Client’ versie van Urban Strategy brengt milieu- en leefomgevingsaspecten in kaart, deze zijn via de knoppen rechtsboven te selecteren. Via een klik op de scenarionaam linksboven zijn verschillende scenario’s te selecteren.')); // Deze zijn vervolgens met elkaar te vergelijken via de drie knoppen rechtsonder.'));
+  } else {
+    h.textContent = 'Info project';
   }
 
 
