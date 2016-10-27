@@ -32,24 +32,24 @@
     width: 44px;
     height: 44px;
     }*/
-.leaflet-retina .leaflet-control-startstop-playing {
+.leaflet-retina .leaflet-control-startstop-playing > a{
   background-image: url('images/pauze-2x.png');
   background-size: 26px 26px;
   background-repeat: no-repeat;
   background-position: 50% 50%;
 }
-.leaflet-retina .leaflet-control-startstop-stopped {
+.leaflet-retina .leaflet-control-startstop-stopped > a{
   background-image: url('images/play-2x.png');
   background-size: 26px 26px;
   background-repeat: no-repeat;
   background-position: 50% 50%;
 }
-.leaflet-control-startstop-stopped {
+.leaflet-control-startstop-stopped > a {
   background-image: url('images/play.png');
   background-repeat: no-repeat;
   background-position: 50% 50%;
 }
-.leaflet-control-startstop-playing {
+.leaflet-control-startstop-playing > a{
   background-image: url('images/pauze.png');
   background-repeat: no-repeat;
   background-position: 50% 50%;

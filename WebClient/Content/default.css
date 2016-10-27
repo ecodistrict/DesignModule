@@ -2,6 +2,21 @@
   /*-webkit-appearance: none;*/
   -webkit-border-radius:0px;
 }
+#errorLog {
+  background-color: #f84141;
+  padding: 5px;
+  color: #fff;
+  border-radius: 3px;
+}
+#errorLog span {
+  margin: 0px 0px 5px 0px;
+  width: 100%;
+  display: inline-block;
+  height: auto;
+}
+#errorLog span:last-child {
+  margin:0px;
+}
 #phone #selectScenariosForm {
   overflow-y: scroll !important; /* has to be scroll, not auto */
   -webkit-overflow-scrolling: touch !important;
@@ -49,10 +64,12 @@
   border:1px solid lightblue;
 }
 div.empty > button {
-  border:1px solid red !important;
+  border: 1px solid rgba(255, 0, 0, 0.33) !important;
+  box-shadow: 0px 0px 5px 0px rgba(255, 0, 0, 0.46);
 }
 input.empty, textarea.empty {
-  border:1px solid red !important;
+  border: 1px solid rgba(255, 0, 0, 0.33) !important;
+  box-shadow: 0px 0px 5px 0px rgba(255, 0, 0, 0.46);
 }
 div[id*="-option-row"] > button {
   flex-basis: 100%;
@@ -90,9 +107,6 @@ select.form-control {
   margin-bottom:10px;
 }
 
-#simulationName {
-  display: flex;
-}
 .leaflet-control-info.leaflet-control {
   border-radius: 11px !important;
 }
@@ -139,7 +153,7 @@ a.leaflet-control-info-toggle {
 
 .leaflet-control-info-base a.leaflet-control-info-toggle-button {
   box-shadow: 0 1px 5px rgba(0,0,0,0.4);
-    border-radius: 12px;
+  border-radius: 12px;
 }
 .leaflet-control-info-toggle-button {
   position: absolute;

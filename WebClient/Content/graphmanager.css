@@ -18,7 +18,7 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   border-radius: 4px;
   background: white;
-  border: 2px solid rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(0, 0, 0, 0.2);  
 }
 .graph-info {
   position: absolute;
@@ -40,12 +40,13 @@
   background-repeat: no-repeat;
   padding: 2px;
   cursor: nwse-resize;
+  opacity: 0.6 !important;
 }
 .modalDialog-close:hover,
 .graph-info:hover,
 .graph-resize:hover,
 .modalDialog-close:hover {
-  opacity: 0.75;
+  opacity: 0.75 !important;
   color: hsla(0,0%,0%,0.7);
 }
 .axis {
