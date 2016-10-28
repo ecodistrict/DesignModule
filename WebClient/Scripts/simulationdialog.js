@@ -2,7 +2,7 @@ function openSimulationDialog(e) {
 
   // todo: build dialog based on measuresControl.options.selectCategories
 
-  var div = modalDialogCreate('setup your simulation');
+  var div = modalDialogCreate('Setup your simulation');
 
   if (window.outerWidth < 500) {
     div.style.width = '100%';
@@ -24,16 +24,17 @@ function openSimulationDialog(e) {
   errorLog.id = 'errorLog';
   errorLog.style.display = 'none';
   errorLog.innerHTML = '';
+
   // fillOptions(element, required, options, labelText, idName, extraOptions['steps','postfix']);
 
-  fillOptions('input', 'y', false, 'Simulation name', 'simulationName', false);
-  fillOptions('slider', 'y', ['1','100'], "Slider", "Sliderkeuze", ['1','']);
+  fillOptions('input', 'y', false, 'Scenario name', 'scenarioName', false);
+  // fillOptions('slider', 'y', ['1','100'], "Slider", "Sliderkeuze", ['1','']);
+  // fillOptions('select', 'y', ['0%','25%','50%','75%'], "Penetration rate", "PenetrationRateSelect", false);
+  // fillOptions('select', 'y', ['0%','25%','50%','75%'], "Follow-on behavior", "followOn", false);
 
-  fillOptions('select', 'y', ['0%','25%','50%','75%'], "Penetration rate", "PenetrationRateSelect", false);
-  fillOptions('select', 'y', ['0%','25%','50%','75%'], "Follow-on behavior", "followOn", false);
-  fillOptions('select', 'y', ['-10%','0%','10%'], "Br", "Brkeuze", false);
-  fillOptions('slider', 'y', ['0','100'], "Slider", "Sliderkeuze", ['1','%']);
-
+  fillOptions('slider', 'y', ['0','100'], "Penetration rate", "PenetrationRateSelect", ['1','%']);
+  fillOptions('slider', 'y', ['0','100'], "Follow-on behavior", "followOn", ['1','%']);
+  fillOptions('select', 'y', [['A','OD Basis'],['B','OD variant 1'],['C','OD variant 2']], "Origin Destination matrix", "MatrixChoice", false);
 
   var container,optionWrapper, opt;
 
@@ -128,6 +129,8 @@ function openSimulationDialog(e) {
       }
       f.appendChild(optionWrapper);
     } else if (formElement === 'select') {
+
+      console.log(options);
 
       for (var i = 0; i < options.length; i++) {
         option = options[i];
@@ -273,7 +276,7 @@ function openSimulationDialog(e) {
   var mddb = f.appendChild(document.createElement('div'));
   mddb.className = 'modalDialogDevideButtons';
   modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
-  modelDialogAddButton(mddb, 'Generate', queryDialogApply);
+  modelDialogAddButton(mddb, 'Apply', queryDialogApply);
 }
 
 function queryDialogApply() {

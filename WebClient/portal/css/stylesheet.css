@@ -35,6 +35,21 @@ p {
   margin-top: 14px;
   background-color:rgba(99,99,99,0.6);
 }
+#phone #header {
+  padding: 40px 0px 20px 0px;
+}
+#phone #companyLogos {
+  display:block;
+}
+.smaller > img {
+  width:20%;
+}
+#phone #companyLogos a {
+  margin-bottom:10px;
+}
+#phone #companyLogos a:last-child {
+  margin-bottom:0px;
+}
 #phone #header,#phone #container {
   width: 100%;
 }
@@ -175,4 +190,8 @@ img.overlay {
 }
 .buttonContainer {
   transition: opacity 500ms;
+}
+
+.legend {
+      /*background-color: rgba(255,153,0,0.2);*/
 }
