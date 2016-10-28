@@ -246,6 +246,7 @@ function addLayerToMap(layer, opacity) {
     wsSend({ subscribe: layer.id });
 }
 
+
 function updateTilesLayerOnMap(aElementID, aTilesURL) {
     for (var mlid in map._layers) {
         var layer = map._layers[mlid];

@@ -20,6 +20,7 @@ uses
   imb4,
   WorldTilerConsts,
   CommandQueue,
+  TimerPool,
 
   SessionServerLib,
   SessionServerGIS,
@@ -67,7 +68,7 @@ type
     diffRange: Double;
     objectType: string;
     geometryType: string;
-    publish: Integer;
+    _published: Integer;
     // indirect
     legendAVL: string;
     odbList: TODBList;
@@ -199,6 +200,7 @@ type
     fUSDBScenarios: TObjectDictionary<Integer, TUSDBScenario>;
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
     fPreLoadScenarios: Boolean;
+    //fMCProgressTimer: TTimer;
     function getOraSession: TOraSession;
   protected
     procedure ReadScenarios;
@@ -410,7 +412,7 @@ begin
       metaLayerEntry.diffRange := DoubleField('DIFFRANGE');
       metaLayerEntry.objectType := StringField('OBJECTTYPE');
       metaLayerEntry.geometryType := StringField('GEOMETRYTYPE');
-      metaLayerEntry.publish:= IntField('PUBLISHED', 1);
+      metaLayerEntry._published := IntField('PUBLISHED', 1);
 
       {
       ALTER TABLE VXX#META_LAYER
@@ -1404,99 +1406,103 @@ begin
   Log.WriteLn(elementID+': found '+fMetaLayer.Count.ToString+' layers in meta_layer');
   for mlp in fMetaLayer do
   begin
-    // try tablename-value, legend description-value..
-    layerInfoKey := mlp.Value.LAYER_TABLE.Trim+'-'+mlp.Value.VALUE_EXPR.trim;
-    layerInfo := StandardIni.ReadString('layers', layerInfoKey, '');
-    if layerInfo='' then
+    if mlp.Value._published>0 then
     begin
-      layerInfoKey := mlp.Value.LEGEND_DESC.trim+'-'+mlp.Value.VALUE_EXPR.trim;
+      // try tablename-value, legend description-value..
+      layerInfoKey := mlp.Value.LAYER_TABLE.Trim+'-'+mlp.Value.VALUE_EXPR.trim;
       layerInfo := StandardIni.ReadString('layers', layerInfoKey, '');
-    end;
-
-    if layerInfo<>'' then
-    begin
-      layerInfoParts := layerInfo.Split([',']);
-      if length(layerInfoParts)<2 then
+      if layerInfo='' then
       begin
-        setLength(layerInfoParts, 2);
-        layerInfoParts[1] := mlp.Value.LEGEND_DESC;
+        layerInfoKey := mlp.Value.LEGEND_DESC.trim+'-'+mlp.Value.VALUE_EXPR.trim;
+        layerInfo := StandardIni.ReadString('layers', layerInfoKey, '');
       end;
 
-      //palette := CreatePaletteFromODB(mlp.Value.LEGEND_DESC, mlp.Value.odbList, True);
-
-      case mlp.Value.LAYER_TYPE mod 100 of // i+100 image layer version same as i but ignored by US3D
-        1:
-          begin
-            objectTypes := '"receptor"';
-            geometryType := 'Point';
-            diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
-          end;
-        2:
-          begin
-            objectTypes := '"grid"';
-            geometryType := 'MultiPolygon'; // todo: ?
-            diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
-          end;
-        3, 8:
-          begin
-            objectTypes := '"building"'; // 3 buildings, 8 RS buildings
-            geometryType := 'MultiPolygon';
-            diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
-          end;
-        4,    // road color (VALUE_EXPR)
-        5:    // road color (VALUE_EXPR) and width (TEXTURE_EXPR)
-          begin
-            objectTypes := '"road"';
-            geometryType := 'LineString';
-            diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
-          end;
-        9:    // enrg color (VALUE_EXPR) and width (TEXTURE_EXPR)
-          begin
-            objectTypes := '"energy"';
-            geometryType := 'LineString';
-            diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
-          end;
-        11:
-          begin
-            objectTypes := '"location"';
-            geometryType := 'Point';
-            diffRange := mlp.Value.diffRange; // todo:
-          end;
-        21:
-          begin
-            objectTypes := '"poi"';
-            geometryType := 'Point';
-            diffRange := mlp.Value.diffRange; // todo:
-          end;
-      else
-        // 31 vector layer ?
-        objectTypes := '';
-        geometryType := '';
-        diffRange := mlp.Value.diffRange;
-      end;
-      if geometryType<>'' then
+      if layerInfo<>'' then
       begin
-        layer := TUSLayer.Create(Self,
-          defaultValue(mlp.Value.domain, standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0])), //  domain
-          mlp.Key.ToString, // id
-          layerInfoParts[1], // name
-          mlp.Value.LEGEND_DESC.Replace('~~', '-').replace('\', '-'), // description
-          false, //false, // todo: default load
-          //palette,
-          objectTypes, geometryType,
-          mlp.Value.LAYER_TYPE mod 100,
-          mlp.Value,
-          diffRange);
-        layer.fLegendJSON := BuildLegendJSON(mlp.Value, layer, lfVertical);
-        layer.query := mlp.Value.SQLQuery(fTableprefix);
-        Layers.Add(layer.ID, layer);
-        Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
-        // schedule reading objects and send to tiler
-        AddCommandToQueue(Self, layer.ReadObjects);
+        layerInfoParts := layerInfo.Split([',']);
+        if length(layerInfoParts)<2 then
+        begin
+          setLength(layerInfoParts, 2);
+          layerInfoParts[1] := mlp.Value.LEGEND_DESC;
+        end;
+
+        //palette := CreatePaletteFromODB(mlp.Value.LEGEND_DESC, mlp.Value.odbList, True);
+
+        case mlp.Value.LAYER_TYPE mod 100 of // i+100 image layer version same as i but ignored by US3D
+          1:
+            begin
+              objectTypes := '"receptor"';
+              geometryType := 'Point';
+              diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
+            end;
+          2:
+            begin
+              objectTypes := '"grid"';
+              geometryType := 'MultiPolygon'; // todo: ?
+              diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
+            end;
+          3, 8:
+            begin
+              objectTypes := '"building"'; // 3 buildings, 8 RS buildings
+              geometryType := 'MultiPolygon';
+              diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
+            end;
+          4,    // road color (VALUE_EXPR)
+          5:    // road color (VALUE_EXPR) and width (TEXTURE_EXPR)
+            begin
+              objectTypes := '"road"';
+              geometryType := 'LineString';
+              diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
+            end;
+          9:    // enrg color (VALUE_EXPR) and width (TEXTURE_EXPR)
+            begin
+              objectTypes := '"energy"';
+              geometryType := 'LineString';
+              diffRange := defaultValue(mlp.Value.diffRange, mlp.Value.autoDiffRange*0.3);
+            end;
+          11:
+            begin
+              objectTypes := '"location"';
+              geometryType := 'Point';
+              diffRange := mlp.Value.diffRange; // todo:
+            end;
+          21:
+            begin
+              objectTypes := '"poi"';
+              geometryType := 'Point';
+              diffRange := mlp.Value.diffRange; // todo:
+            end;
+        else
+          // 31 vector layer ?
+          objectTypes := '';
+          geometryType := '';
+          diffRange := mlp.Value.diffRange;
+        end;
+        if geometryType<>'' then
+        begin
+          layer := TUSLayer.Create(Self,
+            defaultValue(mlp.Value.domain, standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0])), //  domain
+            mlp.Key.ToString, // id
+            layerInfoParts[1], // name
+            mlp.Value.LEGEND_DESC.Replace('~~', '-').replace('\', '-'), // description
+            false, //false, // todo: default load
+            //palette,
+            objectTypes, geometryType,
+            mlp.Value.LAYER_TYPE mod 100,
+            mlp.Value,
+            diffRange);
+          layer.fLegendJSON := BuildLegendJSON(mlp.Value, layer, lfVertical);
+          layer.query := mlp.Value.SQLQuery(fTableprefix);
+          Layers.Add(layer.ID, layer);
+          Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
+          // schedule reading objects and send to tiler
+          AddCommandToQueue(Self, layer.ReadObjects);
+        end
+        else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' (unsupported) '+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
       end
-      else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' (unsupported) '+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
+      else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' (based on ini) ('+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
     end
-    else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' (based on ini) ('+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
+    else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' (based on meta_layer.published) ('+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
   end;
   // process indicators
   indicTableNames := ReturnAllFirstFields(OraSession,
