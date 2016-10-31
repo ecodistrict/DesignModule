@@ -10,7 +10,7 @@ DataManager = {
     wind: null,
     drawLayer: null,
     session: null,
-
+    queryDialogData: null, // used in queryDialog.js
 
 
     _addSensor: function (sensor) {

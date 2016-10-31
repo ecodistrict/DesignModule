@@ -9,7 +9,7 @@
       div.style.boxSizing = "border-box";
       //div.style.margin = '5% auto';
     } else {
-      div.style.width = '400px';
+      div.style.width = '700px';
       //div.style.margin = '5% auto';
     }
 

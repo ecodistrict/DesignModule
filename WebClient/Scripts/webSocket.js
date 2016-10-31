@@ -323,7 +323,7 @@ var wsLookup = {
         SyncManager.handleControlMessage(payload);
     },
     queryDialogData: function (payload) {
-        //todo implement
+        DataManager.queryDialogData = payload; // only storage is needed no further action required
     }
 }
 
