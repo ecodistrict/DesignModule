@@ -79,6 +79,10 @@ div[id*="-option-row"] > button {
   margin: 0px 2px;
   cursor: pointer;
 }
+
+.queryDialogLine select {
+  width: auto !important;
+}
 input.form-control:disabled {
   background-color:#eee;
   cursor:default !important;
