@@ -26,15 +26,55 @@ p {
   -webkit-margin-end: 0px;
   margin:6px 0px;
 }
+.corner {
+  border-radius: 5px;
+}
 .clearBoth {
   clear:both;
 }
 .horizontalRule {
   width:100%;
   height:1px;
-  margin-top: 14px;
-  background-color:rgba(99,99,99,0.6);
+  margin: 10px 0px;
+  background-color:rgba(26,91,127,0.3);
 }
+#lang {
+  position: relative;
+  right: 0px;
+  top: 0px;
+  width: auto;
+  display: inline-block;
+  float: right;
+  border:1px solid rgba(26,91,127,0.3);
+  border-radius: 5px;
+}
+.languages:last-child {
+  margin-right:0px;
+}
+.languages {
+  display: inline-block;
+  padding: 5px;
+  box-sizing: border-box;
+  background-color: #fff;
+  color: rgba(26, 91, 127, 1);
+  text-decoration: none;
+  margin-right: 0px;
+  border: 1px solid rgba(26,91,127,0.2);
+}
+.languages:first-child {
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+}
+.languages:last-child {
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+.languages.selected, .languages:hover {
+  background-color: rgba(26, 91, 127, 1);
+  color: #fff;
+}
+
+
 #phone #header {
   padding: 40px 0px 20px 0px;
 }
@@ -86,7 +126,7 @@ p {
   transition: opacity 300ms;
 }
 #companyLogos {
-  border-top: 1px solid #b0b0b0;
+  border-top: 1px solid rgba(26,91,127,0.3);
   padding-top: 20px;
 }
 #companyLogos a {
@@ -107,6 +147,7 @@ p {
   float:left;
   margin-bottom: 42px;
   transition: opacity 900ms;
+  border-left: 10px solid #fff;
 }
 [id*="textContainer-"] h1 {
   margin-top:0px;
@@ -116,11 +157,13 @@ p {
 }
 #phone [id*="imageContainer-"] {
   width: 100%;
+}
+#phone [id*="textContainer-"] {
+  width: 100%;
   border:0px;
 }
 [id*="imageContainer-"] {
   width: 50%;
-  border-right: 10px solid #fff;
   float: left;
   position: relative;
   overflow:hidden;
@@ -128,13 +171,29 @@ p {
 }
 [id*="imageContainer-"] img {
   width:100%;
-  height:auto;
+  height: 100%;
+  display: block;
 }
 img.overlay {
   position: absolute;
   left:0px;
   top:0px;
   /*padding-right: 10px;*/
+}
+img.partnerLogo {
+  max-width:110px;
+  box-sizing: border-box;
+  padding: 5px 15px 5px 0px;
+}
+#phone .partnerImgs {
+  width: 100%;
+}
+.partnerImgs {
+  position: absolute;
+  right: 0px;
+  bottom: 0px;
+  width: 50%;
+  padding-left: 10px;
 }
 #container {
   background-color: transparent;
@@ -193,5 +252,5 @@ img.overlay {
 }
 
 .legend {
-      /*background-color: rgba(255,153,0,0.2);*/
+  /*background-color: rgba(255,153,0,0.2);*/
 }

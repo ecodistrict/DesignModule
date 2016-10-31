@@ -276,10 +276,10 @@ function openSimulationDialog(e) {
   var mddb = f.appendChild(document.createElement('div'));
   mddb.className = 'modalDialogDevideButtons';
   modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
-  modelDialogAddButton(mddb, 'Apply', queryDialogApply);
+  modelDialogAddButton(mddb, 'Apply', simulationDialogApply);
 }
 
-function queryDialogApply() {
+function simulationDialogApply() {
   errors = false;
   formResult = [];
   elemValues = [];

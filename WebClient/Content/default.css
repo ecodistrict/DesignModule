@@ -83,6 +83,9 @@ div[id*="-option-row"] > button {
 .queryDialogLine select {
   width: auto !important;
 }
+#queryDialogLines > div > select.datalist.form-control {
+  width: 435px !important;
+}
 input.form-control:disabled {
   background-color:#eee;
   cursor:default !important;

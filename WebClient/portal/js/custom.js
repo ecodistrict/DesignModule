@@ -11,6 +11,31 @@ function translate(defaultText, translationText, Lang) {
 }
 Lang = getParameterByName('lang');
 
+var LanguageDiv = document.getElementById('lang');
+languages = ['EN','NL'];
+var languageLink;
+for (var i = 0; i < languages.length; i++) {
+  languageLink = document.createElement('a');
+  languageLink.href = '?lang=' + languages[i];
+  languageLink.innerText = languages[i];
+  languageLink.classList.add('languages');
+
+  if (Lang === languages[i]) {
+    languageLink.classList.add('selected');
+  } else {
+    languageLink.classList.remove('selected');
+  }
+  if (Lang === null) {
+    if (languages[i] === "EN") {
+      languageLink.classList.add('selected');
+    } else {
+      languageLink.classList.remove('selected');
+    }
+  }
+  LanguageDiv.appendChild(languageLink);
+}
+
+
 function checkWidthPage() {
   if (window.innerWidth < 769) {
     document.body.setAttribute("id", "phone");
@@ -32,41 +57,31 @@ function checkWidthPage() {
 }
 var imageContainer, imageContainer, description, outputImages;
 var overlayImages = [];
-var description = {};
 
 // createCasus('casusName','casusID','backgroundImage','OverlayImagesArray_src-class','DescriptionObject(p_* + hr_*)','CasusLink','PartnersArray', 'SimulationArray', 'Locatie')
 
 // Smart Traffic
-description = {
-  'p_1':translate('Smart Traffic is the new generation resource for the road administators to monitor and evaluate the traffic efficiently in an effective way and let trafficlights control the traffic effective and connected.',
-  ['NL','Smart Traffic is de nieuwe generatie hulpmiddelen voor de wegbeheerder om verkeer te monitoren, de prestatie van het netwerk te evalueren en verkeerslichten het verkeer zeer efficiënt, effectief en connected te laten regelen.'],Lang),
-
-  'p_2':translate('Smart Traffic delivers an intelligent way to control the traffic lights based on an integral traffic image based on a detection-information and floating car data.',
-  ['NL','Smart Traffic levert een intelligente aansturing van de verkeerslichten op basis van een integraal verkeersbeeld gebaseerd op detectie-informatie en floating car data.'],Lang),
-  'hr':''
-};
+description = [{'p':translate('Smart Traffic is the new generation resource for the road administators to monitor and evaluate the traffic efficiently in an effective way and let trafficlights control the traffic effective and connected.',
+['NL','Smart Traffic is de nieuwe generatie hulpmiddelen voor de wegbeheerder om verkeer te monitoren, de prestatie van het netwerk te evalueren en verkeerslichten het verkeer zeer efficiënt, effectief en connected te laten regelen.'],Lang)},
+{'p':translate('Smart Traffic delivers an intelligent way to control the traffic lights based on an integral traffic image based on a detection-information and floating car data.',
+['NL','Smart Traffic levert een intelligente aansturing van de verkeerslichten op basis van een integraal verkeersbeeld gebaseerd op detectie-informatie en floating car data.'],Lang)},{'hr':''}];
 overlayImages = [{'src':'buttons_over.png','class':'overlay'}];
-createCasus(translate('Smart Traffic with floating car data',['NL','Smart Traffic met floating car data'],Lang), 'ssm', 'odysa_map.jpg', overlayImages, description, 'http://www.google.nl/', ['Sweco'], [['OTS'],['Vissim']], ['Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat']);
-
+createCasus(translate('Smart Traffic with floating car data',['NL','Smart Traffic met floating car data'],Lang), 'ssm', 'odysa_map.jpg', overlayImages, description, '../default.html', [{'name':'Sweco','image':'partners_logo_sweco.jpg'}], [['OTS'],['Vissim']], ['Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat']);
 
 // A58
-description = {
-  'p_1':translate('CACC is a system whereby predecessor could be followed on short distances. So the intensity can be higher without to commence shockwaves. If they do commence, The CACC is better capable than the controllers to fix the shockwaves on the front. CACC belated the shockwaves on an more efficently way.'
-  ,['NL','CACC is een systeem waarmee voorgangers op korte afstanden kunnen worden gevolgd. Zodoende kan de intensiteit hoger zijn zonder dat er schokgolven ontstaan. Als deze wel ontstaan, is CACC beter in staat dan bestuurders om de schokgolven aan de voorkant op te lossen. CACC verlaat de schokgolf op een efficiëntere wijze.'],Lang),
-  'hr':''
-};
+description = [{'p':translate('CACC is a system whereby predecessor could be followed on short distances. So the intensity can be higher without to commence shockwaves. If they do commence, The CACC is better capable than the controllers to fix the shockwaves on the front. CACC belated the shockwaves on an more efficently way.',
+['NL','CACC is een systeem waarmee voorgangers op korte afstanden kunnen worden gevolgd. Zodoende kan de intensiteit hoger zijn zonder dat er schokgolven ontstaan. Als deze wel ontstaan, is CACC beter in staat dan bestuurders om de schokgolven aan de voorkant op te lossen. CACC verlaat de schokgolf op een efficiëntere wijze.'],Lang)},
+{'hr':''}];
 overlayImages = [{'src':'buttons_over.png','class':'overlay'}];
-createCasus(translate('CACC and schockwaves on the A58',['NL','CACC en schokgolven op de A58'],Lang), 'a58', 'Cacc_map.jpg', overlayImages, description, 'http://www.google.nl/', ['TU Delft'], ['OTS'], ['a58 tussen Tilburg en Eindhoven']);
-
+createCasus(translate('CACC and schockwaves on the A58',['NL','CACC en schokgolven op de A58'],Lang), 'a58', 'Cacc_map.jpg', overlayImages, description, '../default.html', [{'name':'TU Delft','image':'partners_logo_tudelft.png'}], ['OTS'], ['a58 tussen Tilburg en Eindhoven']);
 
 // Odysa
-description = {
-  'p_1':translate('ODYSA INCAR is an dynamic green wave in the car where on a display get displayed how hard you drive and how hard you should drive to arrive at a green traffic light.',
-  ['NL','ODYSA INCAR is een dynamische groene golf in de auto waarbij op een display wordt weergegeven hoe hard gereden moet worden om bij het volgende verkeerslicht groen te krijgen.'],Lang),
-  'hr_2':''
-}
+description = [{'p':translate('ODYSA INCAR is an dynamic green wave in the car where on a display get displayed how hard you drive and how hard you should drive to arrive at a green traffic light.',
+['NL','ODYSA INCAR is een dynamische groene golf in de auto waarbij op een display wordt weergegeven hoe hard gereden moet worden om bij het volgende verkeerslicht groen te krijgen.'],Lang)},
+{'hr':''}];
+
 overlayImages = [{'src':'buttons_over.png','class':'overlay'}];
-createCasus(translate('ODYSA INCAR',['NL','ODYSA INCAR'],Lang),'ODYSA_INCAR', 'odysa_map.jpg', overlayImages, description, 'http://www.google.nl/', ['DTV'], ['Vissim'],['Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat']);
+createCasus(translate('ODYSA INCAR',['NL','ODYSA INCAR'],Lang),'ODYSA_INCAR', 'odysa_map.jpg', overlayImages, description, '../default.html',[{'name':'DTV','image':'partners_logo_dtv.png'}], ['Vissim'],['Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat']);
 
 
 
@@ -77,6 +92,7 @@ function createCasus(title, Id, imageUrl, overlayImages, description, link, part
 
   casusImg = document.createElement('img');
   casusImg.src = 'images/' + imageUrl;
+  casusImg.classList.add('corner');
   imageContainer.appendChild(casusImg);
   buildImage(imageContainer, overlayImages);
 
@@ -85,7 +101,8 @@ function createCasus(title, Id, imageUrl, overlayImages, description, link, part
   casusLink.target = "_blank";
 
   casusLink.innerText = translate('Open case',['NL','Open casus'],Lang);
-  casusLink.className = 'button';
+  casusLink.classList.add('button');
+  casusLink.classList.add('corner');
 
   casusText = document.createElement('div');
   casusText.className = 'casusText';
@@ -105,10 +122,19 @@ function createCasus(title, Id, imageUrl, overlayImages, description, link, part
   }
 
   partnersDiv = document.createElement('p');
+  partnerImgs = document.createElement('div');
+  partnerImgs.classList.add('partnerImgs');
+
   var partners = '';
+  var partnerimg = '';
   for (var i = 0; i < partnersArray.length; i++) {
-    partners = partners + ', ' + partnersArray[i];
+    partnerimg = document.createElement('img');
+    partnerimg.src = 'images/' + partnersArray[i].image;
+    partnerimg.classList.add('partnerLogo');
+    partners = partners + ', ' + partnersArray[i].name;
+    partnerImgs.appendChild(partnerimg);
   }
+
   if (partners) {
     partners = partners.substring(1);
     partnersDiv.innerHTML = '<b>'+ translate('Partners:',['NL','Partners:'],Lang) +'</b> ' + partners;
@@ -122,6 +148,7 @@ function createCasus(title, Id, imageUrl, overlayImages, description, link, part
   textContainer.appendChild(simulationText);
   textContainer.appendChild(partnersDiv);
   textContainer.appendChild(locationText);
+  textContainer.appendChild(partnerImgs);
 
   casus.appendChild(buttonContainer);
   clearboth = document.createElement('div');
@@ -161,9 +188,11 @@ function buildImage(imageContainer, overlayImages) {
 function createBasic(Id, buttonContainer) {
   casus = document.createElement('div');
   casus.id = "casus-" + Id;
+  casus.classList.add('corner');
 
   imageContainer = document.createElement('div');
   imageContainer.id = "imageContainer-" + Id;
+  imageContainer.classList.add('corner');
 
   textContainer = document.createElement('div');
   textContainer.id = "textContainer-" + Id;
@@ -175,18 +204,19 @@ function createBasic(Id, buttonContainer) {
 }
 
 function buildText(description) {
+
   var text = '';
-  for (var key in description) {
-    if (key.substring(0, 1) === 'p') {
-      text += '<p>' + description[key] + '</p>';
-    } else if (key === 'h1') {
-      text += '<h1>' + description[key] + '</h1>';
-    } else if (key === 'h2') {
-      text += '<h2>' + description[key] + '</h2>';
-    } else if (key.substring(0, 2) === 'hr') {
+  for (var i = 0; i < description.length; i++) {
+
+    if (description[i].p) {
+      text += '<p>' + description[i].p + '</p>';
+    } else if (description[i].h1) {
+      text += '<h1>' + description[i].h1 + '</h1>';
+    } else if (description[i].h2) {
+      text += '<h2>' + description[i].h2 + '</h2>';
+    } else if (description[i].hr === '') {
       text += '<div class="horizontalRule"></div>';
     }
-
   }
   return text;
 }
