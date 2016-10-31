@@ -321,6 +321,9 @@ var wsLookup = {
     },
     groupcontrol: function (payload) {
         SyncManager.handleControlMessage(payload);
+    },
+    queryDialogData: function (payload) {
+        //todo implement
     }
 }
 

@@ -136,6 +136,7 @@
             .attr("d", lineFunction(graph.displayData[i]))
             .attr("class", "graphLine")
             .attr("stroke", graph.y[i].color)
+            .attr('stroke-width', 2)
             .attr("fill", "none");
         }
     }
@@ -329,6 +330,7 @@
             .attr("d", lineFunction(displayData[i]))
             .attr("class", "graphLine")
             .attr("stroke", graph.y[i].color)
+            .attr("stroke-width", 3)
             .attr("fill", "none");
         }
 

@@ -138,7 +138,7 @@
     setViewer: function()
     {
         //todo: remove for real implementation
-        if (DataManager.sessionInfo.session != "SSM")
+        if (DataManager.sessionInfo.session.toLowerCase() != "ssm")
             return;
 
         if (SyncManager.viewer)
