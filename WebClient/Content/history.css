@@ -19,7 +19,7 @@
   height: 44px;
 }
 .leaflet-control-history-expanded {
-  max-width:300px;
+  max-width:350px;
 }
 .leaflet-control-history .leaflet-control-history-list,
 .leaflet-control-history-expanded .leaflet-control-history-toggle {  display: none }
@@ -169,12 +169,13 @@ span[class^="history-name"]:hover {
   position: relative;
   border-radius: 3px;
   border:1px solid lightblue;
+  background: rgba(173, 216, 230, 0.6);
 }
 #phone .history-name, .history-name {
-  background: rgba(173, 216, 230, 1);
+  background: rgba(173, 216, 230, 0.6);
   color:#000;
 }
 #phone .history-name-inactive, .history-name-inactive {
-  background: rgba(173, 216, 230, 0.6);
+  background: rgba(173, 216, 230, 1);
   color:#000;
 }
