@@ -1,87 +1,212 @@
-﻿function handleSelectByQuery(e) {
+function handleSelectByQuery(e) {
 
-    // todo: build dialog based on measuresControl.options.selectCategories
+  // todo: build dialog based on measuresControl.options.selectCategories
 
-    var div = modalDialogCreate('Select objects by query', 'Select objects based on values of their attributes');
+  var div = modalDialogCreate('Select objects by query');
 
-    if (window.outerWidth < 500) {
-      div.style.width = '100%';
-      div.style.boxSizing = "border-box";
-      //div.style.margin = '5% auto';
-    } else {
-      div.style.width = '700px';
-      //div.style.margin = '5% auto';
-    }
+  // DataManager.queryDialogData = {};
+  // DataManager.queryDialogData['building'] = ['optie1','optie2'];
+  // DataManager.queryDialogData['building'] = ['optie3','optie4'];
+  // DataManager.queryDialogData['space'] = ['optie5','optie6'];
+
+  if (window.outerWidth < 500) {
+    div.style.width = '100%';
+    div.style.boxSizing = "border-box";
+    //div.style.margin = '5% auto';
+  } else {
+    div.style.width = '700px';
+    //div.style.margin = '5% auto';
+  }
+  cat_container = document.createElement('div');
+  cat_container.id = 'cat_container';
+  categories_select = document.createElement('select');
+  categories_select.name = 'categories';
+  categories_select.classList.add('form-control');
+  query = DataManager.queryDialogData;
+  for (var key in query) {
+    cat_option = document.createElement('option');
+    cat_option.value = key;
+    cat_option.innerText = key;
+    categories_select.appendChild(cat_option);
+  }
+
+  var catText = document.createElement('span');
+  catText.innerText = 'Select objects, based on values, of type';
+
+  cat_container.appendChild(catText);
+  cat_container.appendChild(categories_select);
 
 
-    // build dialog form
-    var f = div.appendChild(document.createElement('form'));
-    f.id = 'selectByQueryForm';
-    var mdl = f.appendChild(document.createElement('div'));
-    mdl.id = 'queryDialogLines';
-    mdl.appendChild(selectByQueryAddLine());
-    // buttons section
-    f.appendChild(document.createElement('hr'));
-    var mddb = f.appendChild(document.createElement('div'));
-    mddb.className = 'modalDialogDevideButtons';
 
-    modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
-    modelDialogAddButton(mddb, 'Apply', queryDialogApply);
+  // build dialog form
+  var f = div.appendChild(document.createElement('form'));
+  f.id = 'selectByQueryForm';
+  f.appendChild(cat_container);
+  var mdl = f.appendChild(document.createElement('div'));
+  mdl.id = 'queryDialogLines';
+  mdl.appendChild(selectByQueryAddLine());
+  // buttons section
+  f.appendChild(document.createElement('hr'));
+  var mddb = f.appendChild(document.createElement('div'));
+  mddb.className = 'modalDialogDevideButtons';
+
+
+  modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
+  modelDialogAddButton(mddb, 'Apply', queryDialogApply);
+
+}
+function removeOptions(data) {
+  for (var i = 0; i < data.length + 1; i++) {
+    data[0].remove();
+  }
+}
+function filldatalistOptions(datalist){
+
+  for (var i = 0; i < DataManager.queryDialogData[categories_select.value].length; i++) {
+    datalistOption = document.createElement('option');
+    datalistOption.value = DataManager.queryDialogData[categories_select.value][i];
+    datalist.appendChild(datalistOption);
+  }
 
 }
 
 function queryDialogApply() {
-    // build query
-    var query = '';
-    var lines = document.getElementById('queryDialogLines');
-    for (var i = 0; i < lines.children.length; i++) {
-        var line = lines.children[i];
-        if (line.children[0].value != '' && line.children[2].value != '') {
-            // 1=attribute, 2=operator, 3=value
-            if (query != '')
-                query += ' AND ';
-            query += line.children[0].value + ' ' + line.children[1].value + ' ' + line.children[2].value;
-        }
+
+var sessionRequest = {};
+    sessionRequest.selectObjects = {};
+    sessionRequest.selectObjects.mode = '=';
+    sessionRequest.selectObjects.selectCategories = [categories_select.value];
+
+
+
+  // build query
+  var fields = {};
+  var field = {};
+  var attribute, value, operator;
+  var lines = document.getElementById('queryDialogLines');
+  for (var i = 0; i < lines.children.length; i++) {
+    var line = lines.children[i];
+    if (line.children[0].value != '' && line.children[2].value != '') {
+      attribute = line.children[0].value;
+      operator = line.children[2].value;
+      value = line.children[3].value;
+      field[i] = {'attribute':attribute, 'operator': operator, 'value':value};
+      // 0=attribute, 2=operator, 3=value
     }
-    signalSelectByQuery(query);
-    modalDialogClose();
+    fields = field;
+  }
+
+  sessionRequest.selectObjects.fields = fields;
+  console.log(sessionRequest);
+  wsSend(sessionRequest);
+  modalDialogClose();
+}
+var categories = '';
+function selectByQueryAddLine(e) {
+  // we are the last entry
+  // add new entry
+
+  //
+  var newQueryLine = document.createElement('div');
+  newQueryLine.className = 'queryDialogLine';
+  //
+  datalistInput = document.createElement('input');
+  datalistInput.name = 'datalist_' + document.getElementsByClassName('queryDialogLine').length;
+  datalistInput.setAttribute('list','datalist_' + document.getElementsByClassName('queryDialogLine').length);
+  datalistInput.classList.add('form-control');
+
+  datalist = document.createElement('datalist');
+  datalist.classList.add('datalist','form-control');
+
+  datalist.id = 'datalist_' + document.getElementsByClassName('queryDialogLine').length;
+
+  if (!categories_select.value && document.getElementById('categories')) {
+    categories_select.value = document.getElementById('categories').children[0].value;
+  }
+  if (categories_select.value) {
+      filldatalistOptions(datalist);
+
+
+
+  operators = document.createElement('select');
+  operators.name = '';
+  operators.classList.add('optionList','form-control');
+
+  oparatorsOptions = [{'code':'<','text':'&lt;'},{'code':'<=','text':'&le;'},{'code':'=','text':'='},{'code':'<>','text':'&ne;'},{'code':'>','text':'&gt;'},{'code':'>=','text':'&ge;'},{'code':'in','text':'in'}]
+  operatorSelect = document.createElement('select');
+  operatorSelect.classList.add('form-control');
+  for (var i = 0; i < oparatorsOptions.length; i++) {
+    operatorOption = document.createElement('option');
+    operatorOption.value = oparatorsOptions[i].code;
+    operatorOption.innerHTML = oparatorsOptions[i].text;
+    if (oparatorsOptions[i].code === '=') {
+      operatorOption.selected = true;
+    }
+    operatorSelect.appendChild(operatorOption);
+  }
+
+  addqueryimg = document.createElement('img');
+  addqueryimg.classList.add('addQuery','queryDialogAddRemoveButton');
+  addqueryimg.src = 'Content/images/domainadd.png';
+  addqueryimg.onclick = function () {
+    selectByQueryAddLine(this);
+  };
+  addqueryimg.title = '..add a new line to the query';
+
+  removequeryimg = document.createElement('img');
+  removequeryimg.classList.add('removeQuery','queryDialogAddRemoveButton');
+  removequeryimg.src = 'Content/images/historyremove.png';
+  removequeryimg.onclick = function () {
+    selectByQueryRemoveLine(this);
+  };
+  removequeryimg.title = '..remove this line from the query';
+
+  inputvalue = document.createElement('input');
+  inputvalue.type = 'text';
+  inputvalue.placeholder = 'value';
+  inputvalue.classList.add('form-control');
+
+
+  // newQueryLine.appendChild(queries);
+  newQueryLine.appendChild(datalistInput);
+  newQueryLine.appendChild(datalist);
+  newQueryLine.appendChild(operatorSelect);
+  newQueryLine.appendChild(inputvalue);
+  newQueryLine.appendChild(addqueryimg);
+  newQueryLine.appendChild(removequeryimg);
+
+} else {
+  warningText = document.createElement('h4');
+  warningText.innerText = 'There are no categories available';
+  warningText.style.color = 'red';
+  newQueryLine.appendChild(warningText);
 }
 
-function selectByQueryAddLine(e) {
-    // we are the last entry
-    // add new entry
 
-    var newQueryLine = document.createElement('div');
-    newQueryLine.className = 'queryDialogLine';
-    newQueryLine.innerHTML =
-        '<select class="datalist form-control"><option value="Inhabitants">Inhabitants</option><option value="Height">Height</option><option value="Surface_area">Surface area</option></select>'+
-        '<select class="optionList form-control"><option value="<">&lt;</option><option value="<=" selected>&le;</option><option value="=" selected>=</option><option value="<>">&ne;</option><option value=">">&gt;</option><option value=">=">&ge;</option><option value="in">in</option></select>'+
-        '<input type="text" placeholder="value" class="form-control" />'+
-        '<img class="removeQuery" src="Content/images/historyremove.png" class="queryDialogAddRemoveButton" onclick="selectByQueryRemoveLine(this)" title="..remove this line from the query" />' +
-        '<img class="addQuery" src="Content/images/domainadd.png" class="queryDialogAddRemoveButton" onclick="selectByQueryAddLine(this)" title="..add a new line to the query" />';
-    if (e) {
-        e.parentNode.parentNode.appendChild(newQueryLine);
-        // remove add-line-image from current entry
-        e.parentNode.removeChild(e);
-    }
-    return newQueryLine;
+
+  if (e) {
+    e.parentNode.parentNode.appendChild(newQueryLine);
+    // remove add-line-image from current entry
+    e.parentNode.removeChild(e);
+  }
+  return newQueryLine;
 }
 
 function selectByQueryRemoveLine(e) {
-    currentQueryLine = e.parentNode;
-    currentQueryLines = currentQueryLine.parentNode;
-    // we do not want to delete the last entry
-    if (currentQueryLines.childElementCount > 1) {
-        var addNewQueryLineImage = currentQueryLine.nextElementSibling == null;
-        currentQueryLine.parentNode.removeChild(currentQueryLine);
+  currentQueryLine = e.parentNode;
+  currentQueryLines = currentQueryLine.parentNode;
+  // we do not want to delete the last entry
+  if (currentQueryLines.childElementCount > 1) {
+    var addNewQueryLineImage = currentQueryLine.nextElementSibling == null;
+    currentQueryLine.parentNode.removeChild(currentQueryLine);
 
-        if (addNewQueryLineImage) {
-            var img = document.createElement('img');
-            img.src = 'Content/images/domainadd.png';
-            img.onclick = function () { selectByQueryAddLine(img); };
-            img.title = 'Add a new line to the query';
-            img.className = 'addQuery';
-            currentQueryLines.lastElementChild.appendChild(img);
-        }
+    if (addNewQueryLineImage) {
+      var img = document.createElement('img');
+      img.src = 'Content/images/domainadd.png';
+      img.onclick = function () { selectByQueryAddLine(img); };
+      img.title = 'Add a new line to the query';
+      img.className = 'addQuery';
+      currentQueryLines.lastElementChild.appendChild(img);
     }
+  }
 }

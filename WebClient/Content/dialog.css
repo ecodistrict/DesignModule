@@ -138,6 +138,7 @@
   font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
   margin: 0 4px 0 4px;
   height: 20px;
+  width: 285px;
 }
 .queryDialogLine select {
   font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
