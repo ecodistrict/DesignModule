@@ -142,7 +142,7 @@ function ApplyNewProperties() {
 
         if (typeof inputNode !== "undefined") {
             if (inputNode.type != "checkbox") {
-                if (properties[i].value != inputNode.value) {
+                if (!(properties[i].value == null && inputNode.value == "") && properties[i].value != inputNode.value) {
                     changes = true;
 
                     switch (properties[i].type)
@@ -235,6 +235,7 @@ function createFloatTable(aAttribute, aElem) {
     inputField.type = "number";
     inputField.className = "intInput form-control";
     inputField.step = "any";
+    inputField.defaultValue = aAttribute.value;
     inputField.value = aAttribute.value;
     inputField.oldValue = aAttribute.value;
     inputField.disabled = !BoolParse(aAttribute.editable);
