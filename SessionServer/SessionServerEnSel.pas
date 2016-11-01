@@ -188,7 +188,7 @@ type
     procedure ReadObjects(aSender: TObject);
     function getMeasuresJSON: string; override;
     function handleTilerStatus(aTiler: TTiler): string;
-    procedure newClient(aClient: TClient); override;
+    procedure handleNewClient(aClient: TClient); override;
   public
     function ReadScenario(const aID: string): TScenario; override;
     procedure ReadBasicData(); override;
@@ -290,7 +290,7 @@ begin
   Result := 'project '+projectName+' ('+projectID+')';
 end;
 
-procedure TEnselProject.newClient(aClient: TClient);
+procedure TEnselProject.handleNewClient(aClient: TClient);
 var
   scenario: TScenario;
 begin
