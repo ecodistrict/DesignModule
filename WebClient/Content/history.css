@@ -169,16 +169,18 @@ span[class^="history-name"]:hover {
   position: relative;
   border-radius: 3px;
   border:1px solid lightblue;
-  background: rgba(173, 216, 230, 0.6);
-  opacity: 0.4;
+  background: rgba(173, 216, 230, 0);
+  opacity: 0.5;
 }
 #phone .history-name, .history-name {
-  background: rgba(173, 216, 230, 0.6);
+  background: rgba(173, 216, 230, 0.8) !important;
   color:#000;
-
+  opacity: 1 !important;
+}
+.history-name:hover {
+  opacity: 0.8 !important;
 }
 #phone .history-name-inactive, .history-name-inactive {
   background: rgba(173, 216, 230, 1);
   color:#000;
-  opacity: 0.8 !important;
 }
