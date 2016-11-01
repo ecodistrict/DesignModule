@@ -98,7 +98,6 @@ function showSelectedObjectsProperties(aSelectedObjectsProperties) {
 function buildAttributesTable(container) {
     var tableContainer = container.appendChild(document.createElement("div"));
     tableContainer.id = "tableContainer";
-    console.log(objProps);
     for (var i = 0; i < objProps.properties.length; i++) {
         objProps.properties[i].id = objProps.properties[i].name.replace(/\s+/g, '');
         createAttributeTable(objProps.properties[i], tableContainer);
@@ -131,6 +130,7 @@ function buildAttributesTable(container) {
 function ApplyNewProperties() {
     var changes = false;
     var properties = objProps.properties;
+    objProps.properties = [];
 
     for (var i = 0; i < properties.length; i++) {
 
@@ -142,14 +142,26 @@ function ApplyNewProperties() {
 
         if (typeof inputNode !== "undefined") {
             if (inputNode.type != "checkbox") {
-                if (properties[i].value != inputNode.value) {
+                if (!(properties[i].value == null && inputNode.value == "") && properties[i].value != inputNode.value) {
                     changes = true;
-                    properties[i].value = inputNode.value;
+
+                    switch (properties[i].type)
+                    {
+                        case "int": properties[i].value = parseInt(inputNode.value);
+                            break;
+                        case "float": properties[i].value = parseFloat(inputNode.value);
+                            break;
+                        default: properties[i].value = inputNode.value;
+                            break;
+                    }
+                    
+                    objProps.properties.push(properties[i]);
                 }
             }
             else if (inputNode.checked != BoolParse(properties[i].value)) {
                 changes = true;
                 properties[i].value = inputNode.checked;
+                objProps.properties.push(properties[i]);
             }
         }
         else {
@@ -157,6 +169,7 @@ function ApplyNewProperties() {
             if (properties[i].value != inputNode.options[inputNode.selectedIndex].value) {
                 changes = true
                 properties[i].value = inputNode.options[inputNode.selectedIndex].value;
+                objProps.properties.push(properties[i]);
             }
         }
 
@@ -170,6 +183,8 @@ function ApplyNewProperties() {
 
         wsSend(request);
     }
+    else
+        objProps.properties = properties;
     //No closing on apply??
     modalDialogClose();
 
@@ -219,6 +234,8 @@ function createFloatTable(aAttribute, aElem) {
     var inputField = rightCell.appendChild(document.createElement("Input"));
     inputField.type = "number";
     inputField.className = "intInput form-control";
+    inputField.step = "any";
+    inputField.defaultValue = aAttribute.value;
     inputField.value = aAttribute.value;
     inputField.oldValue = aAttribute.value;
     inputField.disabled = !BoolParse(aAttribute.editable);
