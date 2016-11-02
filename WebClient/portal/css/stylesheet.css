@@ -254,3 +254,9 @@ img.partnerLogo {
 .legend {
   /*background-color: rgba(255,153,0,0.2);*/
 }
+
+svg {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}

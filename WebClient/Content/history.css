@@ -19,7 +19,7 @@
   height: 44px;
 }
 .leaflet-control-history-expanded {
-  max-width:350px;
+  max-width:340px;
 }
 .leaflet-control-history .leaflet-control-history-list,
 .leaflet-control-history-expanded .leaflet-control-history-toggle {  display: none }
@@ -152,7 +152,6 @@
   position: relative;
   float:left;
   width:100%;
-  margin-bottom:5px;
 }
 span[class^="history-name"]:hover {
   border:1px solid rgba(173, 216, 230, 0.4);
