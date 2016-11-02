@@ -156,6 +156,7 @@ type
     procedure SendMeasures();
     procedure SendSession();
     procedure SendMeasuresHistory();
+    procedure sendQueryDialogData();
     procedure UpdateSession();
     procedure SendTimeSlider();
     procedure SendSelectionEnabled();
@@ -566,19 +567,19 @@ type
     procedure setMeasuresEnabled(aValue: Boolean);
     procedure setMeasuresHistoryEnabled(aValue: Boolean);
     function getMeasuresJSON: string; virtual;
+    function getQueryDialogDataJSON: string; virtual;
     function ReadScenario(const aID: string): TScenario; virtual;
 
     procedure handleTilerStartup(aTiler: TTiler; aStartupTime: TDateTime);
     procedure timerTilerStatusAsHeartbeat(aTimer: TTimer);
 
-    procedure newClient(aClient: TClient); virtual;
     function getMeasuresHistoryJSON: string; virtual;
     procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); virtual;
-    procedure processTypedMessage(const aMessageType: string; var aJSONObject: TJSONObject); virtual;
+    procedure handleTypedClientMessage(const aMessageType: string; var aJSONObject: TJSONObject); virtual;
+    procedure handleNewClient(aClient: TClient); virtual;
   public
     function AddClient(const aClientID: string): TClient;
     procedure ReadBasicData(); virtual; abstract;
-    procedure handleNewClient(aClient: TClient); virtual;
   public
     property Connection: TConnection read fConnection;
     property dbConnection: TCustomConnection read fDBConnection;
@@ -595,6 +596,8 @@ type
 
     property measuresJSON: string read getMeasuresJSON;
     property measures: TObjectDictionary<string, TMeasure> read fMeasures;
+
+    property queryDialogDataJSON: string read getQueryDialogDataJSON;
 
     property timeSlider: Integer read fTimeSlider write setTimeSlider;
     property selectionEnabled: Boolean read fSelectionEnabled write setSelectionEnabled;
@@ -1251,8 +1254,9 @@ begin
   then SendMeasures();
   if fProject.measuresHistoryEnabled
   then SendMeasuresHistory();
+  if fProject.selectionEnabled
+  then SendQueryDialogData();
   SendDomains('domains');
-  fProject.newClient(Self);
   fProject.handleNewClient(Self);
 end;
 
@@ -1518,7 +1522,7 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     end;
   end;
 
-  procedure processTypedMessage(const aMessageType: string; var aJSONObject: TJSONObject);
+  procedure handleTypedMessage(const aMessageType: string; var aJSONObject: TJSONObject);
   var
     group: string;
     members: TGroup;
@@ -1596,9 +1600,6 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     else if aMessagetype='groupcontrol' then
     begin
       (*
-      
-      *)
-      (*
       {
         "type":"groupcontrol"
         "payload":
@@ -1667,7 +1668,8 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
         else Log.WriteLn('Unknown on command "'+command+'" in "groupcontrol" message', llWarning);
       end;
     end
-    else fProject.processTypedMessage(aMessageType, aJSONObject);
+    // handle all other typed messages on the connected project
+    else fProject.handleTypedClientMessage(aMessageType, aJSONObject);
   end;
 
 var
@@ -1683,7 +1685,7 @@ begin
       jsonObject := TJSONObject.ParseJSONValue(aJSONString) as TJSONObject;
       try
         if jsonObject.TryGetValue<string>('type', messageType)
-        then processTypedMessage(messageType, jsonObject)
+        then handleTypedMessage(messageType, jsonObject)
         else if isObject(jsonObject, 'subscribe', jsonPair)
         then addClient(sessionModel.FindElement(jsonPair.JsonValue.Value))
         else if isObject(jsonObject, 'unsubscribe', jsonPair)
@@ -1926,6 +1928,11 @@ end;
 procedure TClient.SendPreview(const aElementID, aPreviewBASE64: string);
 begin
   signalString('{"type":"refresh","payload":{"id":"'+aElementID+'","preview":"'+aPreviewBASE64+'"}}');
+end;
+
+procedure TClient.sendQueryDialogData;
+begin
+  signalString('{"type":"queryDialogData","payload":'+fProject.queryDialogDataJSON+'}');
 end;
 
 procedure TClient.SendRefresh(const aElementID, aTimeStamp, aObjectsTilesLink: string);
@@ -3473,6 +3480,11 @@ begin
   else Result := '[]';
 end;
 
+function TProject.getQueryDialogDataJSON: string;
+begin
+  Result := 'null'; // in case of real dat build JSON object {}
+end;
+
 procedure TProject.handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario);
 begin
   // default no action
@@ -3515,12 +3527,7 @@ begin
   Result := fGroups.TryGetValue(aGroup, group) and (group.Count>0) and (group[0]=aMember);
 end;
 
-procedure TProject.newClient(aClient: TClient);
-begin
-  // default no actions
-end;
-
-procedure TProject.processTypedMessage(const aMessageType: string; var aJSONObject: TJSONObject);
+procedure TProject.handleTypedClientMessage(const aMessageType: string; var aJSONObject: TJSONObject);
 begin
   // default no processing
 end;
