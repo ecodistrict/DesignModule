@@ -56,7 +56,7 @@
   margin: 5px -10px 5px -6px;
   position: relative;
   box-sizing: border-box;
-    width: 100%;
+  width: 100%;
   clear:both;
 }
 .leaflet-control-history h4 {
@@ -121,7 +121,13 @@
   /*opacity: 0.5;*/
   cursor: pointer;
 }
-.leaflet-control-history-apply { }
+.leaflet-control-history-scrollbar
+.leaflet-control-history-apply {
+  position: fixed;
+  background-color: #fff;
+  padding: 4px;
+  box-sizing: border-box;
+}
 .history-button {
   display: block;
   float:right;

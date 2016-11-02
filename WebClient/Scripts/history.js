@@ -49,7 +49,6 @@ L.Control.History = L.Control.extend({
         }, this);
       }
 
-
       var link = this._layersLink = L.DomUtil.create('a', className + '-toggle', container);
       link.href = '#';
       link.title = 'History of applied measures and commit new measures';
@@ -344,6 +343,15 @@ L.Control.History = L.Control.extend({
 
       if (acceptableHeight < this._form.clientHeight) {
         L.DomUtil.addClass(this._form, 'leaflet-control-history-scrollbar');
+
+        var apply = document.getElementsByClassName('leaflet-control-history-apply')[0];
+
+
+        apply.style.width = (this._form.getBoundingClientRect().width - 17) + 'px';
+        apply.style.left = this._form.getBoundingClientRect().left+ 'px';
+        apply.style.bottom = apply.getBoundingClientRect().height + 2 + 'px';
+
+        this._form.style.paddingBottom = "30px";
         this._form.style.height = acceptableHeight + 'px';
       } else {
         L.DomUtil.removeClass(this._form, 'leaflet-control-history-scrollbar');
