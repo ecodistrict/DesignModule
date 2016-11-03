@@ -456,7 +456,7 @@ type
     // select objects
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; virtual;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; virtual;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string; overload; virtual;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string; overload; virtual;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aSelectedIDs: TArray<string>): string; overload; virtual;
     // select object properties
     function selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string; virtual;
@@ -1388,7 +1388,6 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     m: string;
     g: TJSONObject;
     measure: TJSONObject;
-    q: string;
     rStr: string;
     r: Double;
     x, y: Double;
@@ -1402,6 +1401,7 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     i: Integer;
     resp: string;
     jsonSelectedObjects: TJSONArray;
+    jsonQuery: TJSONArray;
   begin
     // decode selection and send back objects
     resp := '';
@@ -1417,8 +1417,7 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
     // radius
     rStr := aSelectObjects.getValue<string>('radius', '');
     // geometry
-    g := aSelectObjects.getValue<TJSONObject>('geometry', nil);
-    if Assigned(g) then
+    if aSelectObjects.TryGetValue<TJSONObject>('geometry', g) then
     begin
       c := g.Values['geometry'].getValue<TJSONArray>('coordinates');
       // select objects based on geometry
@@ -1460,35 +1459,26 @@ procedure TClient.HandleClientCommand(const aJSONString: string);
         end;
       end;
     end
-    else
+    else if aSelectObjects.TryGetValue<TJSONObject>('measure', measure) then
     begin
-      measure := aSelectObjects.getValue<TJSONObject>('measure', nil);
-      if Assigned(measure) then
+      if Assigned(fCurrentScenario) then
       begin
-        // todo: select objects based on given measure
-
-        if Assigned(fCurrentScenario) then
+        // decode objects from measure                         \
+        if aSelectObjects.TryGetValue<TJSONArray>('selectedObjects', jsonSelectedObjects) then
         begin
-          // decode objects from measure                         \
-          if aSelectObjects.TryGetValue<TJSONArray>('selectedObjects', jsonSelectedObjects) then
-          begin
-            setLength(oids, jsonSelectedObjects.Count);
-            for i := 0 to jsonSelectedObjects.Count-1
-            do oids[i] := jsonSelectedObjects.Items[i].value;
-          end
-          else setLength(oids, 0);
-          resp := fCurrentScenario.SelectObjects(Self, t, m, sc, oids);
-        end;
-      end
-      else
-      begin
-        q := aSelectObjects.getValue<string>('query', '');
-        // select objects based on query
-        if Assigned(fCurrentScenario) then
-        begin
-          resp := fCurrentScenario.SelectObjects(Self, t, m, sc, q);
-        end;
+          setLength(oids, jsonSelectedObjects.Count);
+          for i := 0 to jsonSelectedObjects.Count-1
+          do oids[i] := jsonSelectedObjects.Items[i].value;
+        end
+        else setLength(oids, 0);
+        resp := fCurrentScenario.SelectObjects(Self, t, m, sc, oids);
       end;
+    end
+    else if aSelectObjects.TryGetValue<TJSONArray>('query', jsonQuery) then
+    begin
+      // select objects based on query
+      if Assigned(fCurrentScenario)
+      then resp := fCurrentScenario.SelectObjects(Self, t, m, sc, jsonQuery);
     end;
     if resp<>'' then
     begin
@@ -3137,7 +3127,7 @@ begin
   Result := '';
 end;
 
-function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string;
+function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string;
 begin
   Result := '';
 end;

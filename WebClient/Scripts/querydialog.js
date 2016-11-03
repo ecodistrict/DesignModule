@@ -73,30 +73,27 @@ function filldatalistOptions(datalist){
 function queryDialogApply() {
 
 var sessionRequest = {};
-    sessionRequest.selectObjects = {};
-    sessionRequest.selectObjects.mode = '=';
-    sessionRequest.selectObjects.selectCategories = [categories_select.value];
 
-
+  sessionRequest.selectObjects = {};
+  sessionRequest.selectObjects.mode = '=';
+  sessionRequest.selectObjects.selectCategories = [categories_select.value];
+  sessionRequest.selectObjects.query = [];
 
   // build query
-  var fields = {};
-  var field = {};
-  var attribute, value, operator;
+  var fieldName, value, operator;
   var lines = document.getElementById('queryDialogLines');
   for (var i = 0; i < lines.children.length; i++) {
     var line = lines.children[i];
     if (line.children[0].value != '' && line.children[2].value != '') {
-      attribute = line.children[0].value;
+      fieldName = line.children[0].value;
       operator = line.children[2].value;
       value = line.children[3].value;
-      field[i] = {'attribute':attribute, 'operator': operator, 'value':value};
+      field = { 'field': fieldName, 'operator': operator, 'value': value };
       // 0=attribute, 2=operator, 3=value
+      sessionRequest.selectObjects.query.push(field);
     }
-    fields = field;
   }
 
-  sessionRequest.selectObjects.fields = fields;
   console.log(sessionRequest);
   wsSend(sessionRequest);
   modalDialogClose();

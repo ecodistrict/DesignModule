@@ -70,7 +70,7 @@ type
   public
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string; overload; override;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aSelectedIDs: TArray<string>): string; overload; override;
 
     function selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string; override;
@@ -332,6 +332,124 @@ function CheckSQLValue(const aValue: string): string;
 begin
   // remove escape quotes in values used in sql statements
   Result := aValue.Replace('''', '"')
+end;
+
+function IsSurroundedByQuotes(const s: string; aQuoteChar: char): Boolean; overload;
+begin
+  if length(s)>=2
+  then Result := ((s[1]=aQuoteChar) and (s[s.Length]=aQuoteChar))
+  else Result := False;
+end;
+
+function IsSurroundedByQuotes(const s: string; aQuoteChars: array of char): Boolean; overload;
+var
+  qc: Char;
+begin
+  for qc in aQuoteChars do
+  begin
+    if IsSurroundedByQuotes(s, qc)
+    then exit(true);
+  end;
+  exit(false);
+end;
+
+function SurroundWithQuotes(const s: string; aQuoteChar: char): string;
+begin
+  if not IsSurroundedByQuotes(s, aQuoteChar)
+  then result := aQuoteChar+s+aQuoteChar
+  else result := s;
+end;
+
+function UnQuote(const s: string; aQuoteChars: array of char; var aUsedQuoteChar: Char): string;
+var
+  qc: Char;
+begin
+  for qc in aQuoteChars do
+  begin
+    if IsSurroundedByQuotes(s, qc) then
+    begin
+      aUsedQuoteChar := qc;
+      exit(s.Substring(1, s.Length-2));
+    end;
+  end;
+  aUsedQuoteChar := #0;
+  exit(s);
+end;
+
+function LimitChars(const s: string; const aLimitChars: string; aReplaceChar: Char; out aLimited: Boolean): string;
+var
+  i: Integer;
+begin
+  aLimited := False;
+  Result := s;
+  for i := 1 to result.Length do
+  begin
+    if aLimitChars.IndexOf(result[i])<0 then
+    begin
+      result[i] := aReplaceChar;
+      aLimited := True;
+    end;
+  end;
+end;
+
+const
+  ValidSQLNameFirstChars =
+    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_';
+  ValidSQLNameSubsequentChars =
+    ValidSQLNameFirstChars+
+    '01234567890';
+  ValidSQLQuotedNameChars =
+    ValidSQLNameSubsequentChars+
+    '!#()-.:;[]{}~çÇ€ƒŽžŸ¡¢£¤¥àáâãäåæèéêëìíîïðñòóö÷øûüý';
+
+  ValidSQLValueChars =
+    ValidSQLNameSubsequentChars+
+    '!#$%&()*+,-.:;<=>[]^{}~çÇ€ƒŽžŸ¡¢£¤¥àáâãäåæèéêëìíîïðñòóö÷øûüý';
+
+function SafeSQLFieldName(const aFieldName: string): string;
+var
+  qc: Char;
+  limited: Boolean;
+begin
+  if aFieldName.Length>0 then
+  begin
+    if IsSurroundedByQuotes(aFieldName, ['''', '"']) then
+    begin
+      Result := LimitChars(UnQuote(aFieldName, ['"',''''], qc), ValidSQLQuotedNameChars, '_', limited);
+      Result := qc+Result+qc; // put quotes around it again
+    end
+    else
+    begin
+      if ValidSQLNameFirstChars.IndexOf(aFieldName[1])>=0
+      then Result := LimitChars(aFieldName, ValidSQLNameSubsequentChars, '_', limited)
+      else Result := '_'+LimitChars(aFieldName.Substring(1), ValidSQLNameSubsequentChars, '_', limited);
+    end;
+  end
+  else
+  begin
+    Result := '_';
+    limited := True;
+  end;
+  if limited
+  then Log.WriteLn('escaped SQL field name '+aFieldName+' -> '+Result, llWarning);
+end;
+
+function SafeSQLValue(const aValue: string; aMaybeSurroundedByQuotes: Boolean): string;
+var
+  qc: Char;
+  limited: Boolean;
+begin
+  if aMaybeSurroundedByQuotes and IsSurroundedByQuotes(aValue, ['"', '''']) then
+  begin
+    Result := SafeSQLValue(UnQuote(aValue, ['"',''''], qc), false);
+    Result := qc+Result+qc; // put quotes around it again
+  end
+  else
+  begin
+    Result := LimitChars(aValue, ValidSQLValueChars, '_', limited);
+    if limited
+    then Log.WriteLn('escaped SQL value '+aValue+' -> '+Result, llWarning);
+  end;
 end;
 
 { TEcodistrictLayer }
@@ -858,25 +976,89 @@ begin
   end;
 end;
 
-function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string;
+function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string;
 var
   layers: TList<TLayer>;
+  q: TJSONValue;
+  field: TJSONObject;
+  fieldName: string;
+  operStr: string;
+  valueStr: string;
+  oper: Integer;
+  v: Double;
+//  op: TDIObjectProperty;
+  tableName: string;
+  keyFieldName: string;
+  sql: string;
+  layer: TLayer;
+  scenarioSchema: string;
 begin
   Result := '';
   layers := TList<TLayer>.Create;
   try
+    if fID=fProject.ProjectID
+    then scenarioSchema := EcoDistrictSchemaId(fID)
+    else scenarioSchema := EcoDistrictSchemaId(fProject.ProjectID, fID);
+
     if selectLayersOnCategories(aSelectCategories, layers) then
     begin
       if aMode='+' then
       begin
         // only use first layer (only 1 type of object allowed..)
         // todo: warning if more then 1 layer?
-
+        // never gets called for now..
       end
       else
       begin
         // select objects in layer that match first
-
+        for q in aJSONQuery do
+        begin
+          field := q as TJSONObject;
+          if field.TryGetValue<string>('field', fieldName) and
+             field.TryGetValue<string>('operator', operStr) and
+             field.TryGetValue<string>('value', valueStr) then
+          begin
+            fieldName := SafeSQLFieldName(fieldName);
+            oper := '|<|<=|=|<>|>|>=|in|IN|'.IndexOf('|'+operStr+'|');
+            case oper of
+              0:; // <
+              2:; // <=
+              5:; // =
+              7:; // <>
+              10:; // >
+              12:; // >=
+              15,18:; // in, IN
+            else
+              oper := -1;
+            end;
+            if oper>=0 then
+            begin
+              if not Double.TryParse(valueStr, v)
+              then valueStr := SurroundWithQuotes(SafeSQLValue(valueStr, true), '''')
+              else valueStr := v.ToString(dotFormat);
+              // find table and key field for category
+//              for op in (fProject as TEcodistrictProject).DIObjectProperties do
+//              begin
+              tableName := '';
+              for layer in layers  do
+              begin
+                Log.WriteLn(layer.name+': '+layer.query);
+              end;
+//              if op.category in aSelectCategories then
+//              begin
+//                tableName := op.tableName;
+//                keyFieldName := op.keyFieldName;
+//                break;
+//              end;
+//              end;
+              if tableName<>'' then
+              begin
+                sql := 'SELECT '+keyFieldName+' FROM '+scenarioSchema+'.'+tableName+' WHERE '+fieldName+operStr+valueStr;
+                Log.WriteLn('select by query: '+sql);
+              end;
+            end;
+          end;
+        end;
       end;
 
 
@@ -1376,43 +1558,6 @@ begin
   if not Assigned(fDMQueries)
   then ReadDMQueries();
   Result := fDMQueries;
-end;
-
-function SafeSQLValue(const aValue: string; aSurroundedByQuotes: Boolean): string;
-var
-  i: Integer;
-begin
-  if aSurroundedByQuotes and (aValue.Length>=2) and
-     ( (aValue[1]='''') and (aValue[aValue.Length]='''') or
-       (aValue[1]='"') and (aValue[aValue.Length]='"') )
-  then Result := aValue[1]+SafeSQLValue(aValue.Substring(1, aValue.Length-2), False)+aValue[1]
-  else
-  begin
-    Result := aValue;
-    for i := 1 to aValue.Length do
-    begin
-      // todo: add supported characters
-      case Result[i] of
-        'A'..'Z',
-        'a'..'z',
-        '0'..'9',
-        '!', '#', '$', '%', '&', '(', ')', '*', '+', ',', '-', '.',
-        ':', ';', '<', '=', '>',
-        '[', ']', '^', '_', '{', '}', '~',
-        'ç', 'Ç',
-        '€', 'ƒ', 'Ž', 'ž','Ÿ','¡','¢',
-        '£','¤','¥',
-        'à','á','â','ã','ä','å','æ',
-        'è','é','ê','ë',
-        'ì','í','î','ï',
-        'ð','ñ','ò','ó','ö','÷','ø',
-        'û','ü','ý':;
-      else
-        Log.WriteLn('escaped SQL value "'+aValue+'": '+Result[i]+' -> _', llWarning);
-        Result[i] := '_';
-      end;
-    end;
-  end;
 end;
 
 procedure TEcodistrictProject.handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario);

@@ -351,7 +351,8 @@ function wsConnect() {
 
             //check if message is of the new type, if so direct call otherwise 
             if (typeof message.type !== "undefined") {
-                wsLookup[message.type](message.payload);
+                if (typeof wsLookup[message.type] !== "undefined")
+                    wsLookup[message.type](message.payload);
             }
             else {
                 var messageBuilder = {};
@@ -496,8 +497,8 @@ function wsConnect() {
                     console.log(message);
                     break; //unknown message
                 }
-
-                wsLookup[messageBuilder.type](messageBuilder.payload);
+                if (typeof wsLookup[messageBuilder.type] !== "undefined")
+                    wsLookup[messageBuilder.type](messageBuilder.payload);
             }
         }
 
