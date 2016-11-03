@@ -987,11 +987,15 @@ var
   oper: Integer;
   v: Double;
 //  op: TDIObjectProperty;
-  tableName: string;
-  keyFieldName: string;
+//  tableName: string;
+//  keyFieldName: string;
   sql: string;
   layer: TLayer;
   scenarioSchema: string;
+  query: TFDQuery;
+  objectID: TWDID;
+  layerObject: TLayerObject;
+  objectsGeoJSON: string;
 begin
   Result := '';
   layers := TList<TLayer>.Create;
@@ -1027,7 +1031,8 @@ begin
               7:; // <>
               10:; // >
               12:; // >=
-              15,18:; // in, IN
+              15, 18:; // in, IN
+              // todo: in/IN does not work with strings (' will be filtered out of valueStr)
             else
               oper := -1;
             end;
@@ -1039,23 +1044,51 @@ begin
               // find table and key field for category
 //              for op in (fProject as TEcodistrictProject).DIObjectProperties do
 //              begin
-              tableName := '';
-              for layer in layers  do
-              begin
-                Log.WriteLn(layer.name+': '+layer.query);
+              //tableName := '';
+              // for now only process first layer
+              layer := layers.First;
+
+              // todo: not fool prooof
+              if layer.query.ToUpper.IndexOf('WHERE')>=0
+              then sql := layer.query+' AND '+fieldName+operStr+valueStr
+              else sql := layer.query+' WHERE '+fieldName+operStr+valueStr;
+
+              Log.WriteLn('select by query: '+sql);
+
+              objectsGeoJSON := '';
+
+              query := TFDQuery.Create(nil);
+              try
+                query.Connection := project.dbConnection as TFDConnection;
+                query.SQL.Text := sql;
+                try
+                  query.Open();
+                  query.First();
+                  while not query.Eof do
+                  begin
+                    objectID := query.Fields[0].AsAnsiString;
+                    if layer.FindObject(objectID, layerObject) then
+                    begin
+                      if objectsGeoJSON<>''
+                      then objectsGeoJSON := objectsGeoJSON+',';
+                      objectsGeoJSON := objectsGeoJSON+layerObject.GeoJSON2D[layer.geometryType];
+                    end;
+                    query.Next();
+                  end;
+                except
+                  on e: exception do
+                  begin
+                    log.WriteLn('exception in TEcodistrictScenario.selectObjectsProperties: '+e.Message+' (sql: '+query.SQL.Text+')', llError);
+                  end;
+                end;
+              finally
+                query.Free;
               end;
-//              if op.category in aSelectCategories then
-//              begin
-//                tableName := op.tableName;
-//                keyFieldName := op.keyFieldName;
-//                break;
-//              end;
-//              end;
-              if tableName<>'' then
-              begin
-                sql := 'SELECT '+keyFieldName+' FROM '+scenarioSchema+'.'+tableName+' WHERE '+fieldName+operStr+valueStr;
-                Log.WriteLn('select by query: '+sql);
-              end;
+
+              Result :=
+                '{"selectedObjects":{"selectCategories":["'+layer.ID+'"],'+
+                '"mode":"'+aMode+'",'+
+                '"objects":['+objectsGeoJSON+']}}';
             end;
           end;
         end;
