@@ -1,4 +1,4 @@
-// enable draw control for selections
+﻿// enable draw control for selections
 map.options.drawControl = true;
 
 var drawnItems = new L.FeatureGroup();

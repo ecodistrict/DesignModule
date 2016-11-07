@@ -29,6 +29,7 @@ uses
 
   GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
 
+  System.JSON,
   System.Math,
   System.Classes,
   System.SysUtils,
@@ -157,7 +158,7 @@ type
   public
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string; overload; override;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string; overload; override;
 
     //function selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string; overrride;
   end;
@@ -1645,7 +1646,7 @@ begin
   end;
 end;
 
-function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string;
+function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string;
 var
   layers: TList<TLayer>;
 begin

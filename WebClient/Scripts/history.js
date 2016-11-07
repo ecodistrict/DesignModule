@@ -312,7 +312,7 @@ L.Control.History = L.Control.extend({
     sessionRequest.selectObjects.measure = item.measure;
     sessionRequest.selectObjects.selectedObjects = item.selectedObjects;
     sessionRequest.selectObjects.selectCategories = item.selectCategories;
-    sessionRequest.selectObjects.mode = e.ctrlKey ? '~' : '=';
+    sessionRequest.selectObjects.mode = e.ctrlKey ? '+' : '=';
     wsSend(sessionRequest);
 
     this._refocusOnMap();
