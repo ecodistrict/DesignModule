@@ -398,7 +398,7 @@ map.on('draw:created', function (e, e2) {
     sessionRequest.selectObjects.geometry = e.layer.toGeoJSON();
     if (e.layerType == "circle")
         sessionRequest.selectObjects.radius = e.layer._mRadius;
-    sessionRequest.selectObjects.mode = e.ctrlKey ? '+' : '=';
+    sessionRequest.selectObjects.mode = window.event.ctrlKey ? '+' : '=';
     sessionRequest.selectObjects.selectCategories = measuresControl.options.selectCategories;
     wsSend(sessionRequest);
     inDraw = false;
