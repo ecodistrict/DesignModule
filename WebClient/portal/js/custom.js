@@ -1,7 +1,7 @@
 var mobile = false;
 var Lang = false;
 var data = {};
-
+var loggedin = {};
 // JSON example/explanation
 // fill in between the asterisks
 // data {
@@ -22,9 +22,27 @@ data['ODYSA_INCAR'] = {"casename":[["ODYSA INCAR"],{"NL":"ODYSA INCAR"}],"id":["
 data['cacc'] = {"casename":[["CACC and schockwaves on the A58"],{"NL":"CACC en schokgolven op de A58"}],"id":["a58"],"backgroundImages":[["Cacc_map.jpg"],{"src":"buttons_over.png","class":"overlay"}],"description":[[{"p":"CACC is a system whereby predecessor could be followed on short distances. So the intensity can be higher without to commence shockwaves. If they do commence, The CACC is better capable than the controllers to fix the shockwaves on the front. CACC belated the shockwaves on an more efficently way."},{"hr":""}],{"NL":[{"p":"CACC is een systeem waarmee voorgangers op korte afstanden kunnen worden gevolgd. Zodoende kan de intensiteit hoger zijn zonder dat er schokgolven ontstaan. Als deze wel ontstaan, is CACC beter in staat dan bestuurders om de schokgolven aan de voorkant op te lossen. CACC verlaat de schokgolf op een efficiëntere wijze."},{"hr":""}]}],"casuslink":{"link":"../default.html","buttonText":[["Open case"],{"NL":"Open casus"}]},"partnersObject":{"name":[["Partners"],{"NL":"Partners"}],"partners":[{"name":"DTV","image":"partners_logo_dtv.png"}]},"simulationsObject":{"name":[["Simulation system"],{"NL":"Simulatie omgeving"}],"simulations":[["OTS"]]},"locationObject":{"name":[["Location"],{"NL":"Locatie"}],"location":[["a58 between Tilburg and Eindhoven"],{"NL":"a58 tussen Tilburg en Eindhoven"}]}};
 
 Lang = getParameterByName('lang');
+loggedin.name = 'Jasper';
 emptyCasusContainer();
 createCasus(data, Lang);
+// checkLoggedIn(loggedin, Lang);
+function checkLoggedIn(loggedin, Lang) {
+  document.getElementById('userMenu').innerHTML = '';
+  var welcomeText;
+  if (Lang === 'NL') {
+    welcomeText = "Welkom: ";
+  } else {
+    welcomeText = "Welcome: ";
+  }
 
+  if (loggedin.name) {
+    username = document.createElement('span');
+    username.innerHTML = '<b>' + welcomeText + '</b>' + loggedin.name;
+    document.getElementById('userMenu').appendChild(username);
+  }
+
+
+}
 var LanguageDiv = document.getElementById('lang');
 languages = ['EN','NL'];
 var languageLink;
@@ -38,6 +56,7 @@ for (var i = 0; i < languages.length; i++) {
     Lang = e.target.innerText;
     emptyCasusContainer();
     createCasus(data, e.target.innerText);
+    // checkLoggedIn(loggedin, e.target.innerText);
     for (var i = 0; i < e.target.parentElement.children.length; i++) {
       if (e.target.innerText === e.target.parentElement.children[i].innerText) {
         e.target.parentElement.children[i].classList.remove('selected');

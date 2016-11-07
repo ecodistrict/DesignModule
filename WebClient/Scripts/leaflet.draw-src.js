@@ -343,6 +343,7 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 	},
 
 	_finishShape: function () {
+    DataManager.event = this; // added 7-11-201 for firefox by Jasper Huting
 		var intersects = this._poly.newLatLngIntersects(this._poly.getLatLngs()[0], true);
 
 		if ((!this.options.allowIntersection && intersects) || !this._shapeIsValid()) {
@@ -403,6 +404,7 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 
 	_onMouseUp: function (e) {
 		if (this._mouseDownOrigin) {
+      DataManager.event = e; // added 7-11-201 for firefox by Jasper Huting
 			// We detect clicks within a certain tolerance, otherwise let it
 			// be interpreted as a drag by the map
 			var distance = L.point(e.originalEvent.clientX, e.originalEvent.clientY)
@@ -416,6 +418,7 @@ L.Draw.Polyline = L.Draw.Feature.extend({
 
 	_updateFinishHandler: function () {
 		var markerCount = this._markers.length;
+    DataManager.event = this; // added 7-11-201 for firefox by Jasper Huting
 		// The last marker should have a click handler to close the polyline
 		if (markerCount > 1) {
 			this._markers[markerCount - 1].on('click', this._finishShape, this);
@@ -806,6 +809,7 @@ L.Draw.SimpleShape = L.Draw.Feature.extend({
 
 	_onMouseUp: function () {
 		if (this._shape) {
+      DataManager.event = this; // added 7-11-201 for firefox by Jasper Huting
 			this._fireCreatedEvent();
 		}
 
