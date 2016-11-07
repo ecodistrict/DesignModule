@@ -342,15 +342,39 @@
 
         if (graph.visible)
         {
-            graph.visible = false;
-            GraphManager.RemoveGraph(graph.graphID);
-            L.DomUtil.removeClass(graph.previewDiv, "chartPreviewActive");
+            graph._closeGraph();
         }
         else
         {
-            graph.visible = true;
-            GraphManager.AddGraph(graph.graphObject.container);
-            L.DomUtil.addClass(graph.previewDiv, "chartPreviewActive");
+            graph._openGraph();
         }
+    }
+
+    this._closeGraph = function () {
+        this.visible = false;
+        GraphManager.RemoveGraph(this.graphID)
+        L.DomUtil.removeClass(this.previewDiv, "chartPreviewActive");
+    }
+
+    this._openGraph = function () {
+        this.visible = true;
+        this._resetSize();
+        GraphManager.AddGraph(this.graphObject.container);
+        L.DomUtil.addClass(this.previewDiv, "chartPreviewActive");
+    }
+
+    this._resetSize = function () {
+        var changed = false
+        if (parseInt(this.graphObject.container.style.width) != this.graphObject.width) {
+            this.graphObject.container.style.width = this.graphObject.width + "px";
+            changed = true;
+        }
+        if (parseInt(this.graphObject.container.style.height) != this.graphObject.height) {
+            this.graphObject.container.style.height = this.graphObject.height + "px";
+            changed = true;
+        }
+
+        if (changed)
+            this.Update();
     }
 }

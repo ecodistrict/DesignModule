@@ -186,9 +186,15 @@ var GraphManager = {
         div.graphID = graphDiv.graphID;
 
         if (is_touch_device()) {
-            div.addEventListener("touchstart", function (e) { GraphManager.RemoveGraph(e.currentTarget.graphID); });
+            div.addEventListener("touchstart", function (e) {
+                var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
+                graphDiv.graph._closeGraph();
+            });
         } else {
-            div.addEventListener("click", function (e) { GraphManager.RemoveGraph(e.currentTarget.graphID); });
+            div.addEventListener("click", function (e) {
+                var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
+                graphDiv.graph._closeGraph();
+            });
         }
         var infoDiv = graphDiv.appendChild(document.createElement("div"));
         infoDiv.className = "graph-info";
