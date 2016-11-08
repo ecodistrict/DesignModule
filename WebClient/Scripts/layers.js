@@ -216,7 +216,7 @@ function addLayerToMap(layer, opacity) {
             id: layer.name
         });
         tileLayer.domainLayer = layer;  // to identify that this is domain layer
-        tileLayer.setZIndex(999);
+        tileLayer.setZIndex(500);
         tileLayer.addTo(map);
         layer.tileLayer = tileLayer;
         layer.tileLayer.idShowing = layer.id;
@@ -237,7 +237,7 @@ function addLayerToMap(layer, opacity) {
             }
         });
         geoJsonLayer.domainLayer = layer;  // to identify that this is domain layer
-        geoJsonLayer.setZIndex(999);
+        geoJsonLayer.setZIndex(500);
         geoJsonLayer.addTo(map);
         layer.geoJsonLayer = geoJsonLayer;
         layer.tileLayer = undefined;
