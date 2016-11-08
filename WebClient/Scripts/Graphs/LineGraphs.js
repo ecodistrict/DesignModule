@@ -68,6 +68,7 @@
 
         container.style.visibility = "hidden";
         container.graph = this;
+        this.Update();
     }
 
     this._UpdatePreview = function () {
