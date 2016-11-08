@@ -401,7 +401,7 @@ var selectedItems = L.geoJson(undefined,
 
       var controlKey;
       if(DataManager.event) {
-        controlKey = DataManager.event;
+        controlKey = DataManager.event.ctrlKey;
       } else {
         if (window.event) {
           controlKey = window.event.ctrlKey;
@@ -413,7 +413,7 @@ var selectedItems = L.geoJson(undefined,
       sessionRequest.selectObjects.selectCategories = measuresControl.options.selectCategories;
       wsSend(sessionRequest);
       inDraw = false;
-      DataManager.event = '';
+      delete DataManager.event;
     });
 
     // add handler for simple click on map
@@ -473,7 +473,7 @@ var selectedItems = L.geoJson(undefined,
       sessionRequest.selectObjects.type = 'query';
       sessionRequest.selectObjects.query = aQuery;
       sessionRequest.selectObjects.selectCategories = measuresControl.options.selectCategories;
-      sessionRequest.selectObjects.mode = window.event.ctrlKey ? '+' : '=';
+      sessionRequest.selectObjects.mode = '=';
       wsSend(sessionRequest);
     }
 
