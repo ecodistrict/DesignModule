@@ -1,5 +1,6 @@
 ﻿function modalDialogCreate(aTitle, aDescription) {
     var dialog = document.getElementById('modalDialog');
+    dialog.focus(); //removes focus from the element that was clicked on!
     // show dialog
     dialog.style.opacity = 1;
     dialog.style['pointer-events'] = 'auto';
@@ -50,17 +51,32 @@ function modalDialogClose() {
 
 // handle escape key for closing dialogs etc.
 document.addEventListener('keyup', function (e) {
-  if (e.keyCode == 13) {
-    modalDialogButton = document.getElementsByClassName('modalDialogButton')[1];
+    if (e.keyCode == 13) {
+        
+    //modalDialogButton = document.getElementsByClassName('modalDialogButton')[1];
 
       var dialog = document.getElementById('modalDialog');
       // test if modalDialog is visible
       if (dialog.style.opacity > 0) {
+          var modalButtons = document.querySelectorAll(".modalDialogButton .button");
+          var succesButton = false;
+          for (var i = 0; i < modalButtons.length; i++) {
+              if (modalButtons[i].value == "Apply") {
+                  succesButton = modalButtons[i];
+                  break;
+              }
+          }
+          if (succesButton)
+          {
+              //succesButton.click();
+          }
+
           // modalDialogClose();
-          queryDialogApply();
+          // queryDialogApply();
           // modalDialogButton.click();
-          e.stopPropagation();
+          
       }
+      e.stopPropagation();
   }
     if (e.keyCode == 27) {
         var dialog = document.getElementById('modalDialog');
