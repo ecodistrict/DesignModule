@@ -45,12 +45,25 @@
   box-shadow: 1px 1px 3px #000;
 }
 .modalDialogClose:hover {  background: #00d9ff }
+#selectScenariosForm .modalDialogDevideButtons {
+  position: absolute;
+  background-color: #fff;
+  width: 100%;
+  left: 0px;
+  bottom: 10px;
+
+}
 .modalDialogDevideButtons {
+
+
   width: 100%;
   height: 40px;
   line-height: 40px;
   display: table;
 }
+
+
+
 .modalDialogButton {
   text-align: center;
   display: table-cell;
