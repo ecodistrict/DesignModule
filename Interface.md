@@ -23,6 +23,8 @@ Elements and actions in the user interface
 - [messages](#messages)
 - [info, help with controls and operation of the user interface](#info)
 
+There is a separate [User manual](https://github.com/ecodistrict/DesignModule/wiki/Design%20supporting%20module.pdf) for the design module web client available.
+
 ## General <a name="general"></a>
 
 <a name="geninterface"></a>The user interface is a web client, part of the design module of the European Ecodistrict projects and the TNO instrument Urban Strategy. This is one component of the design module that comprises of this user interface, a web-socket server, a tiler server that created WMS image tiles form GIS data and a publishing server that connects the web client to different data sources and handles or the logic and persistence.
