@@ -31,8 +31,10 @@ L.control.projectDescription.showScenarios = function () {
     f.id = 'selectScenariosForm';
     var height = window.innerHeight - 200;
     //set max-height and scrollbars if window is small
-    f.style.maxHeight = '' + height + 'px';
+    f.style.maxHeight = '' + (height -40)+ 'px';
     f.style.overflow = "auto";
+    f.style.marginBottom = '40px';
+
     window.addEventListener("resize", ResizeSelectScenario);
 
 
@@ -73,13 +75,14 @@ L.control.projectDescription.showScenarios = function () {
     CheckCurrentScenarios(options);
   }
   if (f) {
-    L.DomEvent.addListener(f, 'touchmove', L.DomEvent.stopPropagation);  
+    L.DomEvent.addListener(f, 'touchmove', L.DomEvent.stopPropagation);
   }
 
 
 };
 
 function ResizeSelectScenario() {
+  var buttons = document.getElementsByClassName('modalDialogDevideButtons')[0];
   var div = document.getElementById("selectScenariosForm")
 
   //check if element still excists otherwise remove the eventlistener ?? Is this needed?
@@ -93,8 +96,16 @@ function ResizeSelectScenario() {
   var height = window.innerHeight - 200;
 
   //set max-height and scrollbars if window is small but not too small
-  div.style.maxHeight = "" + height + 'px';
+  div.style.maxHeight = "" + (height -40) + 'px';
   div.style.overflow = "auto";
+  div.style.marginBottom = '40px';
+
+
+  // document.getElementsByClassName('scrolling')[0].style.position = 'fixed';
+  // document.getElementsByClassName('scrolling')[0].style.bottom = buttons.parentElement.parentElement.getBoundingClientRect().top + 'px';
+  //
+  // console.log(buttons.parentElement.parentElement.getBoundingClientRect());
+
 }
 
 
@@ -103,6 +114,9 @@ L.control.projectDescription.onAdd = function (map) {
   this._div = L.DomUtil.create('div', 'projectDescription');
   var _this = this; // capture this
   options = this.options;
+
+
+
   window.addEventListener("resize", ResizeProjectDescription);
   L.DomEvent.disableClickPropagation(this._div);
   this.update();

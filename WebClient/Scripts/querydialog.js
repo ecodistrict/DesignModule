@@ -4,10 +4,10 @@ function handleSelectByQuery(e) {
 
   var div = modalDialogCreate('Select objects by query');
 
-  // DataManager.queryDialogData = {};
-  // DataManager.queryDialogData['building'] = ['optie1','optie2'];
-  // DataManager.queryDialogData['building'] = ['optie3','optie4'];
-  // DataManager.queryDialogData['space'] = ['optie5','optie6'];
+  DataManager.queryDialogData = {};
+  DataManager.queryDialogData['building'] = ['optie1','optie2'];
+  DataManager.queryDialogData['building'] = ['optie3','optie4'];
+  DataManager.queryDialogData['space'] = ['optie5','optie6'];
 
   if (window.outerWidth < 500) {
     div.style.width = '100%';
