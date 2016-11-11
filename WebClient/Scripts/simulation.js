@@ -47,7 +47,7 @@ L.Control.simulation = L.Control.extend({
   },
 
   _openModal: function () {
-    
+
   }
 
 

@@ -1,5 +1,5 @@
 function openSimulationDialog(e) {
-
+  document.activeElement.blur();
   // todo: build dialog based on measuresControl.options.selectCategories
 
   var div = modalDialogCreate('Setup your simulation');
