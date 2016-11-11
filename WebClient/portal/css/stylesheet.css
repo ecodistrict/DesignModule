@@ -54,6 +54,32 @@ p {
   border-bottom:1px solid rgba(26,91,127,0.3);
   border-radius: 2px;
 }
+#text {
+  position:absolute;
+  left:0px;
+  top:0px;
+}
+#text span:last-child {
+  border-bottom-right-radius: 5px;
+}
+#text span:first-child {
+  border-bottom-left-radius: 5px;
+}
+#text span:hover {
+  background-color: rgba(26, 91, 127, 1);
+  color:rgba(255, 255, 255, 1);
+}
+#text span {
+  background-color: rgba(255, 255, 255, 1);
+  width:25px;
+  height:25px;
+  display:block;
+  float:left;
+  cursor: pointer;
+  font-size: 15px !important;
+  text-align: center;
+  line-height: 25px;
+}
 #lang {
   position: relative;
   right: 0px;
@@ -127,6 +153,7 @@ p {
   margin:0 auto;
   padding:40px 0px;
   box-sizing: border-box;
+  position: relative;
 }
 #logo {
   z-index: 999;

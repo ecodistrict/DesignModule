@@ -25,6 +25,7 @@ Lang = getParameterByName('lang');
 loggedin.name = 'Jasper';
 emptyCasusContainer();
 createCasus(data, Lang);
+createtextTransform();
 // checkLoggedIn(loggedin, Lang);
 function checkLoggedIn(loggedin, Lang) {
   document.getElementById('userMenu').innerHTML = '';
@@ -223,7 +224,37 @@ function createCasus(data, language) {
     showElems(buttonContainer);
   }
 }
+function createtextTransform() {
+  textTransform = document.getElementById('text');
+  plusText = document.createElement('span');
+  plusText.innerText = '+';
+  plusText.onclick = function () {
+    multiplier = 0.5;
+    if (document.body.style.fontSize == "") {
+      document.body.style.fontSize = "1.0em";
+    }
+    document.body.style.fontSize = parseFloat(document.body.style.fontSize) + (multiplier * 0.2) + "em";
 
+  }
+
+  minusText = document.createElement('span');
+  minusText.innerText = '-';
+  minusText.onclick = function () {
+    multiplier = 0.5;
+    if (document.body.style.fontSize == "") {
+      document.body.style.fontSize = "1.0em";
+    }
+    document.body.style.fontSize = parseFloat(document.body.style.fontSize) - (multiplier * 0.2) + "em";
+
+
+  }
+
+  textTransform.appendChild(minusText);
+  textTransform.appendChild(plusText);
+
+
+
+}
 
 
 
