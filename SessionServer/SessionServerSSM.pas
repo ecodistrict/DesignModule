@@ -11,11 +11,11 @@ uses
   StdIni,
 
   GisDefs, GisCsSystems,
-
+  TimerPool,
   SessionServerLib,
-
+  WinApi.Windows,
   System.JSON,
-  System.Generics.Collections,
+  System.Generics.Collections, System.Generics.Defaults,
   SysUtils;
 
 type
@@ -53,52 +53,61 @@ type
     function intersects(aGeometry: TWDGeometry): Boolean; override;
   public
     // imb 3 decoding
-    function new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-    function change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-    function delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
+    function new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
+    function change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
+    function delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
 
-    function toJSONNew: string;
+//    function toJSONNew: string;
   end;
 
-  TSSMSensor = class(TLayerObject)
+  TSSMLinkLayer = class;
+
+  TSSMCarLayer  = class(TLayer)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aLinkLayer: TSSMLinkLayer);
+  private
+    fGTUEvent: TIMBEventEntry;
+    fLinkLayer: TSSMLinkLayer;
   public
-    // gtuID = TLayerObject.ID
-    // timestamps
-    newTimestamp: Double;
-    changedTimestamp: Double;
-    deletedTimestamp: Double;
-    // base, new/change/delete
-    networkId: AnsiString;
-    linkId: AnsiString;
-    laneId: AnsiString;
-    // new
-    x: Double;
-    y: Double;
-    z: Double;
-    longitudinalPosition: Double;
-    length: Double;
-    // change
-    gtuId: AnsiString;
-    speed: Double;
-    triggerPosition: AnsiString;
-    // delete
+    procedure HandleGTUEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
   public
-    function getGeoJSON2D(const aType: string): string; override;
-    function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; override;
-    function intersects(aGeometry: TWDGeometry): Boolean; override;
-  public
-    // imb 3 decoding
-    function new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-    function change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-    function delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
+    property linkLayer: TSSMLinkLayer read fLinkLayer write fLinkLayer;
+    function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
   end;
 
-  TSSMStatistic = class(TLayerObject)
-  constructor Create(aLayer: TLayer; const aID: TWDID);
+  TSSMLink = class(TGeometryLayerObject)
+  constructor Create(aLayer: TLayer; const aID: TWDID; aGeometry: TWDGeometry);
+  protected
+    fNumberOfVehicles: Integer;
+    fTotalSpeed: Double;
+    //procedure setTotalSpeed(const aValue: Double);
   public
-    // gtuID = TLayerObject.ID
+    property numberOfVehicles: Integer read fNumberOfVehicles;// write fNumberOfVehicles;
+    property totalSpeed: Double read fTotalSpeed;// write setTotalSpeed;
+
+    procedure AddGTU(aSpeed: Double);
+    procedure ChangeGTU(aOldSpeed, aNewSpeed: Double);
+    procedure RemoveGTU(aSpeed: Double);
+  end;
+
+  TSSMLinkLayer = class(TLayer)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aCarLayer: TSSMCarLayer);
+  private
+    fLinkEvent: TIMBEventEntry;
+    fCarLayer: TSSMCarLayer;
+  public
+    property carLayer: TSSMCarLayer read fCarLayer write fCarLayer;
+    procedure HandleLinkEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
+  end;
+
+  TSSMStatistic = class
+  constructor Create(aScenario: TScenario; const aDomain, aID: string);
+  destructor Destroy; override;
+  public
+
     // timestamps
     newTimestamp: Double;
+
     changedTimestamp: Double;
     deletedTimestamp: Double;
     // base, new/change/delete
@@ -107,14 +116,14 @@ type
     description: AnsiString;
     networkId: AnsiString;
     numberMetadataEntries: integer;
-    metadataId: AnsiString;
-    metadataType: AnsiString;
-    metadataValue: AnsiString;
-    numberSpaceTimeRegions: integer;
-    startTime: double;
-    endTime: double;
-    linkId: AnsiString;
-    laneId: AnsiString;
+    //metadataId: AnsiString;
+    //metadataType: AnsiString;
+    //metadataValue: AnsiString;
+    //numberSpaceTimeRegions: integer;
+    //startTime: double;
+    //endTime: double;
+    //linkId: AnsiString;
+    //laneId: AnsiString;
     connected: Boolean;
     totalTrajectory: Boolean;
     updateFrequency: double;
@@ -126,42 +135,41 @@ type
     totalGTUTimeDelay: double;
     averageTripLength: double;
     totalNumberStops: double;
-    // delete
+  private
+    fScenario: TScenario;
+    fDomain: string;
+    fID: string;
+    fCharts: TList<TChart>;
   public
-    function getGeoJSON2D(const aType: string): string; override;
-    function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; override;
-    function intersects(aGeometry: TWDGeometry): Boolean; override;
+    property scenario: TScenario read fScenario;
+    property domain: string read fDomain;
+    property ID: string read fID;
+    property charts: TList<TChart> read fCharts;
   public
-    // imb 3 decoding
-    function new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-    function change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-    function delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-
-    function toJSONNew: string;
-    function toJSONChange: string;
+    function new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
+    function change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
+    function delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
   end;
 
-  TSSMLayer  = class(TLayer)
-  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
-  private
-    fGTUEvent: TIMBEventEntry;
-    fGTUSensorEvent: TIMBEventEntry;
+  TSSMScenario = class (TScenario)
+  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
+  destructor Destroy; override;
+  protected
     fGTUStatisticEvent: TIMBEventEntry;
-    fOffsetInRD: TGIS_Point;
-    // todo:  move to project or scenario
+
+    fStatistics: TObjectDictionary<string, TSSMStatistic>;
+    fRunning: Boolean;
+    fSpeed: Double;
+
     fSIMStartEvent: TIMBEventEntry;
     fSIMStopEvent: TIMBEventEntry;
     fSIMSpeedEvent: TIMBEventEntry;
   public
-    procedure HandleGTUEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
-    procedure HandleGTUSensorEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
 
     procedure HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
-  public
-    procedure handleNewClient(aClient: TClient);
   end;
 
   TSSMProject  = class(TProject)
@@ -174,6 +182,8 @@ type
     fIMB3Connection: TIMBConnection;
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
   public
+    procedure SendDomains(aClient: TClient; const aPrefix: string); override;
+
     procedure ReadBasicData(); override;
     procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); override;
     procedure handleNewClient(aClient: TClient); override;
@@ -185,24 +195,17 @@ type
 
 implementation
 
-function DoubleToJSON(d: Double): string;
-begin
-  if d.IsNan
-  then Result := 'null'
-  else Result := d.toString(dotFormat);
-end;
-
 { TSSMCar }
 
-function TSSMCar.change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-
-  procedure addResult(const aName, aValue: string);
-  begin
-    if Result<>''
-    then Result := Result+',';
-    Result := Result+'"'+aName+'":'+aValue;
-  end;
-
+function TSSMCar.change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
+//
+//  procedure addResult(const aName, aValue: string);
+//  begin
+//    if Result<>''
+//    then Result := Result+',';
+//    Result := Result+'"'+aName+'":'+aValue;
+//  end;
+//
 var
   _x: Double;
   _y: Double;
@@ -214,18 +217,20 @@ begin
   aPayload.Read(_x);
   aPayload.Read(_y);
   // project point always and use offset as an extra option to put a 0 based network in a location
-  latlon.X := _x+aOffsetInRD.X;
-  latlon.Y := _y+aOffsetInRD.Y;
+  latlon.X := _x;
+  latlon.Y := _y;
   latlon := aSourceProjection.ToGeocs(latlon);
   // check for changes
   if x<>_x then
   begin
-    addResult('lng', DoubleToJSON(latlon.x));
+    layer.UpdateObjectAttribute(ID, 'lng', DoubleToJSON(latlon.x));
+    //addResult('lng', DoubleToJSON(latlon.x));
     x := _x;
   end;
   if y<>_y then
   begin
-    addResult('lat', DoubleToJSON(latlon.y));
+    layer.UpdateObjectAttribute(ID, 'lat', DoubleToJSON(latlon.y));
+    //addResult('lat', DoubleToJSON(latlon.y));
     y := _y;
   end;
   aPayload.Read(z);
@@ -239,21 +244,40 @@ begin
   aPayload.Read(_turnIndicatorStatus);
   if turnIndicatorStatus<>_turnIndicatorStatus then
   begin
-    addResult('tis', '"'+_turnIndicatorStatus+'"');
+    // do not use turn signal when braking lights are on
+    if not _brakingLights then
+    begin
+      if (_turnIndicatorStatus='NONE') or (_turnIndicatorStatus='NOTPRESENT') then
+      begin
+        layer.UpdateObjectAttribute(ID, 'style.opacity', 'o');
+      end
+      else
+      begin
+        layer.UpdateObjectAttribute(ID, 'style.color', '"yellow"');
+        layer.UpdateObjectAttribute(ID, 'style.opacity', '1');
+      end;
+    end;
+    //addResult('tis', '"'+_turnIndicatorStatus+'"');
     turnIndicatorStatus := _turnIndicatorStatus;
   end;
   aPayload.Read(_brakingLights);
   if brakingLights<>_brakingLights then
   begin
-    if _brakingLights
-    then addResult('bl', 'true')
-    else addResult('bl', 'false');
+    if _brakingLights then
+    begin
+      layer.UpdateObjectAttribute(ID, 'style.color', '"red"'); //addResult('bl', 'true')
+      layer.UpdateObjectAttribute(ID, 'style.opacity', '1');
+    end
+    else
+    begin
+      layer.UpdateObjectAttribute(ID, 'style.opacity', '0');//addResult('bl', 'false');
+    end;
     brakingLights := _brakingLights;
   end;
   aPayload.Read(odometer);
 end;
 
-function TSSMCar.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point):  string;
+function TSSMCar.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem):  string;
 
   procedure addResult(const aName, aValue: string);
   begin
@@ -290,15 +314,15 @@ begin
   Result := False; // todo:
 end;
 
-function TSSMCar.new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-
-  procedure addResult(const aName, aValue: string);
-  begin
-    if Result<>''
-    then Result := Result+',';
-    Result := Result+'"'+aName+'":'+aValue;
-  end;
-
+function TSSMCar.new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
+//
+//  procedure addResult(const aName, aValue: string);
+//  begin
+//    if Result<>''
+//    then Result := Result+',';
+//    Result := Result+'"'+aName+'":'+aValue;
+//  end;
+//
 var
   R, G, B: byte;
 begin
@@ -307,11 +331,13 @@ begin
   aPayload.Read(x);
   aPayload.Read(y);
   // project point always and use offset as an extra option to put a 0 based network in a location
-  latlon.X := x+aOffsetInRD.X;
-  latlon.Y := y+aOffsetInRD.Y;
+  latlon.X := x;
+  latlon.Y := y;
   latlon := aSourceProjection.ToGeocs(latlon);
-  addResult('lng', DoubleToJSON(latlon.X));
-  addResult('lat', DoubleToJSON(latlon.Y));
+  layer.AddObjectAttribute(ID, 'lng', DoubleToJSON(latlon.x));
+  layer.AddObjectAttribute(ID, 'lat', DoubleToJSON(latlon.y));
+//  addResult('lng', DoubleToJSON(latlon.X));
+//  addResult('lat', DoubleToJSON(latlon.Y));
   aPayload.Read(z);
   aPayload.Read(rotZ);
   aPayload.Read(networkId);
@@ -325,9 +351,11 @@ begin
   aPayload.Read(B);
   baseColor :=  RGBToAlphaColor(R, G, B);
   //Log.WriteLn('color '+baseColor.ToHexString(8), llNormal, 1);
-  addResult('fill', '"'+ColorToJSON(baseColor)+'"');
+  layer.AddObjectAttribute(ID, 'style.fillcolor', '"'+ColorToJSON(baseColor)+'"');
+  //addResult('fill', '"'+ColorToJSON(baseColor)+'"');
 end;
 
+{
 function TSSMCar.toJSONNew: string;
 
   procedure addResult(const aName, aValue: string);
@@ -342,90 +370,11 @@ begin
   addResult('lat', DoubleToJSON(latlon.Y));
   addResult('fill', '"'+ColorToJSON(baseColor)+'"');
 end;
-
-{ TSSMSensor }
-
-function TSSMSensor.change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-
-  procedure addResult(const aName, aValue: string);
-  begin
-    if Result<>''
-    then Result := Result+',';
-    Result := Result+'"'+aName+'":'+aValue;
-  end;
-
-var
-  gtuId: string;
-  speed: double;
-  triggerPosition: AnsiString;
-begin
-  Result := '';
-  // start after timestamp and gtuId
-  aPayload.Read(gtuId);
-  aPayload.Read(speed);
-  aPayload.Read(triggerPosition);
-  addResult('gtuId', '"'+gtuId+'"');
-  addResult('speed', DoubleToJSON(speed));
-end;
-
-function TSSMSensor.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point):  string;
-
-  procedure addResult(const aName, aValue: string);
-  begin
-    if Result<>''
-    then Result := Result+',';
-    Result := Result+'"'+aName+'":'+aValue;
-  end;
-
-begin
-  Result := ''; // for now no repsonse so no projection needed
-end;
-
-function TSSMSensor.distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double;
-begin
-  Result := Infinite; // todo:
-end;
-
-function TSSMSensor.getGeoJSON2D(const aType: string): string;
-begin
-  Result := ''; // todo:
-end;
-
-function TSSMSensor.intersects(aGeometry: TWDGeometry): Boolean;
-begin
-  Result := False; // todo:
-end;
-
-function TSSMSensor.new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
-
-  procedure addResult(const aName, aValue: string);
-  begin
-    if Result<>''
-    then Result := Result+',';
-    Result := Result+'"'+aName+'":'+aValue;
-  end;
-
-var
-  p: TGIS_Point;
-begin
-  Result := '';
-  // start after timestamp and various Ids
-  aPayload.Read(longitudinalPosition);
-  aPayload.Read(length);
-  aPayload.Read(x);
-  aPayload.Read(y);
-  // project point always and use offset as an extra option to put a 0 based network in a location
-  p.X := x+aOffsetInRD.X;
-  p.Y := y+aOffsetInRD.Y;
-  p := aSourceProjection.ToGeocs(p);
-  addResult('lng', DoubleToJSON(p.X));
-  addResult('lat', DoubleToJSON(p.Y));
-  aPayload.Read(z);
-  aPayload.Read(triggerPosition);
-end;
+}
 
 { TSSMStatistic }
-function TSSMStatistic.new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
+
+function TSSMStatistic.new(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
 
   procedure addResult(const aName, aValue: string);
   begin
@@ -435,21 +384,18 @@ function TSSMStatistic.new(var aPayload: ByteBuffers.TByteBuffer; aSourceProject
   end;
 
 var
-  description: AnsiString;
-  networkId: AnsiString;
-  numberMetadataEntries: integer;
+  i: Integer;
+
   metadataId: AnsiString;
   metadataType: AnsiString;
   metadataValue: AnsiString;
+
   numberSpaceTimeRegions: integer;
+
   startTime: double;
   endTime: double;
   linkId: AnsiString;
   laneId: AnsiString;
-  connected: Boolean;
-  totalTrajectory: Boolean;
-  updateFrequency: double;
-  i: Integer;
 begin
   Result := '';
   // start after timestamp and various Ids
@@ -473,6 +419,7 @@ begin
   aPayload.Read(connected);
   aPayload.Read(totalTrajectory);
   aPayload.Read(updateFrequency);
+  (*
   Result:='{"id":"'+ string(self.ID)+'-KPI01", "name": "Totale voertuigkilometers", "x": {"label": "simulatie seconden"}, "y": [{"label":"meters","color":"LightBlue"}]}';
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI02", "name": "Totale reistijd", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI03", "name": "Gemiddelde snelheid", "x": {"label": "simulatie seconden"}, "y": [{"label":"m/s","color":"LightBlue"}]}';
@@ -480,10 +427,12 @@ begin
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI05", "name": "Voertuigverliesuren", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06", "name": "Gemiddelde ritlengte", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07", "name": "Voertuigstops", "x": {"label": "simulatie seconden"}, "y": [{"label":"stops","color":"LightBlue"}]}';
+  *)
 end;
-
+(*
 function TSSMStatistic.toJSONChange: string;
 begin
+
   Result:='{"id":"'+ string(self.ID)+'-KPI01","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUDistance)+']}';
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI02","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUTravelTime)+']}';
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI03","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageGTUSpeed)+']}';
@@ -503,8 +452,9 @@ begin
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06", "name": "Gemiddelde ritlengte", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07", "name": "Voertuigstops", "x": {"label": "simulatie seconden"}, "y": [{"label":"stops","color":"LightBlue"}]}';
 end;
+*)
 
-function TSSMStatistic.change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point): string;
+function TSSMStatistic.change(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
 
   procedure addResult(const aName, aValue: string);
   begin
@@ -513,14 +463,6 @@ function TSSMStatistic.change(var aPayload: ByteBuffers.TByteBuffer; aSourceProj
     Result := Result+'"'+aName+'":'+aValue;
   end;
 
-var
-  totalGTUDistance: double;
-  totalGTUTravelTime: double;
-  averageGTUSpeed: double;
-  averageGTUTravelTime: double;
-  totalGTUTimeDelay: double;
-  averageTripLength: double;
-  totalNumberStops: double;
 begin
   Result := '';
   // start after timestamp and gtuId
@@ -531,7 +473,7 @@ begin
   aPayload.Read(totalGTUTimeDelay);
   aPayload.Read(averageTripLength);
   aPayload.Read(totalNumberStops);
-
+  (*
   Result:='{"id":"'+ string(self.ID)+'-KPI01","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUDistance)+']}';
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI02","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUTravelTime)+']}';
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI03","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageGTUSpeed)+']}';
@@ -539,15 +481,21 @@ begin
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI05","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUTimeDelay)+']}';
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI06","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageTripLength)+']}';
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI07","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalNumberStops)+']}';
+  *)
 end;
 
-constructor TSSMStatistic.Create(aLayer: TLayer; const aID: TWDID);
+constructor TSSMStatistic.Create(aScenario: TScenario; const aDomain, aID: string);
 begin
+  inherited Create;
   newTimestamp := Double.NaN;
-  inherited Create(aLayer, aID);
+
+  fScenario := aScenario;
+  fDomain := aDomain;
+  fID := aID;
+  fCharts := TList<TChart>.Create;
 end;
 
-function TSSMStatistic.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aOffsetInRD: TGIS_Point):  string;
+function TSSMStatistic.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem):  string;
 
   procedure addResult(const aName, aValue: string);
   begin
@@ -557,7 +505,7 @@ function TSSMStatistic.delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProj
   end;
 
 begin
-//  Result := ''; // for now no repsonse so no projection needed
+  (*
   Result:='{"id":"'+ string(self.ID)+'-KPI01"}';
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI02"}';
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI03"}';
@@ -565,67 +513,224 @@ begin
   Result:=Result + ',{"id":"' + string(self.ID)+'-KPI05"}';
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06"}';
   Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07"}';
+  *)
 end;
 
-function TSSMStatistic.distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double;
+destructor TSSMStatistic.Destroy;
 begin
-  Result := Infinite; // todo:
+  FreeAndNil(fCharts);
+  inherited;
 end;
 
-function TSSMStatistic.getGeoJSON2D(const aType: string): string;
+{ TSSMLink }
+
+procedure TSSMLink.AddGTU(aSpeed: Double);
 begin
-  Result := ''; // todo:
+  fTotalSpeed := fTotalSpeed+aSpeed;
+  fNumberOfVehicles := fNumberOfVehicles+1;
+  if fNumberOfVehicles>0
+  then fValue := fTotalSpeed/fNumberOfVehicles
+  else fValue := double.NaN;
+  // todo: update object
 end;
 
-function TSSMStatistic.intersects(aGeometry: TWDGeometry): Boolean;
+procedure TSSMLink.ChangeGTU(aOldSpeed, aNewSpeed: Double);
 begin
-  Result := False; // todo:
+  fTotalSpeed := fTotalSpeed-aOldSpeed+aNewSpeed;
+  if fNumberOfVehicles>0
+  then fValue := fTotalSpeed/fNumberOfVehicles
+  else fValue := double.NaN;
+  // todo: update object
 end;
 
+constructor TSSMLink.Create(aLayer: TLayer; const aID: TWDID; aGeometry: TWDGeometry);
+begin
+  inherited Create(aLayer, aID, aGeometry, 0);
+  fTotalSpeed := 0;
+  fNumberOfVehicles := 0;
+end;
 
-{ TSSMLayer }
+procedure TSSMLink.RemoveGTU(aSpeed: Double);
+begin
+  fTotalSpeed := fTotalSpeed-aSpeed;
+  fNumberOfVehicles := fNumberOfVehicles-1;
+  if fNumberOfVehicles>0
+  then fValue := fTotalSpeed/fNumberOfVehicles
+  else fValue := double.NaN;
+  // todo: update object
+end;
 
-constructor TSSMLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
+//procedure TSSMLink.setTotalSpeed(const aValue: Double);
+//begin
+//  fTotalSpeed := aValue;
+//  if fNumberOfVehicles>0
+//  then fValue := fTotalSpeed/fNumberOfVehicles
+//  else fValue := Double.NaN;
+//   todo: update object on tiler
+//end;
+
+{ TSSMLinkLayer }
+
+constructor TSSMLinkLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aCarLayer: TSSMCarLayer);
+begin
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"link"', 'Line', 0);
+  fCarLayer := aCarLayer;
+  // link
+  fLinkEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Link_GTU');
+  fLinkEvent.OnNormalEvent := HandleLinkEvent;
+end;
+
+procedure TSSMLinkLayer.HandleLinkEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+var
+  action: integer;
+  timestamp: Double;
+  networkId: string;
+  linkId: AnsiString;
+  startNodeId: string;
+  endNodeId: string;
+  numberOfPoints: Integer;
+  x, y, z: Double;
+  p: Integer;
+  lo: TLayerObject;
+  isVehicleAdded: Boolean;
+  gtuId: AnsiString;
+  countAfterEvent: Integer;
+  speed: Double;
+begin
+  try
+    aPayload.Read(action);
+    aPayload.Read(timestamp);
+    aPayload.Read(networkId);
+    aPayload.Read(AnsiString(linkId));
+    case action of
+      actionNew:
+        begin
+          TMonitor.Enter(objects);
+          try
+            if not objects.TryGetValue(linkid, lo) then
+            begin
+              lo := TSSMLink.Create(Self, linkId, TWDGeometry.Create());
+              objects.Add(linkId, lo);
+            end
+            else
+            begin
+              (lo as TSSMLink).geometry.parts.Clear;
+              Log.WriteLn('Received new link on known link '+string(UTF8String(linkId)), llWarning);
+            end;
+          finally
+            TMonitor.Exit(objects);
+          end;
+          aPayload.Read(startNodeId);
+          aPayload.Read(endNodeId);
+          aPayload.Read(numberOfPoints);
+          for p := 0 to numberOfPoints-1 do
+          begin
+            aPayload.Read(x);
+            aPayload.Read(y);
+            aPayload.Read(z);
+            (lo as TSSMLink).geometry.AddPoint(x, y, z);
+          end;
+        end;
+      actionChange:
+        begin
+          aPayload.Read(isVehicleAdded);
+          aPayload.Read(gtuId);
+          aPayload.Read(countAfterEvent);
+
+          fCarLayer.objectsLock.BeginRead;
+          try
+            if fCarLayer.objects.TryGetValue(gtuId, lo) and (lo is TSSMCar)
+            then speed := (lo as TSSMCar).speed
+            else
+            begin
+              speed := double.NaN;
+              log.WriteLn('TSSMLinkLayer.HandleLinkEvent unknown gtu in link change: '+string(UTF8String(gtuId)), llError);
+            end;
+          finally
+            fCarLayer.objectsLock.EndRead;
+          end;
+
+          TMonitor.Enter(objects);
+          try
+            if objects.TryGetValue(linkId, lo) then
+            begin
+              if not speed.IsNan then
+              begin
+                if isVehicleAdded
+                then (lo as TSSMLink).AddGTU(speed)
+                else (lo as TSSMLink).RemoveGTU(speed);
+              end;
+            end
+            else Log.WriteLn('Received change link on unknown link '+string(UTF8String(linkId)), llError);
+          finally
+            TMonitor.Exit(objects);
+          end;
+        end;
+      actionDelete:
+        begin
+          TMonitor.Enter(objects);
+          try
+            if objects.TryGetValue(linkId, lo) then
+            begin
+              objects.Remove(linkId);
+            end
+            else Log.WriteLn('Received delete link on unknown link '+string(UTF8String(linkId)), llError);
+          finally
+            TMonitor.Exit(objects);
+          end;
+        end;
+    end;
+  except
+    on E: Exception
+    do log.WriteLn('Exception in TSSMLinkLayer.HandleLinkEvent: '+E.Message, llError);
+  end;
+end;
+
+{ TSSMCarLayer }
+
+constructor TSSMCarLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aLinkLayer: TSSMLinkLayer);
 begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"car"', 'Point', 0);
+  fLinkLayer := aLinkLayer;
   // GTU
   fGTUEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('GTU');
   fGTUEvent.OnNormalEvent := HandleGTUEvent;
-  // Sensor
-  fGTUSensorEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Sensor_GTU');
-  fGTUSensorEvent.OnNormalEvent := HandleGTUSensorEvent;
-  // Statistics
-  fGTUStatisticEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('StatisticsGTULane');
-  fGTUStatisticEvent.OnNormalEvent := HandleGTUStatisticEvent;
-  // simulation start
-  fSIMStartEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Sim_Start');
-  fSIMStartEvent.OnNormalEvent := HandleSIMStartEvent;
-  // simulation stop
-  fSIMStopEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Sim_Stop');
-  fSIMStopEvent.OnNormalEvent := HandleSIMStopEvent;
-  // simulation speed
-  fSIMSpeedEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Sim_Speed');
-  fSIMSpeedEvent.OnNormalEvent := HandleSimSpeedEvent;
-  // offset to received coordinates in RD for now..
-
-  //fOffsetInRD.X := scenario.mapView.lon;
-  //fOffsetInRD.Y := scenario.mapView.lat;
-  //fOffsetInRD := (scenario.project as TSSMProject).sourceProjection.FromGeocs(fOffsetInRD);
-  fOffsetInRD.X := 0;
-  fOffsetInRD.Y := 0;
 end;
 
-procedure TSSMLayer.HandleGTUEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+function TSSMCarLayer.HandleClientSubscribe(aClient: TClient): Boolean;
+var
+  iop: TPair<TWDID, TLayerObject>;
+begin
+  result := inherited;
+  // send new cars
+  for iop in objects do
+  begin
+    if iop.Value is TSSMCar then
+    begin
+      // todo: aClient.signalString('{"addcar": [{'+'"id":"'+string(UTF8String(iop.Key))+'",'+(iop.Value as TSSMCar).toJSONNew+'}]}');
+    end;
+  end;
+end;
+
+function TSSMCarLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
+begin
+  // todo: option to clear objects
+
+  Result := inherited;
+end;
+
+procedure TSSMCarLayer.HandleGTUEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 var
   action: Integer;
   timestamp: Double;
-  gtuId: AnsiString;
+  gtuId: string;
   lo: TLayerObject;
   car: TSSMCar;
-  jsonStr: string;
-  //l: Integer;
+  oldSpeed: Double;
+  newSpeed: Double;
+  link: TLayerObject;
+//  jsonStr: string;
 begin
-  //l := aPayload.Length;
   aPayload.Read(action);
   aPayload.Read(timestamp);
   aPayload.Read(gtuId);
@@ -633,47 +738,73 @@ begin
   case action of
     actionNew:
       begin
-        if not objects.TryGetValue(RawByteString(gtuId), lo) then
+        if not FindObject(TWDID(gtuId), lo) then
         begin
-          car := TSSMCar.Create(Self, RawByteString(gtuId));
-          objects.Add(car.ID, car);
+          car := TSSMCar.Create(Self, TWDID(gtuId));
+          car.newTimestamp := timestamp;
+          car.new(aPayload, (scenario.project as TSSMProject).sourceProjection);
+          AddObject(car);
         end
-        else car := lo as TSSMCar;
-        car.newTimestamp := timestamp;
-        jsonStr := '"id":"'+string(UTF8String(gtuId))+'",'+car.new(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-        scenario.project.SendString('{"addcar": [{'+jsonStr+'}]}');
+        else Log.WriteLn('TSSMLayer.HandleGTUEvent: new, already known car id '+gtuId, llError);
+        {
+        begin
+          car := lo as TSSMCar;
+          car.newTimestamp := timestamp;
+          car.new(aPayload, (scenario.project as TSSMProject).sourceProjection);
+        end;
+        }
+        //jsonStr := '"id":"'+string(UTF8String(gtuId))+'",'+car.new(aPayload, (scenario.project as TSSMProject).sourceProjection);
+        //scenario.project.SendString('{"addcar": [{'+jsonStr+'}]}');
       end;
     actionChange:
       begin
-        if objects.TryGetValue(RawByteString(gtuId), lo) then
+        if FindObject(TWDID(gtuId), lo) then
         begin
           car := lo as TSSMCar;
           car.changedTimestamp := timestamp;
-          jsonStr := car.change(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-          if jsonStr<>'' then
+          oldSpeed := car.speed;
+          car.change(aPayload, (scenario.project as TSSMProject).sourceProjection);
+          newSpeed := car.speed;
+          if (oldSpeed<>newSpeed) and Assigned(fLinkLayer) then
           begin
-            jsonStr := '"id":"'+string(UTF8String(gtuId))+'",'+jsonStr;
-            scenario.project.SendString('{"updatecar": [{'+jsonStr+'}]}');
+            if fLinkLayer.objects.TryGetValue(car.linkId, link) then
+            begin
+              if link is TSSMLink
+              then (link as TSSMLink).ChangeGTU(oldSpeed, newSpeed)
+              else log.WriteLn('TSSMCarLayer.HandleGTUEvent: object is not a link in gtu change of '+string(UTF8String(gtuId))+', '+string(UTF8String(car.linkId)), llError);
+            end
+            else log.WriteLn('TSSMCarLayer.HandleGTUEvent: link not found in gtu change of '+string(UTF8String(gtuId))+', '+string(UTF8String(car.linkId)), llError);
           end;
+          // todo: handle attribute updates
+          //UpdateObject(car.ID, '', '');
+          //jsonStr := car.change(aPayload, (scenario.project as TSSMProject).sourceProjection);
+          //if jsonStr<>'' then
+          //begin
+          //  jsonStr := '"id":"'+string(UTF8String(gtuId))+'",'+jsonStr;
+          //  scenario.project.SendString('{"updatecar": [{'+jsonStr+'}]}');
+          //end;
         end
-        else Log.WriteLn('TSSMLayer.HandleGTUEvent: change, unknown car id '+string(UTF8String(gtuId)), llError);
+        else Log.WriteLn('TSSMLayer.HandleGTUEvent: change, unknown car id '+gtuId, llError);
       end;
     actionDelete:
       begin
-        if objects.TryGetValue(RawByteString(gtuId), lo) then
+        if FindObject(TWDID(gtuId), lo) then
         begin
           car := lo as TSSMCar;
           car.deletedTimestamp := timestamp;
-          jsonStr := '"id":"'+string(UTF8String(gtuId))+'"'; // +car.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD)}
-          scenario.project.SendString('{"removecar": [{'+jsonStr+'}]}');
-          objects.Remove(car.ID);
+          car.delete(aPayload, (scenario.project as TSSMProject).sourceProjection);
+          RemoveObject(car);
+//          jsonStr := '"id":"'+string(UTF8String(gtuId))+'"'; // +car.delete(aPayload, (scenario.project as TSSMProject).sourceProjection)}
+//          scenario.project.SendString('{"removecar": [{'+jsonStr+'}]}');
+//          objects.Remove(car.ID);
         end
-        else Log.WriteLn('TSSMLayer.HandleGTUEvent: delete, unknown car id '+string(UTF8String(gtuId)), llError);
+        else Log.WriteLn('TSSMLayer.HandleGTUEvent: delete, unknown car id '+gtuId, llError);
       end;
   end;
 end;
 
-procedure TSSMLayer.HandleGTUSensorEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+(*
+procedure TSSMCarLayer.HandleGTUSensorEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 var
   action: Integer;
   timestamp: Double;
@@ -683,7 +814,7 @@ var
   sensorId: AnsiString;
   combiId: AnsiString;
   lo: TLayerObject;
-  sensor: TSSMSensor;
+  //sensor: TSSMSensor;
   jsonStr: string;
   //l: Integer;
 begin
@@ -706,7 +837,7 @@ begin
         end
         else sensor := lo as TSSMSensor;
         sensor.newTimestamp := timestamp;
-        jsonStr := '"id":"'+string(UTF8String(combiId))+'",'+sensor.new(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
+        jsonStr := '"id":"'+string(UTF8String(combiId))+'",'+sensor.new(aPayload, (scenario.project as TSSMProject).sourceProjection);
         scenario.project.SendString('{"newGTUsensor": [{'+jsonStr+'}]}');
       end;
     actionChange:
@@ -715,7 +846,7 @@ begin
         begin
           sensor := lo as TSSMSensor;
           sensor.changedTimestamp := timestamp;
-          jsonStr := sensor.change(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
+          jsonStr := sensor.change(aPayload, (scenario.project as TSSMProject).sourceProjection);
           if jsonStr<>'' then
           begin
             jsonStr := '"id":"'+string(UTF8String(combiId))+'",'+jsonStr;
@@ -730,7 +861,7 @@ begin
         begin
           sensor := lo as TSSMSensor;
           sensor.deletedTimestamp := timestamp;
-          jsonStr := '"id":"'+string(UTF8String(combiId))+'",'+sensor.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
+          jsonStr := '"id":"'+string(UTF8String(combiId))+'",'+sensor.delete(aPayload, (scenario.project as TSSMProject).sourceProjection);
           scenario.project.SendString('{"removeGTUsensor": [{'+jsonStr+'}]}');
           objects.remove(sensor.id);
         end
@@ -739,99 +870,182 @@ begin
   end;
 end;
 
-procedure TSSMLayer.HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+*)
+
+{ TSSMScenario }
+
+constructor TSSMScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
+begin
+  inherited;
+  // statistics
+  fStatistics := TObjectDictionary<string, TSSMStatistic>.Create;
+  fGTUStatisticEvent := (project as TSSMProject).imb3Connection.Subscribe('StatisticsGTULane');
+  fGTUStatisticEvent.OnNormalEvent := HandleGTUStatisticEvent;
+    // simulation start
+  fSIMStartEvent := (project as TSSMProject).imb3Connection.Subscribe('Sim_Start');
+  fSIMStartEvent.OnNormalEvent := HandleSIMStartEvent;
+  // simulation stop
+  fSIMStopEvent := (project as TSSMProject).imb3Connection.Subscribe('Sim_Stop');
+  fSIMStopEvent.OnNormalEvent := HandleSIMStopEvent;
+  // simulation speed
+  fSIMSpeedEvent := (project as TSSMProject).imb3Connection.Subscribe('Sim_Speed');
+  fSIMSpeedEvent.OnNormalEvent := HandleSimSpeedEvent;
+end;
+
+destructor TSSMScenario.Destroy;
+begin
+  fGTUStatisticEvent.UnSubscribe;
+  fSIMStartEvent.UnSubscribe;
+  fSIMStopEvent.UnSubscribe;
+  fSIMSpeedEvent.UnSubscribe;
+  FreeAndNil(fStatistics);
+  inherited;
+end;
+
+procedure TSSMScenario.HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 var
   action: Integer;
   timestamp: Double;
-  statisticId: AnsiString;
-  lo: TLayerObject;
+  statisticId: string;
   stat: TSSMStatistic;
-  jsonStr: string;
-  //l: Integer;
+  chart: TChart;
 begin
-  //l := aPayload.Length;
   aPayload.Read(action);
   aPayload.Read(timestamp);
   aPayload.Read(statisticId);
   case action of
     actionNew:
       begin
-        if not objects.TryGetValue(RawByteString(statisticId), lo) then
+        if not fStatistics.TryGetValue(statisticId, stat) then
         begin
-          stat := TSSMStatistic.Create(Self, RawByteString(statisticId));
-          objects.Add(stat.ID, stat);
-        end
-        else stat := lo as TSSMStatistic;
+          stat := TSSMStatistic.Create(Self, 'domain', statisticId); // todo: domain
+          fStatistics.Add(stat.ID, stat);
+        end;
         stat.newTimestamp := timestamp;
-        jsonStr := stat.new(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-        scenario.project.SendString('{"newGTUstatistics": ['+jsonStr+']}');
+        stat.new(aPayload, (project as TSSMProject).sourceProjection);
+        stat.charts.Add(TChart.Create(Self, 'domain', '0', 'Totale voertuigkilometers', '', false, 'line',
+          TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+          [TChartAxis.Create('km', 'lightBlue', 'Length', 'km')]));
+        stat.charts.Add(TChart.Create(Self, 'domain', '1', 'Totale reistijd', '', false, 'line',
+          TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+          [TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min')]));
+        stat.charts.Add(TChart.Create(Self, 'domain', '2', 'Gemiddelde snelheid', '', false, 'line',
+          TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+          [TChartAxis.Create('km/u', 'lightBlue', 'Velocity', 'km/h')]));
+        stat.charts.Add(TChart.Create(Self, 'domain', '3', 'Gemiddelde reistijd', '', false, 'line',
+          TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+          [TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min')]));
+        stat.charts.Add(TChart.Create(Self, 'domain', '4', 'Voertuigverliesuren', '', false, 'line',
+          TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+          [TChartAxis.Create('hours', 'lightBlue', 'Time', 'h')]));
+        stat.charts.Add(TChart.Create(Self, 'domain', '5', 'Gemiddelde ritlengte', '', false, 'line',
+          TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+          [TChartAxis.Create('km', 'lightBlue', 'Length', 'km')]));
+        stat.charts.Add(TChart.Create(Self, 'domain', '6', 'Voertuigstops', '', false, 'line',
+          TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+          [TChartAxis.Create('stops', 'lightBlue', 'Dimensionless', '-')]));
+
+        // add globally
+        for chart in stat.charts
+        do AddChart(chart);
+
+        project.forEachClient(procedure(aClient: TClient)
+          begin
+            project.SendDomains(aClient, 'updatedomains');
+          end);
+
+
+
+        (*
+        Result:=           '{"id":"' + string(self.ID)+'-KPI01", "name": "Totale voertuigkilometers", "x": {"label": "simulatie seconden"}, "y": [{"label":"meters","color":"LightBlue"}]}';
+        Result:=Result + ', {"id":"' + string(self.ID)+'-KPI02", "name": "Totale reistijd", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+        Result:=Result + ', {"id":"' + string(self.ID)+'-KPI03", "name": "Gemiddelde snelheid", "x": {"label": "simulatie seconden"}, "y": [{"label":"m/s","color":"LightBlue"}]}';
+        Result:=Result + ', {"id":"' + string(self.ID)+'-KPI04", "name": "Gemiddelde reistijd", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+        Result:=Result + ', {"id":"' + string(self.ID)+'-KPI05", "name": "Voertuigverliesuren", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+        Result:=Result + ', {"id":"' + string(self.ID)+'-KPI06", "name": "Gemiddelde ritlengte", "x": {"label": "simulatie seconden"}, "y": [{"label":"seconden","color":"LightBlue"}]}';
+        Result:=Result + ', {"id":"' + string(self.ID)+'-KPI07", "name": "Voertuigstops", "x": {"label": "simulatie seconden"}, "y": [{"label":"stops","color":"LightBlue"}]}';
+        *)
+
+//        jsonStr := stat.new(aPayload, (project as TSSMProject).sourceProjection);
+//        project.SendString('{"newGTUstatistics": ['+jsonStr+']}');
       end;
     actionChange:
       begin
-        if objects.TryGetValue(RawByteString(statisticId), lo) then
+        if fStatistics.TryGetValue(statisticId, stat) then
         begin
-          stat := lo as TSSMStatistic;
           stat.changedTimestamp := timestamp;
-          jsonStr := stat.change(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-          if jsonStr<>''  then
-          begin
-            scenario.project.SendString('{"updateGTUstatistics": ['+jsonStr+']}');
-          end;
+          stat.change(aPayload, (project as TSSMProject).sourceProjection);
+          stat.charts[0].AddValue(stat.changedTimestamp, [stat.totalGTUDistance]);
+          stat.charts[1].AddValue(stat.changedTimestamp, [stat.totalGTUTravelTime]);
+          stat.charts[2].AddValue(stat.changedTimestamp, [stat.averageGTUSpeed]);
+          stat.charts[3].AddValue(stat.changedTimestamp, [stat.averageGTUTravelTime]);
+          stat.charts[4].AddValue(stat.changedTimestamp, [stat.totalGTUTimeDelay]);
+          stat.charts[5].AddValue(stat.changedTimestamp, [stat.averageTripLength]);
+          stat.charts[6].AddValue(stat.changedTimestamp, [stat.totalNumberStops]);
+
+          (*
+          DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUDistance)+']}';
+          Result:=Result + ',{"id":"' + string(self.ID)+'-KPI02","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUTravelTime)+']}';
+          Result:=Result + ',{"id":"' + string(self.ID)+'-KPI03","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageGTUSpeed)+']}';
+          Result:=Result + ',{"id":"' + string(self.ID)+'-KPI04","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageGTUTravelTime)+']}';
+          Result:=Result + ',{"id":"' + string(self.ID)+'-KPI05","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalGTUTimeDelay)+']}';
+          Result:=Result + ',{"id":"' + string(self.ID)+'-KPI06","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(averageTripLength)+']}';
+          Result:=Result + ',{"id":"' + string(self.ID)+'-KPI07","x":'+DoubleToJSON(self.changedTimestamp)+',"y":['+DoubleToJSON(totalNumberStops)+']}';
+
+          aPayload.Read(totalGTUDistance);
+          aPayload.Read(totalGTUTravelTime);
+          aPayload.Read(averageGTUSpeed);
+          aPayload.Read(averageGTUTravelTime);
+          aPayload.Read(totalGTUTimeDelay);
+          aPayload.Read(averageTripLength);
+          aPayload.Read(totalNumberStops);
+          *)
+//          jsonStr := stat.change(aPayload, (project as TSSMProject).sourceProjection);
+//          if jsonStr<>''  then
+//          begin
+//            project.SendString('{"updateGTUstatistics": ['+jsonStr+']}');
+//          end;
         end
-        else Log.WriteLn('TSSMLayer.HandleGTUStatisticEvent: change, unknown sensor id '+string(UTF8String(statisticId)), llError);
+        else Log.WriteLn('TSSMScenario.HandleGTUStatisticEvent: change, unknown sensor id '+statisticId, llError);
       end;
     actionDelete:
       begin
-        if objects.TryGetValue(RawByteString(statisticId), lo) then
+        if fStatistics.TryGetValue(statisticId, stat) then
         begin
-          stat := lo as TSSMStatistic;
           stat.deletedTimestamp := timestamp;
-          jsonStr := stat.delete(aPayload, (scenario.project as TSSMProject).sourceProjection, fOffsetInRD);
-          scenario.project.SendString('{"removeGTUsensor": ['+jsonStr+']}');
-          objects.Remove(stat.id);
+          stat.delete(aPayload, (project as TSSMProject).sourceProjection);
+//          jsonStr := stat.delete(aPayload, (project as TSSMProject).sourceProjection);
+//          project.SendString('{"removeGTUsensor": ['+jsonStr+']}');
+
+          // todo: implement
+          //for chart in stat.charts
+          //do RemoveChart(chart);
+
+          fStatistics.Remove(stat.id);
         end
-        else Log.WriteLn('TSSMLayer.HandleGTUstatisticEvent: delete, unknown sensor id '+string(UTF8String(statisticId)), llError);
+        else Log.WriteLn('TSSMScenario.HandleGTUStatisticEvent: delete, unknown sensor id '+statisticId, llError);
       end;
   end;
 end;
 
-procedure TSSMLayer.handleNewClient(aClient: TClient);
-var
-  iop: TPair<TWDID, TLayerObject>;
+procedure TSSMScenario.HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 begin
-  // send new cars
-  for iop in objects do
-  begin
-    if iop.Value is TSSMCar then
-    begin
-      aClient.signalString('{"addcar": [{'+'"id":"'+string(UTF8String(iop.Key))+'",'+(iop.Value as TSSMCar).toJSONNew+'}]}');
-    end
-    else if iop.Value is TSSMStatistic then
-    begin
-      aClient.signalString('{"newGTUstatistics": ['+(iop.Value as TSSMStatistic).toJSONNew+']}');
-      if not (iop.Value as TSSMStatistic).newTimestamp.IsNan
-      then aClient.signalString('{"updateGTUstatistics": ['+(iop.Value as TSSMStatistic).toJSONChange+']}');
-    end;
-  end;
+  aPayload.Read(fSpeed);
+  project.SendString('{"simulationControl":{"speed":'+DoubleToJSON(fSpeed)+'}}');
 end;
 
-procedure TSSMLayer.HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
-var
-  speed: Double;
+procedure TSSMScenario.HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 begin
-  aPayload.Read(speed);
-  scenario.project.SendString('{"simulationControl":{"speed":'+DoubleToJSON(speed)+'}}');
+  fRunning := True;
+  project.SendString('{"simulationControl":{"start":true}}');
 end;
 
-procedure TSSMLayer.HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+procedure TSSMScenario.HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 begin
-  scenario.project.SendString('{"simulationControl":{"start":true}}');
+  fRunning := False;
+  project.SendString('{"simulationControl":{"stop":true}}');
 end;
 
-procedure TSSMLayer.HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
-begin
-  scenario.project.SendString('{"simulationControl":{"stop":true}}');
-end;
 { TSSMProject }
 
 constructor TSSMProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
@@ -839,11 +1053,14 @@ constructor TSSMProject.Create(aSessionModel: TSessionModel; aConnection: TConne
     aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
     aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer);
 begin
-  fIMB3Connection := TIMBConnection.Create('vps17642.public.cloudvps.com'{'app-usmodel01.tsn.tno.nl'}{'192.168.1.11'}, 4000, 'PublishingServerSSM', 4, 'OTS_RT');
-  //fIMB3Connection := TIMBConnection.Create(GetSetting('RemoteHost', ''){'app-usmodel01.tsn.tno.nl'}{'192.168.1.11'}, 4000, 'PublishingServerSSM', 4, 'OTS_RT');
-  //mapView  := TMapView.Create(52.08457, 4.88909, 14);
+  fIMB3Connection := TIMBConnection.Create(
+    GetSetting('IMB3RemoteHost', 'vps17642.public.cloudvps.com'),
+    GetSetting('IMB3RemotePort', 4000),
+    'PublishingServerSSM', 4,
+    GetSetting('IMB3Prefix', 'OTS_RT'));
   mapView := aMapView;
-  fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
+  fSourceProjection := CSProjectedCoordinateSystemList.ByWKT(
+    GetSetting('Projection', 'Amersfoort_RD_New')); // EPSG: 28992
   inherited Create(aSessionModel, aConnection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
     aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers,
     aMaxNearestObjectDistanceInMeters);
@@ -862,18 +1079,27 @@ var
   EmptyPayload: ByteBuffers.TByteBuffer;
   speed: Double;
   speedPayload: ByteBuffers.TByteBuffer;
+  isp: TPair<string, TScenario>;
 begin
   if isObject(aJSONObject, 'simulationControl', jsonPair) then
   begin
     EmptyPayload.Clear();
     if isObjectValue(jsonPair.JsonValue as TJSONObject, 'stop', jsonValue) then
     begin
-      fIMB3Connection.Publish('Sim_Stop').SignalEvent(ekNormalEvent, EmptyPayload);
+      for isp in scenarios do
+      begin
+        if isp.Value is TSSMScenario
+        then (isp.Value as TSSMScenario).fSIMStopEvent.SignalEvent(ekNormalEvent, EmptyPayload);
+      end;
       SendString('{"simulationControl":{"stop":true}}');
     end;
     if isObjectValue(jsonPair.JsonValue as TJSONObject, 'start', jsonValue) then
     begin
-      fIMB3Connection.Publish('Sim_Start').SignalEvent(ekNormalEvent, EmptyPayload);
+      for isp in scenarios do
+      begin
+        if isp.Value is TSSMScenario
+        then (isp.Value as TSSMScenario).fSIMStartEvent.SignalEvent(ekNormalEvent, EmptyPayload);
+      end;
       // signal status to clients
       SendString('{"simulationControl":{"start":true}}');
     end;
@@ -882,7 +1108,11 @@ begin
       speed := jsonValue.getValue<Double>(); // todo: check if this works
       speedPayload.Clear();
       speedPayload.Write(speed);
-      fIMB3Connection.Publish('Sim_Speed').SignalEvent(ekNormalEvent, speedPayload);
+      for isp in scenarios do
+      begin
+        if isp.Value is TSSMScenario
+        then (isp.Value as TSSMScenario).fSIMSpeedEvent.SignalEvent(ekNormalEvent, speedPayload);
+      end;
       // signal status to clients
       SendString('{"simulationControl":{"speed":'+DoubleToJSON(speed)+'}}');
     end;
@@ -891,33 +1121,158 @@ begin
 end;
 
 procedure TSSMProject.handleNewClient(aClient: TClient);
-var
-  isp: TPair<string, TScenario>;
-  ilp: TPair<string, TLayer>;
+//var
+//  isp: TPair<string, TScenario>;
+//  ilp: TPair<string, TLayer>;
 begin
+  {
   for isp in scenarios do
   begin
     try
       for ilp in isp.value.layers do
       begin
-        if ilp.Value is TSSMLayer
-        then (ilp.Value as TSSMLayer).handleNewClient(aClient);
+        if ilp.Value is TSSMCarLayer
+        then (ilp.Value as TSSMCarLayer).handleNewClient(aClient);
       end;
     except
       on E: Exception
       do Log.WriteLn('Exception in TSSMProject.handleNewClient: '+e.Message, llError);
     end;
   end;
+  }
+  // todo: new project status to client?
 end;
 
 procedure TSSMProject.ReadBasicData;
 var
-  gtuLayer: TSSMLayer;
+  gtuLayer: TSSMCarLayer;
+  linkLayer: TSSMLinkLayer;
 begin
-  fCurrentScenario := TScenario.Create(Self, 'woerden', 'Woerden', 'Woerden test', false, mapView);
+  fCurrentScenario := TSSMScenario.Create(Self, 'woerden', 'Woerden', 'Woerden test', false, mapView);
   scenarios.Add(fCurrentScenario.ID, fCurrentScenario);
-  gtuLayer := TSSMLayer.Create(fCurrentScenario, 'mobiliteit', 'GTU', 'GTU', 'GTU', false);
+  // links
+  linkLayer := TSSMLinkLayer.Create(fCurrentScenario, 'mobiliteit', 'LINK', 'LINK', 'LINK', false, nil);
+  fCurrentScenario.Layers.Add(linkLayer.ID, linkLayer);
+  // GTUs
+  gtuLayer := TSSMCarLayer.Create(fCurrentScenario, 'mobiliteit', 'GTU', 'GTU', 'GTU', false, linkLayer);
+  linkLayer.carLayer := gtuLayer;
   fCurrentScenario.Layers.Add(gtuLayer.ID, gtuLayer);
+end;
+
+procedure TSSMProject.SendDomains(aClient: TClient; const aPrefix: string);
+var
+  domains: TDictionary<string, TClientDomain>;
+  locLayers: TList<TLayer>;
+  layer: TLayer;
+  JSON: string;
+  refLayer: TLayer;
+  _diffElementID: string;
+  diffLayer: TDiffLayer;
+  d: TClientDomain;
+  nkp: TPair<string, TKPI>;
+  ngp: TPair<string, TChart>;
+  domainsJSON: string;
+  ndp: TPair<string, TClientDomain>;
+begin
+  // todo: implement new layer system
+  domains := TDictionary<string, TClientDomain>.Create;
+  try
+    if Assigned(fCurrentScenario) then
+    begin
+      // layers
+      locLayers := TList<TLayer>.Create(TComparer<TLayer>.Construct(compareLayerNames));
+      try
+        locLayers.AddRange(fCurrentScenario.Layers.Values);
+        locLayers.Sort;
+        for layer in locLayers do
+        begin
+          JSON := layer.JSON;
+          if Assigned(fRefScenario) then
+          begin
+            if fRefScenario.Layers.TryGetValue(layer.ID, refLayer) then
+            begin
+              // todo: full JSON for ref and diff, to include legend?
+              JSON := JSON+',"ref":{'+refLayer.refJSON+'}';
+              _diffElementID :=  diffElementID(layer, refLayer);
+              TMonitor.Enter(diffLayers);
+              try
+                if not diffLayers.TryGetValue(_diffElementID, diffLayer) then
+                begin
+                  diffLayer := TDiffLayer.Create(_diffElementID, layer, refLayer);
+                  diffLayers.Add(_diffElementID, diffLayer);
+                  // todo:
+
+                end;
+              finally
+                TMonitor.Exit(diffLayers);
+              end;
+              // todo: temp removed for testing
+              JSON := JSON+',"diff":{'+diffLayer.refJSON+'}';
+            end
+            else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref layer for '+layer.ID);
+          end;
+          JSON  := '{'+JSON+'}';
+          if domains.TryGetValue(layer.domain, d) then
+          begin
+            jsonAdd(d.layers, JSON);
+            domains[layer.domain] := d;
+          end
+          else
+          begin
+            d := TClientDomain.Create(layer.domain);
+            d.layers := JSON;
+            domains.Add(d.name, d);
+          end;
+        end;
+      finally
+        locLayers.Free;
+      end;
+      // kpis
+      for nkp in fCurrentScenario.KPIs do
+      begin
+        JSON := '{'+nkp.Value.JSON+'}';
+        if domains.TryGetValue(nkp.Value.domain, d) then
+        begin
+          jsonAdd(d.kpis, JSON);
+          domains[nkp.Value.domain] := d;
+        end
+        else
+        begin
+          d := TClientDomain.Create(nkp.Value.domain);
+          d.kpis := JSON;
+          domains.Add(d.name, d);
+        end;
+      end;
+      // charts
+      for ngp in fCurrentScenario.Charts do
+      begin
+        JSON := '{'+ngp.Value.JSON+'}';
+        if domains.TryGetValue(ngp.Value.domain, d) then
+        begin
+          jsonAdd(d.charts, JSON);
+          domains[ngp.Value.domain] := d;
+        end
+        else
+        begin
+          d := TClientDomain.Create(ngp.Value.domain);
+          d.charts := JSON;
+          domains.Add(d.name, d);
+        end;
+      end;
+    end;
+    domainsJSON := '';
+    for ndp in domains do
+    begin
+      d := ndp.Value;
+      // extra check to make domains enabled by default through entry in exe ini
+      // todo: use const
+      d.enabled := standardIni.ReadInteger('DefaultEnabledDomains', ndp.Key, 0);
+      jsonAdd(domainsJSON, d.JSON);
+    end;
+    aClient.signalString('{"'+aPrefix+'":{'+domainsJSON+'}}'); // default prefix is "domains":..
+  finally
+    domains.Free;
+  end;
 end;
 
 end.

@@ -6,7 +6,6 @@ unit SessionServerEcodistrict;
     in dictionary EcodistrictBaseScenario is used
     -> mismatch scenario.ID and dictionary id within project
       -> solution: remove EcodistrictBaseScenario and always use project id?
-
 }
 
 interface
