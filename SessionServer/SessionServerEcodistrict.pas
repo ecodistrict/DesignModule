@@ -458,7 +458,7 @@ constructor TEcodistrictLayer.Create(aScenario: TScenario; const aDomain, aID, a
 begin
   fLayerType := aLayerType;
   fPalette := aPalette;
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, Double.NaN, aBasicLayer);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, Double.NaN, aBasicLayer);
   fLegendJSON := aLegendJSON; // property of TLayer
 end;
 
@@ -933,7 +933,7 @@ begin
           Result :=
             '{"selectedObjects":{"selectCategories":["'+nearestObjectLayer.ID+'"],'+
              '"mode":"'+aMode+'",'+
-             '"objects":['+nearestObject.GeoJSON2D[nearestObjectLayer.geometryType]+']}}';
+             '"objects":['+nearestObject.JSON2D[nearestObjectLayer.geometryType, '']+']}}';
           Log.WriteLn('found nearest object layer: '+nearestObjectLayer.ID+', object: '+string(nearestObject.ID)+', distance: '+nearestObjectDistanceInMeters.toString);
         end
         else
@@ -1070,7 +1070,7 @@ begin
                     begin
                       if objectsGeoJSON<>''
                       then objectsGeoJSON := objectsGeoJSON+',';
-                      objectsGeoJSON := objectsGeoJSON+layerObject.GeoJSON2D[layer.geometryType];
+                      objectsGeoJSON := objectsGeoJSON+layerObject.JSON2D[layer.geometryType, ''];
                     end;
                     query.Next();
                   end;
@@ -1305,7 +1305,7 @@ begin
               else catList.AddOrSetValue(l.ID, 1);
               if objectsGeoJSON<>''
               then objectsGeoJSON := objectsGeoJSON+',';
-              objectsGeoJSON := objectsGeoJSON+lo.GeoJSON2D[l.geometryType];
+              objectsGeoJSON := objectsGeoJSON+lo.JSON2D[l.geometryType, ''];
               totalObjectCount := totalObjectCount+1;
             end;
           end;
@@ -2205,12 +2205,12 @@ begin
   begin
     Result := (project as TEcodistrictProject).ReadDIMeasuresHistory;
     // todo: signal connected clients of domains update
+
     for isp in project.scenarios do
     begin
       isp.Value.forEachClient(procedure(aClient: TClient)
         begin
-          // todo: correct?
-          aClient.SendDomains('updatedomains');
+          project.SendDomains(aClient, 'updatedomains');
         end);
     end;
   end

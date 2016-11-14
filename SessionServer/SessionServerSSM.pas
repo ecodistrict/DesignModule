@@ -6,7 +6,7 @@ uses
   Logger,
   IMB3NativeClient, IMB3Core, ByteBuffers,
   imb4,
-  WorldDataCode,
+  WorldDataCode, WorldLegends, WorldTilerConsts,
   Data.DB,
   StdIni,
 
@@ -48,7 +48,7 @@ type
     // cache
     latlon: TGIS_Point;
   public
-    function getGeoJSON2D(const aType: string): string; override;
+    function getJSON2D(const aType, aExtraJSON2DAttributes: string): string; override;
     function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; override;
     function intersects(aGeometry: TWDGeometry): Boolean; override;
   public
@@ -63,7 +63,7 @@ type
   TSSMLinkLayer = class;
 
   TSSMCarLayer  = class(TLayer)
-  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aLinkLayer: TSSMLinkLayer);
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean; aLinkLayer: TSSMLinkLayer);
   private
     fGTUEvent: TIMBEventEntry;
     fLinkLayer: TSSMLinkLayer;
@@ -73,6 +73,10 @@ type
     property linkLayer: TSSMLinkLayer read fLinkLayer write fLinkLayer;
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
     function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
+  public
+    procedure RegisterLayer; override;
+    procedure RegisterSlice; override;
+    function SliceType: Integer; override;
   end;
 
   TSSMLink = class(TGeometryLayerObject)
@@ -91,23 +95,30 @@ type
   end;
 
   TSSMLinkLayer = class(TLayer)
-  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aCarLayer: TSSMCarLayer);
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
+    aDefaultLoad: Boolean; aShowInDomains: Boolean; aDiffRange: Double; aCarLayer: TSSMCarLayer);
+  destructor Destroy; override;
   private
     fLinkEvent: TIMBEventEntry;
     fCarLayer: TSSMCarLayer;
   public
     property carLayer: TSSMCarLayer read fCarLayer write fCarLayer;
     procedure HandleLinkEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
+  protected
+    fLayerType: Integer;
+    fPalette: TWDPalette;
+  public
+    procedure RegisterLayer; override;
+    procedure RegisterSlice; override;
+    function SliceType: Integer; override;
   end;
 
   TSSMStatistic = class
   constructor Create(aScenario: TScenario; const aDomain, aID: string);
   destructor Destroy; override;
   public
-
     // timestamps
     newTimestamp: Double;
-
     changedTimestamp: Double;
     deletedTimestamp: Double;
     // base, new/change/delete
@@ -164,6 +175,9 @@ type
     fSIMStartEvent: TIMBEventEntry;
     fSIMStopEvent: TIMBEventEntry;
     fSIMSpeedEvent: TIMBEventEntry;
+  public
+    property running: Boolean read fRunning;
+    property speed: Double read fSpeed;
   public
     procedure HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
 
@@ -249,12 +263,12 @@ begin
     begin
       if (_turnIndicatorStatus='NONE') or (_turnIndicatorStatus='NOTPRESENT') then
       begin
-        layer.UpdateObjectAttribute(ID, 'style.opacity', 'o');
+        layer.UpdateObjectAttribute(ID, 'opacity', '0');
       end
       else
       begin
-        layer.UpdateObjectAttribute(ID, 'style.color', '"yellow"');
-        layer.UpdateObjectAttribute(ID, 'style.opacity', '1');
+        layer.UpdateObjectAttribute(ID, 'color', '"yellow"');
+        layer.UpdateObjectAttribute(ID, 'opacity', '1');
       end;
     end;
     //addResult('tis', '"'+_turnIndicatorStatus+'"');
@@ -265,12 +279,12 @@ begin
   begin
     if _brakingLights then
     begin
-      layer.UpdateObjectAttribute(ID, 'style.color', '"red"'); //addResult('bl', 'true')
-      layer.UpdateObjectAttribute(ID, 'style.opacity', '1');
+      layer.UpdateObjectAttribute(ID, 'color', '"red"'); //addResult('bl', 'true')
+      layer.UpdateObjectAttribute(ID, 'opacity', '1');
     end
     else
     begin
-      layer.UpdateObjectAttribute(ID, 'style.opacity', '0');//addResult('bl', 'false');
+      layer.UpdateObjectAttribute(ID, 'opacity', '0');//addResult('bl', 'false');
     end;
     brakingLights := _brakingLights;
   end;
@@ -304,7 +318,7 @@ begin
   Result := Infinite; // todo:
 end;
 
-function TSSMCar.getGeoJSON2D(const aType: string): string;
+function TSSMCar.getJSON2D(const aType, aExtraJSON2DAttributes: string): string;
 begin
   Result := ''; // todo:
 end;
@@ -334,8 +348,7 @@ begin
   latlon.X := x;
   latlon.Y := y;
   latlon := aSourceProjection.ToGeocs(latlon);
-  layer.AddObjectAttribute(ID, 'lng', DoubleToJSON(latlon.x));
-  layer.AddObjectAttribute(ID, 'lat', DoubleToJSON(latlon.y));
+
 //  addResult('lng', DoubleToJSON(latlon.X));
 //  addResult('lat', DoubleToJSON(latlon.Y));
   aPayload.Read(z);
@@ -351,7 +364,10 @@ begin
   aPayload.Read(B);
   baseColor :=  RGBToAlphaColor(R, G, B);
   //Log.WriteLn('color '+baseColor.ToHexString(8), llNormal, 1);
-  layer.AddObjectAttribute(ID, 'style.fillcolor', '"'+ColorToJSON(baseColor)+'"');
+  layer.AddObjectAttribute(ID, [
+    TAttrNameValue.Create('lng', DoubleToJSON(latlon.x)),
+    TAttrNameValue.Create('lat', DoubleToJSON(latlon.y)),
+    TAttrNameValue.Create('fillColor', '"'+ColorToJSON(baseColor)+'"')]);
   //addResult('fill', '"'+ColorToJSON(baseColor)+'"');
 end;
 
@@ -545,7 +561,7 @@ end;
 
 constructor TSSMLink.Create(aLayer: TLayer; const aID: TWDID; aGeometry: TWDGeometry);
 begin
-  inherited Create(aLayer, aID, aGeometry, 0);
+  inherited Create(aLayer, aID, aGeometry, double.NaN);
   fTotalSpeed := 0;
   fNumberOfVehicles := 0;
 end;
@@ -571,13 +587,34 @@ end;
 
 { TSSMLinkLayer }
 
-constructor TSSMLinkLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aCarLayer: TSSMCarLayer);
+const
+  NoSpeedColor: TAlphaRGBPixel = $FF000000;
+  LowSpeedColor: TAlphaRGBPixel = $FFFF0000;
+  MediumSpeedColor: TAlphaRGBPixel = $FFFFFF00;
+  HighSpeedColor: TAlphaRGBPixel = $FF00FF00;
+
+constructor TSSMLinkLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean; aDiffRange: Double; aCarLayer: TSSMCarLayer);
+var
+  entries: TPaletteRampEntryArray;
 begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"link"', 'Line', 0);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"link"', 'LineString',
+    ltTile, aShowInDomains, aDiffRange);
+  SetLength(entries, 3);
+  entries[0] := TRampPaletteEntry.Create(LowSpeedColor, 0, 'low');
+  entries[1] := TRampPaletteEntry.Create(MediumSpeedColor, 11.1, 'medium'); // about 40 km/u
+  entries[2] := TRampPaletteEntry.Create(HighSpeedColor, 22.2, 'high'); // about 80 km/u
+  fPalette := TRampPalette.Create('Link avagere speed', entries, LowSpeedColor, NoSpeedColor, HighSpeedColor);
+  legendJSON := BuildRamplLegendJSON(fPalette as TRampPalette);
   fCarLayer := aCarLayer;
   // link
   fLinkEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('Link_GTU');
   fLinkEvent.OnNormalEvent := HandleLinkEvent;
+end;
+
+destructor TSSMLinkLayer.Destroy;
+begin
+  FreeAndNil(fPalette);
+  inherited;
 end;
 
 procedure TSSMLinkLayer.HandleLinkEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
@@ -596,47 +633,41 @@ var
   gtuId: AnsiString;
   countAfterEvent: Integer;
   speed: Double;
+  latlon: TGIS_Point;
 begin
   try
     aPayload.Read(action);
     aPayload.Read(timestamp);
     aPayload.Read(networkId);
-    aPayload.Read(AnsiString(linkId));
+    aPayload.Read(linkId);
     case action of
       actionNew:
         begin
-          TMonitor.Enter(objects);
-          try
-            if not objects.TryGetValue(linkid, lo) then
-            begin
-              lo := TSSMLink.Create(Self, linkId, TWDGeometry.Create());
-              objects.Add(linkId, lo);
-            end
-            else
-            begin
-              (lo as TSSMLink).geometry.parts.Clear;
-              Log.WriteLn('Received new link on known link '+string(UTF8String(linkId)), llWarning);
-            end;
-          finally
-            TMonitor.Exit(objects);
-          end;
-          aPayload.Read(startNodeId);
-          aPayload.Read(endNodeId);
-          aPayload.Read(numberOfPoints);
-          for p := 0 to numberOfPoints-1 do
+          if not FindObject(TWDID(linkid), lo) then
           begin
-            aPayload.Read(x);
-            aPayload.Read(y);
-            aPayload.Read(z);
-            (lo as TSSMLink).geometry.AddPoint(x, y, z);
-          end;
+            lo := TSSMLink.Create(Self, linkId, TWDGeometry.Create());
+            aPayload.Read(startNodeId);
+            aPayload.Read(endNodeId);
+            aPayload.Read(numberOfPoints);
+            for p := 0 to numberOfPoints-1 do
+            begin
+              aPayload.Read(x);
+              aPayload.Read(y);
+              aPayload.Read(z);
+              latlon.X := x;
+              latlon.Y := y;
+              latlon := (scenario.project as TSSMProject).sourceProjection.ToGeocs(latlon);
+              (lo as TSSMLink).geometry.AddPoint(latlon.X, latlon.Y, z);
+            end;
+            AddObject(lo);
+          end
+          else Log.WriteLn('Received new link on known link '+string(UTF8String(linkId)), llWarning);
         end;
       actionChange:
         begin
           aPayload.Read(isVehicleAdded);
           aPayload.Read(gtuId);
           aPayload.Read(countAfterEvent);
-
           fCarLayer.objectsLock.BeginRead;
           try
             if fCarLayer.objects.TryGetValue(gtuId, lo) and (lo is TSSMCar)
@@ -649,7 +680,6 @@ begin
           finally
             fCarLayer.objectsLock.EndRead;
           end;
-
           TMonitor.Enter(objects);
           try
             if objects.TryGetValue(linkId, lo) then
@@ -660,6 +690,7 @@ begin
                 then (lo as TSSMLink).AddGTU(speed)
                 else (lo as TSSMLink).RemoveGTU(speed);
               end;
+              signalObject(lo);
             end
             else Log.WriteLn('Received change link on unknown link '+string(UTF8String(linkId)), llError);
           finally
@@ -668,6 +699,13 @@ begin
         end;
       actionDelete:
         begin
+          if FindObject(TWDID(linkid), lo) then
+          begin
+            //
+            RemoveObject(lo);
+          end
+          else Log.WriteLn('Received delete link on unknown link '+string(UTF8String(linkId)), llError);
+          {
           TMonitor.Enter(objects);
           try
             if objects.TryGetValue(linkId, lo) then
@@ -678,6 +716,7 @@ begin
           finally
             TMonitor.Exit(objects);
           end;
+          }
         end;
     end;
   except
@@ -686,11 +725,28 @@ begin
   end;
 end;
 
+procedure TSSMLinkLayer.RegisterLayer;
+begin
+  RegisterOnTiler(False, SliceType, name, 2500);
+end;
+
+procedure TSSMLinkLayer.RegisterSlice;
+begin
+  if Assigned(fPalette)
+  then tilerLayer.signalAddSlice(fPalette.Clone)
+  else tilerLayer.signalAddSlice(nil);
+end;
+
+function TSSMLinkLayer.SliceType: Integer;
+begin
+  Result := stGeometryI;
+end;
+
 { TSSMCarLayer }
 
-constructor TSSMCarLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aLinkLayer: TSSMLinkLayer);
+constructor TSSMCarLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean; aLinkLayer: TSSMLinkLayer);
 begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"car"', 'Point', 0);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"car"', 'Point', ltObject, aShowInDomains, 0);
   fLinkLayer := aLinkLayer;
   // GTU
   fGTUEvent := (scenario.project as TSSMProject).imb3Connection.Subscribe('GTU');
@@ -700,15 +756,30 @@ end;
 function TSSMCarLayer.HandleClientSubscribe(aClient: TClient): Boolean;
 var
   iop: TPair<TWDID, TLayerObject>;
+  _json: string;
+  car: TSSMCar;
 begin
   result := inherited;
   // send new cars
+  _json := '';
   for iop in objects do
   begin
     if iop.Value is TSSMCar then
     begin
-      // todo: aClient.signalString('{"addcar": [{'+'"id":"'+string(UTF8String(iop.Key))+'",'+(iop.Value as TSSMCar).toJSONNew+'}]}');
+      car := iop.Value as TSSMCar;
+      if _json<>''
+      then _json  := _json+',';
+      _json  := _json+
+        '{"newobject":'+
+          '{"id":"'+string(UTF8String(car.ID))+'",'+
+           '"lng":'+DoubleToJSON(car.latlon.x)+','+
+           '"lat":'+DoubleToJSON(car.latlon.y)+','+
+           '"fillColor":"'+ColorToJSON(car.baseColor)+'"}}';
     end;
+  end;
+  if _json<>'' then
+  begin
+    aClient.signalString('{"type":"updatelayer","payload":{"id":"'+ElementID+'","data":['+_json+']}}');
   end;
 end;
 
@@ -772,6 +843,7 @@ begin
               if link is TSSMLink
               then (link as TSSMLink).ChangeGTU(oldSpeed, newSpeed)
               else log.WriteLn('TSSMCarLayer.HandleGTUEvent: object is not a link in gtu change of '+string(UTF8String(gtuId))+', '+string(UTF8String(car.linkId)), llError);
+              signalObject(link);
             end
             else log.WriteLn('TSSMCarLayer.HandleGTUEvent: link not found in gtu change of '+string(UTF8String(gtuId))+', '+string(UTF8String(car.linkId)), llError);
           end;
@@ -801,6 +873,24 @@ begin
         else Log.WriteLn('TSSMLayer.HandleGTUEvent: delete, unknown car id '+gtuId, llError);
       end;
   end;
+end;
+
+procedure TSSMCarLayer.RegisterLayer;
+begin
+  RegisterOnTiler(False, SliceType, name, 2500);
+end;
+
+procedure TSSMCarLayer.RegisterSlice;
+begin
+//  if Assigned(fPalette)
+//  then tilerLayer.signalAddSlice(fPalette.Clone)
+//  else
+  tilerLayer.signalAddSlice(nil);
+end;
+
+function TSSMCarLayer.SliceType: Integer;
+begin
+  Result := stLocation;
 end;
 
 (*
@@ -918,30 +1008,33 @@ begin
       begin
         if not fStatistics.TryGetValue(statisticId, stat) then
         begin
-          stat := TSSMStatistic.Create(Self, 'domain', statisticId); // todo: domain
+          stat := TSSMStatistic.Create(Self, '(1) All Vehicles', statisticId); // todo: domain
           fStatistics.Add(stat.ID, stat);
         end;
         stat.newTimestamp := timestamp;
         stat.new(aPayload, (project as TSSMProject).sourceProjection);
-        stat.charts.Add(TChart.Create(Self, 'domain', '0', 'Totale voertuigkilometers', '', false, 'line',
+        // (1) All Vehicles
+        // (2) Smart Mobility
+        // (3) No Service
+        stat.charts.Add(TChart.Create(Self, stat.domain, '0', 'Total vehicle kilometers', '', false, 'line',
           TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
           [TChartAxis.Create('km', 'lightBlue', 'Length', 'km')]));
-        stat.charts.Add(TChart.Create(Self, 'domain', '1', 'Totale reistijd', '', false, 'line',
+        stat.charts.Add(TChart.Create(Self, stat.domain, '1', 'Total travel time', '', false, 'line',
           TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
           [TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min')]));
-        stat.charts.Add(TChart.Create(Self, 'domain', '2', 'Gemiddelde snelheid', '', false, 'line',
+        stat.charts.Add(TChart.Create(Self, stat.domain, '2', 'Average speed', '', false, 'line',
           TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-          [TChartAxis.Create('km/u', 'lightBlue', 'Velocity', 'km/h')]));
-        stat.charts.Add(TChart.Create(Self, 'domain', '3', 'Gemiddelde reistijd', '', false, 'line',
+          [TChartAxis.Create('km/h', 'lightBlue', 'Velocity', 'km/h')]));
+        stat.charts.Add(TChart.Create(Self, stat.domain, '3', 'Average travel time', '', false, 'line',
           TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
           [TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min')]));
-        stat.charts.Add(TChart.Create(Self, 'domain', '4', 'Voertuigverliesuren', '', false, 'line',
+        stat.charts.Add(TChart.Create(Self, stat.domain, '4', 'Vehicle delay hours', '', false, 'line',
           TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
           [TChartAxis.Create('hours', 'lightBlue', 'Time', 'h')]));
-        stat.charts.Add(TChart.Create(Self, 'domain', '5', 'Gemiddelde ritlengte', '', false, 'line',
+        stat.charts.Add(TChart.Create(Self, stat.domain, '5', 'Average trip length', '', false, 'line',
           TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
           [TChartAxis.Create('km', 'lightBlue', 'Length', 'km')]));
-        stat.charts.Add(TChart.Create(Self, 'domain', '6', 'Voertuigstops', '', false, 'line',
+        stat.charts.Add(TChart.Create(Self, stat.domain, '6', 'Vehicle stops', '', false, 'line',
           TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
           [TChartAxis.Create('stops', 'lightBlue', 'Dimensionless', '-')]));
 
@@ -1029,19 +1122,24 @@ begin
 end;
 
 procedure TSSMScenario.HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+var
+  action: Integer;
 begin
+  aPayload.Read(action);
   aPayload.Read(fSpeed);
   project.SendString('{"simulationControl":{"speed":'+DoubleToJSON(fSpeed)+'}}');
 end;
 
 procedure TSSMScenario.HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 begin
+  // action
   fRunning := True;
   project.SendString('{"simulationControl":{"start":true}}');
 end;
 
 procedure TSSMScenario.HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 begin
+  // action
   fRunning := False;
   project.SendString('{"simulationControl":{"stop":true}}');
 end;
@@ -1068,8 +1166,8 @@ end;
 
 destructor TSSMProject.Destroy;
 begin
-  FreeAndNil(fIMB3Connection);
   inherited;
+  FreeAndNil(fIMB3Connection);
 end;
 
 procedure TSSMProject.handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario);
@@ -1091,7 +1189,7 @@ begin
         if isp.Value is TSSMScenario
         then (isp.Value as TSSMScenario).fSIMStopEvent.SignalEvent(ekNormalEvent, EmptyPayload);
       end;
-      SendString('{"simulationControl":{"stop":true}}');
+      //SendString('{"simulationControl":{"stop":true}}');
     end;
     if isObjectValue(jsonPair.JsonValue as TJSONObject, 'start', jsonValue) then
     begin
@@ -1101,7 +1199,7 @@ begin
         then (isp.Value as TSSMScenario).fSIMStartEvent.SignalEvent(ekNormalEvent, EmptyPayload);
       end;
       // signal status to clients
-      SendString('{"simulationControl":{"start":true}}');
+      //SendString('{"simulationControl":{"start":true}}');
     end;
     if isObjectValue(jsonPair.JsonValue as TJSONObject, 'speed', jsonValue) then
     begin
@@ -1114,49 +1212,62 @@ begin
         then (isp.Value as TSSMScenario).fSIMSpeedEvent.SignalEvent(ekNormalEvent, speedPayload);
       end;
       // signal status to clients
-      SendString('{"simulationControl":{"speed":'+DoubleToJSON(speed)+'}}');
+      //SendString('{"simulationControl":{"speed":'+DoubleToJSON(speed)+'}}');
     end;
   end
   else ;
 end;
 
 procedure TSSMProject.handleNewClient(aClient: TClient);
-//var
-//  isp: TPair<string, TScenario>;
-//  ilp: TPair<string, TLayer>;
+var
+  isp: TPair<string, TScenario>;
 begin
-  {
   for isp in scenarios do
   begin
     try
-      for ilp in isp.value.layers do
+      if (aClient.currentScenario=isp.Value) and (isp.Value is TSSMScenario) then
       begin
-        if ilp.Value is TSSMCarLayer
-        then (ilp.Value as TSSMCarLayer).handleNewClient(aClient);
+        if (isp.Value as TSSMScenario).running then
+        begin
+          aClient.signalString('{"simulationControl":{"start":true,"speed":'+DoubleToJSON((isp.Value as TSSMScenario).speed)+'}}');
+        end
+        else
+        begin
+          aClient.signalString('{"simulationControl":{"stop":true}}');
+        end;
       end;
     except
       on E: Exception
       do Log.WriteLn('Exception in TSSMProject.handleNewClient: '+e.Message, llError);
     end;
   end;
-  }
-  // todo: new project status to client?
 end;
 
 procedure TSSMProject.ReadBasicData;
 var
   gtuLayer: TSSMCarLayer;
   linkLayer: TSSMLinkLayer;
+  switchLayer: TLayerSwitch;
 begin
-  fCurrentScenario := TSSMScenario.Create(Self, 'woerden', 'Woerden', 'Woerden test', false, mapView);
-  scenarios.Add(fCurrentScenario.ID, fCurrentScenario);
+  fProjectCurrentScenario := TSSMScenario.Create(Self, 'scenario', 'scenario', 'scenario', false, mapView);
+  scenarios.Add(fProjectCurrentScenario.ID, fProjectCurrentScenario);
   // links
-  linkLayer := TSSMLinkLayer.Create(fCurrentScenario, 'mobiliteit', 'LINK', 'LINK', 'LINK', false, nil);
-  fCurrentScenario.Layers.Add(linkLayer.ID, linkLayer);
+  linkLayer := TSSMLinkLayer.Create(fProjectCurrentScenario, 'mobility', 'LINK', 'LINK', 'LINK', false, false, 10, nil);
+  linkLayer.extraJSON2DAttributes := ',"weight":1';
+  fProjectCurrentScenario.Layers.Add(linkLayer.ID, linkLayer);
+  linkLayer.RegisterLayer;
   // GTUs
-  gtuLayer := TSSMCarLayer.Create(fCurrentScenario, 'mobiliteit', 'GTU', 'GTU', 'GTU', false, linkLayer);
+  gtuLayer := TSSMCarLayer.Create(fProjectCurrentScenario, 'mobility', 'GTU', 'GTU', 'GTU', false, false, linkLayer);
+  gtuLayer.extraJSON2DAttributes := '';
   linkLayer.carLayer := gtuLayer;
-  fCurrentScenario.Layers.Add(gtuLayer.ID, gtuLayer);
+  fProjectCurrentScenario.Layers.Add(gtuLayer.ID, gtuLayer);
+  gtuLayer.RegisterLayer;
+  // switch
+  switchLayer := TLayerSwitch.Create(fProjectCurrentScenario, 'mobility', 'traffic', 'traffic', 'cars/intensity', true, '"car"', false);
+  switchLayer.zoomLayers.Add(TLayerOnZoom.Create(0, linkLayer));
+  switchLayer.zoomLayers.Add(TLayerOnZoom.Create(16, gtuLayer));
+  fProjectCurrentScenario.Layers.Add(switchLayer.ID, switchLayer);
+  //switchLayer.RegisterLayer;
 end;
 
 procedure TSSMProject.SendDomains(aClient: TClient; const aPrefix: string);
@@ -1177,58 +1288,61 @@ begin
   // todo: implement new layer system
   domains := TDictionary<string, TClientDomain>.Create;
   try
-    if Assigned(fCurrentScenario) then
+    if Assigned(aClient.currentScenario) then
     begin
       // layers
       locLayers := TList<TLayer>.Create(TComparer<TLayer>.Construct(compareLayerNames));
       try
-        locLayers.AddRange(fCurrentScenario.Layers.Values);
+        locLayers.AddRange(aClient.currentScenario.Layers.Values);
         locLayers.Sort;
         for layer in locLayers do
         begin
-          JSON := layer.JSON;
-          if Assigned(fRefScenario) then
+          if layer.showInDomains then
           begin
-            if fRefScenario.Layers.TryGetValue(layer.ID, refLayer) then
+            JSON := layer.JSON;
+            if Assigned(aClient.refScenario) then
             begin
-              // todo: full JSON for ref and diff, to include legend?
-              JSON := JSON+',"ref":{'+refLayer.refJSON+'}';
-              _diffElementID :=  diffElementID(layer, refLayer);
-              TMonitor.Enter(diffLayers);
-              try
-                if not diffLayers.TryGetValue(_diffElementID, diffLayer) then
-                begin
-                  diffLayer := TDiffLayer.Create(_diffElementID, layer, refLayer);
-                  diffLayers.Add(_diffElementID, diffLayer);
-                  // todo:
+              if aClient.refScenario.Layers.TryGetValue(layer.ID, refLayer) then
+              begin
+                // todo: full JSON for ref and diff, to include legend?
+                JSON := JSON+',"ref":{'+refLayer.refJSON+'}';
+                _diffElementID :=  diffElementID(layer, refLayer);
+                TMonitor.Enter(diffLayers);
+                try
+                  if not diffLayers.TryGetValue(_diffElementID, diffLayer) then
+                  begin
+                    diffLayer := TDiffLayer.Create(_diffElementID, layer, refLayer);
+                    diffLayers.Add(_diffElementID, diffLayer);
+                    // todo:
 
+                  end;
+                finally
+                  TMonitor.Exit(diffLayers);
                 end;
-              finally
-                TMonitor.Exit(diffLayers);
-              end;
-              // todo: temp removed for testing
-              JSON := JSON+',"diff":{'+diffLayer.refJSON+'}';
+                // todo: temp removed for testing
+                JSON := JSON+',"diff":{'+diffLayer.refJSON+'}';
+              end
+              else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref layer for '+layer.ID);
+            end;
+            JSON  := '{'+JSON+'}';
+            if domains.TryGetValue(layer.domain, d) then
+            begin
+              jsonAdd(d.layers, JSON);
+              domains[layer.domain] := d;
             end
-            else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref layer for '+layer.ID);
-          end;
-          JSON  := '{'+JSON+'}';
-          if domains.TryGetValue(layer.domain, d) then
-          begin
-            jsonAdd(d.layers, JSON);
-            domains[layer.domain] := d;
-          end
-          else
-          begin
-            d := TClientDomain.Create(layer.domain);
-            d.layers := JSON;
-            domains.Add(d.name, d);
+            else
+            begin
+              d := TClientDomain.Create(layer.domain);
+              d.layers := JSON;
+              domains.Add(d.name, d);
+            end;
           end;
         end;
       finally
         locLayers.Free;
       end;
       // kpis
-      for nkp in fCurrentScenario.KPIs do
+      for nkp in aClient.currentScenario.KPIs do
       begin
         JSON := '{'+nkp.Value.JSON+'}';
         if domains.TryGetValue(nkp.Value.domain, d) then
@@ -1244,7 +1358,7 @@ begin
         end;
       end;
       // charts
-      for ngp in fCurrentScenario.Charts do
+      for ngp in aClient.currentScenario.Charts do
       begin
         JSON := '{'+ngp.Value.JSON+'}';
         if domains.TryGetValue(ngp.Value.domain, d) then

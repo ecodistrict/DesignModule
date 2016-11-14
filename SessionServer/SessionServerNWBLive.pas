@@ -354,7 +354,7 @@ begin
   for iop in objects do
   begin
     if iop.Value.ValidGeometry
-    then jsonAdd(Result, iop.Value.GeoJSON2D);
+    then jsonAdd(Result, iop.Value.JSON2D);
   end;
   Result := geoJsonFeatureCollection(Result);
 end;
@@ -430,7 +430,7 @@ begin
   fObjectsAdded.fLock.BeginWrite;
   try
     for obj in fObjectsAdded.objects
-    do jsonAdd(json, '"'+string(obj.id)+'"'+':'+obj.GeoJSON2D[geometryType]);
+    do jsonAdd(json, '"'+string(obj.id)+'"'+':'+obj.JSON2D[geometryType]);
     fObjectsAdded.objects.Clear;
   finally
     fObjectsAdded.fLock.EndWrite;
