@@ -34,8 +34,8 @@ namespace WS2IMBSvc
 {
     public partial class WS2IMBService : ServiceBase
     {
-        string WebSocketUrl = Properties.Settings.Default.WebSocketUrl; // "http://localhost:8080/sessions";
-        string IMBHub = Properties.Settings.Default.IMBHub; // "vps17642.public.cloudvps.com";
+        string WebSocketUrl = Properties.Settings.Default.WebSocketUrl; 
+        string IMBHub = Properties.Settings.Default.IMBHub;
 
         const string IMBModelName = "WS2IMB";
         const int IMBModelID = 0;

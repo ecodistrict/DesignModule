@@ -65,7 +65,7 @@ begin
 
         {piSSM := }
         sessionModel.Projects.Add(
-          TSSMProject.Create(sessionModel, imbConnection, 'SSM', 'SSM', '', '', nil, 0, false, false, false, True, false, mapView, 0));
+          TSSMProject.Create(sessionModel, imbConnection, 'SSM', 'N201', tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, 0, false, false, false, True, false, mapView, 0));
 
 
         { ssm with us

@@ -51,6 +51,13 @@ const
 
   UseScenarioHierarchySwitch = 'UseScenarioHierarchy';
 
+  // client layer types
+  ltTile  = 'tile';
+  ltObject = 'object';
+  ltGeo = 'geo';
+  ltSwitch = 'switch';
+  ltEmpty  = '';
+
 type
   TDistanceLatLon = record
     m_per_deg_lat: Double;
@@ -170,6 +177,8 @@ type
     property sessionModel: TSessionModel read getSessionModel;
     property subscribedElements: TObjectList<TClientSubscribable> read fSubscribedElements; // ref, use TMonitor to lock
     property clientID: string read fClientID;
+    property currentScenario: TScenario read fCurrentScenario;
+    property refScenario: TScenario read fRefScenario;
 
     procedure signalString(const aString: string);
 
@@ -215,15 +224,16 @@ type
     fLayer: TLayer;
     fID: TWDID;
   protected
-    function getGeoJSON2D(const aType: string): string; virtual; abstract;
+    function getJSON2D(const aType, aExtraJSON2DAttributes: string): string; virtual; abstract;
     function getValidGeometry: Boolean; virtual;
     function getExtent: TWDExtent; virtual;
   public
     function Encode: TByteBuffer; virtual;
+    function EncodeRemove: TByteBuffer;
   public
     property layer: TLayer read fLayer;
     property ID: TWDID read fID;
-    property GeoJSON2D[const aType: string]: string read getGeoJSON2D;
+    property JSON2D[const aType, aExtraJSON2DAttributes: string]: string read getJSON2D;
     property ValidGeometry: Boolean read getValidGeometry;
     property Extent: TWDExtent read getExtent;
     function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; virtual; abstract;
@@ -237,7 +247,7 @@ type
     fGeometryPoint: TWDGeometryPoint; // owns
     fValue: Double; // value to lookup color within palette of layer
   protected
-    function getGeoJSON2D(const aType: string): string; override;
+    function getJSON2D(const aType, aExtraJSON2DAttributes: string): string; override;
     function getValidGeometry: Boolean; override;
     function getExtent: TWDExtent; override;
   public
@@ -255,7 +265,7 @@ type
   protected
     fPOI: Integer;
     fGeometryPoint: TWDGeometryPoint; // owns
-    function getGeoJSON2D(const aType: string): string; override;
+    function getJSON2D(const aType, aExtraJSON2DAttributes: string): string; override;
     function getValidGeometry: Boolean; override;
     function getExtent: TWDExtent; override;
   public
@@ -291,7 +301,7 @@ type
     //   opt: fillColor2: TAlphaColor
     //   opt: fillAngle: single
   protected
-    function getGeoJSON2D(const aType: string): string; override;
+    function getJSON2D(const aType, aExtraJSON2DAttributes: string): string; override;
     function getValidGeometry: Boolean; override;
     function getExtent: TWDExtent; override;
   public
@@ -320,7 +330,7 @@ type
     fGeometry: TWDGeometry; // owns
     fValue: Double; // value to lookup color within palette of layer
   protected
-    function getGeoJSON2D(const aType: string): string; override;
+    function getJSON2D(const aType, aExtraJSON2DAttributes: string): string; override;
     function getValidGeometry: Boolean; override;
     function getExtent: TWDExtent; override;
   public
@@ -343,9 +353,16 @@ type
     property attributes: TDictionary<string, string> read fAttributes;
   end;
 
+  TAttrNameValue = record
+  class function Create(const aName, aValue: string): TAttrNameValue; static;
+  public
+    name: string;
+    value: string;
+  end;
+
   TLayer = class(TScenarioElement)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-    const aObjectTypes, aGeometryType: string; aDiffRange: Double; aBasicLayer: Boolean=False);
+    const aObjectTypes, aGeometryType, aLayerType: string; aShowInDomains: Boolean; aDiffRange: Double; aBasicLayer: Boolean=False);
   destructor Destroy; override;
   private
     fObjects: TObjectDictionary<TWDID, TLayerObject>; // owns
@@ -355,6 +372,8 @@ type
     fDependentDiffLayers: TObjectList<TDiffLayer>; // refs
     fDiffRange: Double;
     fObjectTypes: string;
+    fLayerType: string;
+    fShowInDomains: Boolean; // for hiding layer in domains request (see switch layer)
     fPreviewRequestTimer: TTimer;
     fSendRefreshTimer: TTImer;
     fLayerUpdateTimer: TTimer;
@@ -362,6 +381,8 @@ type
     fObjectsAdded: TObjectDictionary<TWDID, TLayerUpdateObject>; // owns
     fObjectsUpdated: TObjectDictionary<TWDID, TLayerUpdateObject>; // owns
     fObjectsDeleted: TObjectList<TLayerObject>; // owns
+
+    fExtraJSON2DAttributes: string;
   protected
     fLegendJSON: string;
     fQuery: string;
@@ -381,6 +402,8 @@ type
     property geometryType: string read fGeometryType;
     property objectsLock: TOmniMREW read fObjectsLock;
     property basicLayer: Boolean read fBasicLayer;
+    property layerType: string read fLayerType;
+    property showInDomains: Boolean read fShowInDomains;
 
     property objectsJSON: string read getObjectsJSON;
     property previewBASE64: string read getPreviewBASE64;
@@ -393,10 +416,11 @@ type
     property diffRange: Double read fDiffRange;
     function uniqueObjectsTilesLink: string;
     function SliceType: Integer; virtual;
+    property extraJSON2DAttributes: string read fExtraJSON2DAttributes write fExtraJSON2DAttributes;
   public
     function FindObject(const aID: TWDID; out aObject: TLayerObject): Boolean;
     procedure AddObject(aObject: TLayerObject);
-    procedure AddObjectAttribute(const aID: TWDID; const aAttribute, aValue: string);
+    procedure AddObjectAttribute(const aID: TWDID; const aAttributes: TArray<TAttrNameValue>);
     procedure UpdateObjectAttribute(const aID: TWDID; const aAttribute, aValue: string);
     procedure RemoveObject(aObject: TLayerObject);
     function ExtractObject(aObject: TLayerObject): TLayerObject;
@@ -406,7 +430,10 @@ type
     function findObjectsInGeometry(const aGeometryExtent: TWDExtent; aGeometry: TWDGeometry; var aObjectsJSON: string): Integer;
 
   public
-    procedure signalObjects(aSender: TObject); virtual;
+    procedure signalObject(aObject: TLayerObject); virtual;
+    procedure signalNoObject(aObject: TLayerObject); virtual;
+    procedure signalObjects(aSender: TObject; aObjects: TObjectDictionary<TWDID, TLayerObject>); overload; virtual;
+    procedure signalObjects(aSender: TObject); overload; virtual;
     procedure ReadObjectsDBSVGPaths(aQuery: TDataSet; aDefaultValue: Double);
 
     procedure RegisterOnTiler(aPersistent: Boolean; aSliceType: Integer; const aDescription: string; aEdgeLengthInMeters: Double=NaN; aPalette: TWDPalette=nil);
@@ -420,6 +447,26 @@ type
 
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
     function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
+  end;
+
+  TLayerOnZoom = record
+  class function Create(aZoomLevel: Integer; aLayer: TLayer): TLayerOnZoom; static;
+  public
+    zoomLevel: Integer;
+    layer: TLayer; // ref
+  end;
+
+  TLayerSwitch = class(TLayer)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
+    const aObjectTypes: string; aBasicLayer: Boolean);
+  destructor Destroy; override;
+  private
+    // most zoomed out is lowest zoom level is first in list -> use that for preview
+    fZoomLayers: TList<TLayerOnZoom>;
+  protected
+    function getJSON: string; override;
+  public
+    property zoomLayers: TList<TLayerOnZoom> read fZoomLayers; // refs to layers
   end;
 
   TKPI = class(TScenarioElement)
@@ -653,8 +700,8 @@ type
     fMeasures: TObjectDictionary<string, TMeasure>; // owns
     fScenarios: TObjectDictionary<string, TScenario>; // owns, lock with TMonitor
     fScenarioLinks: TScenarioLink;
-    fCurrentScenario: TScenario; // ref
-    fRefScenario: TScenario; // ref
+    fProjectCurrentScenario: TScenario; // ref
+    fProjectRefScenario: TScenario; // ref
     fTimeSlider: Integer;
     fSelectionEnabled: Boolean;
     fMeasuresEnabled: Boolean;
@@ -1131,7 +1178,7 @@ end;
 function TDiffLayer.getRefJSON: string;
 begin
   Result := '"id":"'+getElementID+'","tiles":"'+fTilerLayer.URLTimeStamped+'"';
-  if fLegendJSON<>''
+  if legendJSON<>''
   then Result := Result+',"legend":{'+legendJSON+'}';
 end;
 
@@ -2075,7 +2122,7 @@ begin
     '"id":"'+getElementID+'",'+
     '"name":"'+name+'",'+
     '"description":"'+description+'",'+
-    '"default":'+Ord(defaultLoad).ToString;
+    '"show":'+Ord(defaultLoad).ToString; // todo: change to float -> opacity
 end;
 
 { TLayerObject }
@@ -2095,6 +2142,11 @@ end;}
 function TLayerObject.Encode: TByteBuffer;
 begin
   Result := TByteBuffer.bb_tag_rawbytestring(icehObjectID, ID);
+end;
+
+function TLayerObject.EncodeRemove: TByteBuffer;
+begin
+  Result := TByteBuffer.bb_tag_rawbytestring(icehNoObjectID, ID);
 end;
 
 function TLayerObject.getExtent: TWDExtent;
@@ -2140,7 +2192,7 @@ begin
   Result.Init(fGeometryPoint.x, fGeometryPoint.y);
 end;
 
-function TGeometryPointLayerObject.getGeoJSON2D(const aType: string): string;
+function TGeometryPointLayerObject.getJSON2D(const aType, aExtraJSON2DAttributes: string): string;
 var
   colors: TGeoColors;
   opacity: double;
@@ -2155,12 +2207,13 @@ begin
         '"type":"Feature",'+
         '"geometry":{'+
           '"type":"'+fLayer.GeometryType+'",'+
-          '"coordinates":'+fGeometryPoint.GeoJSON2D[aType]+
+          '"coordinates":'+fGeometryPoint.JSON2D[aType]+
         '},'+
         '"properties":{'+
           '"id":"'+string(ID)+'",'+
           '"color": "'+ColorToJSON(colors.mainColor)+'",'+
           '"fillOpacity":'+opacity.ToString(dotFormat)+
+          aExtraJSON2DAttributes+
         '}'+
     	'}';
   end
@@ -2211,18 +2264,19 @@ begin
   // todo: inflate for size of poi?
 end;
 
-function TGeometryLayerPOIObject.getGeoJSON2D(const aType: string): string;
+function TGeometryLayerPOIObject.getJSON2D(const aType, aExtraJSON2DAttributes: string): string;
 begin
   if Assigned(fGeometryPoint) then
     Result := '{ '+
       '"type":"Feature",'+
       '"geometry":{'+
         '"type":"'+fLayer.GeometryType+'",'+
-        '"coordinates":'+fGeometryPoint.GeoJSON2D[aType]+
+        '"coordinates":'+fGeometryPoint.JSON2D[aType]+
       '},'+
       '"properties":{'+
         '"id":"'+string(ID)+'",'+
         '"poi": "'+fPOI.ToString+'"'+
+        aExtraJSON2DAttributes+
       '}'+
     '}'
   else
@@ -2367,7 +2421,7 @@ begin
   Result := TWDExtent.FromGeometry(fGeometry);
 end;
 
-function TGeometryLayerObject.getGeoJSON2D(const aType: string): string;
+function TGeometryLayerObject.getJSON2D(const aType, aExtraJSON2DAttributes: string): string;
 var
   colors: TGeoColors;
   opacity: double;
@@ -2382,12 +2436,13 @@ begin
         '"type":"Feature",'+
         '"geometry":{'+
           '"type":"'+fLayer.GeometryType+'",'+
-          '"coordinates":'+fGeometry.GeoJSON2D[aType]+
+          '"coordinates":'+fGeometry.JSON2D[aType]+
         '},'+
         '"properties":{'+
           '"id":"'+string(ID)+'",'+
           '"color": "'+ColorToJSON(colors.mainColor)+'",'+
           '"fillOpacity":'+opacity.ToString(dotFormat)+
+          aExtraJSON2DAttributes+
         '}'+
     	'}';
   end
@@ -2430,6 +2485,14 @@ begin
   inherited;
 end;
 
+{ TAttrNameValue }
+
+class function TAttrNameValue.Create(const aName, aValue: string): TAttrNameValue;
+begin
+  Result.name := aName;
+  Result.value := aValue;
+end;
+
 { TLayer }
 
 procedure TLayer.addDiffLayer(aDiffLayer: TDiffLayer);
@@ -2459,16 +2522,17 @@ begin
   fObjectsLock.BeginWrite;
   try
     fObjects.Add(aObject.id, aObject);
-    //fObjectsAdded.Add(aObject);
+    signalObjects(aObject);
   finally
     fObjectsLock.EndWrite;
   end;
   fLayerUpdateTimer.Arm(fLayerUpdateTimer.MaxPostponeDelta, handleLayerUpdateTrigger);
 end;
 
-procedure TLayer.AddObjectAttribute(const aID: TWDID; const aAttribute, aValue: string);
+procedure TLayer.AddObjectAttribute(const aID: TWDID; const aAttributes: TArray<TAttrNameValue>);
 var
   luo: TLayerUpdateObject;
+  nv: TAttrNameValue;
 begin
   TMonitor.Enter(fObjectsAdded);
   try
@@ -2477,7 +2541,10 @@ begin
       luo := TLayerUpdateObject.Create(aID);
       fObjectsAdded.Add(aID, luo);
     end;
-    luo.attributes.AddOrSetValue(aAttribute, aValue);
+    for nv in aAttributes do
+    begin
+      luo.attributes.AddOrSetValue(nv.name, nv.value);
+    end;
   finally
     TMonitor.Exit(fObjectsAdded);
   end;
@@ -2495,7 +2562,7 @@ begin
 end;
 
 constructor TLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-  const aObjectTypes, aGeometryType: string; aDiffRange: Double; aBasicLayer: Boolean=False);
+  const aObjectTypes, aGeometryType, aLayerType: string; aShowInDomains: Boolean; aDiffRange: Double; aBasicLayer: Boolean=False);
 begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad);
   //fPalette := aPalette;
@@ -2503,11 +2570,15 @@ begin
   fGeometryType := aGeometryType;
   fDiffRange := aDiffRange;
   fBasicLayer := aBasicLayer;
+  fLayerType := aLayerType;
+  fShowInDomains := aShowInDomains;
   fObjects := TObjectDictionary<TWDID, TLayerObject>.Create([doOwnsValues]);
 
   fObjectsAdded := TObjectDictionary<TWDID, TLayerUpdateObject>.Create([doOwnsValues]);// <TLayerObject>.Create(False); // refs
   fObjectsUpdated := TObjectDictionary<TWDID, TLayerUpdateObject>.Create([doOwnsValues]); // owns
   fObjectsDeleted := TObjectList<TLayerObject>.Create(True); // owns
+
+  fExtraJSON2DAttributes := '';
 
   fObjectsLock.Create;
   fDependentDiffLayers := TObjectList<TDiffLayer>.Create(False);
@@ -2604,7 +2675,7 @@ begin
     begin
       if aObjectsJSON<>''
       then aObjectsJSON := aObjectsJSON+',';
-      aObjectsJSON := aObjectsJSON+o.Value.GeoJSON2D[Self.fGeometryType];
+      aObjectsJSON := aObjectsJSON+o.Value.JSON2D[Self.fGeometryType, ''];
       Result := Result+1;
     end;
   end;
@@ -2623,7 +2694,7 @@ begin
       begin
         if aObjectsJSON<>''
         then aObjectsJSON := aObjectsJSON+',';
-        aObjectsJSON := aObjectsJSON+o.Value.GeoJSON2D[Self.fGeometryType];
+        aObjectsJSON := aObjectsJSON+o.Value.JSON2D[Self.fGeometryType, ''];
         Result := Result+1;
       end;
     end;
@@ -2731,6 +2802,7 @@ begin
     end;
     fObjects.ExtractPair(aObject.id); // extract from active list
     fObjectsDeleted.Add(aObject); // add to deleted list
+    signalNoObject(aObject);
   finally
     fObjectsLock.EndWrite;
   end;
@@ -2740,7 +2812,7 @@ end;
 const
   MaxBufferLength = 2048;
 
-procedure TLayer.signalObjects(aSender: TObject);
+procedure TLayer.signalObjects(aSender: TObject; aObjects: TObjectDictionary<TWDID, TLayerObject>);
 var
   timeStamp: TDateTime;
   iop: TPair<TWDID, TLayerObject>;
@@ -2763,7 +2835,7 @@ begin
     //fTilerLayer.signalPalette(timeStamp);
     // signal objects (which will trigger creation of layer if not already done above)
     buffer := '';
-    for iop in fObjects do
+    for iop in aObjects do
     begin
       buffer := buffer+iop.Value.encode;
       if length(buffer)> MaxBufferLength
@@ -2771,6 +2843,27 @@ begin
     end;
     Commit;
   end;
+end;
+
+procedure TLayer.signalNoObject(aObject: TLayerObject);
+var
+  timeStamp: TDateTime;
+begin
+  timeStamp := 0; // todo:
+  fTilerLayer.signalData(aObject.EncodeRemove, timeStamp);
+end;
+
+procedure TLayer.signalObject(aObject: TLayerObject);
+var
+  timeStamp: TDateTime;
+begin
+  timeStamp := 0; // todo:
+  fTilerLayer.signalData(aObject.encode, timeStamp);
+end;
+
+procedure TLayer.signalObjects(aSender: TObject);
+begin
+  signalObjects(aSender, fObjects);
 end;
 
 function TLayer.SliceType: Integer;
@@ -2808,9 +2901,11 @@ begin
   Result := inherited getJSON+','+
     '"basic":'+Ord(basicLayer).ToString+','+
     '"objectTypes":['+objectTypes+'],'+
-    '"legend":{'+legendJSON+'},'+
     '"preview":"'+previewBASE64+'",'+
-    '"tiles":"'+uniqueObjectsTilesLink+'"';
+    '"tiles":"'+uniqueObjectsTilesLink+'",'+
+    '"type":"'+layerType+'"';
+  if legendJSON<>''
+  then Result := Result+',"legend":{'+legendJSON+'}';
   if (objects.Count<=MaxDirectSendObjectCount) and (fGeometryType<>'Point')
   then Result := Result+',"objects": '+objectsJSON;
 end;
@@ -2823,7 +2918,7 @@ begin
   for iop in objects do
   begin
     if iop.Value.ValidGeometry
-    then jsonAdd(Result, iop.Value.GeoJSON2D[fGeometryType]);
+    then jsonAdd(Result, iop.Value.JSON2D[fGeometryType, fExtraJSON2DAttributes]);
   end;
   Result := geoJsonFeatureCollection(Result);
 end;
@@ -2877,10 +2972,10 @@ var
   o: TLayerObject;
   iluop: TPair<TWDID, TLayerUpdateObject>;
   anvp: TPair<string, string>;
-  json: string;
+  _json: string;
 begin
   // todo: implement
-  json := '';
+  _json := '';
   fObjectsLock.BeginRead;
   try
     // process add objects
@@ -2888,12 +2983,12 @@ begin
     try
       for iluop in fObjectsAdded do
       begin
-        if json<>''
-        then json := json+',';
-        json := json+'{"newobject":{"id":"'+string(UTF8String(iluop.Key))+'"';
+        if _json<>''
+        then _json := _json+',';
+        _json := _json+'{"newobject":{"id":"'+string(UTF8String(iluop.Key))+'"';
         for anvp in iluop.Value.attributes
-        do json := json+',"'+anvp.Key+'":'+anvp.Value;
-        json := json+'}}';
+        do _json := _json+',"'+anvp.Key+'":'+anvp.Value;
+        _json := _json+'}}';
       end;
       fObjectsAdded.Clear;
     finally
@@ -2904,12 +2999,12 @@ begin
     try
       for iluop in fObjectsUpdated do
       begin
-        if json<>''
-        then json := json+',';
-        json := json+'{"updateobject":{"id":"'+string(UTF8String(iluop.Key))+'"';
+        if _json<>''
+        then _json := _json+',';
+        _json := _json+'{"updateobject":{"id":"'+string(UTF8String(iluop.Key))+'"';
         for anvp in iluop.Value.attributes
-        do json := json+',"'+anvp.Key+'":'+anvp.Value;
-        json := json+'}}';
+        do _json := _json+',"'+anvp.Key+'":'+anvp.Value;
+        _json := _json+'}}';
       end;
       fObjectsUpdated.Clear;
     finally
@@ -2917,20 +3012,20 @@ begin
     end;
     for o in fObjectsDeleted do
     begin
-      if json<>''
-      then json := json+',';
-      json := json+'{"removeobject":{"id":"'+string(UTF8String(o.ID))+'"}}';
+      if _json<>''
+      then _json := _json+',';
+      _json := _json+'{"removeobject":{"id":"'+string(UTF8String(o.ID))+'"}}';
     end;
     fObjectsDeleted.Clear;
   finally
     fObjectsLock.EndRead;
   end;
-  if json<>'' then
+  if _json<>'' then
   begin
-    json := '{"type":"updatelayer","payload":{"id":"'+ElementID+'","date":['+json+']}}';
+    _json := '{"type":"updatelayer","payload":{"id":"'+ElementID+'","data":['+_json+']}}';
     forEachClient(procedure(aClient: TClient)
       begin
-        aClient.signalString(json);
+        aClient.signalString(_json);
       end);
   end;
 end;
@@ -3474,7 +3569,7 @@ end;
 
 function TProject.AddClient(const aClientID: string): TClient;
 begin
-  Result := TClient.Create(Self, fCurrentScenario, fRefScenario, aClientID);
+  Result := TClient.Create(Self, fProjectCurrentScenario, fProjectRefScenario, aClientID);
   TMonitor.Enter(clients);
   try
     clients.Add(Result);
@@ -3551,8 +3646,8 @@ begin
   fTiler.onTilerStartup := handleTilerStartup;
 //  fTilerEvent := aConnection.publish(aTilerEventName, False);
   fDBConnection := aDBConnection;
-  fCurrentScenario := nil;
-  fRefScenario := nil;
+  fProjectCurrentScenario := nil;
+  fProjectRefScenario := nil;
   fMeasures := TObjectDictionary<string, TMeasure>.Create([doOwnsValues]);
   // projection
   {
@@ -3811,64 +3906,67 @@ var
   diffLayer: TDiffLayer;
   _diffElementID: string;
 begin
-  if Assigned(fRefScenario)
-  then Log.WriteLn('TClient.SendDomains ('+aPrefix+'), ref scenario '+fRefScenario.fID)
+  if Assigned(aClient.fRefScenario)
+  then Log.WriteLn('TClient.SendDomains ('+aPrefix+'), ref scenario '+aClient.fRefScenario.fID)
   else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref scenario');
   // todo: add reference and diff layers/charts if fRefScenario<>nil
   domains := TDictionary<string, TClientDomain>.Create;
   try
-    if Assigned(fCurrentScenario) then
+    if Assigned(aClient.fCurrentScenario) then
     begin
       // layers
       locLayers := TList<TLayer>.Create(TComparer<TLayer>.Construct(compareLayerNames));
       try
-        locLayers.AddRange(fCurrentScenario.Layers.Values);
+        locLayers.AddRange(aClient.fCurrentScenario.Layers.Values);
         locLayers.Sort;
         for layer in locLayers do
         begin
-          JSON := layer.JSON;
-          if Assigned(fRefScenario) then
+          if layer.showInDomains then
           begin
-            if fRefScenario.Layers.TryGetValue(layer.ID, refLayer) then
+            JSON := layer.JSON;
+            if Assigned(aClient.fRefScenario) then
             begin
-              // todo: full JSON for ref and diff, to include legend?
-              JSON := JSON+',"ref":{'+refLayer.refJSON+'}';
-              _diffElementID :=  diffElementID(layer, refLayer);
-              TMonitor.Enter(diffLayers);
-              try
-                if not diffLayers.TryGetValue(_diffElementID, diffLayer) then
-                begin
-                  diffLayer := TDiffLayer.Create(_diffElementID, layer, refLayer);
-                  diffLayers.Add(_diffElementID, diffLayer);
-                  // todo:
+              if aClient.fRefScenario.Layers.TryGetValue(layer.ID, refLayer) then
+              begin
+                // todo: full JSON for ref and diff, to include legend?
+                JSON := JSON+',"ref":{'+refLayer.refJSON+'}';
+                _diffElementID :=  diffElementID(layer, refLayer);
+                TMonitor.Enter(diffLayers);
+                try
+                  if not diffLayers.TryGetValue(_diffElementID, diffLayer) then
+                  begin
+                    diffLayer := TDiffLayer.Create(_diffElementID, layer, refLayer);
+                    diffLayers.Add(_diffElementID, diffLayer);
+                    // todo:
 
+                  end;
+                finally
+                  TMonitor.Exit(diffLayers);
                 end;
-              finally
-                TMonitor.Exit(diffLayers);
-              end;
-              // todo: temp removed for testing
-              JSON := JSON+',"diff":{'+diffLayer.refJSON+'}';
+                // todo: temp removed for testing
+                JSON := JSON+',"diff":{'+diffLayer.refJSON+'}';
+              end
+              else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref layer for '+layer.ID);
+            end;
+            JSON  := '{'+JSON+'}';
+            if domains.TryGetValue(layer.domain, d) then
+            begin
+              jsonAdd(d.layers, JSON);
+              domains[layer.domain] := d;
             end
-            else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref layer for '+layer.ID);
-          end;
-          JSON  := '{'+JSON+'}';
-          if domains.TryGetValue(layer.domain, d) then
-          begin
-            jsonAdd(d.layers, JSON);
-            domains[layer.domain] := d;
-          end
-          else
-          begin
-            d := TClientDomain.Create(layer.domain);
-            d.layers := JSON;
-            domains.Add(d.name, d);
+            else
+            begin
+              d := TClientDomain.Create(layer.domain);
+              d.layers := JSON;
+              domains.Add(d.name, d);
+            end;
           end;
         end;
       finally
         locLayers.Free;
       end;
       // kpis
-      for nkp in fCurrentScenario.fKPIs do
+      for nkp in aClient.fCurrentScenario.fKPIs do
       begin
         JSON := '{'+nkp.Value.JSON+'}';
         if domains.TryGetValue(nkp.Value.domain, d) then
@@ -3884,7 +3982,7 @@ begin
         end;
       end;
       // charts
-      for ngp in fCurrentScenario.fCharts do
+      for ngp in aClient.fCurrentScenario.fCharts do
       begin
         JSON := '{'+ngp.Value.JSON+'}';
         if domains.TryGetValue(ngp.Value.domain, d) then
@@ -4214,7 +4312,7 @@ begin
   Result := TWDExtent.FromGeometry(fGeometry);
 end;
 
-function TSVGPathLayerObject.getGeoJSON2D(const aType: string): string;
+function TSVGPathLayerObject.getJSON2D(const aType, aExtraJSON2DAttributes: string): string;
 begin
 
 end;
@@ -4238,6 +4336,46 @@ begin
     end;
   end;
   Exit(False);
+end;
+
+{ TLayerSwitch }
+
+constructor TLayerSwitch.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; const aObjectTypes: string; aBasicLayer: Boolean);
+begin
+  fZoomLayers := TList<TLayerOnZoom>.Create;
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, '', ltSwitch, True, Double.NaN, aBasicLayer);
+
+end;
+
+destructor TLayerSwitch.Destroy;
+begin
+
+  inherited;
+  FreeAndNil(fZoomLayers);
+end;
+
+function TLayerSwitch.getJSON: string;
+var
+  _json: string;
+  loz: TLayerOnZoom;
+begin
+  // layers:[{zoom:0,layer:{layer}}]
+  _json := '';
+  for loz in fZoomLayers do
+  begin
+    if _json<>''
+    then _json := _json+',';
+    _json := _json+'{"zoom":'+loz.zoomLevel.ToString+', "layer":{'+loz.layer.JSON+'}}';
+  end;
+  Result := inherited getJSON+',"layers":['+_json+']';
+end;
+
+{ TLayerOnZoom }
+
+class function TLayerOnZoom.Create(aZoomLevel: Integer; aLayer: TLayer): TLayerOnZoom;
+begin
+  Result.zoomLevel := aZoomLevel;
+  Result.layer := aLayer;
 end;
 
 end.
