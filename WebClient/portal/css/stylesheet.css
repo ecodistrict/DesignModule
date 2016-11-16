@@ -72,13 +72,14 @@ p {
 #text span {
   background-color: rgba(255, 255, 255, 1);
   width:25px;
-  height:25px;
+  height:24px;
   display:block;
   float:left;
   cursor: pointer;
   font-size: 15px !important;
   text-align: center;
-  line-height: 25px;
+  line-height: 24px;
+  border: 1px solid rgba(26,91,127,0.2);
 }
 #lang {
   position: relative;
