@@ -17,9 +17,9 @@ var loggedin = {};
 
 // data['zonder_NL'] = {"casename":[["data zonder extra language"]],"id":["ssm"],"backgroundImages": [["odysa_map.jpg"]],"description":[[{"p":"Smart Traffic is the new generation resource for the road administators to monitor and evaluate the traffic efficiently in an effective way and let trafficlights control the traffic effective and connected."},{"p":"Smart Traffic delivers an intelligent way to control the traffic lights based on an integral traffic image based on a detection-information and floating car data."},{"hr":""}]],"casuslink":{"link":"../default.html","buttonText":[["Open case"]]},"partnersObject":{"name":[["Partners"]],"partners":[{"name":"Sweco","image":"partners_logo_sweco.jpg"}]},"simulationsObject":{"name":[["Simulation system"]],"simulations":[["OTS"],["Vissim"]]},"locationObject":{}};
 // data['2_talen'] = {"casename":[["2_talen_test"],{"NL":"2_talen_test_NL"},{"SP":"2_talen_test_SP"}],"id":["ssm"],"backgroundImages": [["odysa_map.jpg"],{"src":"buttons_over.png","class":"overlay"}],"description":[[{"p":"Smart Traffic is the new generation resource for the road administators to monitor and evaluate the traffic efficiently in an effective way and let trafficlights control the traffic effective and connected."},{"p":"Smart Traffic delivers an intelligent way to control the traffic lights based on an integral traffic image based on a detection-information and floating car data."},{"hr":""}],{"NL":[{"p":"Smart Traffic is de nieuwe generatie hulpmiddelen voor de wegbeheerder om verkeer te monitoren, de prestatie van het netwerk te evalueren en verkeerslichten het verkeer zeer efficiënt, effectief en connected te laten regelen."},{"p":"Smart Traffic levert een intelligente aansturing van de verkeerslichten op basis van een integraal verkeersbeeld gebaseerd op detectie-informatie en floating car data."},{"hr":""}]},{"SP":[{"p":"¿Smart Traffic is de nieuwe generatie hulpmiddelen voor de wegbeheerder om verkeer te monitoren, de prestatie van het netwerk te evalueren en verkeerslichten het verkeer zeer efficiënt, effectief en connected te laten regelen."},{"p":"¿Smart Traffic levert een intelligente aansturing van de verkeerslichten op basis van een integraal verkeersbeeld gebaseerd op detectie-informatie en floating car data."},{"hr":""}]}],"casuslink":{"link":"../default.html","buttonText":[["Open case"],{"NL":"Open casus"},{"SP":"abrir declinación"}]},"partnersObject":{"name":[["Partners"],{"NL":"Partners"},{"SP":"Camarada"}],"partners":[{"name":"Sweco","image":"partners_logo_sweco.jpg"}]},"simulationsObject":{"name":[["Simulation system"],{"NL":"Simulatie omgeving"},{"SP":"simulación alrededores"}],"simulations":[["OTS"],["Vissim"]]},"locationObject":{"name":[["Location"],{"NL":"Locatie"},{"SP":"establecimiento"}],"location":[["Eindhoven: eisenhowerlaan, Insulindelaan and Onze‐Lieve‐Vrouwestraat"],{"NL":"Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat"},{"NL":"Eindhoven: eisenhowerlaan, Insulindelaan e Onze‐Lieve‐Vrouwestraat"}]}};
-data['ssm'] = {"casename":[["Smart Traffic with floating car data"],{"NL":"Smart Traffic met floating car data"}],"id":["ssm"],"backgroundImages":[["odysa_map.jpg"],{"src":"buttons_over.png","class":"overlay"}],"description":[[{"p":"Smart Traffic is the new generation resource for the road administators to monitor and evaluate the traffic efficiently in an effective way and let trafficlights control the traffic effective and connected."},{"p":"Smart Traffic delivers an intelligent way to control the traffic lights based on an integral traffic image based on a detection-information and floating car data."},{"hr":""}],{"NL":[{"p":"Smart Traffic is de nieuwe generatie hulpmiddelen voor de wegbeheerder om verkeer te monitoren, de prestatie van het netwerk te evalueren en verkeerslichten het verkeer zeer efficiënt, effectief en connected te laten regelen."},{"p":"Smart Traffic levert een intelligente aansturing van de verkeerslichten op basis van een integraal verkeersbeeld gebaseerd op detectie-informatie en floating car data."},{"hr":""}]}],"casuslink":{"link":"../default.html","buttonText":[["Open case"],{"NL":"Open casus"}]},"partnersObject":{"name":[["Partners"],{"NL":"Partners"}],"partners":[{"name":"Sweco","image":"partners_logo_sweco.jpg"}]},"simulationsObject":{"name":[["Simulation system"],{"NL":"Simulatie omgeving"}],"simulations":[["OTS"],["Vissim"]]},"locationObject":{"name":[["Location"],{"NL":"Locatie"}],"location":[["Eindhoven: eisenhowerlaan, Insulindelaan and Onze‐Lieve‐Vrouwestraat"],{"NL":"Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat"}]}};
-data['ODYSA_INCAR'] = {"casename":[["ODYSA INCAR"],{"NL":"ODYSA INCAR"}],"id":["ODYSA_INCAR"],"backgroundImages":[["odysa_map.jpg"],{"src":"buttons_over.png","class":"overlay"}],"description":[[{"p":"ODYSA INCAR is an dynamic green wave in the car where on a display get displayed how hard you drive and how hard you should drive to arrive at a green traffic light."},{"hr":""}],{"NL":[{"p":"ODYSA INCAR is een dynamische groene golf in de auto waarbij op een display wordt weergegeven hoe hard gereden moet worden om bij het volgende verkeerslicht groen te krijgen."},{"hr":""}]}],"casuslink":{"link":"../default.html","buttonText":[["Open case"],{"NL":"Open casus"}]},"partnersObject":{"name":[["Partners"],{"NL":"Partners"}],"partners":[{"name":"TU Delft","image":"partners_logo_tudelft.png"}]},"simulationsObject":{"name":[["Simulation system"],{"NL":"Simulatie omgeving"}],"simulations":[["Vissim"]]},"locationObject":{"name":[["Location"],{"NL":"Locatie"}],"location":[["Eindhoven: eisenhowerlaan, Insulindelaan and Onze‐Lieve‐Vrouwestraat"],{"NL":"Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat"}]}};
-data['cacc'] = {"casename":[["CACC and schockwaves on the A58"],{"NL":"CACC en schokgolven op de A58"}],"id":["a58"],"backgroundImages":[["Cacc_map.jpg"],{"src":"buttons_over.png","class":"overlay"}],"description":[[{"p":"CACC is a system whereby predecessor could be followed on short distances. So the intensity can be higher without to commence shockwaves. If they do commence, The CACC is better capable than the controllers to fix the shockwaves on the front. CACC belated the shockwaves on an more efficently way."},{"hr":""}],{"NL":[{"p":"CACC is een systeem waarmee voorgangers op korte afstanden kunnen worden gevolgd. Zodoende kan de intensiteit hoger zijn zonder dat er schokgolven ontstaan. Als deze wel ontstaan, is CACC beter in staat dan bestuurders om de schokgolven aan de voorkant op te lossen. CACC verlaat de schokgolf op een efficiëntere wijze."},{"hr":""}]}],"casuslink":{"link":"../default.html","buttonText":[["Open case"],{"NL":"Open casus"}]},"partnersObject":{"name":[["Partners"],{"NL":"Partners"}],"partners":[{"name":"DTV","image":"partners_logo_dtv.png"}]},"simulationsObject":{"name":[["Simulation system"],{"NL":"Simulatie omgeving"}],"simulations":[["OTS"]]},"locationObject":{"name":[["Location"],{"NL":"Locatie"}],"location":[["a58 between Tilburg and Eindhoven"],{"NL":"a58 tussen Tilburg en Eindhoven"}]}};
+data['ssm'] = {"casename":[["Smart Traffic with floating car data"],{"NL":"Smart Traffic met floating car data"}],"id":["ssm"],"backgroundImages":[["odysa_map.jpg"],{"src":"buttons_over.png","class":"overlay"}],"description":[[{"p":"Smart Traffic is the new generation resource for the road administators to monitor and evaluate the traffic efficiently in an effective way and let traffic lights control the traffic effective and connected."},{"p":"Smart Traffic delivers an intelligent way to control the traffic lights based on an integral traffic image based on a detection-information and floating car data."},{"hr":""}],{"NL":[{"p":"Smart Traffic is de nieuwe generatie hulpmiddelen voor de wegbeheerder om verkeer te monitoren, de prestatie van het netwerk te evalueren en verkeerslichten het verkeer zeer efficiënt, effectief en connected te laten regelen."},{"p":"Smart Traffic levert een intelligente aansturing van de verkeerslichten op basis van een integraal verkeersbeeld gebaseerd op detectie-informatie en floating car data."},{"hr":""}]}],"casuslink":{"link":"../default.html","buttonText":[["Open case"],{"NL":"Open casus"}]},"partnersObject":{"name":[["Partners"],{"NL":"Partners"}],"partners":[{"name":"Sweco","image":"partners_logo_sweco.jpg"}]},"simulationsObject":{"name":[["Simulation system"],{"NL":"Simulatie omgeving"}],"simulations":[["OTS"],["Vissim"]]},"locationObject":{"name":[["Location"],{"NL":"Locatie"}],"location":[["Eindhoven: eisenhowerlaan, Insulindelaan and Onze‐Lieve‐Vrouwestraat"],{"NL":"Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat"}]}};
+data['ODYSA_INCAR'] = {"casename":[["ODYSA IN CAR"],{"NL":"ODYSA IN CAR"}],"id":["ODYSA_INCAR"],"backgroundImages":[["odysa_map.jpg"],{"src":"buttons_over.png","class":"overlay"}],"description":[[{"p":"ODYSA IN CAR is an dynamic green wave in the car where on a display get displayed how hard you drive and how hard you should drive to arrive at a green traffic light."},{"hr":""}],{"NL":[{"p":"ODYSA IN CAR is een dynamische groene golf in de auto waarbij op een display wordt weergegeven hoe hard gereden moet worden om bij het volgende verkeerslicht groen te krijgen."},{"hr":""}]}],"casuslink":{"link":"../default.html","buttonText":[["Open case"],{"NL":"Open casus"}]},"partnersObject":{"name":[["Partners"],{"NL":"Partners"}],"partners":[{"name":"DTV Consultants","image":"partners_logo_dtv.png"}]},"simulationsObject":{"name":[["Simulation system"],{"NL":"Simulatie omgeving"}],"simulations":[["Vissim"]]},"locationObject":{"name":[["Location"],{"NL":"Locatie"}],"location":[["Eindhoven: eisenhowerlaan, Insulindelaan and Onze‐Lieve‐Vrouwestraat"],{"NL":"Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat"}]}};
+data['cacc'] = {"casename":[["CACC and shockwaves on the A58"],{"NL":"CACC en schokgolven op de A58"}],"id":["a58"],"backgroundImages":[["Cacc_map.jpg"],{"src":"buttons_over.png","class":"overlay"}],"description":[[{"p":"CACC is a system whereby predecessor could be followed on short distances. So the intensity can be higher without to commence shockwaves. If they do commence, The CACC is better capable than the controllers to resolve the shockwaves on the front. CACC belated the shockwaves on an more efficently way."},{"hr":""}],{"NL":[{"p":"CACC is een systeem waarmee voorgangers op korte afstanden kunnen worden gevolgd. Zodoende kan de intensiteit hoger zijn zonder dat er schokgolven ontstaan. Als deze wel ontstaan, is CACC beter in staat dan bestuurders om de schokgolven aan de voorkant op te lossen. CACC verlaat de schokgolf op een efficiëntere wijze."},{"hr":""}]}],"casuslink":{"link":"../default.html","buttonText":[["Open case"],{"NL":"Open casus"}]},"partnersObject":{"name":[["Partners"],{"NL":"Partners"}],"partners":[{"name":"DTV","image":"partners_logo_tudelft.png"}]},"simulationsObject":{"name":[["Simulation system"],{"NL":"Simulatie omgeving"}],"simulations":[["OTS"]]},"locationObject":{"name":[["Location"],{"NL":"Locatie"}],"location":[["a58 between Tilburg and Eindhoven"],{"NL":"a58 tussen Tilburg en Eindhoven"}]}};
 
 Lang = getParameterByName('lang');
 loggedin.name = 'Jasper';
@@ -422,77 +422,6 @@ window.onresize = function(e) {
 
 };
 
-function buildSVG() {
-
-  var width = document.getElementById('imageContainer-ssm').getBoundingClientRect().width;
-  var height = document.getElementById('imageContainer-ssm').getBoundingClientRect().height;
-  var svg = d3.select('#imageContainer-ssm').append('svg').attr('width', width).attr('height',height).append("g");
-
-
-
-  var circleData = [];
-
-  // Define first circle and type of movement - circle
-  var t_circle = d3.map();
-  t_circle.set("id", 1);
-  t_circle.set("cr", 10);
-  t_circle.set("rotr", 100);
-  t_circle.set("rtype", "circle");
-  t_circle.set("offset", 0);
-  circleData.push(t_circle);
-
-
-
-  var easeparam = "linear";
-
-  // Time to complete one transition / iteration of the circular or elliptical path
-  var timeparam = 2000;
-
-  // Add each of the two circles:
-  var circle = svg.selectAll("circle")
-  .data(circleData, function(d) { return d.get('id');})
-  .enter()
-  .append("circle")
-  .attr("r", function(d)	{ return d.get('cr'); });
-
-  // Setup each circle with a transition, each transition working on transform attribute,
-  // and using the translateFn
-  function repeat() {
-    circle
-    .transition()
-    .duration(timeparam)
-    .ease(easeparam)
-    .attrTween("transform", translateFn()).each("end", repeat);
-  }
-  repeat();
-  // The function that actually does the moving:
-  function translateFn() {
-
-    // We only use 'd', but list d,i,a as params just to show can have them as params.
-    // Code only really uses d and t.
-    return function(d, i, a) {
-      return function(t) {
-
-        // 't': what's t? T is the fraction of time (between 0 and 1) since the
-        // transition began. Handy.
-        var t_offset = d.get('offset');
-        var t_x, t_y;
-
-        // If the data says the element should follow a circular path, do that.
-        if (d.get('rtype') == 'circle')	{
-          var rotation_radius = d.get('rotr');
-          var t_angle = 0 * t;
-          var t_x = 400 * t;
-          var t_y = 50 * t;
-
-        }
-
-
-        return "translate(" + (0 + t_offset + t_x) + "," + (20 + t_y) + ")";
-      };
-    };
-  }
-}
 function isEmptyObject(obj) {
   for(var p in obj){
     return false;
