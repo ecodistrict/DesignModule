@@ -19,6 +19,8 @@
 
         this._map = map;
 
+        CloseSimulation = this.SendSimClose;
+
         return this._container;
     },
 
@@ -166,6 +168,14 @@
     _stopSimulation: function (e) {
         //alert("Now the simulation must stop");
         this.SendSimStop();
+    },
+
+    _closeSimulation: function () {
+        this.SendSimClose();
+    },
+
+    SendSimClose: function() {
+        wsSend({ closeSimulation: true });
     },
 
     SendSimStart: function() {

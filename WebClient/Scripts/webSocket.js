@@ -171,7 +171,7 @@ var wsLookup = {
             if (payload.simulationControlEnabled) {
                 map.addControl(startControl);
                 map.addControl(presenterViewerControl)
-                map.addControl(DataManager.modelcontrol);
+                map.addControl(DataManager.modelControl);
                 InfoTextControl['leaflet-control-model'] = { description: 'View model control info', active: true, iconPosition: 'left' }
                 InfoTextControl['leaflet-control-pv'] = { description: 'Set-up a presenter session or join a session as viewer', active: true, iconPosition: 'left' };
                 InfoTextControl['leaflet-control-startstop-stopped'] = { description: 'Play/pause simulation', active: true, iconPosition: 'left' };
@@ -182,15 +182,16 @@ var wsLookup = {
                 InfoTextControl['leaflet-control-pv'] = { active: false };
                 InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
             }
-        } else {
-            map.removeControl(presenterViewerControl)
-            map.removeControl(startControl);
-            map.removeControl(DataManager.modelcontrol);
-            InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
         }
+        //else {
+        //    map.removeControl(presenterViewerControl)
+        //    map.removeControl(startControl);
+        //    map.removeControl(DataManager.modelControl);
+        //    InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
+        //}
         if (payload.simulationSetup)
         {
-            DataManager.simulationSetupData = payload.simulationSetup.Data;
+            DataManager.simulationSetupData = payload.simulationSetup.data;
             map.addControl(simulationControl);
             InfoTextControl['leaflet-control-simulation'] = { description: 'Click here to config or edit a simulation', active: true, iconPosition: 'left' };
         }
@@ -316,7 +317,7 @@ var wsLookup = {
         DataManager.queryDialogData = payload; // only storage is needed no further action required
     },
     modelcontrol: function (payload) {
-        DataManager.modelcontrol.HandleMessages(payload)
+        DataManager.modelControl.HandleMessages(payload)
     }
 }
 

@@ -29,45 +29,45 @@ function openSimulationDialog(e) {
   errorLog.innerHTML = '';
 
 // formElement [string], type [string], required [y/n], optionsArray [false/array], labelText [string], idName [string], extraOptions [false/array-2_Elems] ['steps [int]','postfix' [string]]);
-  //var data = DataManager.simulationSetupData;
- var data = [
-    {
-      "formElement":"input",
-      "type":"string",
-      "required":"y",
-      "optionsArray":false,
-      "labelText":"Scenario name",
-      "idName":"scenarioName",
-      "extraOptions":false
-    },
-    {
-      "formElement":"slider",
-      "type":"int",
-      "required":"y",
-      "optionsArray":['0', '100'],
-      "labelText":"Penetration rate",
-      "idName":"PenetrationRateSelect",
-      "extraOptions":[1, '%']
-    },
-    {
-      "formElement":"slider",
-      "type":"int",
-      "required":"y",
-      "optionsArray":['0', '100'],
-      "labelText":"Follow-on behavior",
-      "idName":"followOn",
-      "extraOptions":[1, '%']
-    },
-    {
-      "formElement":"select",
-      "type":"int",
-      "required":"y",
-      "optionsArray":[['A', 'OD Basis'], ['B', 'OD variant 1'], ['C', 'OD variant 2']],
-      "labelText":"Origin Destination matrix",
-      "idName":"MatrixChoice",
-      "extraOptions":false
-    }
-  ];
+  var data = DataManager.simulationSetupData;
+ //var data = [
+ //   {
+ //     "formElement":"input",
+ //     "type":"string",
+ //     "required":"y",
+ //     "optionsArray":false,
+ //     "labelText":"Scenario name",
+ //     "idName":"scenarioName",
+ //     "extraOptions":false
+ //   },
+ //   {
+ //     "formElement":"slider",
+ //     "type":"int",
+ //     "required":"y",
+ //     "optionsArray":['0', '100'],
+ //     "labelText":"Penetration rate",
+ //     "idName":"PenetrationRateSelect",
+ //     "extraOptions":[1, '%']
+ //   },
+ //   {
+ //     "formElement":"slider",
+ //     "type":"int",
+ //     "required":"y",
+ //     "optionsArray":['0', '100'],
+ //     "labelText":"Follow-on behavior",
+ //     "idName":"followOn",
+ //     "extraOptions":[1, '%']
+ //   },
+ //   {
+ //     "formElement":"select",
+ //     "type":"int",
+ //     "required":"y",
+ //     "optionsArray":[['A', 'OD Basis'], ['B', 'OD variant 1'], ['C', 'OD variant 2']],
+ //     "labelText":"Origin Destination matrix",
+ //     "idName":"MatrixChoice",
+ //     "extraOptions":false
+ //   }
+ // ];
 
   for (var i = 0; i < data.length; i++) {
     fillOptions(data[i]);

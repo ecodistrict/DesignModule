@@ -87,6 +87,8 @@
     },
 
     FillModelControl: function () {
+        if (!this._modelControl.Div)
+            return;
         var modelDiv = this._modelControl.Div;
         modelDiv.innerHTML = ''; //clear all contents
         modelDiv.addEventListener('mousedown', this.modelControlMouseDown);
@@ -103,12 +105,9 @@
 
         var table = this._modelControl.Table = modelDiv.appendChild(document.createElement('table'));
         table.className = 'modelControlTable';
-        table.style.width = '200px';
 
         var header = table.appendChild(this.GetTableRow('name:', 'status:', 'progress:', 'header'));
         header.id = 'mcTableHeader';
-
-        //var secondRow = table.appendChild(this.GetTableRow('test', 'idle', '-1', 'id'));
 
         var empty = true;
         for (var v in this._models)
@@ -139,7 +138,8 @@
         this._modelControl.Div.style.display = 'none';
     },
 
-    AddModel: function(model) {
+    AddModel: function (model) {
+        console.log("NewModel: " + model);
         this._models[model.id] = model;
         this.FillModelControl();
     },
@@ -152,8 +152,8 @@
         }
     },
 
-    RemoveModel: function (payload) {
-        var modelid = payload.id;
+    RemoveModel: function (modelid) {
+        console.log("RemoveModel: " + modelid);
         if (typeof this._models[modelid] === 'undefined')
             return;
 
@@ -168,15 +168,16 @@
             for (var i = 0; i < payload.status.length; i++) {
                 if (typeof payload.status[i].new !== "undefined")
                     this.AddModel(payload.status[i].new);
-                else if (typeof payload.status[i].changed !== "undefined")
-                    this.UpdateModel(payload.status[i].changed)
+                else if (typeof payload.status[i].change !== "undefined")
+                    this.UpdateModel(payload.status[i].change)
                 else if (typeof payload.status[i].delete !== "undefined")
                     this.RemoveModel(payload.status[i].delete.id);
             }
         }
     },
 
-    UpdateModel: function(payload) {
+    UpdateModel: function (payload) {
+        console.log("UpdateModel: " + payload);
         if (typeof this._models[payload.id] !== 'undefined')
         {
             var model = this._models[payload.id];
@@ -206,10 +207,6 @@
     },
 
     ClearModelControl: function() {
-
-    },
-
-    Update: function (payload) {
 
     },
 
