@@ -200,3 +200,15 @@ Sync Control message server 2 client
 		"viewer": "group" //request was with viewer/group combo
 	}
 }
+
+Model Control message
+{	
+	"type": "modelcontrol",
+	"payload": {
+		status: [ //zoveel new/delete/change messages als je door en met elkaar wil sturen!
+			{new: {name: ...(string), status: ...(string), progress: ...(int), id: ...(string)}},
+			{change: {name: ...(string), status: ...(string), progress: ...(int), id: ...(string)}},
+			{delete: {id: ...}}
+		]
+	}
+}

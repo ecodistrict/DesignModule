@@ -72,6 +72,7 @@ var GraphManager = {
         startDivH: null,
     },
     idcounter: 0, //Only for fake data purposes
+    ActiveCount: 0,
     defaultValues: {
         width: 300, //Width of a graph div todo: positioning when not using default values
         height: 200, //Height of a graph div
@@ -84,8 +85,8 @@ var GraphManager = {
         maxPoints: 200, //9007199254740991, //Graph only plots the last x points of an array
         x: { label: "" }, //Attribute name for the attribute holding the value for the x-axis
         y: [{ color: "LightBlue", label: "" }], //Attribute name for the attribute holding the value of the y-axis along with color and label
-        xScale: "linear", //sets the scale to use for the x axis "linear"/"ordinal"/"power"/"log" todo: time
-        yScale: "linear", //sets the scale to use for the y axis "linear"/"ordinal"/"power"/"log" todo: time
+        xScale: "linear", //sets the scale to use for the x axis "linear"/"ordinal"/"power"/"log" todo: date
+        yScale: "linear", //sets the scale to use for the y axis "linear"/"ordinal"/"power"/"log" todo: date
         xAxis: true, //sets showing of x axis
         yAxis: true, //sets showing of y axis
         xAxisOrient: "bottom", //sets orientation of xAxis: "bottom"/"top"
@@ -149,6 +150,33 @@ var GraphManager = {
     SetPosition: function (aPos) {
         GraphManager.position = aPos;
         GraphManager.RepositionGraphs();
+    },
+
+    SetPreviews: function (container) {
+        var counter = 0;
+        for (var i = 0; i < GraphManager.graphs.length; i++)
+        {
+            if (GraphManager.graphs[i].enabled)
+            {
+                counter++;
+                GraphManager.graphs[i].graph.GetPreview(container);
+            }
+        }
+        return counter;
+    },
+
+    updateDomains: function (activegraphs) {
+        GraphManager.ActiveCount = 0;
+        for (var i = 0; i < GraphManager.graphs.length; i++)
+        {
+            if (typeof activegraphs[GraphManager.graphs[i].graphID] !== "undefined") {
+                GraphManager.ActiveCount++;
+                GraphManager.graphs[i].enabled = true;
+            }
+            else
+                GraphManager.graphs[i].enabled = false;
+            //todo show/hide graphs we're already showing??
+        }
     },
 
     MakeGraph: function (graphObject) {
@@ -222,7 +250,7 @@ var GraphManager = {
 
 
         //if (graphObject.id == "b1919ec3-4b69-42c3-9847-1cd6b42c6fff-KPI07")
-            detailsControl._update();
+        //detailsControl._update();
 
         GraphManager.hiddenGraphs.push(graphDiv);
 
@@ -261,6 +289,9 @@ var GraphManager = {
 
         var graph = new LineBottomLeft(graphObject);
         graph.Initialize(container);
+        if (graphObject.data.length > 0)
+            graph.Update(graphObject);
+        
         return graph;
     },
 
@@ -269,6 +300,8 @@ var GraphManager = {
 
         var graph = new LineBottomLeft(graphObject);
         graph.Initialize(container);
+        if (typeof graphObject.data !== "undefined")
+            graph.Update(graphObject.data);
         return graph;
     },
 
@@ -277,12 +310,10 @@ var GraphManager = {
             var graph = GraphManager._getGraph(dataArray[i].id);
             if (graph == null) //only update graphs that exist
                 continue;
-            graph.graph.Update(dataArray[i]);
+            graph.graph.Update(dataArray[i].data);
             //GraphManager.UpdateGraph(graph.graph, dataArray[i]);
         }
     },
-
-
 
     RepositionGraphs: function () {
         for (var i = 0; i < GraphManager.alignedGraphs.length; i++)
@@ -412,37 +443,57 @@ var GraphManager = {
         GraphManager.PositionGraph(graphDiv, GraphManager.alignedGraphs.length - 1);
         GraphManager.zIndexManager.focus(graphDiv.graphID);
     },
-
+    /*
+    data: [
+    { x: value,
+      y: [value, null, value] -> graph with 3 lines  
+    },
+    ...
+    ]
+    */
     AddGraphData: function(graph, data)
     {
         //check if there are changes
         if (data == null)
             return;
 
-
-        //can I assume the arrays always have the same length!?
-        for (var i = 0; i < graph.data.length; i++)
-        {
-            if (data.y[i] != null)
-                graph.data[i].push({ x: data.x, y: data.y[i] });
-        }
-
-        for (var i = 0; i < graph.data.length; i++)
-        {
-            if (graph.data[i].length <= graph.maxPoints) //we can still push the new points to the display data
-            {
-                if (graph.data[i].length > graph.displayData[i].length)
-                    graph.displayData[i].push({x: data.x, y: data.y[i]})
-            }
-            else //rebuild display data
-            {
-                graph.displayData[i] = [];
-                for (var j = graph.data[i].length - graph.maxPoints; j < graph.data[i].length; j++)
-                {
-                    graph.displayData[i].push(graph.data[i][j]);
+        for (var j = 0; j < data.length; j++) {
+            //can I assume the arrays always have the same length!?
+            for (var i = 0; i < graph.data.length; i++) {
+                var xNum = new UnitConverter.ConvNum(graph.x.qnt, data[j].x);
+                xNum.SetUnit(graph.x.unit);
+                if (data[j].y[i] != null) {
+                    var yNum = new UnitConverter.ConvNum(graph.y[0].qnt, data[j].y[i]);
+                    yNum.SetUnit(graph.y[0].unit);
+                    graph.data[i].push({ x: xNum, y: yNum});
                 }
             }
         }
+
+        //todo check if we can add them instead of rebuilding display data
+        graph.displayData = [];
+        
+        for (var j = Math.max(0, graph.data.length - graph.maxPoints); j < graph.data.length; j++)
+        {
+            graph.displayData.push(graph.data[j]);
+        }
+
+        //for (var i = 0; i < graph.data.length; i++)
+        //{
+        //    if (graph.data[i].length <= graph.maxPoints) //we can still push the new points to the display data
+        //    {
+        //        if (graph.data[i].length > graph.displayData[i].length)
+        //            graph.displayData[i].push({x: data.x, y: data.y[i]})
+        //    }
+        //    else //rebuild display data
+        //    {
+        //        graph.displayData[i] = [];
+        //        for (var j = graph.data[i].length - graph.maxPoints; j < graph.data[i].length; j++)
+        //        {
+        //            graph.displayData[i].push(graph.data[i][j]);
+        //        }
+        //    }
+        //}
     },
 
     _showGraphInfo: function (e) {

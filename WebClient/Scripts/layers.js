@@ -228,7 +228,7 @@ function addLayerToMap(layer, opacity) {
             opacity: opacity,
             style: function (feature) {
                 if (typeof feature.properties.fillOpacity !== 'undefined')
-                    return { color: feature.properties.color, fillOpacity: feature.properties.fillOpacity, opacity: feature.properties.fillOpacity };
+                    return { color: feature.properties.color };//, fillOpacity: feature.properties.fillOpacity, opacity: feature.properties.fillOpacity };
                 // test code for live trafic..
                 else if (feature.properties.color == '#000000')
                     return { color: '#000000', weight: 1 };

@@ -57,7 +57,7 @@
 
         this.graphObject.container = container;
         this.graphObject.svg = svg;
-        this.graphObject.data = [];
+        this.graphObject.data = graphObject.data? graphObject.data : [];
         this.graphObject.displayData = [];
         for (var i = 0; i < graphObject.y.length; i++) {
             this.graphObject.data[i] = [];
@@ -125,8 +125,8 @@
         graph.preview.lineG.selectAll("path").remove();
 
         var lineFunction = d3.svg.line()
-            .x(function (d) { return xScale(d.x); })
-            .y(function (d) { return yScale(d.y); })
+            .x(function (d) { return xScale(d.x.GetDisplayValue()); }) //d.x.GetDisplayValue()
+            .y(function (d) { return yScale(d.y.GetDisplayValue()); }) //d.y.GetDisplayValue()
             .interpolate(graph.interpolation);
 
         for (var i = 0; i < graph.y.length; i++) {
@@ -246,10 +246,10 @@
         //graph.displayData = displayData;
 
         //sets min/max values
-        var minX = (typeof graph.minX === "undefined") ? d3.min(displayData, function (d) { return d3.min(d, function (p) { return p.x; }) }) : graph.minX;
-        var maxX = (typeof graph.maxX === "undefined") ? d3.max(displayData, function (d) { return d3.max(d, function (p) { return p.x; }) }) : graph.maxX;
-        var minY = (typeof graph.minY === "undefined") ? d3.min(displayData, function (d) { return d3.min(d, function (p) { return p.y; }) }) : graph.minY;
-        var maxY = (typeof graph.maxY === "undefined") ? d3.max(displayData, function (d) { return d3.max(d, function (p) { return p.y; }) }) : graph.maxY;
+        var minX = (typeof graph.minX === "undefined") ? d3.min(displayData, function (d) { return d3.min(d, function (p) { return p.x.GetDisplayValue(); }) }) : graph.minX;
+        var maxX = (typeof graph.maxX === "undefined") ? d3.max(displayData, function (d) { return d3.max(d, function (p) { return p.x.GetDisplayValue(); }) }) : graph.maxX;
+        var minY = (typeof graph.minY === "undefined") ? d3.min(displayData, function (d) { return d3.min(d, function (p) { return p.y.GetDisplayValue(); }) }) : graph.minY;
+        var maxY = (typeof graph.maxY === "undefined") ? d3.max(displayData, function (d) { return d3.max(d, function (p) { return p.y.GetDisplayValue(); }) }) : graph.maxY;
         if (graph.holdminmax) {
             if (typeof graph.holdvalues === "undefined") //todo fix possible missed values when new data.length > maxPoints
                 graph.holdvalues = {
@@ -317,10 +317,10 @@
 
         var lineFunction = d3.svg.line()
             .x(function (d) {
-                return xScale(d.x);
+                return xScale(d.x.GetDisplayValue()); //d.x.GetDisplayValue()
             })
             .y(function (d) {
-                return yScale(d.y);
+                return yScale(d.y.GetDisplayValue()); //d.y.GetDisplayValue()
             })
             .interpolate(graph.interpolation);
 

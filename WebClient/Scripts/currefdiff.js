@@ -108,40 +108,61 @@
         // todo: only implement for tiles now
         var layer = crd.options.layer;
 
-        if (e.target == crd.current) {
-            if (layer.tileLayer) {
-                layer.tileLayer.setUrl(layer.tiles, false);
-                layer.tileLayer.idShowing = layer.id;
-                if (layer.legend && legendControl.legendLayer == layer.id)
-                    legendControl.createLegend(layer.legend, layer.id);
-                else if (legendControl.legendLayer == layer.id)
-                    legendControl.clearLegend(false, layer.id);
-            }
-        }
-        else if (e.target == crd.reference) {
-            if (layer.tileLayer) {
-                layer.tileLayer.setUrl(layer.ref.tiles, false);
-                layer.tileLayer.idShowing = layer.ref.id;
-                if (typeof layer.ref != "undefined" && typeof layer.ref.legend != "undefined" && legendControl.legendLayer == layer.id)
-                {
-                    legendControl.createLegend(layer.ref.legend, layer.id);
-                }
-                else if (typeof layer.legend != "undefined" && legendControl.legendLayer == layer.id) {
-                    legendControl.createLegend(layer.legend, layer.id);
-                }
-                else if (legendControl.legendLayer == layer.id) {
-                    legendControl.clearLegend(false, layer.id);
-                }
-            }
-        }
-        else {
-            if (layer.tileLayer) {
-                layer.tileLayer.setUrl(layer.diff.tiles, false);
-                layer.tileLayer.idShowing = layer.diff.id;
-                if (layer.diff.legend && legendControl.legendLayer == layer.id)
-                    legendControl.createLegend(layer.diff.legend, layer.id);
-                else if (legendControl.legendLayer == layer.id)
-                    legendControl.clearLegend(false, layer.id);
+        //if (e.target == crd.current) {
+        //    if (layer.tileLayer) {
+        //        layer.tileLayer.setUrl(layer.tiles, false);
+        //        layer.tileLayer.idShowing = layer.id;
+        //        if (layer.legend && legendControl.legendLayer == layer.id)
+        //            legendControl.createLegend(layer.legend, layer.id);
+        //        else if (legendControl.legendLayer == layer.id)
+        //            legendControl.clearLegend(false, layer.id);
+        //    }
+        //}
+        //else if (e.target == crd.reference) {
+        //    if (layer.tileLayer) {
+        //        layer.tileLayer.setUrl(layer.ref.tiles, false);
+        //        layer.tileLayer.idShowing = layer.ref.id;
+        //        if (typeof layer.ref != "undefined" && typeof layer.ref.legend != "undefined" && legendControl.legendLayer == layer.id)
+        //        {
+        //            legendControl.createLegend(layer.ref.legend, layer.id);
+        //        }
+        //        else if (typeof layer.legend != "undefined" && legendControl.legendLayer == layer.id) {
+        //            legendControl.createLegend(layer.legend, layer.id);
+        //        }
+        //        else if (legendControl.legendLayer == layer.id) {
+        //            legendControl.clearLegend(false, layer.id);
+        //        }
+        //    }
+        //}
+        //else {
+        //    if (layer.tileLayer) {
+        //        layer.tileLayer.setUrl(layer.diff.tiles, false);
+        //        layer.tileLayer.idShowing = layer.diff.id;
+        //        if (layer.diff.legend && legendControl.legendLayer == layer.id)
+        //            legendControl.createLegend(layer.diff.legend, layer.id);
+        //        else if (legendControl.legendLayer == layer.id)
+        //            legendControl.clearLegend(false, layer.id);
+        //    }
+        //}
+
+        if (typeof layer.active !== "undefined" && layer.showing) //check if layer is of the new type!
+        {
+            var maplayer = layer.maplayer;
+            layer.showing.hideLayer();
+            switch(e.target)
+            {
+                case crd.reference:
+                    layer.showing = layer.ref;
+                    layer.ref.showLayer(maplayer);
+                    break;
+                case crd.difference:
+                    layer.showing = layer.diff;
+                    layer.diff.showLayer(maplayer);
+                    break;
+                default:
+                    layer.showing = layer.active;
+                    layer.active.showLayer(maplayer);
+                    break;
             }
         }
     }

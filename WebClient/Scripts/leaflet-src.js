@@ -1713,7 +1713,7 @@ L.Map = L.Evented.extend({
 			this._zoom = zoom;
 			return this;
 		}
-		return this.setView(this.getCenter(), zoom, {zoom: options});
+	    return this.setView(this.getCenter(), zoom, {zoom: options});
 	},
 
 	zoomIn: function (delta, options) {

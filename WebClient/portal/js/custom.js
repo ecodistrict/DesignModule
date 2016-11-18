@@ -66,14 +66,14 @@ description = [{'p':translate('Smart Traffic is the new generation resource for 
 {'p':translate('Smart Traffic delivers an intelligent way to control the traffic lights based on an integral traffic image based on a detection-information and floating car data.',
 ['NL','Smart Traffic levert een intelligente aansturing van de verkeerslichten op basis van een integraal verkeersbeeld gebaseerd op detectie-informatie en floating car data.'],Lang)},{'hr':''}];
 overlayImages = [{'src':'buttons_over.png','class':'overlay'}];
-createCasus(translate('Smart Traffic with floating car data',['NL','Smart Traffic met floating car data'],Lang), 'ssm', 'odysa_map.jpg', overlayImages, description, '../default.html', [{'name':'Sweco','image':'partners_logo_sweco.jpg'}], [['OTS'],['Vissim']], ['Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat']);
+createCasus(translate('Smart Traffic with floating car data',['NL','Smart Traffic met floating car data'],Lang), 'ssm', 'odysa_map.jpg', overlayImages, description, '../default.html?session=sweco', [{'name':'Sweco','image':'partners_logo_sweco.jpg'}], [['OTS'],['Vissim']], ['Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat']);
 
 // A58
 description = [{'p':translate('CACC is a system whereby predecessor could be followed on short distances. So the intensity can be higher without to commence shockwaves. If they do commence, The CACC is better capable than the controllers to fix the shockwaves on the front. CACC belated the shockwaves on an more efficently way.',
 ['NL','CACC is een systeem waarmee voorgangers op korte afstanden kunnen worden gevolgd. Zodoende kan de intensiteit hoger zijn zonder dat er schokgolven ontstaan. Als deze wel ontstaan, is CACC beter in staat dan bestuurders om de schokgolven aan de voorkant op te lossen. CACC verlaat de schokgolf op een efficiëntere wijze.'],Lang)},
 {'hr':''}];
 overlayImages = [{'src':'buttons_over.png','class':'overlay'}];
-createCasus(translate('CACC and schockwaves on the A58',['NL','CACC en schokgolven op de A58'],Lang), 'a58', 'Cacc_map.jpg', overlayImages, description, '../default.html', [{'name':'TU Delft','image':'partners_logo_tudelft.png'}], ['OTS'], ['a58 tussen Tilburg en Eindhoven']);
+createCasus(translate('CACC and schockwaves on the A58',['NL','CACC en schokgolven op de A58'],Lang), 'a58', 'Cacc_map.jpg', overlayImages, description, '../default.html?session=dtv', [{'name':'TU Delft','image':'partners_logo_tudelft.png'}], ['OTS'], ['a58 tussen Tilburg en Eindhoven']);
 
 // Odysa
 description = [{'p':translate('ODYSA INCAR is an dynamic green wave in the car where on a display get displayed how hard you drive and how hard you should drive to arrive at a green traffic light.',
@@ -81,7 +81,7 @@ description = [{'p':translate('ODYSA INCAR is an dynamic green wave in the car w
 {'hr':''}];
 
 overlayImages = [{'src':'buttons_over.png','class':'overlay'}];
-createCasus(translate('ODYSA INCAR',['NL','ODYSA INCAR'],Lang),'ODYSA_INCAR', 'odysa_map.jpg', overlayImages, description, '../default.html',[{'name':'DTV','image':'partners_logo_dtv.png'}], ['Vissim'],['Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat']);
+createCasus(translate('ODYSA INCAR',['NL','ODYSA INCAR'],Lang),'ODYSA_INCAR', 'odysa_map.jpg', overlayImages, description, '../default.html?session=tud',[{'name':'DTV','image':'partners_logo_dtv.png'}], ['Vissim'],['Eindhoven: eisenhowerlaan, Insulindelaan en Onze‐Lieve‐Vrouwestraat']);
 
 
 

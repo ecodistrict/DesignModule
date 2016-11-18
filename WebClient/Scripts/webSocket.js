@@ -52,6 +52,7 @@ var wsLookup = {
     },
     refresh: function (payload) {
         //console.log(payload);
+        LayerManager.UpdateData(payload);
         var elementID = payload.id;
         if (typeof payload.tiles !== "undefined" && payload.tiles != '') {
             detailsControl.updateTilesURL(payload);
@@ -72,51 +73,13 @@ var wsLookup = {
         }
     },
     updatelayer: function (payload) {
-        var elementID = payload.id;
-        // online layer
-        for (var mlid in map._layers) {
-            var layer = map._layers[mlid];
-            if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == elementID) {
-                if (typeof payload.newobjects !== "undefined") {
-                    // dictionary of id: feature
-                    for (var id in payload.newobjects) {
-                        layer.addData(payload.newobjects[id]);
-                    }
-                }
-                else if (payload.changedcolors) {
-                    // dictionary of id: color
-                    for (var lid in layer._layers) {
-                        var fid = layer._layers[lid].feature.properties.id;
-                        var newColor = payload.changedcolors[fid];
-                        if (newColor)
-                            layer._layers[lid].feature.properties.color = newColor;
-                    }
-                    layer.setStyle(
-                        function (feature) {
-                            // todo: test code for live trafic.. generalize..
-                            if (feature.properties.color == '#000000')
-                                return { color: '#000000', weight: 1 };
-                            else
-                                return { color: feature.properties.color }
-                        });
-                }
-                else if (payload.removedobjects) {
-                    // dictionary id: X
-                    for (var lid in layer._layers) {
-                        var fid = layer._layers[lid].feature.properties.id;
-                        if (payload.removedobjects[fid])
-                            layer.removeLayer(layer._layers[lid]);
-                    }
-                }
-                if (payload.timestamp) {
-                    showLayerTimeStamp(payload.timestamp)
-
-                }
-            }
-        }
+        LayerManager.UpdateData(payload);
     },
     updatekpi: function (payload) {
-        detailsControl.resetkpi(payload);
+        detailsControl.resetkpi(payload); //todo implement KPI's?
+    },
+    updatechart: function (payload) {
+        GraphManager.UpdateGraphs(payload);
     },
     selectedobjects: function (payload) {
         // add selected objects to layer, ut first adjust selected categories
@@ -206,30 +169,57 @@ var wsLookup = {
         }
         if (typeof payload.simulationControlEnabled !== 'undefined') {
             if (payload.simulationControlEnabled) {
-                map.addControl(simulationControl);
-                InfoTextControl['leaflet-control-simulation'] = { description: 'Click here to config or edit a simulation', active: true, iconPosition: 'left' };
-            } else {
-                map.removeControl(simulationControl);
-                InfoTextControl['leaflet-control-simulation'] = { active: false };
-            }
-        } else {
-            map.removeControl(simulationControl);
-            InfoTextControl['leaflet-control-simulation'] = { active: false };
-        }
-        if (typeof payload.simulationControlEnabled !== 'undefined') {
-            if (payload.simulationControlEnabled) {
                 map.addControl(startControl);
                 map.addControl(presenterViewerControl)
+                map.addControl(DataManager.modelcontrol);
+                InfoTextControl['leaflet-control-model'] = { description: 'View model control info', active: true, iconPosition: 'left' }
+                InfoTextControl['leaflet-control-pv'] = { description: 'Set-up a presenter session or join a session as viewer', active: true, iconPosition: 'left' };
                 InfoTextControl['leaflet-control-startstop-stopped'] = { description: 'Play/pause simulation', active: true, iconPosition: 'left' };
             } else {
                 map.removeControl(startControl);
                 map.removeControl(presenterViewerControl)
+                InfoTextControl['leaflet-control-model'] = { active: false };
+                InfoTextControl['leaflet-control-pv'] = { active: false };
                 InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
             }
         } else {
             map.removeControl(presenterViewerControl)
             map.removeControl(startControl);
+            map.removeControl(DataManager.modelcontrol);
             InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
+        }
+        if (payload.simulationSetup)
+        {
+            DataManager.simulationSetupData = payload.simulationSetup.Data;
+            map.addControl(simulationControl);
+            InfoTextControl['leaflet-control-simulation'] = { description: 'Click here to config or edit a simulation', active: true, iconPosition: 'left' };
+        }
+        else
+        {
+            DataManager.simulationSetupData = null;
+            map.removeControl(simulationControl);
+            InfoTextControl['leaflet-control-simulation'] = { active: false };
+        }
+        if (typeof payload.startstopControlEnabled !== "undefined") {
+            if (payload.startstopControlEnabled) {
+                map.addControl(startControl);
+                InfoTextControl['leaflet-control-startstop-stopped'] = { description: 'Play/pause simulation', active: true, iconPosition: 'left' };
+            }
+            else
+            {
+                map.removeControl(startControl);
+                InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
+            }
+        }
+        if (typeof payload.presenterViewerControl !== "undefined") {
+            if (payload.presenterViewerControl) {
+                map.addControl(presenterViewerControl);
+                InfoTextControl['leaflet-control-pv'] = { description: 'Set-up a presenter session or join a session as viewer', active: true, iconPosition: 'left' };
+            }
+            else {
+                map.removeControl(presenterViewerControl);
+                InfoTextControl['leaflet-control-pv'] = { active: false };
+            }
         }
 
         // basic controls
@@ -324,6 +314,9 @@ var wsLookup = {
     },
     queryDialogData: function (payload) {
         DataManager.queryDialogData = payload; // only storage is needed no further action required
+    },
+    modelcontrol: function (payload) {
+        DataManager.modelcontrol.HandleMessages(payload)
     }
 }
 
@@ -351,7 +344,8 @@ function wsConnect() {
 
             //check if message is of the new type, if so direct call otherwise 
             if (typeof message.type !== "undefined") {
-                wsLookup[message.type](message.payload);
+                if (typeof wsLookup[message.type] !== "undefined") //only access functions that are defined!
+                    wsLookup[message.type](message.payload);
             }
             else {
                 var messageBuilder = {};
@@ -496,8 +490,8 @@ function wsConnect() {
                     console.log(message);
                     break; //unknown message
                 }
-
-                wsLookup[messageBuilder.type](messageBuilder.payload);
+                if (typeof wsLookup[messageBuilder.type] !== "undefined")
+                    wsLookup[messageBuilder.type](messageBuilder.payload); //only access functions that are defined!
             }
         }
 

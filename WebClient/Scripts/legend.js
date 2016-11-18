@@ -241,23 +241,25 @@ L.control.legend.createLegend = function (definition, layerid) {
     if (this._div) {
         this.clearLegend(!this._div.firstChild, layerid);
         // table holding legend elements
-        this._table = this._div.appendChild(L.DomUtil.create('table', 'legend-table'));
-        // close cross right upper
-        this._close = this._div.appendChild(L.DomUtil.create('div', 'legend-close'));
-        this._close.innerHTML = '&#x2715;';
-        this._close.onclick = function (e) {
-          this.onclick = null;
-          this.parentNode.removeChild(this);
-          L.control.legend._div.removeChild(L.control.legend._table);
-          // todo: remove control from map?
-        };
-        if (definition.grid)
-        this._createGrid(definition.grid);
-        else if (definition.grid2)
-        this._createGrid2(definition.grid2);
-        else if (definition.scale)
-        this._table.appendChild(this._createRow([this._createScale(definition.scale)]));
-        // todo: else other legend types
+        if (typeof definition !== "undefined") {
+            this._table = this._div.appendChild(L.DomUtil.create('table', 'legend-table'));
+            // close cross right upper
+            this._close = this._div.appendChild(L.DomUtil.create('div', 'legend-close'));
+            this._close.innerHTML = '&#x2715;';
+            this._close.onclick = function (e) {
+                this.onclick = null;
+                this.parentNode.removeChild(this);
+                L.control.legend._div.removeChild(L.control.legend._table);
+                // todo: remove control from map?
+            };
+            if (definition.grid)
+                this._createGrid(definition.grid);
+            else if (definition.grid2)
+                this._createGrid2(definition.grid2);
+            else if (definition.scale)
+                this._table.appendChild(this._createRow([this._createScale(definition.scale)]));
+            // todo: else other legend types
+        }
   }
 };
 

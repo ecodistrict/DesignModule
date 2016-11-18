@@ -1,5 +1,8 @@
 function openSimulationDialog(e) {
 
+    //if (typeof DataManager.simulationSetupData === "undefined" || DataManager.simulationSetupData == null)
+    //    return;
+
   // todo: build dialog based on measuresControl.options.selectCategories
 
   var div = modalDialogCreate('Setup your simulation');
@@ -13,7 +16,7 @@ function openSimulationDialog(e) {
     //div.style.margin = '5% auto';
   }
 
-  var label, options;
+  var label, optionsArray;
 
   // build dialog form
   var f = div.appendChild(document.createElement('form'));
@@ -25,20 +28,64 @@ function openSimulationDialog(e) {
   errorLog.style.display = 'none';
   errorLog.innerHTML = '';
 
-  // fillOptions(element, required, options, labelText, idName, extraOptions['steps','postfix']);
+// formElement [string], type [string], required [y/n], optionsArray [false/array], labelText [string], idName [string], extraOptions [false/array-2_Elems] ['steps [int]','postfix' [string]]);
+  //var data = DataManager.simulationSetupData;
+ var data = [
+    {
+      "formElement":"input",
+      "type":"string",
+      "required":"y",
+      "optionsArray":false,
+      "labelText":"Scenario name",
+      "idName":"scenarioName",
+      "extraOptions":false
+    },
+    {
+      "formElement":"slider",
+      "type":"int",
+      "required":"y",
+      "optionsArray":['0', '100'],
+      "labelText":"Penetration rate",
+      "idName":"PenetrationRateSelect",
+      "extraOptions":[1, '%']
+    },
+    {
+      "formElement":"slider",
+      "type":"int",
+      "required":"y",
+      "optionsArray":['0', '100'],
+      "labelText":"Follow-on behavior",
+      "idName":"followOn",
+      "extraOptions":[1, '%']
+    },
+    {
+      "formElement":"select",
+      "type":"int",
+      "required":"y",
+      "optionsArray":[['A', 'OD Basis'], ['B', 'OD variant 1'], ['C', 'OD variant 2']],
+      "labelText":"Origin Destination matrix",
+      "idName":"MatrixChoice",
+      "extraOptions":false
+    }
+  ];
 
-  fillOptions('input', 'y', false, 'Scenario name', 'scenarioName', false);
-  // fillOptions('slider', 'y', ['1','100'], "Slider", "Sliderkeuze", ['1','']);
-  // fillOptions('select', 'y', ['0%','25%','50%','75%'], "Penetration rate", "PenetrationRateSelect", false);
-  // fillOptions('select', 'y', ['0%','25%','50%','75%'], "Follow-on behavior", "followOn", false);
+  for (var i = 0; i < data.length; i++) {
+    fillOptions(data[i]);
+  }
 
-  fillOptions('slider', 'y', ['0','100'], "Penetration rate", "PenetrationRateSelect", ['1','%']);
-  fillOptions('slider', 'y', ['0','100'], "Follow-on behavior", "followOn", ['1','%']);
-  fillOptions('select', 'y', [['A','OD Basis'],['B','OD variant 1'],['C','OD variant 2']], "Origin Destination matrix", "MatrixChoice", false);
+  var container, optionWrapper, opt;
 
-  var container,optionWrapper, opt;
+  // function fillOptions(formElement, type, required, optionsArray, labelText, idName, extraOptions) {
+  function fillOptions(arrayItem) {
+    var formElement = arrayItem.formElement;
+    var type = arrayItem.type;
+    var required = arrayItem.required;
+    var optionsArray = arrayItem.optionsArray;
+    var labelText = arrayItem.labelText;
+    var idName = arrayItem.idName;
+    var extraOptions = arrayItem.extraOptions;
 
-  function fillOptions(formElement, required, options, labelText, idName, extraOptions) {
+
     // input, select
     // checkbox, textaea, radio,
     if (formElement === 'input') {
@@ -55,6 +102,7 @@ function openSimulationDialog(e) {
       container.name = idName;
       container.className = 'form-control';
       container.dataset.required = required;
+      container.dataset.type = type;
     } else if (formElement === 'textarea') {
       container = document.createElement('div');
       container.id = idName + '-option-row';
@@ -83,19 +131,22 @@ function openSimulationDialog(e) {
       input.placeholder = labelText;
       input.name = idName;
       input.dataset.required = required;
+      input.dataset.type = type;
       container.appendChild(input);
     } else if (formElement === 'radio') {
       optionWrapper = document.createElement('div');
       optionWrapper.id = idName + '-option-row';
       optionWrapper.className = 'form-control';
-      for (var i = 0; i < options.length; i++) {
-        option = options[i];
+
+      for (var i = 0; i < optionsArray.length; i++) {
+        option = optionsArray[i];
         var opt = document.createElement('input');
         var button = document.createElement('button');
         opt.type = 'radio';
         opt.name = idName;
         opt.value = option;
         opt.dataset.required = required;
+        opt.dataset.type = type;
         button.innerText = option;
         button.value = option;
         button.name = idName;
@@ -130,13 +181,19 @@ function openSimulationDialog(e) {
       f.appendChild(optionWrapper);
     } else if (formElement === 'select') {
 
-      console.log(options);
+      //console.log(options);
 
-      for (var i = 0; i < options.length; i++) {
-        option = options[i];
+      for (var i = 0; i < optionsArray.length; i++) {
+        option = optionsArray[i];
         var opt = document.createElement('option');
-        opt.value = option;
-        opt.innerHTML = option;
+        if (option.constructor === Array) {
+          opt.value = option[0];
+          opt.innerHTML = option[1];
+        } else {
+          opt.value = option;
+          opt.innerHTML = option;
+        }
+
         container.appendChild(opt);
       }
 
@@ -144,14 +201,15 @@ function openSimulationDialog(e) {
       optionWrapper = document.createElement('div');
       optionWrapper.id = idName + '-option-row';
       optionWrapper.className = 'form-control';
-      for (var i = 0; i < options.length; i++) {
-        option = options[i];
+      for (var i = 0; i < optionsArray.length; i++) {
+        option = optionsArray[i];
         var opt = document.createElement('input');
         var button = document.createElement('button');
         opt.type = 'checkbox';
         opt.name = idName;
         opt.value = option;
         opt.dataset.required = required;
+        opt.dataset.type = type;
         button.innerText = option;
         button.value = option;
         button.addEventListener("click", function (e) {
@@ -187,6 +245,7 @@ function openSimulationDialog(e) {
       textarea.className = 'form-control';
       textarea.placeholder = labelText;
       textarea.dataset.required = required;
+      textarea.dataset.type = type;
       container.appendChild(textarea);
     } else if (formElement === 'slider') {
 
@@ -197,32 +256,50 @@ function openSimulationDialog(e) {
       sliderInput.name = idName;
       sliderInput.id = 'input_' + idName;
       sliderInput.dataset.required = required;
+      sliderInput.dataset.type = type;
       sliderInput.style.width = '100%';
       sliderInput.style.boxSizing = 'border-box';
+
       var rangeSlider = noUiSlider.create(range, {
         connect: true, // Display a colored bar between the handles
-        start: parseInt(options[0]),
+        start: parseInt(optionsArray[0]),
         step: parseInt(extraOptions[0]),
         behaviour: 'tap',
+        extraOption: extraOptions[1],
         tooltips: true,
         range: {
-          'min': parseInt(options[0]),
-          'max': parseInt(options[1])
+          'min': parseInt(optionsArray[0]),
+          'max': parseInt(optionsArray[1])
         },
         format: {
-          to: function ( value ) {
-            return Math.round(value) + extraOptions[1];
+          to: function (value) {
+
+            if (range.noUiSlider) {
+              return Math.round(value) + range.noUiSlider.options.extraOption;
+            } else {
+              return Math.round(value);
+            }
+
           },
-          from: function ( value ) {
-            return Math.round(value.replace(extraOptions[1], ''));
+          from: function (value) {
+
+            if (range.noUiSlider) {
+              if (range.noUiSlider.options.extraOption.length > 0) {
+                return Math.round(value.repace(range.noUiSlider.options.extraOption, ''));
+              } else {
+                return Math.round(value);
+              }
+            } else {
+              return Math.round(value);
+            }
+
           }
         }
-      });
+      }).on('update', function (values, handle) {
+        formattedValue = values[handle];
 
-      rangeSlider.on('update', function( values, handle ) {
-
-        if (extraOptions[1].length > 0) {
-          formattedValue = values[handle].replace(extraOptions[1], '');
+        if (range.noUiSlider.options.extraOption.length > 0 && range.noUiSlider.options.extraOption !== '') {
+          formattedValue = values[handle].replace(range.noUiSlider.options.extraOption, '');
         } else {
           formattedValue = values[handle];
         }
@@ -230,7 +307,7 @@ function openSimulationDialog(e) {
           this.target.parentElement.children[1].value = formattedValue;
         }
 
-       });
+      });
 
       range.style.height = '20px';
       range.style.width = '100%';
@@ -238,7 +315,7 @@ function openSimulationDialog(e) {
 
 
 
-      sliderInput.addEventListener('change', function(){
+      sliderInput.addEventListener('change', function () {
         range.noUiSlider.set(this.value);
       });
 
@@ -289,12 +366,17 @@ function simulationDialogApply() {
     if (elem.type === 'text') {
       if (elem.dataset.required === 'y') {
         if (elem.value === '') {
-          errors = true;
-          elem.classList.add('empty');
-          errorLog.style.display = 'block';
-          errorLog.innerHTML = errorLog.innerHTML + '<span>' + elem.placeholder + ' is not correct!' + '</span>';
+          if (elem.dataset.type === 'int') {
+            formResult.push({ name: elem.name, value: 0, type: elem.dataset.type });
+            elem.classList.remove('empty');
+          } else {
+            errors = true;
+            elem.classList.add('empty');
+            errorLog.style.display = 'block';
+            errorLog.innerHTML = errorLog.innerHTML + '<span>' + elem.placeholder + ' is not correct!' + '</span>';
+          }
         } else {
-          formResult.push({name:elem.name, value:elem.value});
+          formResult.push({ name: elem.name, value: elem.value, type: elem.dataset.type });
           elem.classList.remove('empty');
         }
       }
@@ -306,7 +388,7 @@ function simulationDialogApply() {
           errorLog.style.display = 'block';
           errorLog.innerHTML = errorLog.innerHTML + elem.name + ' is not correct!';
         } else {
-          formResult.push({name:elem.name, value:elem.value});
+          formResult.push({ name: elem.name, value: elem.value, type: elem.dataset.type });
           elem.classList.remove('empty');
         }
       }
@@ -317,7 +399,7 @@ function simulationDialogApply() {
           elem.classList.add('empty');
           errorLog.style.display = 'block';
         } else {
-          formResult.push({name:elem.name, value:elem.value});
+          formResult.push({ name: elem.name, value: elem.value, type: elem.dataset.type });
           elem.classList.remove('empty');
         }
       }
@@ -326,15 +408,15 @@ function simulationDialogApply() {
       if (elem.dataset.required === 'y') {
         if (elem.checked) {
           errors = false;
-          formResult.push({name:elem.name, value:elem.value});
+          formResult.push({ name: elem.name, value: elem.value, type: elem.dataset.type });
         }
         if (document.getElementById('simulationForm')[elem.name].value === '') {
-          options = document.getElementById(elem.name + '-option-row');
-          options.classList.add('empty');
+          optionsArray = document.getElementById(elem.name + '-option-row');
+          optionsArray.classList.add('empty');
           errorLog.style.display = 'block';
         } else {
-          options = document.getElementById(elem.name + '-option-row');
-          options.classList.remove('empty');
+          optionsArray = document.getElementById(elem.name + '-option-row');
+          optionsArray.classList.remove('empty');
           errorLog.style.display = 'block';
         }
       }
@@ -345,13 +427,12 @@ function simulationDialogApply() {
 
         var checkboxes = document.getElementsByName(elem.name);
         var vals = "";
-        for (var i2=0, n=checkboxes.length;i2<n;i2++){
-          if (checkboxes[i2].checked)
-          {
-            vals += ","+checkboxes[i2].value;
+        for (var i2 = 0, n = checkboxes.length; i2 < n; i2++) {
+          if (checkboxes[i2].checked) {
+            vals += "," + checkboxes[i2].value;
           }
         }
-        if (vals){
+        if (vals) {
           vals = vals.substring(1);
         }
 
@@ -361,13 +442,13 @@ function simulationDialogApply() {
           for (var i2 = 0; i2 < formResult.length; i2++) {
             if (formResult[i2].name === elem.name) {
               found = true;
-              options = document.getElementById(elem.name + '-option-row');
-              options.classList.remove('empty');
+              optionsArray = document.getElementById(elem.name + '-option-row');
+              optionsArray.classList.remove('empty');
               errors = false;
             }
           }
           if (!found) {
-            formResult.push({name:elem.name, value:vals});
+            formResult.push({ name: elem.name, value: vals, type: elem.dataset.type });
           }
         }
       } // eo elem.dataset.required
@@ -390,6 +471,12 @@ function simulationDialogApply() {
   // }
   if (!errors) {
     console.log(formResult);
+    var sessionRequest = {
+      setupSimulation: {
+        parameters: formResult
+      }
+    }
+    wsSend(sessionRequest);
     modalDialogClose();
   }
 

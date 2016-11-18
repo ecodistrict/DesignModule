@@ -804,8 +804,9 @@ L.Draw.SimpleShape = L.Draw.Feature.extend({
 		}
 	},
 
-	_onMouseUp: function () {
-		if (this._shape) {
+	_onMouseUp: function (e) {
+	    if (this._shape) {
+	        DataManager.event = e;
 			this._fireCreatedEvent();
 		}
 
