@@ -309,9 +309,12 @@ begin
 end;
 
 procedure TEnselProject.ReadBasicData;
+var
+  scenario: TScenario;
 begin
-  fCurrentScenario := ReadScenario('1'); //TEnselScenario.Create(Self, '1', '1', '1', false, Self.mapView);
-  scenarios.Add(fCurrentScenario.id, fCurrentScenario);
+  scenario := ReadScenario('1'); //TEnselScenario.Create(Self, '1', '1', '1', false, Self.mapView);
+  scenarios.Add(scenario.id, scenario);
+  fProjectCurrentScenario := scenario;
 end;
 
 procedure TEnselProject.ReadObjects(aSender: TObject);
@@ -367,7 +370,7 @@ constructor TEnselLayer.Create(aScenario: TScenario; const aDomain, aID, aName, 
 begin
   fLayerType := aLayerType;
   fPalette := aPalette;
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, Double.NaN, aBasicLayer);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, Double.NaN, aBasicLayer);
   fLegendJSON := aLegendJSON; // property of TLayer
 end;
 

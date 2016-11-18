@@ -158,6 +158,8 @@ type
     function sessionDescription: string;
     function activeScenario: string;
     function referenceScenario: string;
+    procedure setCurrentScenario(const aValue: TScenario);
+    procedure setRefScenario(const aValue: TScenario);
   protected
     procedure SendErrorMessage(const aMessage: string);
     procedure SendMeasures();
@@ -177,8 +179,8 @@ type
     property sessionModel: TSessionModel read getSessionModel;
     property subscribedElements: TObjectList<TClientSubscribable> read fSubscribedElements; // ref, use TMonitor to lock
     property clientID: string read fClientID;
-    property currentScenario: TScenario read fCurrentScenario;
-    property refScenario: TScenario read fRefScenario;
+    property currentScenario: TScenario read fCurrentScenario write setCurrentScenario;
+    property refScenario: TScenario read fRefScenario write setRefScenario;
 
     procedure signalString(const aString: string);
 
@@ -671,8 +673,8 @@ type
   TProject = class
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
     aDBConnection: TCustomConnection;
-    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
-    aMaxNearestObjectDistanceInMeters: Integer);
+    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
+    const aSimulationSetup: string; aMaxNearestObjectDistanceInMeters: Integer);
   destructor Destroy; override;
   private
     fMapView: TMapView;
@@ -706,8 +708,10 @@ type
     fSelectionEnabled: Boolean;
     fMeasuresEnabled: Boolean;
     fMeasuresHistoryEnabled: Boolean;
-    fSimualtionControlEnabled: Boolean;
+    fSimulationControlEnabled: Boolean;
     fAddBasicLayers: Boolean;
+
+    fSimulationsetup: string;
 
     procedure setTimeSlider(aValue: Integer);
     procedure setSelectionEnabled(aValue: Boolean);
@@ -721,7 +725,7 @@ type
     procedure timerTilerStatusAsHeartbeat(aTimer: TTimer);
 
     function getMeasuresHistoryJSON: string; virtual;
-    procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); virtual;
+    procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); virtual;
     procedure handleTypedClientMessage(const aMessageType: string; var aJSONObject: TJSONObject); virtual;
     procedure handleNewClient(aClient: TClient); virtual;
   public
@@ -741,6 +745,10 @@ type
     property scenarios: TObjectDictionary<string, TScenario> read fScenarios; // owns, lock with TMonitor
     property clients: TGroup read fClients; // owns, lock with TMonitor
 
+    // todo: signal clients on write?
+    property projectCurrentScenario: TScenario read fProjectCurrentScenario write fProjectCurrentScenario;
+    property projectRefScenario: TScenario read fProjectRefScenario write fProjectRefScenario;
+
     property measuresJSON: string read getMeasuresJSON;
     property measures: TObjectDictionary<string, TMeasure> read fMeasures;
 
@@ -750,7 +758,8 @@ type
     property selectionEnabled: Boolean read fSelectionEnabled write setSelectionEnabled;
     property measuresEnabled: Boolean read fMeasuresEnabled write setMeasuresEnabled;
     property measuresHistoryEnabled: Boolean read fMeasuresHistoryEnabled write setMeasuresHistoryEnabled;
-    property simualtionControlEnabled: Boolean read fSimualtionControlEnabled write fSimualtionControlEnabled;
+    property simualtionControlEnabled: Boolean read fSimulationControlEnabled write fSimulationControlEnabled;
+    property simulationSetup: string read fSimulationSetup write fSimulationSetup;
     property addBasicLayers: Boolean read fAddBasicLayers;
   public
     property diffLayers: TObjectDictionary<string, TDiffLayer> read fDiffLayers;
@@ -1847,7 +1856,7 @@ begin
         else if isObject(jsonObject, 'selectObjectsProperties', jsonPair)
         then selectObjectsProperties(jsonPair.JsonValue)
         // handle all other messages on the connected project
-        else fProject.handleClientMessage(jsonObject, fCurrentScenario);
+        else fProject.handleClientMessage(Self, fCurrentScenario, jsonObject);
       finally
         jsonObject.Free;
       end;
@@ -2006,6 +2015,13 @@ procedure TClient.SendSession;
       '}'
   end;
 
+  function jsonSimulationSetup: string;
+  begin
+    if fProject.simulationSetup<>''
+    then Result := '"simulationSetup":{"data":'+fProject.simulationSetup+'},'
+    else Result := '';
+  end;
+
 begin
   signalString(
     '{"session":{'+
@@ -2018,6 +2034,7 @@ begin
       '"measuresEnabled":'+ord(fProject.measuresEnabled).toString+','+
       '"measuresHistoryEnabled":'+ord(fProject.measuresHistoryEnabled).toString+','+
       '"simulationControlEnabled":'+ord(fProject.simualtionControlEnabled).ToString+','+
+      jsonSimulationSetup+
       view+
     '}}');
 end;
@@ -2052,6 +2069,18 @@ begin
       else Result := Result+' - '+fCurrentScenario.description;
     end;
   end;
+end;
+
+procedure TClient.setCurrentScenario(const aValue: TScenario);
+begin
+  fCurrentScenario := aValue;
+  UpdateSession;
+end;
+
+procedure TClient.setRefScenario(const aValue: TScenario);
+begin
+  fRefScenario := aValue;
+  UpdateSession;
 end;
 
 procedure TClient.signalString(const aString: string);
@@ -3620,8 +3649,8 @@ end;
 
 constructor TProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
-  aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
-  aMaxNearestObjectDistanceInMeters: Integer);
+  aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
+  const aSimulationSetup: string; aMaxNearestObjectDistanceInMeters: Integer);
 begin
   inherited  Create;
   fGroups := TObjectDictionary<string, TGroup>.Create([doOwnsValues]);
@@ -3629,7 +3658,8 @@ begin
   fSelectionEnabled := aSelectionEnabled;
   fMeasuresEnabled := aMeasuresEnabled;
   fMeasuresHistoryEnabled := aMeasuresHistoryEnabled;
-  fSimualtionControlEnabled := aSimualtionControlEnabled;
+  fSimulationControlEnabled := aSimulationControlEnabled;
+  fSimulationSetup := aSimulationSetup;
   fAddBasicLayers := aAddbasicLayers;
   fSessionModel := aSessionModel;
   fConnection := aConnection;
@@ -3650,11 +3680,6 @@ begin
   fProjectRefScenario := nil;
   fMeasures := TObjectDictionary<string, TMeasure>.Create([doOwnsValues]);
   // projection
-  {
-  if aSourceEPSG>0
-  then fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(aSourceEPSG)
-  else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
-  }
   // imb init
   fProjectEvent := fConnection.subscribe(WS2IMBEventName+'.'+fProjectID, False);
   // read basic data
@@ -3763,7 +3788,7 @@ begin
   Result := 'null'; // in case of real dat build JSON object {}
 end;
 
-procedure TProject.handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario);
+procedure TProject.handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject);
 begin
   // default no action
 end;

@@ -36,7 +36,9 @@ var
   sessionModel: TSessionModel;
   tilerFQDN: string;
 
-  mapView: TMapView;
+  //mapView: TMapView;
+  project: TSSMProject;
+  simParameters: TSSMSimulationParameterList;
   //piSSM: Integer;
 
   { SSM/US
@@ -61,11 +63,61 @@ begin
         // ssm module
         // mapView := TMapView.Create(52.08457, 4.88909, 14); // woerden
         // mapView := TMapView.Create(52.08606, 5.17689, 11); // loenen a/d vecht?
-        mapView := TMapView.Create(52.313939, 4.683429, 14); //  N201 bij schiphol
+
 
         {piSSM := }
+        // DTV
+        // SWECO
+        // TUD
+        simParameters := TSSMSimulationParameterList.Create;
+        simParameters.setParameter('models', 'DataStore;KPI Model;Demo Model');
+        simParameters.setParameter('Undefined model name-testparam', 5);
+        // test project
+        project := TSSMProject.Create(sessionModel, imbConnection,
+          'SSM2', 'SSM2',
+          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+          nil, 0, false, false, false, True, false,
+          simParameters,
+          '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
+           '{"formElement":"select","type":"int","required":"y","optionsArray":[["0","0%"],["20","20%"],["40","40%"],["60","60%"],["80","80%"],["100","100%"]],"labelText":"percentage fcd vehicles","idName":"fcd","extraOptions":false}]',
+          TMapView.Create(52.313939, 4.683429, 14), 0);
+        sessionModel.Projects.Add(project);
+
+        {
+        // build sweco project
+        project := TSSMProject.Create(sessionModel, imbConnection,
+            'sweco', 'Eindhoven - Smart Traffic with floating car data',
+            tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+            nil, 0, false, false, false, True, false,
+            TMapView.Create(51.45485, 5.51492, 15), 0);
+        sessionModel.Projects.Add(project);
+
+
+        // build tud project
+        project := TSSMProject.Create(sessionModel, imbConnection,
+            'tud', 'Eindhoven - ODYSA INCAR',
+            tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+            nil, 0, false, false, false, True, false,
+            TMapView.Create(51.45485, 5.51492, 15), 0);
+        sessionModel.Projects.Add(project);
+
+
+        // build dtv project
+        project := TSSMProject.Create(sessionModel, imbConnection,
+            'dtv', 'A58 - CACC and schockwaves on the A58 between Tilburg and Eindhoven',
+            tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+            nil, 0, false, false, false, True, false,
+            TMapView.Create(51.5275, 5.25729, 13), 0);
+        sessionModel.Projects.Add(project);
+        }
+
+        {
+        mapView := TMapView.Create(52.313939, 4.683429, 14); //  N201 bij schiphol
         sessionModel.Projects.Add(
-          TSSMProject.Create(sessionModel, imbConnection, 'SSM', 'N201', tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, 0, false, false, false, True, false, mapView, 0));
+          TSSMProject.Create(sessionModel, imbConnection,
+            'SSM', 'N201',
+            tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, 0, false, false, false, True, false, mapView, 0));
+        }
 
 
         { ssm with us

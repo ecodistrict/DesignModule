@@ -458,7 +458,7 @@ constructor TEcodistrictLayer.Create(aScenario: TScenario; const aDomain, aID, a
 begin
   fLayerType := aLayerType;
   fPalette := aPalette;
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, Double.NaN, aBasicLayer);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, Double.NaN, aBasicLayer);
   fLegendJSON := aLegendJSON; // property of TLayer
 end;
 
