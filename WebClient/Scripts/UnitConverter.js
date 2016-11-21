@@ -407,6 +407,13 @@ UnitConverter.ConvNum.prototype = {
         return this.converter.ConvertSItoUnit(this.unit, this.value);
     },
 
+    SetUnit: function (aUnit) {
+        if (!this.converter.CanConvert(aUnit))
+            throw "Can't set unit to unknown unit!";
+        else
+            this.unit = aUnit;
+    },
+
     Clone: function () {
         return new UnitConverter.ConvNum(this.qnt, this.converterConvertSIToUnit(this.unit, this.value), this.unit);
     },
