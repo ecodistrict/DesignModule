@@ -43,11 +43,12 @@
         if (this.options.collapsed) {
             if (!L.Browser.android) {
                 L.DomEvent.on(container, {
-                    mouseenter: this._expand,
-                    mouseleave: this._collapse
+                    mouseenter: this._expand
                 }, this);
             }
 
+            // ,
+            // mouseleave: this._collapse
             var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
             link.title = 'Details of selected domains in KPIs, charts and map layers';

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <title>Design module</title>
@@ -116,9 +116,11 @@
   <script src="Scripts/bullet.js"></script>
   <script src="Scripts/graphManager.js"></script>
   <script src="Scripts/Graphs/lineGraphs.js"></script>
+  <script src="Scripts/Graphs/spiderChartData.js"></script>
+  <script src="Scripts/Graphs/spiderChart.js"></script>
   <!-- local scripts -->
   <script>
-        // determine parameters and config
+  // determine parameters and config
   var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
   //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
   var session = getParameterByName('session', '');
@@ -128,7 +130,7 @@
     // session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
     // session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
     // session = 'ensel';
-    // session = 'ssm';
+    session = 'ssm';
   }
   var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
   var scenario = '';
@@ -160,8 +162,8 @@
   }
 
 
-  // top-right
 
+  // top-right
 
 
   // domains
@@ -191,20 +193,20 @@
   //history
   var historyControl = L.control.history(baseLayers); // todo (NK): why pass baseLayers as options?
   map.addControl(historyControl);
-        map.removeControl(historyControl);
+  map.removeControl(historyControl);
   DataManager.HistoryControl = historyControl;
 
 
-        //simulation
+  //simulation
   var simulationControl = L.control.simulation(baseLayers); // todo (NK): why pass baseLayers as options?
   map.addControl(simulationControl);
-        map.removeControl(simulationControl);
+  map.removeControl(simulationControl);
   DataManager.simulationControl = simulationControl;
 
-        //presenter/viewer
-        var presenterViewerControl = L.control.PresenterViewer();
-        //map.addControl(presenterViewerControl);
-        DataManager.presenterViewerControl = presenterViewerControl;
+  //presenter/viewer
+  var presenterViewerControl = L.control.PresenterViewer();
+  //map.addControl(presenterViewerControl);
+  DataManager.presenterViewerControl = presenterViewerControl;
 
 
   // top-left
@@ -212,7 +214,7 @@
   //measures
   var measuresControl = L.control.measures([], historyControl);
   map.addControl(measuresControl);
-        map.removeControl(measuresControl);
+  map.removeControl(measuresControl);
   measuresControl.setSelectCategories([]);
 
   //DataManager.wind = L.control.arrow();//L.control.wind({});
@@ -231,14 +233,14 @@
   // todo: scaling factor of domain (0.5 = 1.25 years (1 jan 2015 till now)/0.5 = 2.5 years; 500 = 2 years*365 day*24 hours*4 kwarters/35 visible max
   var timesliderControl = L.control.timeslider(timeslider);
   map.addControl(timesliderControl);
-        timesliderControl._collapse();
-        InfoTextControl['leaflet-control-timeslider'] = { active: false };
-        map.removeControl(timesliderControl);
+  timesliderControl._collapse();
+  InfoTextControl['leaflet-control-timeslider'] = { active: false };
+  map.removeControl(timesliderControl);
 
 
   //start-stop
   var startControl = L.control.startstop();
-        //map.addControl(startControl);
+  //map.addControl(startControl);
   //startControl.setPosition("bottomright");
 
   // current-reference-difference control
