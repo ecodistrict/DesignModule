@@ -1,5 +1,74 @@
-
 var graphObjectSpider = {};
+var testData = {};
+
+function generateTestData() {
+  datasetTest = [];
+  var cats = ["Mobility performance","Quality of life","Economic Success","Global Environment"]
+  var subcats = ["Congestion and delay","Intermodel integration","Accessibility","Commuting travel time","Robustness","Reliability","Air pollution emissions","Noise hindrance","Heat islands","Green and blue areas","Mobility space uses","Opportunity for active mobility","Green and blue areas"]
+  var situationCount = Math.floor((Math.random() * 3) + 1);
+
+  var situationWrapper = [];
+  var situation = [];
+  for (var i=1; i < situationCount + 1; i++) {
+    if (typeof situation[i] === "undefined") {
+      situation[i] = [];
+    }
+    for (var i2 = 1; i2 < Math.floor(Math.random() * (20 - 10) + 10); i2++) {
+      situation[i].push({
+        "name" : "situation "+ i,
+        "cat" : cats[Math.floor((Math.random() * cats.length))],
+        "subcat" : subcats[Math.floor((Math.random() * subcats.length))],
+        "value" : Math.floor((Math.random() * 10))
+      });
+    }
+      situationWrapper.push(situation[i]);
+  }
+  testData.cfg = {};
+  var margin = {top: 100, right: 100, bottom: 100, left: 100},
+  width = 201, // 270
+  height = 201;
+  testData.cfg = {
+    w: height,
+    h: width,
+    maxValue: 10, //What is the value that the biggest circle will represent
+    levels: 5, //How many levels or inner circles should there be drawn
+    labelFactor: 1.22, 	//How much farther than the radius of the outer circle should the labels be placed
+    margin: margin,
+    roundStrokes: true, //If true the area and stroke will follow a round path (cardinal-closed)
+    color: d3.scale.category10(), //Color function
+    wrapWidth: 60, 		//The number of pixels after which a label needs to be given a new line
+    opacityArea: 0.35, 	//The opacity of the area of the blob
+    dotRadius: 4, 			//The size of the colored circles of each blog
+    opacityCircles: 0.1, 	//The opacity of the circles of each blob
+    strokeWidth: 2, 		//The width of the stroke around each blob
+    fontSize:  '11px', 		//The width of the stroke around each blob
+  }
+
+testData.type = "spider";
+testData.data = setLevelData(0, false, situationWrapper);
+testData.level = 0;
+testData.legend = true;
+testData.labels = true;
+testData.divWidth = 240;
+testData.divHeight = 240;
+testData.width = 400;
+testData.height = 400;
+testData.dataset = situationWrapper;
+testData.clickedSituation = 0;
+testData.maxValue = 10;
+testData.name = "Air humidity";
+
+var graphObjectSpider2 = JSON.parse(JSON.stringify(testData));
+graphObjectSpider2.cfg = {};
+graphObjectSpider2.cfg = testData.cfg;
+graphObjectSpider2.id =  "test" + Math.floor((Math.random() * 100));
+
+
+GraphManager.MakeGraph(graphObjectSpider2);
+
+}
+
+
 
 dataSet = [[
   {"name":"situatie 1", "cat" : "Mobility performance", "subcat" : "Congestion and delay", "value" : 5},
@@ -107,6 +176,7 @@ graphObjectSpider.height = 400;
 graphObjectSpider.dataset = dataSet;
 graphObjectSpider.clickedSituation = 0;
 graphObjectSpider.maxValue = 10;
+graphObjectSpider.name = "Air humidity";
 
 graphObjectSpider.cfg = {};
 var margin = {top: 100, right: 100, bottom: 100, left: 100},
@@ -198,12 +268,7 @@ function setLevelData(level, catName, dataSet) {
     } else {
       return false;
     }
-
-
-
   }
-
-
 }
 
 function SpiderChart(graphObject) {
@@ -223,7 +288,6 @@ function SpiderChart(graphObject) {
     var svg = d3.select(container).append("svg")
     .attr("width", width)
     .attr("height", height);
-    // hier wordt hij ook niet gezet
 
     svg.className = "graph-svg";
 
@@ -252,7 +316,6 @@ function SpiderChart(graphObject) {
 
     if (this.previewDiv != null)
     return container.appendChild(this.previewDiv);
-
 
     var previewContainer = container.appendChild(document.createElement("div"));
     previewContainer.className = "detailContainer graphDetails";
@@ -521,6 +584,8 @@ function SpiderChart(graphObject) {
     .attr("class", "radar"+graphObject.id);
     // hier wordt niet de breedte gezet
 
+
+
     if (graphObject.level < 1) {
       var LegendOptions = [];
       for (var i = 0; i < dataSet.length; i++) {
@@ -582,24 +647,27 @@ function SpiderChart(graphObject) {
         this._fillSpider(this.graphObject);
         this.Update();
 
-
-        // if (this.graphObject.level > 0) {
-        //
-        //   this._fillSpider(this.graphObject);
-        //
-        // } else {
-
-        // }
-
-        // console.log('this', this);
-        // SpiderChart(".SpiderChart", parsedData, mycfg, 0);
       }).bind(this));
-
 
     }
 
     //Append a g element
     var g = svg.append("g").attr("transform", "translate(" + ((graphObject.container.clientWidth - (cfg.margin.left + cfg.margin.right) )/2 + cfg.margin.left) + "," + graphObject.container.clientHeight/2  + ")");
+
+    if (typeof graphObject.name !== "undefined") {
+      if (typeof this.graphObject.title === "undefined") {
+        this.graphObject.title = svg.append("text")
+        .attr("x", (cfg.w + cfg.margin.left + cfg.margin.right) /2)
+        .attr("y", GraphManager.defaultValues.graphPadding.top)
+        .attr("dy", 20 - GraphManager.defaultValues.graphPadding.top)
+        .attr("text-anchor", "middle")
+        .attr("pointer-events", "none")
+        .attr("class", "graph-title-text")
+        .style("font-size", "16px")
+        .text(graphObject.name);
+      }
+    }
+
 
 
     //Filter for the outside glow
