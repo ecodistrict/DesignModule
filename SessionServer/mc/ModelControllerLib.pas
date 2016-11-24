@@ -642,7 +642,7 @@ type
   TCIModelEntry2 = class
   constructor Create(aUID: Integer; const aModelName: string; const aController: string;
     aPriority: Integer; aState: TModelState;
-  const aFederation, aModelPrivateEventName, aControllerPrivateEventName: string);
+    const aFederation, aModelPrivateEventName, aControllerPrivateEventName: string);
   destructor Destroy; override;
   private
     FUID: Integer;
@@ -672,6 +672,8 @@ type
 //    todo: property Scenario: string read getScenario;
   end;
 
+  TCI2OnModelChange = reference to procedure(aModel: TCIModelEntry2; aChange: TMChange);
+
   TMCControlInterface2 = class
   constructor Create(aConnection: TIMBConnection; const aFederation, aDataSource: string;
     const aIdleFederation: string=DefaultIdleFederation);
@@ -685,17 +687,20 @@ type
     FLock: TCriticalSection;
     FPrivateEvent: TIMBEventEntry;
     FControllersEvent: TIMBEventEntry;
+    fOnModelChange: TCI2OnModelChange;
     function GetModelExIndexOnUID(aUID: Integer): Integer;
     procedure SetFederation(const aValue: string);
     procedure AddSessionParameters(aParameters: TModelParameters);
     procedure HandleControllersEvent(aEvent: TIMBEventEntry; var aPayload: TByteBuffer); stdcall;
+  public
+    property onModelChange: TCI2OnModelChange read fOnModelChange write fOnModelChange;
   private
     function SignalRequestModels: Boolean;
     function SignalModelQuitApplication(aUID: Integer): Integer;
     function SignalRequestModelParameters(const aModelPrivateEventName: string): Boolean;
   public
     property Connection: TIMBConnection read FConnection;
-    property DataSource: string read FDataSource;
+    property DataSource: string read FDataSource write FDataSource;
     property Federation: string read FFederation write SetFederation;
     property Lock: TCriticalSection read FLock;
     property Models: TObjectList<TCIModelEntry2> read FModels;
@@ -3896,8 +3901,12 @@ end;
 
 procedure TMCControlInterface2.AddSessionParameters(aParameters: TModelParameters);
 begin
-  aParameters.Add(TModelParameter.Create(FederationParameterName, FFederation));
-  aParameters.Add(TModelParameter.Create(DataSourceParameterName, FDataSource));
+  if aParameters.ParameterExists(FederationParameterName)
+  then aParameters.Value[FederationParameterName] := FFederation
+  else aParameters.Add(TModelParameter.Create(FederationParameterName, FFederation));
+  if aParameters.ParameterExists(DataSourceParameterName)
+  then aParameters.Value[DataSourceParameterName] := FDataSource
+  else aParameters.Add(TModelParameter.Create(DataSourceParameterName, FDataSource));
 end;
 
 function TMCControlInterface2.ClaimModel(aModel: TCIModelEntry2; aParameters: TModelParameters): Boolean;
@@ -3905,7 +3914,7 @@ var
   Payload: TByteBuffer;
   LocalParameters: TModelParameters;
 begin
-  if (aModel.FState=msIdle) or(aModel.FState=msLock) then
+  if (aModel.FState=msIdle) or (aModel.FState=msLock) then
   begin
     // signal model lock
     LocalParameters := TModelParameters.Create(aParameters);
@@ -4115,7 +4124,9 @@ end;
 
 procedure TMCControlInterface2.HandleModelChange(aModel: TCIModelEntry2; aChange: TMChange);
 begin
-  // default: no action
+  // default: check handler
+  if Assigned(fOnModelChange)
+  then fOnModelChange(aModel, aChange);
 end;
 
 function TMCControlInterface2.IsThisSession(aModel: TCIModelEntry2): Boolean;

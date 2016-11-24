@@ -43,11 +43,12 @@
         if (this.options.collapsed) {
             if (!L.Browser.android) {
                 L.DomEvent.on(container, {
-                    mouseenter: this._expand,
-                    mouseleave: this._collapse
+                    mouseenter: this._expand
                 }, this);
             }
 
+            // ,
+            // mouseleave: this._collapse
             var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
             link.title = 'Details of selected domains in KPIs, charts and map layers';
@@ -365,7 +366,9 @@
             var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
             if (acceptableHeight < this._form.scrollHeight) {
                 L.DomUtil.addClass(this._form, 'leaflet-control-details-scrollbar');
+
                 this._form.style.height = acceptableHeight + 'px';
+
             }
             else {
                 L.DomUtil.removeClass(this._form, 'leaflet-control-details-scrollbar');

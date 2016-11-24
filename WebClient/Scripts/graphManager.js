@@ -9,6 +9,7 @@ var graphType = {
     horizontalBar: "hbar",
     verticalBar: "vbar",
     line: "line",
+    spider: "spider",
     scatterplot: "splot"
 }
 
@@ -85,7 +86,7 @@ var GraphManager = {
         height: 200, //Height of a graph div
         description: "No Description", //Description will be showed if no description is provided
         name: "No Name", //Displayed if no name if provided
-        position: graphPosition.bottomLeft, //prevered positioning of graphs
+        position: graphPosition.topLeft, //prevered positioning of graphs
         type: graphType.line, //Default graph type
         interpolation: "linear", //https://coderwall.com/p/thtwbw/d3-js-interpolation-options
         flashBorder: false, //todo: implementation. makes border of a graph flash when received new data
@@ -202,8 +203,16 @@ var GraphManager = {
 
         var graphDiv = GraphManager.container.appendChild(document.createElement("div"));
         graphDiv.className = "graphDiv";
-        graphDiv.style.width = GraphManager.defaultValues.width + "px";
-        graphDiv.style.height = GraphManager.defaultValues.height + "px";
+        if (graphObject.divWidth) {
+          graphDiv.style.width = graphObject.divWidth + "px";
+        } else {
+          graphDiv.style.width = GraphManager.defaultValues.width + "px";
+        }
+        if (graphObject.divHeight) {
+          graphDiv.style.height = graphObject.divHeight + "px";
+        } else {
+          graphDiv.style.height = GraphManager.defaultValues.height + "px";
+        }
         GraphManager.zIndexManager.newGraph(graphDiv);
         //graphDiv.style.position = "absolute";
         //graphDiv.style.backgroundColor = "rgba(" + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", 1)";
@@ -295,14 +304,26 @@ var GraphManager = {
     },
 
     BuildGraph: function (graphObject, container) {
+      var graph;
+      if (!graphObject.type) {
+        graphObject.type = graphType.line;
+      }
+
         switch (graphObject.type) {
             case graphType.line:
+            graph = new LineBottomLeft(graphObject);
+                break;
+            case 'spider':
+            // graph = new LineBottomLeft(graphObject);
+            GraphManager.defaultValues.minWidth = 400;
+            GraphManager.defaultValues.minHeight = 400;
+            graph = new SpiderChart(graphObject);
                 break;
             default: console.log("Graph type not yet supported");
                 break;
         }
 
-        var graph = new LineBottomLeft(graphObject);
+
         graph.Initialize(container);
         if (graphObject.data.length > 0)
             graph.Update(graphObject);
@@ -339,9 +360,21 @@ var GraphManager = {
         var h = GraphManager.container.clientHeight;
         var w = GraphManager.container.clientWidth;
 
+
+        var defaultHeight = GraphManager.defaultValues.height;
+        var defaultWidth = GraphManager.defaultValues.width;
+        if (parseInt(graphDiv.style.height) > GraphManager.defaultValues.height) {
+          defaultHeight = parseInt(graphDiv.style.height);
+        }
+        if (parseInt(graphDiv.style.width) > GraphManager.defaultValues.width) {
+          defaultWidth = parseInt(graphDiv.style.width);
+        }
+
+
+
         var amount = i;
 
-        if (GraphManager.defaultValues.height > h || GraphManager.defaultValues.width > w) {
+        if (defaultHeight > h || defaultWidth > w) {
             //todo a single graph does not fit the container!
             console.log('doesn\'t fit');
             // return;
@@ -349,13 +382,13 @@ var GraphManager = {
 
         var col = 0;
 
-        while ((amount * GraphManager.defaultValues.height) > h) {
+        while ((amount * defaultHeight) > h) {
             col++;
-            amount -= Math.floor(h / GraphManager.defaultValues.height);
+            amount -= Math.floor(h / defaultHeight);
         }
 
         var row = amount;
-        if ((amount + 1) * GraphManager.defaultValues.height > h) //check if our new graph fits into the current column
+        if ((amount + 1) * defaultHeight > h) //check if our new graph fits into the current column
         {
             col++;
             row = 0;

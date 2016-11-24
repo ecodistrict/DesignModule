@@ -231,6 +231,7 @@ function createFloatTable(aAttribute, aElem) {
   var rightCell = table.children[0].children[1];
 
   leftCell.appendChild(document.createTextNode(aAttribute.name));
+  leftCell.title = aAttribute.name;
   var inputField = rightCell.appendChild(document.createElement("Input"));
   inputField.type = "number";
   inputField.className = "intInput form-control";
@@ -260,6 +261,7 @@ function createForcedListTable(aAttribute, aElem) {
   var rightCell = table.children[0].children[1];
 
   leftCell.appendChild(document.createTextNode(aAttribute.name));
+  leftCell.title = aAttribute.name;
   var inputField = rightCell.appendChild(document.createElement("Select"));
   for (var i = 0; i < aAttribute.options.length; i++) {
     var selectOption = inputField.appendChild(document.createElement("option"));
@@ -297,6 +299,7 @@ function createStringTable(aAttribute, aElem) {
   var rightCell = table.children[0].children[1];
 
   leftCell.appendChild(document.createTextNode(aAttribute.name));
+  leftCell.title = aAttribute.name;
   var inputField = rightCell.appendChild(document.createElement("Input"));
   inputField.type = "text";
   inputField.className = "textInput form-control";

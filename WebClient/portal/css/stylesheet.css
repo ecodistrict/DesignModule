@@ -8,14 +8,15 @@ html,body {
   background-color: #f9f9f9;
 }
 h1, h2, h3, h4, h5 {
-  color:#1a5b7f;
+  color:rgba(17,118,174,1);
+
 }
 ::-moz-selection {
-  background-color:#1a5b7f;
+  background-color:rgba(17,118,174,1);
   color:#fff;
 }
 ::selection {
-  background-color:#1a5b7f;
+  background-color:rgba(17,118,174,1);
   color:#fff;
 }
 
@@ -36,7 +37,8 @@ p {
   width:100%;
   height:1px;
   margin: 10px 0px;
-  background-color:rgba(26,91,127,0.3);
+  background-color:rgba(17,118,174,0.3);
+
 }
 #userMenu {
   position: relative;
@@ -51,18 +53,56 @@ p {
   line-height: 14px;
   padding: 10px 2px;
   box-sizing: border-box;
-  border-bottom:1px solid rgba(26,91,127,0.3);
+  border-bottom:1px solid rgba(17,118,174,0.3);
   border-radius: 2px;
 }
+#text {
+  position:absolute;
+  left:0px;
+  top:0px;
+}
+#text span:last-child {
+  border-bottom-right-radius: 5px;
+}
+#text span:first-child {
+  border-bottom-left-radius: 5px;
+}
+#text span:hover {
+  background-color: rgba(17,118,174, 1);
+  color:rgba(255, 255, 255, 1);
+}
+#text span:first-child {
+  border-left: 1px solid rgba(17,118,174,0.2);
+  border-right: 1px solid rgba(17,118,174,0.2);
+  border-top: 1px solid rgba(17,118,174,0.2);
+  border-bottom: 1px solid rgba(17,118,174,0.2);
+}
+#text span:last-child {
+  border-right: 1px solid rgba(17,118,174,0.2);
+  border-top: 1px solid rgba(17,118,174,0.2);
+  border-bottom: 1px solid rgba(17,118,174,0.2);
+}
+#text span {
+  background-color: rgba(255, 255, 255, 1);
+  width:25px;
+  height:24px;
+  display:block;
+  float:left;
+  cursor: pointer;
+  font-size: 15px !important;
+  text-align: center;
+  line-height: 24px;
+
+}
 #lang {
-  position: relative;
+  position: absolute;
   right: 0px;
-  top: 0px;
-  margin-left:10px;
+  top: 4px;
+  margin-left: 10px;
   width: auto;
   display: inline-block;
   float: right;
-  border:1px solid rgba(26,91,127,0.3);
+  border: 1px solid rgba(17,118,174,0.3);
   border-radius: 5px;
 }
 .languages:last-child {
@@ -73,10 +113,11 @@ p {
   padding: 5px;
   box-sizing: border-box;
   background-color: #fff;
-  color: rgba(26, 91, 127, 1);
+  color: rgba(17,118,174, 1);
   text-decoration: none;
   margin-right: 0px;
-  border: 1px solid rgba(26,91,127,0.2);
+  border: 1px solid rgba(17,118,174,0.2);
+  font-size:12px !important;
 }
 .languages:first-child {
   border-top-left-radius: 5px;
@@ -87,16 +128,19 @@ p {
   border-bottom-right-radius: 5px;
 }
 .languages.selected, .languages:hover {
-  background-color: rgba(26, 91, 127, 1);
+  background-color: rgba(17,118,174, 1);
   color: #fff;
 }
 
 
 #phone #header {
-  padding: 40px 0px 20px 0px;
+  padding: 20px 0px 0px 0px;
 }
 #phone #companyLogos {
-  display:block;
+  border-bottom: 1px solid rgba(17,118,174,0.3);
+  padding-bottom: 0px;
+  height:100%;
+  display: inline-block;
 }
 .smaller > img {
   width:20%;
@@ -106,9 +150,21 @@ p {
 }
 #phone #companyLogos a:last-child {
   margin-bottom:0px;
+  float:right;
 }
 #phone #header,#phone #container {
   width: 100%;
+}
+#phone #text {
+  left:10px;
+}
+
+#phone #lang {
+  right:10px;
+}
+#phone #container {
+  padding-left: 10px;
+  padding-right: 10px;
 }
 #phone #logo, #phone #companyLogos {
   padding-left: 10px;
@@ -125,8 +181,9 @@ p {
 #header {
   width:80%;
   margin:0 auto;
-  padding:40px 0px;
+  padding: 40px 0px 10px 0px;
   box-sizing: border-box;
+  position: relative;
 }
 #logo {
   z-index: 999;
@@ -143,12 +200,31 @@ p {
   transition: opacity 300ms;
 }
 #companyLogos {
-  border-top: 1px solid rgba(26,91,127,0.3);
-  padding-top: 20px;
+  border-bottom: 1px solid rgba(17,118,174,0.3);
+  padding-bottom: 10px;
+  padding-top: 10px;
+  height:100%;
+  display: inline-block;
+}
+#companyLogos a img{
+  width:100%;
 }
 #companyLogos a {
-  margin-right:10px;
+  padding-right:5px;
+  padding-left:5px;
   transition: opacity 300ms;
+  display: inline-block;
+  width:33.333333333333%;
+  float:left;
+  box-sizing: border-box;
+}
+#companyLogos a:first-child {
+  padding-right:10px;
+  padding-left:0px;
+}
+#companyLogos a:last-child {
+  padding-right:0px;
+  padding-left:10px;
 }
 #companyLogos a:hover img {
   opacity:0.5;
@@ -232,7 +308,7 @@ img.partnerLogo {
   z-index: 999;
 }
 .button {
-  background-color:rgba(26, 91, 127, 1);
+  background-color:rgba(17,118,174, 1);
   padding:7px 10px;
   color:#fff;
   text-decoration: none;
@@ -260,7 +336,7 @@ img.partnerLogo {
   margin:0px;
 }
 .button:hover {
-  background-color:rgba(26, 91, 127, 0.5);
+  background-color:rgba(17,118,174, 0.5);
 
 
 }

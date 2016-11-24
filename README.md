@@ -77,6 +77,27 @@ The server supports 3 access methods
 - /point: request a value at a specific location `/point?layer=<id>&lat=<latitude>&lon=<longitude>[&time=<yyyymmddhhmmss>]` where lat and lon are in wgs84 degrees (float)
 - /status: a status page that shows connected services
 
+### Setup
+
+The tiler web service runs as a IIS web service.
+
+- Windows explorer 
+	- copy the tiler folder on the IIS server: TilerWebService.dll, TilerWebService.ini and web.config
+	- edit TilerWebService.ini to reflect url, a unique IMB event name and unique model name
+	- Make sure IUSR account has at least read access
+	- Make sure IIS_IUSRS has write access to create tiles cache and write to log
+- IIS manager
+	- select server root node
+	- select ISAPI and CGI Restrictions
+	- add TilerWebService.dll as path
+	- check m ark at allow extension path to execute
+	- add application pool: No managed code, integrated
+	- add application under site folder where you want the tiler services to be available
+		- choose earlier created application pool
+		- choose root folder of tiler where dll resides
+	- open browser and enter url including /TilerWebService.dll
+	- open browser and enter url including /TilerWebService.dll/status
+
 
 
 ## Testing <a name="testing"></a>

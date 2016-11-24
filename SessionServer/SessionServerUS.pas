@@ -1018,7 +1018,7 @@ begin
   fMetaLayerEntry := aMetaLayerEntry; // ref
   fPoiCategories := TObjectDictionary<string, TUSPOI>.Create([doOwnsValues]);
   fNewPoiCatID := 0;
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, aDiffRange, aBasicLayer);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, aDiffRange, aBasicLayer);
 end;
 
 destructor TUSLayer.Destroy;
@@ -1613,7 +1613,7 @@ begin
           Result :=
             '{"selectedObjects":{"selectCategories":["'+nearestObjectLayer.ID+'"],'+
              '"mode":"'+aMode+'",'+
-             '"objects":['+nearestObject.GeoJSON2D[nearestObjectLayer.geometryType]+']}}';
+             '"objects":['+nearestObject.JSON2D[nearestObjectLayer.geometryType, '']+']}}';
           Log.WriteLn('found nearest object layer: '+nearestObjectLayer.ID+', object: '+string(nearestObject.ID)+', distance: '+nearestObjectDistanceInMeters.toString);
         end;
       end
@@ -1745,14 +1745,14 @@ begin
   ReadMeasures;
   // load current scenario and ref scenario first
   scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession));
-  fCurrentScenario := ReadScenario(scenarioID.ToString());
-  Log.WriteLn('current US scenario: '+fCurrentScenario.ID+' ('+(fCurrentScenario as TUSScenario).fTableprefix+'): "'+fCurrentScenario.description+'"', llOk);
+  fProjectCurrentScenario := ReadScenario(scenarioID.ToString());
+  Log.WriteLn('current US scenario: '+fProjectCurrentScenario.ID+' ('+(fProjectCurrentScenario as TUSScenario).fTableprefix+'): "'+fProjectCurrentScenario.description+'"', llOk);
   // ref
   scenarioID := GetScenarioBaseID(OraSession, scenarioID);
   if scenarioID>=0 then
   begin
-    fRefScenario := ReadScenario(scenarioID.ToString());
-    Log.WriteLn('reference US scenario: '+fRefScenario.ID+' ('+(fRefScenario as TUSScenario).fTableprefix+'): "'+fRefScenario.description+'"', llOk);
+    fProjectRefScenario := ReadScenario(scenarioID.ToString());
+    Log.WriteLn('reference US scenario: '+fProjectRefScenario.ID+' ('+(fProjectRefScenario as TUSScenario).fTableprefix+'): "'+fProjectRefScenario.description+'"', llOk);
   end
   else Log.WriteLn('NO reference US scenario', llWarning);
   if fPreLoadScenarios then
