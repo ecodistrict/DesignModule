@@ -21,7 +21,7 @@ function generateTestData() {
         "value" : Math.floor((Math.random() * 10))
       });
     }
-      situationWrapper.push(situation[i]);
+    situationWrapper.push(situation[i]);
   }
   testData.cfg = {};
   var margin = {top: 100, right: 100, bottom: 100, left: 100},
@@ -44,27 +44,27 @@ function generateTestData() {
     fontSize:  '11px', 		//The width of the stroke around each blob
   }
 
-testData.type = "spider";
-testData.data = setLevelData(0, false, situationWrapper);
-testData.level = 0;
-testData.legend = true;
-testData.labels = true;
-testData.divWidth = 240;
-testData.divHeight = 240;
-testData.width = 400;
-testData.height = 400;
-testData.dataset = situationWrapper;
-testData.clickedSituation = 0;
-testData.maxValue = 10;
-testData.name = "Air humidity";
+  testData.type = "spider";
+  testData.data = setLevelData(0, false, situationWrapper);
+  testData.level = 0;
+  testData.legend = true;
+  testData.labels = true;
+  testData.divWidth = 240;
+  testData.divHeight = 240;
+  testData.width = 400;
+  testData.height = 400;
+  testData.dataset = situationWrapper;
+  testData.clickedSituation = 0;
+  testData.maxValue = 10;
+  testData.name = "Air humidity";
 
-var graphObjectSpider2 = JSON.parse(JSON.stringify(testData));
-graphObjectSpider2.cfg = {};
-graphObjectSpider2.cfg = testData.cfg;
-graphObjectSpider2.id =  "test" + Math.floor((Math.random() * 100));
+  var graphObjectSpider2 = JSON.parse(JSON.stringify(testData));
+  graphObjectSpider2.cfg = {};
+  graphObjectSpider2.cfg = testData.cfg;
+  graphObjectSpider2.id =  "test" + Math.floor((Math.random() * 100));
 
 
-GraphManager.MakeGraph(graphObjectSpider2);
+  GraphManager.MakeGraph(graphObjectSpider2);
 
 }
 
@@ -130,6 +130,129 @@ dataSet = [[
   {"name":"situatie 3", "cat" : "Global Environment", "subcat" : "Heat islands", "value" : 2},
   {"name":"situatie 3", "cat" : "Global Environment", "subcat" : "Opportunity for active mobility", "value" : 1},
   {"name":"situatie 3", "cat" : "Global Environment", "subcat" : "Green and blue areas", "value" : 2}
+]];
+
+
+dataSet1 = [[
+  {"name":"situatie 1", "cat" : "Mobility performance", "subcat" : "Congestion and delay", "value" : 5},
+  {"name":"situatie 1", "cat" : "Mobility performance", "subcat" : "Intermodel integration", "value" : 10},
+  {"name":"situatie 1", "cat" : "Mobility performance", "subcat" : "Accessibility", "value" : 4},
+  {"name":"situatie 1", "cat" : "Mobility performance", "subcat" : "Commuting travel time", "value" : 3},
+  {"name":"situatie 1", "cat" : "Mobility performance", "subcat" : "Robustness", "value" : 6},
+  {"name":"situatie 1", "cat" : "Mobility performance", "subcat" : "Reliability", "value" : 6},
+  {"name":"situatie 1", "cat" : "Quality of life", "subcat" : "Air pollution emissions", "value" : 5},
+  {"name":"situatie 1", "cat" : "Quality of life", "subcat" : "Noise hindrance", "value" : 9},
+  {"name":"situatie 1", "cat" : "Quality of life", "subcat" : "Heat islands", "value" : 8},
+  {"name":"situatie 1", "cat" : "Quality of life", "subcat" : "Green and blue areas", "value" : 7},
+  {"name":"situatie 1", "cat" : "Quality of life", "subcat" : "Mobility space uses", "value" : 7},
+  {"name":"situatie 1", "cat" : "Quality of life", "subcat" : "Opportunity for active mobility", "value" : 7},
+  {"name":"situatie 1", "cat" : "Economic Success", "subcat" : "Commuting travel time", "value" : 4},
+  {"name":"situatie 1", "cat" : "Economic Success", "subcat" : "Mobility space usage", "value" : 8},
+  {"name":"situatie 1", "cat" : "Economic Success", "subcat" : "Urban functional diversity", "value" : 1},
+  {"name":"situatie 1", "cat" : "Global Environment", "subcat" : "Emission of GHG", "value" : 2},
+  {"name":"situatie 1", "cat" : "Global Environment", "subcat" : "Heat islands", "value" : 7},
+  {"name":"situatie 1", "cat" : "Global Environment", "subcat" : "Opportunity for active mobility", "value" : 8},
+  {"name":"situatie 1", "cat" : "Global Environment", "subcat" : "Green and blue areas", "value" : 8}
+],[
+  {"name":"situatie 2", "cat" : "Mobility performance", "subcat" : "Congestion and delay", "value" : 4},
+  {"name":"situatie 2", "cat" : "Mobility performance", "subcat" : "Intermodel integration", "value" : 3},
+  {"name":"situatie 2", "cat" : "Mobility performance", "subcat" : "Accessibility", "value" : 3},
+  {"name":"situatie 2", "cat" : "Mobility performance", "subcat" : "Commuting travel time", "value" : 2},
+  {"name":"situatie 2", "cat" : "Mobility performance", "subcat" : "Robustness", "value" : 1},
+  {"name":"situatie 2", "cat" : "Mobility performance", "subcat" : "Reliability", "value" : 6},
+  {"name":"situatie 2", "cat" : "Quality of life", "subcat" : "Air pollution", "value" : 10},
+  {"name":"situatie 2", "cat" : "Quality of life", "subcat" : "Noise hindrance", "value" : 7},
+  {"name":"situatie 2", "cat" : "Quality of life", "subcat" : "Heat islands", "value" : 9},
+  {"name":"situatie 2", "cat" : "Quality of life", "subcat" : "Green and blue areas", "value" : 6},
+  {"name":"situatie 2", "cat" : "Quality of life", "subcat" : "Mobility space uses", "value" : 6},
+  {"name":"situatie 2", "cat" : "Quality of life", "subcat" : "Opportunity for active mobility", "value" : 8},
+  {"name":"situatie 2", "cat" : "Economic Success", "subcat" : "Commuting travel time", "value" : 5},
+  {"name":"situatie 2", "cat" : "Economic Success", "subcat" : "Mobility space usage", "value" : 6},
+  {"name":"situatie 2", "cat" : "Economic Success", "subcat" : "Urban functional diversity", "value" : 7},
+  {"name":"situatie 2", "cat" : "Global Environment", "subcat" : "Emission of GHG", "value" : 6},
+  {"name":"situatie 2", "cat" : "Global Environment", "subcat" : "Heat islands", "value" : 8},
+  {"name":"situatie 2", "cat" : "Global Environment", "subcat" : "Opportunity for active mobility", "value" : 9},
+  {"name":"situatie 2", "cat" : "Global Environment", "subcat" : "Green and blue areas", "value" : 8}
+],[
+  {"name":"situatie 3", "cat" : "Mobility performance", "subcat" : "Congestion and delay", "value" : 10},
+  {"name":"situatie 3", "cat" : "Mobility performance", "subcat" : "Intermodel integration", "value" : 9},
+  {"name":"situatie 3", "cat" : "Mobility performance", "subcat" : "Accessibility", "value" :8},
+  {"name":"situatie 3", "cat" : "Mobility performance", "subcat" : "Commuting travel time", "value" : 7},
+  {"name":"situatie 3", "cat" : "Mobility performance", "subcat" : "Robustness", "value" : 10},
+  {"name":"situatie 3", "cat" : "Mobility performance", "subcat" : "Reliability", "value" : 9},
+  {"name":"situatie 3", "cat" : "Quality of life", "subcat" : "Air pollution", "value" : 6},
+  {"name":"situatie 3", "cat" : "Quality of life", "subcat" : "Noise hindrance", "value" : 7},
+  {"name":"situatie 3", "cat" : "Quality of life", "subcat" : "Heat islands", "value" : 9},
+  {"name":"situatie 3", "cat" : "Quality of life", "subcat" : "Green and blue areas", "value" : 8},
+  {"name":"situatie 3", "cat" : "Quality of life", "subcat" : "Mobility space uses", "value" :8},
+  {"name":"situatie 3", "cat" : "Quality of life", "subcat" : "Opportunity for active mobility", "value" : 6},
+  {"name":"situatie 3", "cat" : "Economic Success", "subcat" : "Commuting travel time", "value" : 5},
+  {"name":"situatie 3", "cat" : "Economic Success", "subcat" : "Mobility space usage", "value" : 4},
+  {"name":"situatie 3", "cat" : "Economic Success", "subcat" : "Urban functional diversity", "value" : 6},
+  {"name":"situatie 3", "cat" : "Global Environment", "subcat" : "Emission of GHG", "value" : 3},
+  {"name":"situatie 3", "cat" : "Global Environment", "subcat" : "Heat islands", "value" : 2},
+  {"name":"situatie 3", "cat" : "Global Environment", "subcat" : "Opportunity for active mobility", "value" : 1},
+  {"name":"situatie 3", "cat" : "Global Environment", "subcat" : "Green and blue areas", "value" : 2}
+],[
+  {"name":"situatie 4", "cat" : "Mobility performance", "subcat" : "Congestion and delay", "value" : 5},
+  {"name":"situatie 4", "cat" : "Mobility performance", "subcat" : "Intermodel integration", "value" : 2},
+  {"name":"situatie 4", "cat" : "Mobility performance", "subcat" : "Accessibility", "value" :5},
+  {"name":"situatie 4", "cat" : "Mobility performance", "subcat" : "Commuting travel time", "value" : 2},
+  {"name":"situatie 4", "cat" : "Mobility performance", "subcat" : "Robustness", "value" : 5},
+  {"name":"situatie 4", "cat" : "Mobility performance", "subcat" : "Reliability", "value" : 2},
+  {"name":"situatie 4", "cat" : "Quality of life", "subcat" : "Air pollution", "value" : 8},
+  {"name":"situatie 4", "cat" : "Quality of life", "subcat" : "Noise hindrance", "value" : 2},
+  {"name":"situatie 4", "cat" : "Quality of life", "subcat" : "Heat islands", "value" : 1},
+  {"name":"situatie 4", "cat" : "Quality of life", "subcat" : "Green and blue areas", "value" : 4},
+  {"name":"situatie 4", "cat" : "Quality of life", "subcat" : "Mobility space uses", "value" :2},
+  {"name":"situatie 4", "cat" : "Quality of life", "subcat" : "Opportunity for active mobility", "value" : 1},
+  {"name":"situatie 4", "cat" : "Economic Success", "subcat" : "Commuting travel time", "value" : 6},
+  {"name":"situatie 4", "cat" : "Economic Success", "subcat" : "Mobility space usage", "value" : 8},
+  {"name":"situatie 4", "cat" : "Economic Success", "subcat" : "Urban functional diversity", "value" : 3},
+  {"name":"situatie 4", "cat" : "Global Environment", "subcat" : "Emission of GHG", "value" : 5},
+  {"name":"situatie 4", "cat" : "Global Environment", "subcat" : "Heat islands", "value" : 8},
+  {"name":"situatie 4", "cat" : "Global Environment", "subcat" : "Opportunity for active mobility", "value" : 9},
+  {"name":"situatie 4", "cat" : "Global Environment", "subcat" : "Green and blue areas", "value" : 10}
+],[
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Congestion and delay", "value" : 5},
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Intermodel integration", "value" : 5},
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Accessibility", "value" :5},
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Commuting travel time", "value" : 5},
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Robustness", "value" : 5},
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Reliability", "value" : 5},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Air pollution", "value" : 5},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Noise hindrance", "value" : 5},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Heat islands", "value" : 5},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Green and blue areas", "value" : 5},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Mobility space uses", "value" :5},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Opportunity for active mobility", "value" : 5},
+  {"name":"situatie 5", "cat" : "Economic Success", "subcat" : "Commuting travel time", "value" : 5},
+  {"name":"situatie 5", "cat" : "Economic Success", "subcat" : "Mobility space usage", "value" : 5},
+  {"name":"situatie 5", "cat" : "Economic Success", "subcat" : "Urban functional diversity", "value" : 5},
+  {"name":"situatie 5", "cat" : "Global Environment", "subcat" : "Emission of GHG", "value" : 5},
+  {"name":"situatie 5", "cat" : "Global Environment", "subcat" : "Heat islands", "value" : 5},
+  {"name":"situatie 5", "cat" : "Global Environment", "subcat" : "Opportunity for active mobility", "value" : 5},
+  {"name":"situatie 5", "cat" : "Global Environment", "subcat" : "Green and blue areas", "value" : 12}
+],[
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Congestion and delay", "value" : 1},
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Intermodel integration", "value" : 3},
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Accessibility", "value" :1},
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Commuting travel time", "value" : 3},
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Robustness", "value" : 1},
+  {"name":"situatie 5", "cat" : "Mobility performance", "subcat" : "Reliability", "value" : 1},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Air pollution", "value" : 10},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Noise hindrance", "value" : 10},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Heat islands", "value" : 12},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Green and blue areas", "value" : 8},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Mobility space uses", "value" :9},
+  {"name":"situatie 5", "cat" : "Quality of life", "subcat" : "Opportunity for active mobility", "value" : 11},
+  {"name":"situatie 5", "cat" : "Economic Success", "subcat" : "Commuting travel time", "value" : 10},
+  {"name":"situatie 5", "cat" : "Economic Success", "subcat" : "Mobility space usage", "value" : 10},
+  {"name":"situatie 5", "cat" : "Economic Success", "subcat" : "Urban functional diversity", "value" : 10},
+  {"name":"situatie 5", "cat" : "Global Environment", "subcat" : "Emission of GHG", "value" : 3},
+  {"name":"situatie 5", "cat" : "Global Environment", "subcat" : "Heat islands", "value" : 4},
+  {"name":"situatie 5", "cat" : "Global Environment", "subcat" : "Opportunity for active mobility", "value" : 6},
+  {"name":"situatie 5", "cat" : "Global Environment", "subcat" : "Green and blue areas", "value" : 3}
 ]];
 
 //
@@ -205,15 +328,72 @@ graphObjectSpider2.cfg = graphObjectSpider.cfg;
 graphObjectSpider2.id = "test123213";
 // graphObjectSpider2.data = setLevelData(0, false, dataSet2);
 
-function setLevelData(level, catName, dataSet) {
+function updateGraph(graphId, data) {
+  // updateGraph.data = setLevelData(0, false, data);\
 
 
+      var graph = GraphManager._getGraph(graphId);
+      if (graph !== null) { //only update graphs that exist
+
+      d3.select(graph.graph.container).select('svg').selectAll('g').remove();
+
+      //sets data and displaydata
+      // GraphManager.AddGraphData(graph, data);
+      var width = graph.graph.graphObject.container.clientWidth;
+      var height = graph.graph.graphObject.container.clientHeight;
+      var marginLeft = GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.axisMargin.y;
+      var marginTop = GraphManager.defaultValues.graphPadding.top;
+      var marginRight = GraphManager.defaultValues.graphPadding.right;
+      var marginBottom = GraphManager.defaultValues.graphPadding.bottom + GraphManager.defaultValues.axisMargin.x;;
+
+      graph.graph.graphObject.dataset = data;
+      graph.graph.graphObject.data = setLevelData(0, false, data);
+      graph.graph._fillSpider(graph.graph.graphObject);
+
+      graph.graph.graphObject.svg.attr("width", width);
+      graph.graph.graphObject.svg.attr("height", height);
+
+      graph.graph._UpdatePreview();
+
+
+      }
+
+      // graph.graph.Update(dataArray[i]);
+      //GraphManager.UpdateGraph(graph.graph, dataArray[i]);
+
+
+}
+
+function setLevelData(situation, catName, dataSet) {
+
+  if (situation === false) {
+    newArrayListContainer = [];
+    for (i=0; i < dataSet.length; i++) {
+      var newArrayList = [];
+      var count = 0;
+      for (var i1 = 0; i1 < dataSet[i].length; i1++) {
+        if (catName === dataSet[i][i1].cat) {
+          if (dataSet[i][i1].subcat) {
+            newArrayList.push({"axis":dataSet[i][i1].subcat,"value":dataSet[i][i1].value});
+            count++;
+          }
+        }
+      }
+      newArrayListContainer.push(newArrayList);
+    }
+    if (count > 1) {
+      return newArrayListContainer;
+    } else {
+      return false;
+    }
+
+
+
+  }
 
 
   if (!catName) {
-
     var avg = [];
-
     for (var i = 0; i < dataSet.length; i++) {
       if (!avg[i]) {
         avg[i] = [];
@@ -251,20 +431,20 @@ function setLevelData(level, catName, dataSet) {
   } else {
 
 
-    var nieuweLijst = [];
+    var newArrayList = [];
     var count = 0;
-    for (var i1 = 0; i1 < dataSet[level].length; i1++) {
-      if (catName === dataSet[level][i1].cat) {
-        if (dataSet[level][i1].subcat) {
-          nieuweLijst.push({"axis":dataSet[level][i1].subcat,"value":dataSet[level][i1].value});
+    for (var i1 = 0; i1 < dataSet[situation].length; i1++) {
+      if (catName === dataSet[situation][i1].cat) {
+        if (dataSet[situation][i1].subcat) {
+          newArrayList.push({"axis":dataSet[situation][i1].subcat,"value":dataSet[situation][i1].value});
           count++;
         }
       }
     }
     if (count > 1) {
-      nieuweLijstContainer = [];
-      nieuweLijstContainer.push(nieuweLijst);
-      return nieuweLijstContainer;
+      newArrayListContainer = [];
+      newArrayListContainer.push(newArrayList);
+      return newArrayListContainer;
     } else {
       return false;
     }
@@ -311,59 +491,15 @@ function SpiderChart(graphObject) {
       return;
     }
 
-  }
-  this.GetPreview = function(container)    {
-
-    if (this.previewDiv != null)
-    return container.appendChild(this.previewDiv);
-
-    var previewContainer = container.appendChild(document.createElement("div"));
-    previewContainer.className = "detailContainer graphDetails";
-    previewContainer.style.width = DataManager.detailsInfo.chartWidth + "px";
-    previewContainer.style.height = DataManager.detailsInfo.elementHeight + "px";
-    //if (typeof this.graphObject.description !== "undefined")
-    //    previewContainer.title = this.graphObject.description;
-
-    this.previewDiv = previewContainer;
-    previewContainer.graph = this;
-
-    previewContainer.addEventListener("click", this._clickEvent);
-
-    var title = previewContainer.appendChild(document.createElement("h4"));
-    title.className = "detailTitle graphDetailTitle";
-    title.textContent = this.graphObject.name;
-    title.style.width = DataManager.detailsInfo.elementWidth + "px";
-
-    var svgContainer = previewContainer.appendChild(document.createElement("div"));
-    svgContainer.className = "preview-svg-container";
-    svgContainer.style.width = DataManager.detailsInfo.chartWidth + "px";
-    svgContainer.style.height = DataManager.detailsInfo.chartHeight + "px";
-
-    var svg = d3.select(svgContainer).append("svg")
-    .attr("width", DataManager.detailsInfo.chartWidth)
-    .attr("height", DataManager.detailsInfo.chartHeight);
-
-    svg.className = "graph-svg-preview";
-    this.graphObject.preview.container = previewContainer;
-    this.graphObject.preview.svg = svg;
-
-
-    cfg = (graphObject) ? graphObject.cfg : this.graphObject.cfg;
-    marginLeft = (graphObject) ? graphObject.marginLeft : this.graphObject.marginLeft;
-    marginTop = (graphObject) ? graphObject.marginTop : this.graphObject.marginTop;
-    data = (graphObject) ? graphObject.data : this.graphObject.data;
-
-    var graph = this.graphObject;
-
     var width = DataManager.detailsInfo.chartWidth;
     var height = DataManager.detailsInfo.chartHeight;
 
-    if (data && !graphObject) {
-      graphObject = {};
-      graphObject.data = data;
-    }
 
-    //If the supplied maxValue is smaller than the actual one, replace by the max in the data
+    svg = d3.select(this.previewDiv).select('svg');
+
+    svg.selectAll('g').remove();
+
+    // //If the supplied maxValue is smaller than the actual one, replace by the max in the data
     var maxValue = Math.max(cfg.maxValue, d3.max(graphObject.data, function(i){return d3.max(i.map(function(o){return o.value;}))}));
 
     var allAxis = (graphObject.data[0].map(function(i, j){return i.axis})),	//Names of each axis
@@ -476,6 +612,60 @@ function SpiderChart(graphObject) {
 
 
 
+  }
+  this.GetPreview = function(container)    {
+
+    if (this.previewDiv != null)
+    return container.appendChild(this.previewDiv);
+
+    var previewContainer = container.appendChild(document.createElement("div"));
+    previewContainer.className = "detailContainer graphDetails";
+    previewContainer.style.width = DataManager.detailsInfo.chartWidth + "px";
+    previewContainer.style.height = DataManager.detailsInfo.elementHeight + "px";
+    //if (typeof this.graphObject.description !== "undefined")
+    //    previewContainer.title = this.graphObject.description;
+
+    this.previewDiv = previewContainer;
+    previewContainer.graph = this;
+
+    previewContainer.addEventListener("click", this._clickEvent);
+
+    var title = previewContainer.appendChild(document.createElement("h4"));
+    title.className = "detailTitle graphDetailTitle";
+    title.textContent = this.graphObject.name;
+    title.style.width = DataManager.detailsInfo.elementWidth + "px";
+
+    var svgContainer = previewContainer.appendChild(document.createElement("div"));
+    svgContainer.className = "preview-svg-container";
+    svgContainer.style.width = DataManager.detailsInfo.chartWidth + "px";
+    svgContainer.style.height = DataManager.detailsInfo.chartHeight + "px";
+
+    var svg = d3.select(svgContainer).append("svg")
+    .attr("width", DataManager.detailsInfo.chartWidth)
+    .attr("height", DataManager.detailsInfo.chartHeight);
+
+    svg.className = "graph-svg-preview";
+    this.graphObject.preview.container = previewContainer;
+    this.graphObject.preview.svg = svg;
+
+
+    cfg = (graphObject) ? graphObject.cfg : this.graphObject.cfg;
+    marginLeft = (graphObject) ? graphObject.marginLeft : this.graphObject.marginLeft;
+    marginTop = (graphObject) ? graphObject.marginTop : this.graphObject.marginTop;
+    data = (graphObject) ? graphObject.data : this.graphObject.data;
+
+    var graph = this.graphObject;
+
+
+
+    if (data && !graphObject) {
+      graphObject = {};
+      graphObject.data = data;
+    }
+
+
+
+
     this._UpdatePreview();
 
   }
@@ -483,6 +673,7 @@ function SpiderChart(graphObject) {
     var graph = this.graphObject;
 
     d3.select(graph.container).select('svg').selectAll('g').remove();
+    // d3.select(graph.container).select('svg').remove();
 
     //sets data and displaydata
     // GraphManager.AddGraphData(graph, data);
@@ -585,11 +776,10 @@ function SpiderChart(graphObject) {
     // hier wordt niet de breedte gezet
 
 
-
     if (graphObject.level < 1) {
       var LegendOptions = [];
-      for (var i = 0; i < dataSet.length; i++) {
-        LegendOptions.push(dataSet[i][0].name);
+      for (var i = 0; i < graphObject.dataset.length; i++) {
+        LegendOptions.push(graphObject.dataset[i][0].name);
       }
 
       //Initiate Legend
@@ -655,20 +845,19 @@ function SpiderChart(graphObject) {
     var g = svg.append("g").attr("transform", "translate(" + ((graphObject.container.clientWidth - (cfg.margin.left + cfg.margin.right) )/2 + cfg.margin.left) + "," + graphObject.container.clientHeight/2  + ")");
 
     if (typeof graphObject.name !== "undefined") {
-      if (typeof this.graphObject.title === "undefined") {
-        this.graphObject.title = svg.append("text")
-        .attr("x", (cfg.w + cfg.margin.left + cfg.margin.right) /2)
-        .attr("y", GraphManager.defaultValues.graphPadding.top)
-        .attr("dy", 20 - GraphManager.defaultValues.graphPadding.top)
-        .attr("text-anchor", "middle")
-        .attr("pointer-events", "none")
-        .attr("class", "graph-title-text")
-        .style("font-size", "16px")
-        .text(graphObject.name);
+      if (typeof this.graphObject.title !== "undefined") {
+        this.graphObject.title.remove('text');
       }
+      this.graphObject.title = svg.append("text")
+      .attr("x", graphObject.container.clientWidth/2)
+      .attr("y", GraphManager.defaultValues.graphPadding.top)
+      .attr("dy", 20 - GraphManager.defaultValues.graphPadding.top)
+      .attr("text-anchor", "middle")
+      .attr("pointer-events", "none")
+      .attr("class", "graph-title-text")
+      .style("font-size", "16px")
+      .text(graphObject.name);
     }
-
-
 
     //Filter for the outside glow
     var filter = g.append('defs').append('filter').attr('id','glow'),
@@ -737,8 +926,18 @@ function SpiderChart(graphObject) {
     .attr("x", function(d, i){ return rScale(maxValue * cfg.labelFactor) * Math.cos(angleSlice*i - Math.PI/2); })
     .attr("y", function(d, i){ return rScale(maxValue * cfg.labelFactor) * Math.sin(angleSlice*i - Math.PI/2); })
     .text(function(d){return d})
-    .call(wrap, cfg.wrapWidth).on('click',function(event) {
-    });
+    .call(wrap, cfg.wrapWidth).on('click',(function(event) {
+
+      this.graphObject.data = setLevelData(false, event, this.graphObject.dataset);
+      if (this.graphObject.data) {
+        this.graphObject.clickedSituation = 0;
+        this.graphObject.level = 0;
+        this._fillSpider(this.graphObject);
+        this.Update();
+      }
+
+    }).bind(this));
+
 
 
     /////////////////////////////////////////////////////////
