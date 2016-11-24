@@ -386,6 +386,91 @@
         }
 
 
+    },
+
+    DateConverter: function () {
+        this.qnt = "Date";
+        this.si = "utc";
+        this.conversionUnits = {};
+        this.units = [];
+
+        this.AddConversionUnit = function (aUnit, aFactor, aOffset) { //todo implement for Date types
+            this.conversionUnits[aUnit] = { unit: aUnit, factor: aFactor, offset: aOffset };
+            this.units.push(aUnit);
+        }
+
+        this.AddConversionUnit(this.si, 1, 0);
+
+        this.RemoveConversionUnit = function (aUnit) {
+            if (typeof this.conversionUnits[aUnit] !== "undefined") {
+                delete this.conversionUnits[aUnit];
+                for (var i = 0; i < units.length; i++)
+                    if (this.units[i].unit == aUnit) {
+                        this.units.splice(i, 1);
+                    }
+            }
+        }
+
+        this.CanConvertMultiple = function (aUnits) {
+            for (var i = 0; i < aUnits.length; i++)
+                if (!this.CanConvert(aUnits[i]))
+                    return false;
+            return true;
+        }
+
+        this.CanConvert = function (aUnit) {
+            return typeof this.conversionUnits[aUnit] !== "undefined";
+        }
+
+        this.Clear = function (aUnit) {
+             delete typeof this.conversionUnits[aUnit]
+        }
+
+        this.IsEmpty = function (aUnit) {
+            return typeof this.conversionUnits[aUnit] === "undefined"
+        }
+
+        this.ConvertSItoUnit = function (aUnit, aValue) {
+            var date = new Date(aValue); //creates in local timezone:-(
+            date.setUTCMinutes(date.getUTCMinutes() - date.getTimezoneOffset()); //sets the localtime as it was
+            return date;
+            if (this.CanConvert(aUnit)) {
+                switch(aUnit.toLowerCase())
+                {
+                    case "utc": return aValue;
+                        break;
+                    case "gmt":
+                        break;
+                    case "cst":
+                        break;
+                    case "est":
+                        break;
+                }
+            }
+            else
+                throw "Can't convert unit!";
+        }
+
+        this.ConvertUnitToSI = function (aUnit, aValue) {
+            if (aUnit == "utc")
+                return aValue;
+            var date = new Date(aValue); //creates in local timezone:-(
+            date.setUTCMinutes(date.getUTCMinutes() + date.getTimezoneOffset()); //sets the localtime as it was
+            return date;
+            if (this.CanConvert(aUnit)) {
+                //todo implement unit dependant Date conversion
+            }
+            else
+                throw "Can't convert unit!";
+        }
+
+        this.ConvertUnitToUnit = function (aSourceUnit, aTargetUnit, aValue) {
+            if (this.CanConvertMultiple([aSourceUnit, aTargetUnit])) {
+                //todo implement unit dependant Date conversion
+            }
+            else
+                throw "Can't convert unit!";
+        }
     }
 }
 
@@ -518,4 +603,5 @@ UnitConverter.ConvNum.prototype = {
 
 for (var i = 0; i < UnitConverter.ENTRIES.length; i++) {
     UnitConverter.Converters[UnitConverter.ENTRIES[i].qnt] = new UnitConverter.Converter(UnitConverter.ENTRIES[i]);
+    UnitConverter.Converters["Date"] = new UnitConverter.DateConverter();
 }

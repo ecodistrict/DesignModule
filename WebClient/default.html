@@ -132,7 +132,8 @@
             // session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
             // session = 'ensel';
             // session = 'ssm';
-            session = 'ssm2';
+            // session = 'ssm2';
+            // session = 'sweco';
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
@@ -202,7 +203,7 @@
         //simulation
         var simulationControl = L.control.simulation(); // todo (NK): why pass baseLayers as options?
         map.addControl(simulationControl);
-        //map.removeControl(simulationControl);
+        map.removeControl(simulationControl);
         DataManager.simulationControl = simulationControl;
 
         //presenter/viewer

@@ -35,9 +35,9 @@
         }
     },
 
-    ClearVisibleLayers: function () {
+    ClearVisibleLayers: function (displayGroup) {
         for (var i = LayerManager._visibleLayers.length - 1; i >= 0 ; i--) {
-            if (typeof LayerManager._visibleLayers[i] != "undefined") //todo check what goes wrong?
+            if (typeof LayerManager._visibleLayers[i] != "undefined" && (typeof displayGroup === "undefined" ||LayerManager._visibleLayers[i].displayGroup == displayGroup)) //todo check what goes wrong?
                 LayerManager._visibleLayers[i].removeDisplayLayer();
         }
 
@@ -498,7 +498,7 @@ LayerManager.DetailsLayer = function (data) {
             }
             else {
                 if (!e.ctrlKey)
-                    LayerManager.ClearVisibleLayers();
+                    LayerManager.ClearVisibleLayers(this.displayGroup);
                 layer.addDisplayLayer(opacity);
                 layer.setCRD();
                 if (LayerManager._visibleLayers.length == 1)

@@ -12,6 +12,13 @@ var graphType = {
     scatterplot: "splot"
 }
 
+var clickOptions = {
+    none: "none",
+    xAxis: "xAxis",
+    yAxis: "yAxis",
+    both: "both"
+}
+
 var GraphManager = {
     alignedGraphs: [],
     movedGraphs: [],
@@ -118,6 +125,7 @@ var GraphManager = {
         maxHeight: null, //Maximum resize height for a graph
         minWidth: 300, //Minimum resize width for a graph
         minHeight: 200, //Minumum resize height for a graph
+        clickable: clickOptions.xAxis,
         xOffset: 25, //x offset when aligning graphs on top of each other
         yOffset: 25 //y offset when aligning graphs on top of each other
     },
@@ -275,6 +283,7 @@ var GraphManager = {
         graphObject.xAxisOrient = (typeof graphObject.xAxisOrient === 'undefined') ? GraphManager.defaultValues.xAxisOrient : graphObject.xAxisOrient;
         graphObject.yAxisOrient = (typeof graphObject.yAxisOrient === 'undefined') ? GraphManager.defaultValues.yAxisOrient : graphObject.yAxisOrient;
         graphObject.holdminmax = (typeof graphObject.holdminmax === 'undefined') ? GraphManager.defaultValues.holdminmax : graphObject.holdminmax;
+        graphObject.clickable = (typeof graphObject.clickable === 'undefined') ? GraphManager.defaultValues.clickable : graphObject.clickable;
 
         return graphObject;
     },

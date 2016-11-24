@@ -10,11 +10,20 @@
         var marginLeft = GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.axisMargin.y;
         var marginTop = GraphManager.defaultValues.graphPadding.top;
 
+        //var svgHolder = container.appendChild(document.createElement('div'));
+
         var svg = d3.select(container).append("svg")
         .attr("width", width)
         .attr("height", height);
+        //.on(click, this.onsvgclick);
 
         svg.className = "graph-svg";
+
+        if (this.graphObject.clickable != clickOptions.none)
+        {
+            //svgHolder.addEventListener("click", this.onsvgclick);
+            svg.on("click", this.onsvgclick);
+        }
 
         var lineG = svg.append("g");
 
@@ -57,11 +66,16 @@
 
         this.graphObject.container = container;
         this.graphObject.svg = svg;
-        this.graphObject.data = graphObject.data? graphObject.data : [];
-        this.graphObject.displayData = [];
-        for (var i = 0; i < graphObject.y.length; i++) {
-            this.graphObject.data[i] = [];
-            this.graphObject.displayData[i] = [];
+
+        var data = graphObject.data;
+        this.graphObject.data = [];
+        for (var i = 0; i < this.graphObject.y.length; i++)
+            this.graphObject.data.push([]);
+
+
+        if (data)
+        {
+            GraphManager.AddGraphData(this.graphObject, data);
         }
         this.graphObject.lineG = lineG;
         this.graphObject.text = text;
@@ -69,6 +83,54 @@
         container.style.visibility = "hidden";
         container.graph = this;
     }
+
+    this.onsvgclick = function (e) {
+        var xScale = this.graphObject.Scales.x;
+        var yScale = this.graphObject.Scales.y;
+
+        //var relativePos = {
+        //    x: e.offsetX - (padding.left + axisMargin.y),
+        //    y: e.offsetY - (padding.top + axisMargin.x)
+        //}
+        var relativePos = d3.mouse(this.graphObject.svg[0][0]);
+
+        if (relativePos[0] < xScale.range()[0] || relativePos[0] > xScale.range()[1])
+            return;
+
+        if (relativePos[1] < yScale.range()[1] || relativePos[1] > yScale.range()[0])
+            return;
+        //if (e.offsetX < this.graphObject.Scales.x.range()[0] || e.offsetX > this.graphObject.Scales.x.range()[1])
+        //    return;
+
+        //if (e.offsetY < this.graphObject.Scales.y.range()[1] || e.offsetY > this.graphObject.Scales.y.range()[0])
+        //    return;
+
+
+
+        if (this.graphObject.data.length > 0 && this.graphObject.data[0].length > 0)
+        {
+            var closest = null;
+            var distance = Number.MAX_VALUE;
+            for (var i = 0; i < this.graphObject.data.length; i++)
+                for (var j = 0; j < this.graphObject.data[i].length; j++)
+                {
+                    if (Math.abs(xScale(graphObject.data[i][j].x.GetDisplayValue()) - relativePos[0]) < distance)
+                    {
+                        closest = graphObject.data[i][j];
+                        distance = Math.abs(xScale(graphObject.data[i][j].x.GetDisplayValue()) - relativePos[0]);
+                    }
+                }
+            if (closest != null) {
+                var siX = closest.x.value;
+                var siY = closest.y.value;
+                console.log(JSON.stringify({ wsSend: { query: { x: siX, y: siY } } }));
+            }
+
+        }
+
+    },
+
+    this.onsvgclick = this.onsvgclick.bind(this);
 
     this._UpdatePreview = function () {
 
@@ -109,6 +171,8 @@
                 break;
             case "log": xScale = d3.scale.log().domain([minX, maxX]).range([DataManager.detailsInfo.graphMargin, width - DataManager.detailsInfo.graphMargin]);
                 break;
+            case "time": xScale = d3.time.scale().domain([minX, maxX]).range([DataManager.detailsInfo.graphMargin, width - DataManager.detailsInfo.graphMargin]);
+                break;
         }
 
         switch (graph.yScale) {
@@ -119,6 +183,8 @@
             case "power": yScale = d3.scale.power().domain([minY, maxY]).range([height - DataManager.detailsInfo.graphMargin, DataManager.detailsInfo.graphMargin]);
                 break;
             case "log": yScale = d3.scale.log().domain([minY, maxY]).range([height - DataManager.detailsInfo.graphMargin, DataManager.detailsInfo.graphMargin]);
+                break;
+            case "time": yScale = d3.time.scale().domain([minY, maxY]).range([height - DataManager.detailsInfo.graphMargin, DataManager.detailsInfo.graphMargin]);
                 break;
         }
 
@@ -293,6 +359,8 @@
                 break;
             case "log": xScale = d3.scale.log().domain([minX, maxX]).range([marginLeft, width - marginRight]);
                 break;
+            case "time": xScale = d3.time.scale().domain([minX, maxX]).range([marginLeft, width - marginRight]);
+                break;
         }
 
         switch (graph.yScale) {
@@ -304,7 +372,11 @@
                 break;
             case "log": yScale = d3.scale.log().domain([minY, maxY]).range([height - marginBottom, marginTop]);
                 break;
+            case "time": yScale = d3.time.scale().domain([minY, maxY]).range([height - marginBottom, marginTop]);
+                break;
         }
+
+        graph.Scales = { x: xScale, y: yScale };
 
         var xAxis = d3.svg.axis().scale(xScale).orient(graph.xAxisOrient).ticks(5);
         graph.axisX.call(xAxis);

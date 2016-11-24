@@ -67,7 +67,10 @@ function openSimulationDialog(e) {
  //     "idName":"MatrixChoice",
  //     "extraOptions":false
  //   }
- // ];
+    // ];
+
+  if (typeof data === "undefined")
+      return;
 
   for (var i = 0; i < data.length; i++) {
     fillOptions(data[i]);

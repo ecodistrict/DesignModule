@@ -106,8 +106,8 @@
     setPresenter: function()
     {
         //todo: remove for real implementation
-        if (DataManager.sessionInfo.session.toLowerCase() != "ssm")
-            return;
+        //if (DataManager.sessionInfo.session.toLowerCase() != "ssm")
+        //    return;
 
         if (SyncManager.presenter)
             return;
@@ -138,8 +138,8 @@
     setViewer: function()
     {
         //todo: remove for real implementation
-        if (DataManager.sessionInfo.session.toLowerCase() != "ssm")
-            return;
+        //if (DataManager.sessionInfo.session.toLowerCase() != "ssm2")
+        //    return;
 
         if (SyncManager.viewer)
             return;

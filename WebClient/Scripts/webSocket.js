@@ -309,6 +309,7 @@ var wsLookup = {
     },
     ccb: function (payload) {
         //todo handle broadcast messages
+        var i = 10;
     },
     groupcontrol: function (payload) {
         SyncManager.handleControlMessage(payload);
