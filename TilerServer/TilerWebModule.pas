@@ -298,6 +298,8 @@ type
   private
     fPalette: TWDPalette; // own
     fNet: TDLNet; // own
+    fPointIDs: TDictionary<TWDID, Integer>;
+    fNextID: Integer;
   protected
     // tile generation
     //procedure GenerateTileLock; override;
@@ -1463,6 +1465,8 @@ begin
   inherited Create(aLayer, aTimeStamp);
   fPalette := aPalette;
   fNet := TDLNet.Create;
+  fPointIDs := TDictionary<TWDID, Integer>.Create;
+  fNextID := 0;
   //fNetLock.Create;
 end;
 
@@ -1489,15 +1493,19 @@ begin
         distLatLon := TDistanceLatLon.Create(fMaxExtent.YMin, fMaxExtent.YMax);
         //Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': before fNet.Triangulate');
         fNet.Triangulate(fLayer.MaxEdgeLengthInMeters/distLatLon.m_per_deg_lon, fLayer.MaxEdgeLengthInMeters/distLatLon.m_per_deg_lat, NaN, aThreadPool);
-        //Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': before fNet.Triangulate');
+        //Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': after fNet.Triangulate');
+        if Assigned(fNet.Triangles)
+        then Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': triangulated, '+fNet.Triangles.Count.ToString()+' triangles')
+        else Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': triangulated, NO triangles', llError);
         Result := True;
       end
       else
       begin
-        //Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': no points', llWarning);
+        Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': no points', llWarning);
         Result := False;
       end;
-      Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': triangulated');
+
+
     finally
       fDataLock.EndWrite;
     end;
@@ -1523,7 +1531,7 @@ end;
 procedure TSliceReceptor.BeginUpdate;
 begin
   inherited BeginUpdate;
-  fNet.AbortTriangulation;
+  //fNet.AbortTriangulation;
 end;
 
 constructor TSliceReceptor.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
@@ -1537,6 +1545,7 @@ destructor TSliceReceptor.Destroy;
 begin
   FreeAndNil(fPalette);
   FreeAndNil(fNet);
+  FreeAndNil(fPointIDs);
   //FreeAndNil(fNetTriangulateLock);
   inherited;
 end;
@@ -1623,6 +1632,7 @@ var
   len: UInt64;
   value: Double;
   i: Integer;
+  idi: Integer;
 begin
   BeginUpdate;
   try
@@ -1640,11 +1650,18 @@ begin
             begin
               id := aBuffer.bb_read_rawbytestring(aCursor);
               // find point
-              i := fNet.Points.IndexOf(StrToIntDef(string(id), -1));
+              if not fPointIDs.TryGetValue(id, idi) then
+              begin
+                idi := fNextID;
+                fNextID := fNextID+1;
+                fPointIDs.Add(id, idi);
+              end;
+              i := fNet.Points.IndexOf(idi);
               if i<0 then
               begin
-                fNet.Points.Add(TDLPoint.Create(point.x, point.y, value, StrToIntDef(string(id), -1)));
+                fNet.Points.Add(TDLPoint.Create(point.x, point.y, value, idi));
                 //Log.WriteLn('new point '+point.x.ToString+' , '+point.y.ToString+': '+value.toString);
+                fNet.AbortTriangulation;
               end
               else
               begin
@@ -1679,8 +1696,11 @@ begin
             begin
               id := aBuffer.bb_read_rawbytestring(aCursor);
               i := fNet.Points.IndexOf(StrToIntDef(string(id), -1));
-              if i>=0
-              then fNet.Points.Delete(i);
+              if i>=0 then
+              begin
+                fNet.Points.Delete(i);
+                fNet.AbortTriangulation;
+              end;
             end;
         else
           aBuffer.bb_read_skip(aCursor, fieldInfo and 7);

@@ -1370,6 +1370,8 @@ begin
                 if not controlInterface.ClaimModel(cim, parameters)
                 then log.WriteLn('TSSMProject.handleClientMessage: could not claim model '+cim.ModelName, llError);
 
+                // todo: wait for ready.. or not lock..
+
               finally
                 parameters.Free;
               end;

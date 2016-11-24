@@ -57,8 +57,8 @@ begin
     try
       // todo: change to tls connection
       imbConnection := TSocketConnection.Create(
-        'PublishingServer', 12,
-        'ensel',
+        'PublishingServerEnsel', 12,
+        'EnSel2',
         GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
       try
         imbConnection.onException := HandleException;

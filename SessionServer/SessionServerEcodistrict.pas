@@ -2378,7 +2378,7 @@ begin
   query := TFDQuery.Create(nil);
   try
     query.Connection := fDBConnection as TFDConnection;
-    query.SQL.Text := 'SELECT clone_schema('''+aFromSchemaName+''', '''+aSchemaName+''',TRUE);';
+    query.SQL.Text := 'SELECT         clone_schema('''+aFromSchemaName+''', '''+aSchemaName+''',TRUE);';
     query.open();
     query.First;
     Result:= not query.Eof;
