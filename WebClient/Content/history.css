@@ -19,7 +19,7 @@
   height: 44px;
 }
 .leaflet-control-history-expanded {
-  max-width:300px;
+  max-width:340px;
 }
 .leaflet-control-history .leaflet-control-history-list,
 .leaflet-control-history-expanded .leaflet-control-history-toggle {  display: none }
@@ -56,7 +56,7 @@
   margin: 5px -10px 5px -6px;
   position: relative;
   box-sizing: border-box;
-    width: 100%;
+  width: 100%;
   clear:both;
 }
 .leaflet-control-history h4 {
@@ -118,10 +118,16 @@
 }
 .history-name {  cursor: pointer }
 .history-name-inactive {
-  opacity: 0.5;
+  /*opacity: 0.5;*/
   cursor: pointer;
 }
-.leaflet-control-history-apply { }
+.leaflet-control-history-scrollbar
+.leaflet-control-history-apply {
+  position: fixed;
+  background-color: #fff;
+  padding: 4px;
+  box-sizing: border-box;
+}
 .history-button {
   display: block;
   float:right;
@@ -152,7 +158,6 @@
   position: relative;
   float:left;
   width:100%;
-  margin-bottom:5px;
 }
 span[class^="history-name"]:hover {
   border:1px solid rgba(173, 216, 230, 0.4);
@@ -169,12 +174,18 @@ span[class^="history-name"]:hover {
   position: relative;
   border-radius: 3px;
   border:1px solid lightblue;
+  background: rgba(173, 216, 230, 0);
+  opacity: 0.5;
 }
 #phone .history-name, .history-name {
-  background: rgba(173, 216, 230, 1);
+  background: rgba(173, 216, 230, 0.8) !important;
   color:#000;
+  opacity: 1 !important;
+}
+.history-name:hover {
+  opacity: 0.8 !important;
 }
 #phone .history-name-inactive, .history-name-inactive {
-  background: rgba(173, 216, 230, 0.6);
+  background: rgba(173, 216, 230, 1);
   color:#000;
 }

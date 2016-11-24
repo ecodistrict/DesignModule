@@ -50,6 +50,18 @@ function modalDialogClose() {
 
 // handle escape key for closing dialogs etc.
 document.addEventListener('keyup', function (e) {
+  if (e.keyCode == 13) {
+    modalDialogButton = document.getElementsByClassName('modalDialogButton')[1];
+
+      var dialog = document.getElementById('modalDialog');
+      // test if modalDialog is visible
+      if (dialog.style.opacity > 0) {
+          // modalDialogClose();
+          queryDialogApply();
+          // modalDialogButton.click();
+          e.stopPropagation();
+      }
+  }
     if (e.keyCode == 27) {
         var dialog = document.getElementById('modalDialog');
         // test if modalDialog is visible

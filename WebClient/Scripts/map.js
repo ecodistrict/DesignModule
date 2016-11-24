@@ -35,10 +35,12 @@ var map = L.map('map', {
     contextmenu: true,
     contextmenuWidth: 140,
     contextmenuItems: [
+        /*
         {
             text: 'Show coordinates',
             callback: showCoordinates
         },
+        */
         {
             text: 'Deselect objects',
             callback: deselectObjects

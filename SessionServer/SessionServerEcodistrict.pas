@@ -70,7 +70,7 @@ type
   public
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string; overload; override;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aSelectedIDs: TArray<string>): string; overload; override;
 
     function selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string; override;
@@ -237,10 +237,12 @@ type
 
     function getMeasuresJSON: string; override;
     function getMeasuresHistoryJSON: string; override;
+    function getQueryDialogDataJSON: string; override;
     function ReadSchemaNames: TArray<string>;
     function handleTilerStatus(aTiler: TTiler): string;
 
     procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); override;
+
   public
     //
     property kpiList: TObjectDictionary<string, TEcodistrictKPI> read fKpiList;
@@ -266,8 +268,13 @@ type
   end;
 
   TEcodistrictModule = class
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aConnectString, aTilerFQDN, aTilerStatusURL: string;
-    aMaxNearestObjectDistanceInMeters: Integer);
+  constructor Create(
+    aSessionModel: TSessionModel; aConnection: TConnection;
+    const aConnectString, aTilerFQDN, aTilerStatusURL: string;
+    aMaxNearestObjectDistanceInMeters: Integer;
+    aDoNotListenToDataEvents: Boolean=False;
+    aDoNotListenToModuleEvents: Boolean=False;
+    aDoNotListenToCaseVariantManagementEvents: Boolean=False);
   destructor Destroy; override;
   private
     fSessionModel: TSessionModel;
@@ -296,7 +303,6 @@ type
     function forceReadOfDIMeasures(const aCaseId: string): Boolean;
 
     function GetOrAddCase(const aCaseId: string; aKPIList: TObjectList<TEcodistrictKPI>): TProject;
-    function HandleModuleCase(const aCaseId, aCaseTitle,  aCaseDescription: string; const aMapView: TMapView; aKPIList: TObjectList<TEcodistrictKPI>): TProject;
     procedure HandleModuleCaseDelete(const aCaseId: string);
     procedure HandleModuleVariant(const aCaseId, aVariantID, aVariantName, aVariantDescription: string);
     procedure HandleModuleVariantDelete(const aCaseId, aVariantId: string);
@@ -306,6 +312,8 @@ type
     procedure HandleCaseVariantManagentEvent(aEventEntry: TEventEntry; const aString: string);
 
     function HandleModuleScenarioRefresh(const aCaseId, aVariantId: string): Boolean;
+  public
+    function HandleModuleCase(const aCaseId, aCaseTitle,  aCaseDescription: string; const aMapView: TMapView; aKPIList: TObjectList<TEcodistrictKPI>): TProject;
   end;
 
 
@@ -324,6 +332,124 @@ function CheckSQLValue(const aValue: string): string;
 begin
   // remove escape quotes in values used in sql statements
   Result := aValue.Replace('''', '"')
+end;
+
+function IsSurroundedByQuotes(const s: string; aQuoteChar: char): Boolean; overload;
+begin
+  if length(s)>=2
+  then Result := ((s[1]=aQuoteChar) and (s[s.Length]=aQuoteChar))
+  else Result := False;
+end;
+
+function IsSurroundedByQuotes(const s: string; aQuoteChars: array of char): Boolean; overload;
+var
+  qc: Char;
+begin
+  for qc in aQuoteChars do
+  begin
+    if IsSurroundedByQuotes(s, qc)
+    then exit(true);
+  end;
+  exit(false);
+end;
+
+function SurroundWithQuotes(const s: string; aQuoteChar: char): string;
+begin
+  if not IsSurroundedByQuotes(s, aQuoteChar)
+  then result := aQuoteChar+s+aQuoteChar
+  else result := s;
+end;
+
+function UnQuote(const s: string; aQuoteChars: array of char; var aUsedQuoteChar: Char): string;
+var
+  qc: Char;
+begin
+  for qc in aQuoteChars do
+  begin
+    if IsSurroundedByQuotes(s, qc) then
+    begin
+      aUsedQuoteChar := qc;
+      exit(s.Substring(1, s.Length-2));
+    end;
+  end;
+  aUsedQuoteChar := #0;
+  exit(s);
+end;
+
+function LimitChars(const s: string; const aLimitChars: string; aReplaceChar: Char; out aLimited: Boolean): string;
+var
+  i: Integer;
+begin
+  aLimited := False;
+  Result := s;
+  for i := 1 to result.Length do
+  begin
+    if aLimitChars.IndexOf(result[i])<0 then
+    begin
+      result[i] := aReplaceChar;
+      aLimited := True;
+    end;
+  end;
+end;
+
+const
+  ValidSQLNameFirstChars =
+    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_';
+  ValidSQLNameSubsequentChars =
+    ValidSQLNameFirstChars+
+    '01234567890';
+  ValidSQLQuotedNameChars =
+    ValidSQLNameSubsequentChars+
+    '!#()-.:;[]{}~çÇ€ƒŽžŸ¡¢£¤¥àáâãäåæèéêëìíîïðñòóö÷øûüý';
+
+  ValidSQLValueChars =
+    ValidSQLNameSubsequentChars+
+    '!#$%&()*+,-.:;<=>[]^{}~çÇ€ƒŽžŸ¡¢£¤¥àáâãäåæèéêëìíîïðñòóö÷øûüý';
+
+function SafeSQLFieldName(const aFieldName: string): string;
+var
+  qc: Char;
+  limited: Boolean;
+begin
+  if aFieldName.Length>0 then
+  begin
+    if IsSurroundedByQuotes(aFieldName, ['''', '"']) then
+    begin
+      Result := LimitChars(UnQuote(aFieldName, ['"',''''], qc), ValidSQLQuotedNameChars, '_', limited);
+      Result := qc+Result+qc; // put quotes around it again
+    end
+    else
+    begin
+      if ValidSQLNameFirstChars.IndexOf(aFieldName[1])>=0
+      then Result := LimitChars(aFieldName, ValidSQLNameSubsequentChars, '_', limited)
+      else Result := '_'+LimitChars(aFieldName.Substring(1), ValidSQLNameSubsequentChars, '_', limited);
+    end;
+  end
+  else
+  begin
+    Result := '_';
+    limited := True;
+  end;
+  if limited
+  then Log.WriteLn('escaped SQL field name '+aFieldName+' -> '+Result, llWarning);
+end;
+
+function SafeSQLValue(const aValue: string; aMaybeSurroundedByQuotes: Boolean): string;
+var
+  qc: Char;
+  limited: Boolean;
+begin
+  if aMaybeSurroundedByQuotes and IsSurroundedByQuotes(aValue, ['"', '''']) then
+  begin
+    Result := SafeSQLValue(UnQuote(aValue, ['"',''''], qc), false);
+    Result := qc+Result+qc; // put quotes around it again
+  end
+  else
+  begin
+    Result := LimitChars(aValue, ValidSQLValueChars, '_', limited);
+    if limited
+    then Log.WriteLn('escaped SQL value '+aValue+' -> '+Result, llWarning);
+  end;
 end;
 
 { TEcodistrictLayer }
@@ -850,25 +976,122 @@ begin
   end;
 end;
 
-function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string;
+function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string;
 var
   layers: TList<TLayer>;
+  q: TJSONValue;
+  field: TJSONObject;
+  fieldName: string;
+  operStr: string;
+  valueStr: string;
+  oper: Integer;
+  v: Double;
+//  op: TDIObjectProperty;
+//  tableName: string;
+//  keyFieldName: string;
+  sql: string;
+  layer: TLayer;
+  scenarioSchema: string;
+  query: TFDQuery;
+  objectID: TWDID;
+  layerObject: TLayerObject;
+  objectsGeoJSON: string;
 begin
   Result := '';
   layers := TList<TLayer>.Create;
   try
+    if fID=fProject.ProjectID
+    then scenarioSchema := EcoDistrictSchemaId(fID)
+    else scenarioSchema := EcoDistrictSchemaId(fProject.ProjectID, fID);
+
     if selectLayersOnCategories(aSelectCategories, layers) then
     begin
       if aMode='+' then
       begin
         // only use first layer (only 1 type of object allowed..)
         // todo: warning if more then 1 layer?
-
+        // never gets called for now..
       end
       else
       begin
         // select objects in layer that match first
+        for q in aJSONQuery do
+        begin
+          field := q as TJSONObject;
+          if field.TryGetValue<string>('field', fieldName) and
+             field.TryGetValue<string>('operator', operStr) and
+             field.TryGetValue<string>('value', valueStr) then
+          begin
+            fieldName := SafeSQLFieldName(fieldName);
+            oper := '|<|<=|=|<>|>|>=|in|IN|'.IndexOf('|'+operStr+'|');
+            case oper of
+              0:; // <
+              2:; // <=
+              5:; // =
+              7:; // <>
+              10:; // >
+              12:; // >=
+              15, 18:; // in, IN
+              // todo: in/IN does not work with strings (' will be filtered out of valueStr)
+            else
+              oper := -1;
+            end;
+            if oper>=0 then
+            begin
+              if not Double.TryParse(valueStr, v)
+              then valueStr := SurroundWithQuotes(SafeSQLValue(valueStr, true), '''')
+              else valueStr := v.ToString(dotFormat);
+              // find table and key field for category
+//              for op in (fProject as TEcodistrictProject).DIObjectProperties do
+//              begin
+              //tableName := '';
+              // for now only process first layer
+              layer := layers.First;
 
+              // todo: not fool prooof
+              if layer.query.ToUpper.IndexOf('WHERE')>=0
+              then sql := layer.query+' AND '+fieldName+operStr+valueStr
+              else sql := layer.query+' WHERE '+fieldName+operStr+valueStr;
+
+              Log.WriteLn('select by query: '+sql);
+
+              objectsGeoJSON := '';
+
+              query := TFDQuery.Create(nil);
+              try
+                query.Connection := project.dbConnection as TFDConnection;
+                query.SQL.Text := sql;
+                try
+                  query.Open();
+                  query.First();
+                  while not query.Eof do
+                  begin
+                    objectID := query.Fields[0].AsAnsiString;
+                    if layer.FindObject(objectID, layerObject) then
+                    begin
+                      if objectsGeoJSON<>''
+                      then objectsGeoJSON := objectsGeoJSON+',';
+                      objectsGeoJSON := objectsGeoJSON+layerObject.GeoJSON2D[layer.geometryType];
+                    end;
+                    query.Next();
+                  end;
+                except
+                  on e: exception do
+                  begin
+                    log.WriteLn('exception in TEcodistrictScenario.selectObjectsProperties: '+e.Message+' (sql: '+query.SQL.Text+')', llError);
+                  end;
+                end;
+              finally
+                query.Free;
+              end;
+
+              Result :=
+                '{"selectedObjects":{"selectCategories":["'+layer.ID+'"],'+
+                '"mode":"'+aMode+'",'+
+                '"objects":['+objectsGeoJSON+']}}';
+            end;
+          end;
+        end;
       end;
 
 
@@ -899,6 +1122,7 @@ var
   scenarioSchema: string;
   selectedCategories: string;
 begin
+  (project as TEcodistrictProject).PingDatabase('TEcodistrictScenario.selectObjectsProperties');
   Result := '';
   layers := TList<TLayer>.Create;
   try
@@ -1298,6 +1522,42 @@ begin
     }
 end;
 
+function TEcodistrictProject.getQueryDialogDataJSON: string;
+var
+  op: TDIObjectProperty;
+  res: TDictionary<string, string>;
+  def: string;
+  tfp: TPair<string, string>;
+begin
+  // todo: build JSON object '{..}' or 'null'
+  res := TDictionary<string, string>.Create;
+  try
+    // agregate fields per table name
+    for op in DIObjectProperties do
+    begin
+      if res.TryGetValue(op.tableName, def)
+      then def := def+','+'"'+op.fieldName+'"'
+      else def := '"'+op.fieldName+'"';
+      res.AddOrSetValue(op.tableName, def);
+    end;
+    // build result
+    if res.Count>0 then
+    begin
+      result := '';
+      for tfp in res do
+      begin
+        if result<>''
+        then result := result+',';
+        Result := Result+'"'+tfp.Key+'":['+tfp.Value+']';
+      end;
+      result := '{'+result+'}';
+    end
+    else Result := 'null';
+  finally
+    res.Free;
+  end;
+end;
+
 function TEcodistrictProject.getDIMeasures: TDictionary<string, TDIMeasure>;
 begin
   if not Assigned(fDIMeasures)
@@ -1336,14 +1596,13 @@ end;
 procedure TEcodistrictProject.handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario);
 var
   jsonPair: TJSONPair;
-  //jsonValue: TJSONObject;
   dictScenariosID: string;
   scenario: TScenario;
   jsonMeasures: TJSONArray;
   jsonMeasure: TJSONValue;
   measureId: string;
   categories: string;
-  jsonMeasureObjectIDs: TJSONArray;
+  jsonObjectIDs: TJSONArray;
   jsonObjectID: TJSONValue;
   sql: string;
   objectIDs: string;
@@ -1353,19 +1612,30 @@ var
   jsonMeasureCategories: TJSONArray;
   jsonCategory: TJSONValue;
   measure: TJSONObject;
-  jsonApplyObjectsProperties: TJSONArray;
+  jsonApplyObjectsProperties: TJSONObject;
+  jsonSelectedCategories: TJSONArray;
+  tableName: string;
+  jsonProperties: TJSONArray;
+  jsonProperty: TJSONValue;
+  properties: string;
+  op: TDIObjectProperty;
+  propName: string;
+  jsonValue: TJSONValue;
+  keyFieldName: string;
+  propFieldName: string;
+  propValue: string;
 begin
   if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
   begin
-    Log.WriteLn('todo: applyMeasures..');
+    Log.WriteLn('applyMeasures..');
     for jsonMeasure in jsonMeasures do
     begin
       measureId := (jsonMeasure as TJSONObject).GetValue<string>('measure.id');
       measure := (jsonMeasure as TJSONObject).GetValue<TJSONObject>('measure');
       // todo: should allways be 1 category (for now)
-      jsonMeasureObjectIDs := (jsonMeasure as TJSONObject).GetValue<TJSONArray>('selectedObjects');
+      jsonObjectIDs := (jsonMeasure as TJSONObject).GetValue<TJSONArray>('selectedObjects');
       objectIDs := '';
-      for jsonObjectID in jsonMeasureObjectIDs do
+      for jsonObjectID in jsonObjectIDs do
       begin
         if objectIDs<>''
         then objectIDs := objectIDs+',';
@@ -1420,36 +1690,73 @@ begin
     end
     else Log.WriteLn('scenario '+dictScenariosID+' not found to refresh', llWarning);
   end
-  else if aJSONObject.TryGetValue<TJSONArray>('applyObjectsProperties', jsonApplyObjectsProperties) then
+  else if aJSONObject.TryGetValue<TJSONObject>('applyObjectsProperties', jsonApplyObjectsProperties) then
   begin
-    // todo: implement
+    Log.WriteLn('Apply object properties');
+    jsonSelectedCategories := jsonApplyObjectsProperties.GetValue<TJSONArray>('selectedCategories');
+    if jsonSelectedCategories.Count=1 then
+    begin
+      tableName := jsonSelectedCategories.Items[0].Value;
 
-    (*
-    {
-      "selectedCategories": ["'+category+'"],
-      "properties":[[{
-          "name" : "Height",
-          "value" : 5,
-          "type" : "list",
-          "editable" : "Y",
-          "options" : [1, 3, 343, 5],
-          "forced" : "Y",
-          "id" : "Height"
-        }, {
-          "name" : "Klant",
-          "value" : "Marie",
-          "type" : "list",
-          "editable" : "N",
-          "options" : ["Marie", "Toby", "Henk", "Jantje"],
-          "forced" : "N",
-          "id" : "Klant"
-        }
-        ],
-      "selectedObjects":["id1","id2"]
-    }
-    *)
+      jsonProperties := jsonApplyObjectsProperties.GetValue<TJSONArray>('properties');
+      properties := '';
+      for jsonProperty in jsonProperties do
+      begin
+        propName := jsonProperty.GetValue<string>('name');
+
+        jsonValue := jsonProperty.GetValue<TJSONValue>('value');
+        if not (jsonValue is TJSONNull) then
+        begin
+          if (jsonValue is TJSONNumber)
+          then propValue := (jsonValue as TJSONNumber).AsDouble.ToString(dotFormat)
+          else propValue := ''''+SafeSQLValue(jsonValue.Value, False)+'''';
+        end
+        else propValue := 'null';
+
+        propFieldName := '';
+        for op in DIObjectProperties do
+        begin
+          if (op.tableName=tableName) and (op.propertyName=propName) then
+          begin
+            propFieldName := op.fieldName;
+            keyFieldName := op.keyFieldName;
+            break;
+          end;
+        end;
+        if propFieldName<>'' then
+        begin
+          if properties<>''
+          then properties := properties+',';
+          properties := properties+SafeSQLValue(propFieldName, True)+'='+propValue;
+        end;
+      end;
+
+      // todo: split in batches to avoid to many object ID's in SQL " WHERE .. IN (..)"
+
+      jsonObjectIDs := jsonApplyObjectsProperties.GetValue<TJSONArray>('selectedObjects');
+      objectIDs := '';
+      for jsonObjectID in jsonObjectIDs do
+      begin
+        if objectIDs<>''
+        then objectIDs := objectIDs+',';
+        objectIDs := objectIDs+SafeSQLValue(jsonObjectID.ToJSON, True);
+      end;
+
+      projectSchema := EcoDistrictSchemaId(projectID);
+      if Assigned(aScenario) and (aScenario.ID<>projectID)
+      then scenarioSchema := EcoDistrictSchemaId(projectID, aScenario.ID)
+      else scenarioSchema := projectSchema;
+
+      sql := 'UPDATE '+scenarioSchema+'.'+tableName+' SET '+properties+' WHERE '+keyFieldName+' IN ('+objectIDs.Replace('"', '''')+')';
+
+      Log.WriteLn(sql);
 
 
+      // todo: execute sql
+
+
+    end
+    else Log.WriteLn('Apply object properties: selectedCategories.Count='+jsonSelectedCategories.Count.ToString+' (<>1)', llWarning);
   end
   else
   begin
@@ -1826,7 +2133,8 @@ end;
 { TEcodistrictModule }
 
 constructor TEcodistrictModule.Create(aSessionModel: TSessionModel; aConnection: TConnection;
-  const aConnectString, aTilerFQDN, aTilerStatusURL: string; aMaxNearestObjectDistanceInMeters: Integer);
+  const aConnectString, aTilerFQDN, aTilerStatusURL: string; aMaxNearestObjectDistanceInMeters: Integer;
+  aDoNotListenToDataEvents, aDoNotListenToModuleEvents, aDoNotListenToCaseVariantManagementEvents: Boolean);
 begin
   // publish to dashboard
   // subscribe to modules
@@ -1843,12 +2151,24 @@ begin
   fDBConnection := TFDConnection.Create(nil);
   SetPGConnection(fDBConnection as TFDConnection, fConnectString);
   fDashboardEvent := fConnection.publish('ecodistrict.dashboard', False);
-  fDataEvent := fConnection.subscribe('ecodistrict.data', False); // auto publish
-  fDataEvent.OnString.Add(HandleDataEvent);
-  fModuleEvent := fConnection.subscribe('ecodistrict.modules', False);
-  fModuleEvent.OnString.Add(HandleModuleEvent);
-  fCaseVariantManagementEvent := fConnection.subscribe('ecodistrict.'+CaseVariantManagementReturnEventName, False);
-  fCaseVariantManagementEvent.OnString.Add(HandleCaseVariantManagentEvent);
+
+  if not aDoNotListenToDataEvents then
+  begin
+    fDataEvent := fConnection.subscribe('ecodistrict.data', False); // auto publish
+    fDataEvent.OnString.Add(HandleDataEvent);
+  end;
+
+  if not aDoNotListenToModuleEvents then
+  begin
+    fModuleEvent := fConnection.subscribe('ecodistrict.modules', False);
+    fModuleEvent.OnString.Add(HandleModuleEvent);
+  end;
+
+  if not aDoNotListenToCaseVariantManagementEvents then
+  begin
+    fCaseVariantManagementEvent := fConnection.subscribe('ecodistrict.'+CaseVariantManagementReturnEventName, False);
+    fCaseVariantManagementEvent.OnString.Add(HandleCaseVariantManagentEvent);
+  end;
 end;
 
 destructor TEcodistrictModule.Destroy;
@@ -1948,7 +2268,6 @@ begin
     if Assigned(aKPIList)
     then (Result as TEcodistrictProject).UpdateKPIList(aKPIList);
   end;
-  //else already loaded
 end;
 
 {

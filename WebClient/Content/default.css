@@ -79,7 +79,14 @@ div[id*="-option-row"] > button {
   margin: 0px 2px;
   cursor: pointer;
 }
-
+#cat_container {
+  display:block;
+  margin: 0 4px 0 4px;
+}
+#cat_container input {
+  height: 20px;
+  margin-bottom: 10px;
+}
 .queryDialogLine select {
   width: auto !important;
 }
@@ -106,12 +113,13 @@ textarea.form-control {
   padding:2px 5px;
 }
 select.form-control {
-  width: 100%;
-  background-color: #fff;
+  background: #fff;
   border: 1px solid rgba(173, 216, 230, 1);
   border-radius: 3px;
-  padding:2px 3px;
-  margin-bottom:10px;
+  padding: 2px 3px;
+  margin-bottom: 10px;
+  margin-left: 10px;
+  flex-basis: 100%;
 }
 
 .leaflet-control-info.leaflet-control {

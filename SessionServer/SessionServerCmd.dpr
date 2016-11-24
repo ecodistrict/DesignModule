@@ -59,9 +59,10 @@ var
   sessionModel: TSessionModel;
   tilerFQDN: string;
   ecodistrictModule: TEcodistrictModule;
+  mapView: TMapView;
 
   { SSM
-  mapView: TMapView;
+
   piSSM: Integer;
   {}
 
@@ -93,7 +94,7 @@ begin
           }
 
 
-          // ecodistrict module
+          // ecodistrict module, specific for test project 1234 and no actions on ecodistrict events
           ecodistrictModule := TEcodistrictModule.Create(
             sessionModel,
             imbConnection,
@@ -105,7 +106,13 @@ begin
             'PGAdvanced=sslmode=require',
             tilerFQDN,
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+            True, True, True); // do not load any other projects or execute ecodistrict commands..
+
+          // default load
+          mapView := TMapView.Create(51.19002, 4.37689, 15); // Kiel (Antwerp)
+          ecodistrictModule.HandleModuleCase('1234', 'Kiel test case', 'Test case for Ecodistrict publishing server based on Kiel (Antwerp) data..', mapView, nil);
+
 
 
           {

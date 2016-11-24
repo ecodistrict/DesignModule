@@ -38,10 +38,27 @@ p {
   margin: 10px 0px;
   background-color:rgba(26,91,127,0.3);
 }
+#userMenu {
+  position: relative;
+  right: 0px;
+  top: 0px;
+  width: auto;
+  display: inline-block;
+  float: right;
+
+  color: #1a5b7f;
+  height: 32px;
+  line-height: 14px;
+  padding: 10px 2px;
+  box-sizing: border-box;
+  border-bottom:1px solid rgba(26,91,127,0.3);
+  border-radius: 2px;
+}
 #lang {
   position: relative;
   right: 0px;
   top: 0px;
+  margin-left:10px;
   width: auto;
   display: inline-block;
   float: right;
@@ -253,4 +270,10 @@ img.partnerLogo {
 
 .legend {
   /*background-color: rgba(255,153,0,0.2);*/
+}
+
+svg {
+  position: absolute;
+  left: 0px;
+  top: 0px;
 }
