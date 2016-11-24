@@ -50,8 +50,8 @@ function openSimulationDialog(e) {
       "type":"int",
       "required":"y",
       "optionsArray":['0', '100'],
-      "labelText":"Follow-on behavior",
-      "idName":"followOn",
+      "labelText":"Compliance",
+      "idName":"compliance",
       "extraOptions":[1, '%']
     },
     {
