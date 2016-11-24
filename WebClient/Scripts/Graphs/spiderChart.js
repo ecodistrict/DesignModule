@@ -776,18 +776,17 @@ function SpiderChart(graphObject) {
     // hier wordt niet de breedte gezet
 
 
-    if (graphObject.level < 1) {
+
       var LegendOptions = [];
       for (var i = 0; i < graphObject.dataset.length; i++) {
         LegendOptions.push(graphObject.dataset[i][0].name);
       }
-
       //Initiate Legend
       var legend = svg.append("g")
       .attr("class", "legend")
       .attr("height", 100)
       .attr("width", cfg.w)
-      .attr('transform', 'translate(20,20)')
+      .attr('transform', 'translate(20,40)')
       ;
       //Create colour squares
       legend.selectAll('rect')
@@ -810,9 +809,10 @@ function SpiderChart(graphObject) {
       .attr("font-size", "11px")
       .attr("fill", "#737373")
       .text(function(d) { return d; });
-    }
+
 
     if (graphObject.level > 0) {
+
       var levelContainer = svg.append("g")
       .attr('class', "levelContainer")
       .attr('height', 100)
@@ -833,7 +833,7 @@ function SpiderChart(graphObject) {
       .on('click',(function() {
         this.graphObject.level = 0;
         this.graphObject.data = setLevelData(0, false, this.graphObject.dataset);
-
+        this.graphObject.subTitle = false;
         this._fillSpider(this.graphObject);
         this.Update();
 
@@ -858,6 +858,26 @@ function SpiderChart(graphObject) {
       .style("font-size", "16px")
       .text(graphObject.name);
     }
+
+    if (graphObject.subTitle) {
+      if (typeof this.graphObject.subTitleText !== "undefined") {
+        this.graphObject.subTitleText.remove('text');
+      }
+      this.graphObject.subTitleText = svg.append("text")
+      .attr("x", graphObject.container.clientWidth/2)
+      .attr("y", GraphManager.defaultValues.graphPadding.top + 14)
+      .attr("dy", 20 - GraphManager.defaultValues.graphPadding.top)
+      .attr("text-anchor", "middle")
+      .attr("pointer-events", "none")
+      .attr("class", "graph-title-text")
+      .style("font-size", "11px")
+      .text(graphObject.subTitle);
+    } else {
+      if (typeof this.graphObject.subTitleText !== "undefined") {
+        this.graphObject.subTitleText.remove('text');
+      }
+    }
+
 
     //Filter for the outside glow
     var filter = g.append('defs').append('filter').attr('id','glow'),
@@ -930,8 +950,9 @@ function SpiderChart(graphObject) {
 
       this.graphObject.data = setLevelData(false, event, this.graphObject.dataset);
       if (this.graphObject.data) {
-        this.graphObject.clickedSituation = 0;
-        this.graphObject.level = 0;
+        this.graphObject.clickedSituation = false;
+        this.graphObject.level = 1;
+        this.graphObject.subTitle = event;
         this._fillSpider(this.graphObject);
         this.Update();
       }
@@ -988,10 +1009,19 @@ function SpiderChart(graphObject) {
     .attr("class", "radarArea")
     .attr("d", function(d,i) { return radarLine(d); })
     .style("fill-opacity", cfg.opacityArea);
+
     if (graphObject.level > 0) {
-      blobWrapper.style("fill", function(d,i) { return cfg.color(graphObject.clickedSituation); })
-      .style("stroke", function(d,i) { return cfg.color(graphObject.clickedSituation); })
+      if (!graphObject.clickedSituation) {
+        // optie 1
+        blobWrapper.style("fill", function(d,i) { return cfg.color(i); })
+        .style("stroke", function(d,i) { return cfg.color(i); })
+      } else {
+        // optie 2
+        blobWrapper.style("fill", function(d,i) { return cfg.color(graphObject.clickedSituation); })
+        .style("stroke", function(d,i) { return cfg.color(graphObject.clickedSituation); })
+      }
     } else {
+      // optie 3
       blobWrapper.style("fill", function(d,i) { return cfg.color(i); })
       .style("stroke", function(d,i) { return cfg.color(i); })
     }
@@ -1006,14 +1036,26 @@ function SpiderChart(graphObject) {
 
     //Append the circles
     if (graphObject.level > 0) {
-      blobWrapper.selectAll(".radarCircle")
-      .data(function(d,i) { return d; })
-      .enter().append("circle")
-      .attr("class", "radarCircle")
-      .attr("r", cfg.dotRadius)
-      .attr("cx", function(d,i){ return rScale(d.value) * Math.cos(angleSlice*i - Math.PI/2); })
-      .attr("cy", function(d,i){ return rScale(d.value) * Math.sin(angleSlice*i - Math.PI/2); })
-      .style("fill-opacity", 0.8).style("fill", function(d,i) { return cfg.color(graphObject.clickedSituation); })
+      if (!graphObject.clickedSituation) {
+        blobWrapper.selectAll(".radarCircle")
+        .data(function(d,i) { return d; })
+        .enter().append("circle")
+        .attr("class", "radarCircle")
+        .attr("r", cfg.dotRadius)
+        .attr("cx", function(d,i){ return rScale(d.value) * Math.cos(angleSlice*i - Math.PI/2); })
+        .attr("cy", function(d,i){ return rScale(d.value) * Math.sin(angleSlice*i - Math.PI/2); })
+        .style("fill-opacity", 0.8).style("fill", function(d,i,j) { return cfg.color(j); })
+      } else {
+        blobWrapper.selectAll(".radarCircle")
+        .data(function(d,i) { return d; })
+        .enter().append("circle")
+        .attr("class", "radarCircle")
+        .attr("r", cfg.dotRadius)
+        .attr("cx", function(d,i){ return rScale(d.value) * Math.cos(angleSlice*i - Math.PI/2); })
+        .attr("cy", function(d,i){ return rScale(d.value) * Math.sin(angleSlice*i - Math.PI/2); })
+        .style("fill-opacity", 0.8).style("fill", function(d,i) { return cfg.color(graphObject.clickedSituation); })
+      }
+
     } else {
       blobWrapper.selectAll(".radarCircle")
       .data(function(d,i) { return d; })
@@ -1058,7 +1100,11 @@ function SpiderChart(graphObject) {
       .style('opacity', 1);
 
       if (graphObject.level > 0) {
+        if (!graphObject.clickedSituation) {
+          tooltipContainer.style("fill", cfg.color(j));
+        } else {
         tooltipContainer.style("fill", cfg.color(graphObject.clickedSituation));
+        }
       } else {
         tooltipContainer.style("fill", cfg.color(j));
       }
@@ -1077,6 +1123,7 @@ function SpiderChart(graphObject) {
         if (this.graphObject.data) {
           this.graphObject.clickedSituation = j;
           this.graphObject.level = 1;
+          this.graphObject.subTitle = d.axis;
           this._fillSpider(this.graphObject);
           this.Update();
         }
