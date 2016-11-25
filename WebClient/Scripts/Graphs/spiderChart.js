@@ -1,8 +1,9 @@
+
 var graphObjectSpider = {};
 var testData = {};
 
 function generateTestData() {
-  datasetTest = [];
+  var datasetTest = [];
   var cats = ["Mobility performance","Quality of life","Economic Success","Global Environment"]
   var subcats = ["Congestion and delay","Intermodel integration","Accessibility","Commuting travel time","Robustness","Reliability","Air pollution emissions","Noise hindrance","Heat islands","Green and blue areas","Mobility space uses","Opportunity for active mobility","Green and blue areas"]
   var situationCount = Math.floor((Math.random() * 3) + 1);
@@ -67,6 +68,17 @@ function generateTestData() {
   GraphManager.MakeGraph(graphObjectSpider2);
 
 }
+// dataNew = [{"name":"situatie 1", "cat" : [
+//   {"name" : "Mobility performance", "cat" : ["Congestion and delay"]},
+//   {"name" : "Quality of life", "cat" : ["Air pollution emissions"]}
+// ]
+// }],
+//
+// [{"name":"situatie 1", "cat" : [
+//   {"name" : "Mobility performance", "cat" : ["Congestion and delay"]},
+//   {"name" : "Quality of life", "cat" : ["Congestion and delay"]}
+// ]
+// }]
 
 
 
@@ -332,34 +344,34 @@ function updateGraph(graphId, data) {
   // updateGraph.data = setLevelData(0, false, data);\
 
 
-      var graph = GraphManager._getGraph(graphId);
-      if (graph !== null) { //only update graphs that exist
+  var graph = GraphManager._getGraph(graphId);
+  if (graph !== null) { //only update graphs that exist
 
-      d3.select(graph.graph.container).select('svg').selectAll('g').remove();
+    d3.select(graph.graph.container).select('svg').selectAll('g').remove();
 
-      //sets data and displaydata
-      // GraphManager.AddGraphData(graph, data);
-      var width = graph.graph.graphObject.container.clientWidth;
-      var height = graph.graph.graphObject.container.clientHeight;
-      var marginLeft = GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.axisMargin.y;
-      var marginTop = GraphManager.defaultValues.graphPadding.top;
-      var marginRight = GraphManager.defaultValues.graphPadding.right;
-      var marginBottom = GraphManager.defaultValues.graphPadding.bottom + GraphManager.defaultValues.axisMargin.x;;
+    //sets data and displaydata
+    // GraphManager.AddGraphData(graph, data);
+    var width = graph.graph.graphObject.container.clientWidth;
+    var height = graph.graph.graphObject.container.clientHeight;
+    var marginLeft = GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.axisMargin.y;
+    var marginTop = GraphManager.defaultValues.graphPadding.top;
+    var marginRight = GraphManager.defaultValues.graphPadding.right;
+    var marginBottom = GraphManager.defaultValues.graphPadding.bottom + GraphManager.defaultValues.axisMargin.x;;
 
-      graph.graph.graphObject.dataset = data;
-      graph.graph.graphObject.data = setLevelData(0, false, data);
-      graph.graph._fillSpider(graph.graph.graphObject);
+    graph.graph.graphObject.dataset = data;
+    graph.graph.graphObject.data = setLevelData(0, false, data);
+    graph.graph._fillSpider(graph.graph.graphObject);
 
-      graph.graph.graphObject.svg.attr("width", width);
-      graph.graph.graphObject.svg.attr("height", height);
+    graph.graph.graphObject.svg.attr("width", width);
+    graph.graph.graphObject.svg.attr("height", height);
 
-      graph.graph._UpdatePreview();
+    graph.graph._UpdatePreview();
 
 
-      }
+  }
 
-      // graph.graph.Update(dataArray[i]);
-      //GraphManager.UpdateGraph(graph.graph, dataArray[i]);
+  // graph.graph.Update(dataArray[i]);
+  //GraphManager.UpdateGraph(graph.graph, dataArray[i]);
 
 
 }
@@ -367,7 +379,7 @@ function updateGraph(graphId, data) {
 function setLevelData(situation, catName, dataSet) {
 
   if (situation === false) {
-    newArrayListContainer = [];
+    var newArrayListContainer = [];
     for (i=0; i < dataSet.length; i++) {
       var newArrayList = [];
       var count = 0;
@@ -398,8 +410,10 @@ function setLevelData(situation, catName, dataSet) {
       if (!avg[i]) {
         avg[i] = [];
       }
-      dataN = dataSet[i];
+      var dataN = dataSet[i];
       var values = [];
+      var newVal;
+      var count = 0;
       for (key in dataN) {
         dataRow = dataN[key];
         if (values[dataRow.cat]) {
@@ -442,7 +456,7 @@ function setLevelData(situation, catName, dataSet) {
       }
     }
     if (count > 1) {
-      newArrayListContainer = [];
+      var newArrayListContainer = [];
       newArrayListContainer.push(newArrayList);
       return newArrayListContainer;
     } else {
@@ -773,11 +787,86 @@ function SpiderChart(graphObject) {
     .attr("width",  cfg.w + cfg.margin.left + cfg.margin.right)
     .attr("height", cfg.h + cfg.margin.top + cfg.margin.bottom)
     .attr("class", "radar"+graphObject.id);
-    // hier wordt niet de breedte gezet
+
+    console.log(svg.select('.legend'));
+    if (d3.select('.legend').empty()) {
+
+      d3.select('svg').remove('.legend');
+    }
+
+    var LegendOptions = [];
+    var legend;
+    if (graphObject.level > 0) {
+      if (graphObject.clickedSituation !== false) {
+        console.log('test');
+        LegendOptions = [];
+        LegendOptions.push(graphObject.dataset[graphObject.clickedSituation][0].name);
+        //Initiate Legend
+        var legend = svg.append("g")
+        .attr("class", "legend")
+        .attr("height", 100)
+        .attr("width", cfg.w)
+        .attr('transform', 'translate(20,40)')
+        ;
+        //Create colour squares
+        legend.selectAll('rect')
+        .data(LegendOptions)
+        .enter()
+        .append("rect")
+        .attr("x", 0)
+        .attr("y", function(d, i){ return i * 20;})
+        .attr("width", 10)
+        .attr("height", 10)
+        .style("fill", function(d, i){ return  cfg.color(graphObject.clickedSituation);})
+        ;
+        //Create text next to squares
+        legend.selectAll('text')
+        .data(LegendOptions)
+        .enter()
+        .append("text")
+        .attr("x", 17)
+        .attr("y", function(d, i){ return i * 20 + 9;})
+        .attr("font-size", "11px")
+        .attr("fill", "#737373")
+        .text(function(d) { return d; });
+      } else {
+        LegendOptions = [];
+        for (var i = 0; i < graphObject.dataset.length; i++) {
+          LegendOptions.push(graphObject.dataset[i][0].name);
+        }
+        //Initiate Legend
+        var legend = svg.append("g")
+        .attr("class", "legend")
+        .attr("height", 100)
+        .attr("width", cfg.w)
+        .attr('transform', 'translate(20,40)')
+        ;
+        //Create colour squares
+        legend.selectAll('rect')
+        .data(LegendOptions)
+        .enter()
+        .append("rect")
+        .attr("x", 0)
+        .attr("y", function(d, i){ return i * 20;})
+        .attr("width", 10)
+        .attr("height", 10)
+        .style("fill", function(d, i){ return  cfg.color(i);})
+        ;
+        //Create text next to squares
+        legend.selectAll('text')
+        .data(LegendOptions)
+        .enter()
+        .append("text")
+        .attr("x", 17)
+        .attr("y", function(d, i){ return i * 20 + 9;})
+        .attr("font-size", "11px")
+        .attr("fill", "#737373")
+        .text(function(d) { return d; });
+      }
 
 
-
-      var LegendOptions = [];
+    } else {
+      LegendOptions = [];
       for (var i = 0; i < graphObject.dataset.length; i++) {
         LegendOptions.push(graphObject.dataset[i][0].name);
       }
@@ -809,6 +898,9 @@ function SpiderChart(graphObject) {
       .attr("font-size", "11px")
       .attr("fill", "#737373")
       .text(function(d) { return d; });
+    }
+
+
 
 
     if (graphObject.level > 0) {
@@ -996,7 +1088,6 @@ function SpiderChart(graphObject) {
       blobWrapper[0][i].addEventListener('mouseover', mouseOverFunction.bind({svg:svg,path:blobWrapper[0][i]}))
       blobWrapper[0][i].addEventListener('mouseout', (function(){
         //Bring back all blobs
-        // console.log(this);
         this.selectAll(".radarArea")
         .transition().duration(200)
         .style("fill-opacity", cfg.opacityArea);
@@ -1103,7 +1194,7 @@ function SpiderChart(graphObject) {
         if (!graphObject.clickedSituation) {
           tooltipContainer.style("fill", cfg.color(j));
         } else {
-        tooltipContainer.style("fill", cfg.color(graphObject.clickedSituation));
+          tooltipContainer.style("fill", cfg.color(graphObject.clickedSituation));
         }
       } else {
         tooltipContainer.style("fill", cfg.color(j));
@@ -1127,16 +1218,12 @@ function SpiderChart(graphObject) {
           this._fillSpider(this.graphObject);
           this.Update();
         }
-
-
         // level = 1;
         // catName = "";
         //
 
       }).bind(this));
     }).bind(this));
-
-
 
     //Set up the small tooltip for when you hover over a circle
     var tooltipContainer = g.append("circle").attr("class", "tooltipcontainer").style("opacity", 1);
@@ -1152,12 +1239,7 @@ function SpiderChart(graphObject) {
       g.select('.tooltip').style("opacity", 0);
     }).bind(g));
 
-
-
-
   }
-
-
 }
 // function createNextChart(level,catName) {
 //   nieuweLijst = [];
