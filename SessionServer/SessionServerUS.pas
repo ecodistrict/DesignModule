@@ -1722,7 +1722,11 @@ begin
   end
   else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   fPreLoadScenarios := aPreLoadScenarios;
-  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, 0, False, False, False, False, addBasicLayers, aMaxNearestObjectDistanceInMeters); //1, True, True, True);
+  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName,
+    aTilerFQDN, aTilerStatusURL,
+    aDBConnection,
+    0, False, False, False, False, addBasicLayers, '',
+    aMaxNearestObjectDistanceInMeters);
 end;
 
 destructor TUSProject.Destroy;

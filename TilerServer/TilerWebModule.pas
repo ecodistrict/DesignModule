@@ -656,9 +656,6 @@ implementation
 
 {$R *.dfm}
 
-var
-  dotFormat: TFormatSettings;
-
 //latToY: function(lat) { return Math.round(this.glOffset - this.glRadius * Math.log((1 + Math.sin(lat * this.p)) / (1 - Math.sin(lat * this.p))) / 2); }
 
 function LatToMercator(aLat: Double): Double;
@@ -4625,8 +4622,6 @@ var
   threadCount: Integer;
 initialization
   globalModelAndLayersLock.Create;
-
-  dotFormat.DecimalSeparator := '.';
 
   FileLogger.MakeModuleFileName;
   FileLogger.SetLogDef(AllLogLevels, [llsTime, llsThreadID]);

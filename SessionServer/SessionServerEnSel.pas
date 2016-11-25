@@ -18,6 +18,7 @@ uses
 
   GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
 
+  System.Classes,
   System.JSON,
   System.Generics.Collections,
   System.SysUtils;
@@ -28,15 +29,18 @@ uses
 }
 
 const
+
   sensordata_longitude             = 129;               //tag 16
   sensordata_latitude              = 121;               //tag 15
-  sensordata_nox                   = 2561;              //tag 320
+
   sensordata_pm10                  = 1441;              //tag 180
   sensordata_pm25                  = 1601;              //tag 200
   sensordata_no2                   = 961;               //tag 240
   sensordata_pm1                   = 2081;              //tag 260
   sensordata_nh3                   = 2241;              //tag 280
   sensordata_pnc                   = 2401;              //tag 300
+  sensordata_nox                   = 2561;              //tag 320
+
   sensordata_pm10_total            = 1449;              //tag 181
   sensordata_pm25_total            = 1609;              //tag 201
   sensordata_no2_total             = 969;               //tag 241
@@ -53,32 +57,36 @@ const
   sensordata_assim_no2_total       = 985;               //tag 243
   sensordata_assim_pm1_total       = 2105;              //tag 263
 
-const meteodata_stationid = 114;
-const meteodata_timeutc = 121;
-const meteodata_winddirection = 129;
-const meteodata_windspeed = 137;
-const meteodata_gust = 145;
-const meteodata_temperature = 153;
-const meteodata_minimumtemperature = 161;
-const meteodata_dewpoint = 169;
-const meteodata_sunshine = 177;
-const meteodata_globalradiation = 185;
-const meteodata_precipitationduration = 193;
-const meteodata_precipitation = 201;
-const meteodata_pressureatsealevel = 209;
-const meteodata_moninobukhovlength = 217;
-const meteodata_mixinglayerheight = 225;
-const meteodata_visibility = 232;
-const meteodata_cloudiness = 240;
-const meteodata_relativehumidity = 248;
-const meteodata_weathercode1 = 256;
-const meteodata_weathercode2 = 264;
-const meteodata_fog = 272;
-const meteodata_rainfall = 280;
-const meteodata_snow = 288;
-const meteodata_thunder = 296;
-const meteodata_iceformation = 304;
+  meteodata_winddirection = 129;
+  meteodata_windspeed = 137;
+  meteodata_gust = 145;
+  meteodata_temperature = 153;
+  meteodata_minimumtemperature = 161;
+  meteodata_dewpoint = 169;
+  meteodata_sunshine = 177;
+  meteodata_globalradiation = 185;
+  meteodata_precipitationduration = 193;
+  meteodata_precipitation = 201;
+  meteodata_pressureatsealevel = 209;
+  meteodata_moninobukhovlength = 217;
+  meteodata_mixinglayerheight = 225;
+  meteodata_visibility = 232;
+  meteodata_cloudiness = 240;
+  meteodata_relativehumidity = 248;
+  meteodata_weathercode1 = 256;
+  meteodata_weathercode2 = 264;
+  meteodata_fog = 272;
+  meteodata_rainfall = 280;
+  meteodata_snow = 288;
+  meteodata_thunder = 296;
+  meteodata_iceformation = 304;
 
+  kpi_road_segment_id = 2880;      // tag 360
+  kpi_TransportMode = 3042;        //tag 380
+  kpi_ComponentName = 3202;        //tag 400
+  kpi_Time_Category = 3362;        //tag 420
+  kpi_avg_concentration = 3521;    //tag 440
+  kpi_duration = 3681;             //tag 460
 
 type
   TEnselTileLayer = class(TLayer)
@@ -102,7 +110,7 @@ type
     procedure RegisterLayer; override;
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
-    procedure signalInquire(const aQuery: string='');
+    //procedure signalInquire(const aQuery: string='');
   end;
 
   {
@@ -136,6 +144,7 @@ type
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean);
   private
     fEvent: TEventEntry;
+    fEventHandler: TOnEvent;
 //    fPalette: TWDPalette;
   public
     procedure HandleEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
@@ -148,18 +157,84 @@ type
     function SliceType: Integer; override;
   end;
 
-  TEnselWindData = class
-  constructor Create(aProject: TProject);
+  TEnselMobileSensorLayer  = class(TLayer)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
   destructor Destroy; override;
   private
+    fEvent: TEventEntry;
+    fEventHandler: TOnEvent;
+    fPalette: TWDPalette;
+    fChart: TChartLines;
+    procedure AddPoint(aObjectID: TGUID; aTimeStamp, aLat, aLon: Double; aSubstance: UInt32; aValue: Double);
+  public
+    procedure HandleEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+  public
+    function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
+  public
+    procedure RegisterLayer; override;
+    procedure RegisterSlice; override;
+    function SliceType: Integer; override;
+  end;
+
+  TEnselWindData = class
+  constructor Create(aProject: TProject);
+  private
     fDataEvent: TEventEntry;
-    fProject: TProject;
-    timeutc: double;
-    winddirection: double;
-    windspeed: double;
+    fProject: TProject; // ref
+    fTimestamp: double; // UTC
+    fWindDirection: double;
+    fWindSpeed: double;
     procedure handleMeteoDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
   public
     property project: TProject read fProject;
+  end;
+
+  TSpiderCategory = class
+  constructor Create(const aCategory: string{; aValue: Double});
+  destructor Destroy; override;
+  private
+    fCategory: string;
+    //fValue: Double;
+    fSubcategoriesValues: TDictionary<string, double>;
+  public
+    property category: string read fCategory;
+    //property value: Double read fValue write fValue;
+    property subcategoriesValues: TDictionary<string, double>  read fSubcategoriesValues;
+    function maxValue: Double;
+    procedure normalize(aMaxValue: Double);
+  end;
+
+  TSpiderChart  = class(TChart)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
+  destructor Destroy; override;
+  private
+    fData: TObjectDictionary<string, TObjectDictionary<string, TSpiderCategory>>;
+    fWidth: Integer;
+    fHeight: Integer;
+    fLabels: Boolean;
+    fLegend: Boolean;
+    fMaxValue: Double;
+  protected
+    function getJSON: string; override;
+    function getJSONData: string; override;
+  public
+    property data: TObjectDictionary<string, TObjectDictionary<string, TSpiderCategory>> read fData;
+    procedure AddorSetCategory(const aName, aCategory: string{;  aValue: Double});
+    procedure AddOrSetSubCategory(const aName, aCategory, aSubCategory: string;  aValue: Double);
+    procedure normalize;
+  end;
+
+  TEnselSpiderChart = class(TSpiderChart)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aDataEvent: TEventEntry;
+    aSegment: Integer; const aComponent: string);
+  destructor Destroy; override;
+  private
+    fDataEvent: TEventEntry;
+    fDataEventHandler: TOnEvent;
+    fSegment: Integer;
+    fComponent: string;
+    procedure handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
   end;
 
   TEnselScenario = class(TScenario)
@@ -226,6 +301,77 @@ type
 
 
 implementation
+
+function CreateNiekPalette(const aTitle: string): TWDPalette;
+begin
+  Result := TRampPalette.Create(aTitle, [
+    TRampPaletteEntry.Create($Ff00AF00, 0, '0'),
+    TRampPaletteEntry.Create($FF00C800, 5, '5'),
+    TRampPaletteEntry.Create($FF00E100, 10, '10'),
+    TRampPaletteEntry.Create($FF32FF32, 15, '15'),
+    TRampPaletteEntry.Create($FF7DFF4B, 20, '20'),
+    TRampPaletteEntry.Create($FFC8FF4B, 25, '25'),
+    TRampPaletteEntry.Create($FFF2FF4B, 30, '30'),
+    TRampPaletteEntry.Create($FFFFFA01, 35, '35'),
+    TRampPaletteEntry.Create($FFFFE101, 40, '40'),
+    TRampPaletteEntry.Create($FFFFC801, 45, '45'),
+    TRampPaletteEntry.Create($FFFFAF01, 50, '50'),
+    TRampPaletteEntry.Create($FFFF9601, 55, '55'),
+    TRampPaletteEntry.Create($FFFF7D01, 60, '60'),
+    TRampPaletteEntry.Create($FFFF6401, 65, '65'),
+    TRampPaletteEntry.Create($FFFF4B01, 70, '70'),
+    TRampPaletteEntry.Create($FFFF0000, 75, '75')],
+      $FF00AF00,
+      $00000000,
+      $FFFF0000);
+end;
+
+function CreateNO2Palette: TWDPalette;
+begin
+  Result :=
+    TRampPalette.Create('NO2',
+      [
+        TRampPaletteEntry.Create($Ff002BF7, 0, '0'),
+        TRampPaletteEntry.Create($FFC4ECFD, 30, '30'),
+        TRampPaletteEntry.Create($FFFFFED0, 30, '30'),
+        TRampPaletteEntry.Create($FFFFFC4D, 57, '57'),
+        TRampPaletteEntry.Create($FFFE7626, 100, '100'),
+        TRampPaletteEntry.Create($FFFF0A17, 150, '150'),
+        TRampPaletteEntry.Create($FFDC0610, 200, '200'),
+        TRampPaletteEntry.Create($FFA21794, 250, '>')
+      ],
+      $FF0020C5,
+      $00000000,
+      $FFA21794);
+end;
+
+function CreatePM10Palette: TWDPalette;
+begin
+  Result :=
+    TRampPalette.Create('PM10',
+      [
+        TRampPaletteEntry.Create($Ff002BF7, 0, '0'),
+        TRampPaletteEntry.Create($FFC4ECFD, 30, '30'),
+        TRampPaletteEntry.Create($FFFFFED0, 30, '30'),
+        TRampPaletteEntry.Create($FFFFFC4D, 57, '57'),
+        TRampPaletteEntry.Create($FFFE7626, 100, '100'),
+        TRampPaletteEntry.Create($FFFF0A17, 150, '150'),
+        TRampPaletteEntry.Create($FFDC0610, 200, '200'),
+        TRampPaletteEntry.Create($FFA21794, 250, '>')
+      ],
+      $FF0020C5,
+      $00000000,
+      $FFA21794);
+end;
+
+function BuildLegendJSON(aPalette: TWDPalette): string;
+begin
+  if aPalette is TRampPalette
+  then Result := BuildRamplLegendJSON(aPalette as TRampPalette)
+  else if aPalette is TDiscretePalette
+  then Result := BuildDiscreteLegendJSON(aPalette as TDiscretePalette, TLegendFormat.lfHorizontal)
+  else Result := '';
+end;
 
 
 { TEnselTileLayer }
@@ -349,15 +495,15 @@ begin
   if Assigned(fPalette)
   then tilerLayer.signalAddSlice(fPalette.Clone)
   else tilerLayer.signalAddSlice(nil);
-  signalInquire(); // layer is defined on tiler so now we are ready to send inquire signal
+  //signalInquire(); // layer is defined on tiler so now we are ready to send inquire signal
 end;
 
-procedure TEnselTileLayer.signalInquire(const aQuery: string);
-begin
-  fDataEvent.signalEvent(
-    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateDataEvent.eventName)+
-    TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, aQuery));
-end;
+//procedure TEnselTileLayer.signalInquire(const aQuery: string);
+//begin
+//  fDataEvent.signalEvent(
+//    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateDataEvent.eventName)+
+//    TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, aQuery));
+//end;
 
 function TEnselTileLayer.SliceType: Integer;
 begin
@@ -601,7 +747,8 @@ begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"track"', 'Point', ltObject, aShowInDomains, 0);
   // Track
   fEvent := scenario.project.connection.Subscribe('track');
-  fEvent.OnEvent.Add(HandleEvent);
+  fEventHandler := HandleEvent;
+  fEvent.OnEvent.Add(fEventHandler);
   {
   // legend
   SetLength(entries, 6);
@@ -662,6 +809,7 @@ end;
 procedure TEnselTrackLayer.HandleEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
 begin
   // todo: build track
+
 end;
 
 procedure TEnselTrackLayer.RegisterLayer;
@@ -689,12 +837,6 @@ begin
   fDataEvent.OnEvent.Add(handleMeteoDataEvent);
 end;
 
-destructor TEnselWindData.Destroy;
-begin
-  //
-  inherited;
-end;
-
 procedure TEnselWindData.handleMeteoDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
 var
   fieldInfo: UInt32;
@@ -703,17 +845,279 @@ begin
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
     case fieldInfo of
-      meteodata_timeutc:
-        timeutc := aPayload.bb_read_double(aCursor);
+      ((icehWorldCommandBase+2) shl 3) or wt64Bit:
+        fTimestamp := aPayload.bb_read_double(aCursor);
       meteodata_winddirection:
-        winddirection := aPayload.bb_read_double(aCursor);
+        fWindDirection := aPayload.bb_read_double(aCursor);
       meteodata_windspeed:
-        windspeed := aPayload.bb_read_double(aCursor);
+        fWindSpeed := aPayload.bb_read_double(aCursor);
     else
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
     end;
   end;
-  project.SendString('{"winddata":{"speed":'+windspeed.ToString(dotFormat)+',"direction":'+winddirection.ToString(dotFormat)+',"time":"'+FormatDateTime('yyyy-mm-dd hh:nn:ss', timeutc)+'"}}');
+  project.SendString('{"winddata":{"speed":'+fWindSpeed.ToString(dotFormat)+',"direction":'+fWindDirection.ToString(dotFormat)+',"time":"'+FormatDateTime(isoDateTimeFormat, fTimestamp)+'"}}');
+end;
+
+{ TSpiderCategory }
+
+constructor TSpiderCategory.Create(const aCategory: string{; aValue: Double});
+begin
+  inherited Create;
+  fCategory  := aCategory;
+  //fValue := aValue;
+  fSubcategoriesValues  := TDictionary<string, double>.Create;
+end;
+
+destructor TSpiderCategory.Destroy;
+begin
+  FreeAndNil(fSubcategoriesValues);
+  inherited;
+end;
+
+function TSpiderCategory.maxValue: Double;
+var
+  sv: TPair<string, Double>;
+begin
+  Result := Double.NaN;
+  for sv in subcategoriesValues do
+  begin
+    if Result.IsNan or (Result<sv.Value)
+    then Result := sv.Value;
+  end;
+end;
+
+procedure TSpiderCategory.normalize(aMaxValue: Double);
+var
+  sv: TPair<string, Double>;
+begin
+  if not Double.IsNaN(aMaxValue) then
+  begin
+    for sv in subcategoriesValues do
+    begin
+      if not Double.IsNaN(sv.Value)
+      then subcategoriesValues[sv.Key] := 10*sv.Value/aMaxValue;
+    end;
+  end;
+end;
+
+{ TSpiderChart }
+
+procedure TSpiderChart.AddorSetCategory(const aName, aCategory: string{; aValue: Double});
+var
+  categories: TObjectDictionary<string, TSpiderCategory>;
+  cat: TSpiderCategory;
+begin
+  if not fData.TryGetValue(aName, categories) then
+  begin
+    categories := TObjectDictionary<string, TSpiderCategory>.Create;
+    fData.Add(aName, categories);
+  end;
+  if not categories.TryGetValue(aCategory, cat) then
+  begin
+    cat := TSpiderCategory.Create(aCategory{, aValue});
+    categories.Add(aCategory, cat);
+  end;
+  //else cat.value := aValue;
+end;
+
+procedure TSpiderChart.AddOrSetSubCategory(const aName, aCategory, aSubCategory: string; aValue: Double);
+var
+  categories: TObjectDictionary<string, TSpiderCategory>;
+  cat: TSpiderCategory;
+begin
+  if not fData.TryGetValue(aName, categories) then
+  begin
+    categories := TObjectDictionary<string, TSpiderCategory>.Create;
+    fData.Add(aName, categories);
+  end;
+  if not categories.TryGetValue(aCategory, cat) then
+  begin
+    cat := TSpiderCategory.Create(aCategory{, double.NaN});
+    categories.Add(aCategory, cat);
+  end;
+  cat.subcategoriesValues.AddOrSetValue(aSubCategory, aValue);
+end;
+
+constructor TSpiderChart.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
+begin
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, 'spider');
+  fData := TObjectDictionary<string, TObjectDictionary<string, TSpiderCategory>>.Create([doOwnsValues]);
+  fWidth := 400;
+  fHeight := 400;
+  fLabels := True;
+  fLegend := True;
+  fMaxValue := 10; // als niet gedefineerd (NaN) pakt hij de maximale van alle values -> 10 is een goede default?
+end;
+
+destructor TSpiderChart.Destroy;
+begin
+  FreeAndNil(fData);
+  inherited;
+end;
+
+function TSpiderChart.getJSON: string;
+begin
+  Result := inherited getJSON;
+  if Result<>''
+  then Result := Result+',';
+  Result := Result+
+    '"level":0'+
+    ',"width":'+fWidth.toString+
+    ',"height":'+fHeight.toString;
+  if fLabels
+  then Result := Result+',"labels":true'
+  else Result := Result+',"labels":false';
+  if fLegend
+  then Result := Result+',"legend":true'
+  else Result := Result+',"legend":false';
+  if not double.IsNan(fMaxValue)
+  then Result := Result+ ',"maxValue":'+fMaxValue.toString(dotFormat);
+end;
+
+function TSpiderChart.getJSONData: string;
+var
+  cat: Tpair<string, TSpiderCategory>;
+  //subcat: TPair<string, Double>;
+  subcatsJSON: string;
+  //8res: string;
+  d: TPair<string, TObjectDictionary<string, TSpiderCategory>>;
+  subcatKeys: TStringList;
+  subcatKey: string;
+begin
+  normalize;
+  Result := '';
+  for d in fData do
+  begin
+    subcatsJSON := '';
+    for cat in d.value do
+    begin
+      //for c in cat. := Low to High do
+
+      subcatKeys := TStringList.Create;
+      try
+        for subcatKey in cat.Value.subcategoriesValues.keys
+        do subcatKeys.Add(subcatKey);
+        subcatKeys.Sort;
+        for subcatKey in subcatKeys do
+        begin
+          if subcatsJSON<>''
+          then subcatsJSON := subcatsJSON+',';
+          subcatsJSON := subcatsJSON+'{'+
+            '"name":"' +d.Key+'" ,'+
+            '"cat":"'+cat.Value.category+'",'+
+            //'"catvalue":'+cat.Value.value.ToString(dotFormat)+','+
+            '"subcat":"'+subcatKey+'",'+
+            '"value":'+cat.Value.subcategoriesValues[subcatKey].ToString(dotFormat)+'}';
+        end;
+      finally
+        subcatKeys.Free;
+      end;
+    end;
+    if Result<>''
+    then Result := Result+',';
+    Result := Result+'['+subcatsJSON+']';
+  end;
+end;
+
+procedure TSpiderChart.normalize;
+var
+  nc: TPair<string, TObjectDictionary<string, TSpiderCategory>>;
+  cat: TPair<string,TSpiderCategory>;
+  tmv: Double;
+  mv: Double;
+begin
+  for nc in data do
+  begin
+    // calc total max value
+    tmv := Double.NaN;
+    for cat in nc.Value do
+    begin
+      mv := cat.value.maxValue;
+      if not Double.IsNaN(mv) then
+      begin
+        if Double.IsNaN(tmv)
+        then tmv := mv
+        else if tmv<mv
+        then tmv := mv;
+      end;
+    end;
+    if (not Double.IsNaN(tmv)) and (tmv<>0) then
+    begin
+      for cat in nc.Value
+      do cat.Value.normalize(tmv);
+    end;
+  end;
+end;
+
+{ TEnselSpiderChart }
+
+constructor TEnselSpiderChart.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aDataEvent: TEventEntry; aSegment: Integer; const aComponent: string);
+begin
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad);
+  fSegment := aSegment;
+  fComponent := aComponent;
+  fDataEvent := aDataEvent;
+  fDataEventHandler := handleDataEvent;
+  fDataEvent.OnEvent.Add(fDataEventHandler);
+end;
+
+destructor TEnselSpiderChart.Destroy;
+begin
+  fDataEvent.OnEvent.Remove(fDataEventHandler);
+  inherited;
+end;
+
+procedure TEnselSpiderChart.handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+var
+  fieldInfo: UInt32;
+  timestamp: Double;
+  roadSegementID: Integer;
+  transportMode: string;
+  componentName: string;
+  TimeCategory: string;
+  AvgConcentration: Double;
+  duration: Double;
+  objectID: TGUID;
+begin
+  duration := 0;
+  AvgConcentration := 0;
+  while aCursor<aLimit do
+  begin
+    fieldInfo := aPayload.bb_read_uint32(aCursor);
+    case fieldInfo of
+      (icehObjectID shl 3) or wtLengthDelimited:
+        objectID := aPayload.bb_read_guid(aCursor);
+      ((icehWorldCommandBase+2) shl 3) or wt64Bit: // time stamp
+        timestamp := aPayload.bb_read_double(aCursor);
+      kpi_road_segment_id:
+        roadSegementID := aPayload.bb_read_int32(aCursor);
+      kpi_TransportMode:
+        transportMode :=  aPayload.bb_read_string(aCursor);
+      kpi_ComponentName:
+        componentName :=  aPayload.bb_read_string(aCursor);
+      kpi_Time_Category:
+        TimeCategory :=  aPayload.bb_read_string(aCursor);
+      kpi_avg_concentration:
+        begin
+          AvgConcentration := aPayload.bb_read_double(aCursor);
+          if componentName=fComponent then
+          begin
+            AddOrSetSubCategory('Average '+componentName, transportMode, TimeCategory, AvgConcentration);
+            AddOrSetSubCategory('Average exposure', transportMode, TimeCategory, AvgConcentration*duration);
+          end;
+        end;
+      kpi_duration:
+        begin
+          duration := aPayload.bb_read_double(aCursor);
+          if componentName=fComponent then
+          begin
+            AddOrSetSubCategory('Average time', transportMode, TimeCategory, duration);
+          end;
+        end;
+    else
+      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
+    end;
+  end;
 end;
 
 { TEnselScenario }
@@ -734,56 +1138,12 @@ begin
   layer.RegisterLayer;
 end;
 
-function CreateNO2Palette: TWDPalette;
-begin
-  Result :=
-    TRampPalette.Create('NO2',
-      [
-        TRampPaletteEntry.Create($Ff002BF7, 0, '0'),
-        TRampPaletteEntry.Create($FFC4ECFD, 30, '30'),
-        TRampPaletteEntry.Create($FFFFFED0, 30, '30'),
-        TRampPaletteEntry.Create($FFFFFC4D, 57, '57'),
-        TRampPaletteEntry.Create($FFFE7626, 100, '100'),
-        TRampPaletteEntry.Create($FFFF0A17, 150, '150'),
-        TRampPaletteEntry.Create($FFDC0610, 200, '200'),
-        TRampPaletteEntry.Create($FFA21794, 250, '>')
-      ],
-      $FF0020C5,
-      $00000000,
-      $FFA21794);
-end;
-
-function CreatePM10Palette: TWDPalette;
-begin
-  Result :=
-    TRampPalette.Create('PM10',
-      [
-        TRampPaletteEntry.Create($Ff002BF7, 0, '0'),
-        TRampPaletteEntry.Create($FFC4ECFD, 30, '30'),
-        TRampPaletteEntry.Create($FFFFFED0, 30, '30'),
-        TRampPaletteEntry.Create($FFFFFC4D, 57, '57'),
-        TRampPaletteEntry.Create($FFFE7626, 100, '100'),
-        TRampPaletteEntry.Create($FFFF0A17, 150, '150'),
-        TRampPaletteEntry.Create($FFDC0610, 200, '200'),
-        TRampPaletteEntry.Create($FFA21794, 250, '>')
-      ],
-      $FF0020C5,
-      $00000000,
-      $FFA21794);
-end;
-
-function BuildLegendJSON(aPalette: TWDPalette): string;
-begin
-  if aPalette is TRampPalette
-  then Result := BuildRamplLegendJSON(aPalette as TRampPalette)
-  else if aPalette is TDiscretePalette
-  then Result := BuildDiscreteLegendJSON(aPalette as TDiscretePalette, TLegendFormat.lfHorizontal)
-  else Result := '';
-end;
-
 procedure TEnselScenario.ReadBasicData;
 var
   palette: TWDPalette;
+  spider: TEnselSpiderChart;
+  layer: TEnselMobileSensorLayer;
+  mobileChart: TChartLines;
 //var
 //  layer: TLayer;
 //  palette: TDiscretePalette;
@@ -820,20 +1180,70 @@ begin
   // Personal exposure
   // Group exposure
 
-  palette := CreateNO2Palette;
+
+  palette := CreateNiekPalette('NO2');//  CreateNO2Palette;
   addConcentrationLayer(
     'Group exposure', 'no2', 'NO2', 'Total exposure to NO2', false,
     sensordata_no2_total, 'receptordata', palette, BuildLegendJSON(palette));
 
-  palette := CreatePM10Palette;
+  palette := CreateNiekPalette('PM10'); // CreatePM10Palette;
   addConcentrationLayer(
     'Group exposure', 'pm10', 'PM10', 'Total exposure to PM10', false,
     sensordata_pm10_total, 'receptordata', palette, BuildLegendJSON(palette));
 
-  palette := CreateNO2Palette;
+  palette := CreateNiekPalette('NO2'); // CreateNO2Palette;
   addConcentrationLayer(
     'Group exposure',  'no2assim', 'NO2 assim', 'Total assimilated exposure to NO2', false,
     sensordata_assim_no2_total, 'receptordata', palette, BuildLegendJSON(palette));
+
+  palette := CreateNiekPalette('PM10'); // CreatePM10Palette;
+  addConcentrationLayer(
+    'Group exposure', 'pm10assim', 'PM10 assim', 'Total assimilated exposure to PM10', false,
+    sensordata_assim_pm10_total, 'receptordata', palette, BuildLegendJSON(palette));
+
+
+  //spider := TEnselSpiderChart.Create(Self, 'Group exposure per segment', 'spiderseg', 'Group NO2 exposure by mode of transport (MOT) per segment', '', False,
+  //  project.Connection.subscribe('ensel_kpi_group_segments'), 1, 'no2'); // per segment
+
+  spider := TEnselSpiderChart.Create(Self, 'Group exposure', 'spiderNO2', 'Group NO2 exposure by mode of transport (MOT)', '', False,
+    project.Connection.subscribe('ensel_kpi_group'), -1, 'no2'); // all
+  AddChart(spider);
+  //spider := TEnselSpiderChart.Create(Self, 'Group exposure per segment', 'spiderseg', 'Group NO2 exposure by mode of transport (MOT) per segment', '', False,
+  //  project.Connection.subscribe('ensel_kpi_group_segments'), 1, 'no2'); // per segment
+
+  spider := TEnselSpiderChart.Create(Self, 'Group exposure', 'spiderPM10', 'Group PM10 exposure by mode of transport (MOT)', '', False,
+    project.Connection.subscribe('ensel_kpi_group'), -1, 'pm10'); // all
+  AddChart(spider);
+
+  mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts', 'Mobile sensors', '', False, 'line',
+
+    TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+    [TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')]);
+
+  //AddChart(mobileChart);
+
+  palette := CreateNiekPalette('NO2');//  CreateNO2Palette;
+  layer := TEnselMobileSensorLayer.Create(Self, 'Personal exposure', 'mobilesensors', 'Mobile sensors', '', false, true, palette, BuildLegendJSON(palette), mobileChart);
+  AddLayer(layer);
+  layer.RegisterLayer;
+
+
+//  spider.AddOrSetCategory('avg NO2', 'bike', Double.NaN);
+//  spider.AddOrSetCategory('avg NO2','walk', Double.NaN);
+//  spider.AddOrSetCategory('avg NO2', 'motorized', Double.NaN);
+//  spider.AddOrSetCategory('avg NO2', 'other', Double.NaN);
+
+//  spider.AddOrSetCategory('avg time', 'bike', Double.NaN);
+//  spider.AddOrSetCategory('avg time', 'walk', Double.NaN);
+//  spider.AddOrSetCategory('avg time', 'motorized', Double.NaN);
+//  spider.AddOrSetCategory('avg time', 'other', Double.NaN);
+
+//  spider.AddOrSetCategory('avg exposure', 'bike', Double.NaN);
+//  spider.AddOrSetCategory('avg exposure', 'walk', Double.NaN);
+//  spider.AddOrSetCategory('avg exposure', 'motorized', Double.NaN);
+//  spider.AddOrSetCategory('avg exposure', 'other', Double.NaN);
+
+
 
 
 
@@ -965,5 +1375,147 @@ begin
   inherited;
 end;
 
+
+{ TEnselMobileSensorLayer }
+
+constructor TEnselMobileSensorLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad,
+  aShowInDomains: Boolean; aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
+begin
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"mobilesensor"', 'Point', ltObject, aShowInDomains, 0);
+  // mobile sensor points
+  fChart := aChart;
+  fPalette :=  aPalette;
+  fLegendJSON := aLegendJSON;
+  fEvent := scenario.project.connection.Subscribe('mobilesensordata');
+  fEventHandler := HandleEvent;
+  fEvent.OnEvent.Add(fEventHandler);
+end;
+
+destructor TEnselMobileSensorLayer.Destroy;
+begin
+  if Assigned(fEvent) then
+  begin
+    if fEvent.OnEvent.Contains(fEventHandler)
+    then fEvent.OnEvent.Remove(fEventHandler);
+  end;
+  inherited;
+end;
+
+function TEnselMobileSensorLayer.HandleClientSubscribe(aClient: TClient): Boolean;
+begin
+  Result := True;
+end;
+
+function TEnselMobileSensorLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
+begin
+  Result := True;
+end;
+
+procedure TEnselMobileSensorLayer.AddPoint(aObjectID: TGUID; aTimeStamp, aLat, aLon: Double; aSubstance: UInt32; aValue: Double);
+var
+  wdid: TWDID;
+  geometryPoint: TWDGeometryPoint;
+  o: TLayerObject;
+begin
+  //wdid := TWDID(aObjectID.ToString());
+  wdid := TWDID(TGUID.NewGuid.ToString);
+  //if not objects.TryGetValue(wdid, o) then
+  //begin
+  geometryPoint := TWDGeometryPoint.Create;
+  geometryPoint.x := aLon;
+  geometryPoint.y := aLat;
+  AddObject(TGeometryPointLayerObject.Create(Self, wdid, geometryPoint, aValue));
+  fChart.AddValue(aTimeStamp, [aValue]);
+//  end
+//  else
+//  begin
+//    o
+//  end;
+end;
+
+procedure TEnselMobileSensorLayer.HandleEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+var
+  fieldInfo: UInt32;
+  objectID: TGUID;
+  timestamp: Double;
+  lon: double;
+  lat: double;
+//  pm1: double;
+//  pm10: double;
+  no2: double;
+//  pm25: double;
+//  co2: double;
+begin
+  while aCursor<aLimit do
+  begin
+    fieldInfo := aPayload.bb_read_uint32(aCursor);
+    case fieldInfo of
+      (icehObjectID shl 3) or wtLengthDelimited:
+        objectID := aPayload.bb_read_guid(aCursor);
+      ((icehWorldCommandBase+2) shl 3) or wt64Bit: // time stamp
+        timestamp := aPayload.bb_read_double(aCursor);
+      sensordata_longitude:
+        lon := aPayload.bb_read_double(aCursor);
+      sensordata_latitude:
+        lat := aPayload.bb_read_double(aCursor);
+      sensordata_no2:
+        begin
+          no2 := aPayload.bb_read_double(aCursor);
+          AddPoint(objectID, timestamp, lat, lon, sensordata_no2, no2);
+        end;
+
+      {
+      sensordata_pm1:
+        pm1 := aPayload.bb_read_double(aCursor);
+      sensordata_pm10:
+        pm10  := aPayload.bb_read_double(aCursor);
+      sensordata_pm25:
+        pm25 := aPayload.bb_read_double(aCursor);
+      137: // CO2
+        co2 := aPayload.bb_read_double(aCursor);
+      }
+
+
+      {
+      kpi_road_segment_id:
+        roadSegementID := aPayload.bb_read_int32(aCursor);
+      kpi_TransportMode:
+        transportMode :=  aPayload.bb_read_string(aCursor);
+      kpi_ComponentName:
+        componentName :=  aPayload.bb_read_string(aCursor);
+      kpi_Time_Category:
+        TimeCategory :=  aPayload.bb_read_string(aCursor);
+      kpi_avg_concentration:
+        begin
+          AvgConcentration := aPayload.bb_read_double(aCursor);
+          AddOrSetSubCategory('Average '+componentName, transportMode, TimeCategory, AvgConcentration);
+          AddOrSetSubCategory('Average exposure', transportMode, TimeCategory, AvgConcentration*duration);
+        end;
+      kpi_duration:
+        begin
+          duration := aPayload.bb_read_double(aCursor);
+          AddOrSetSubCategory('Average time', transportMode, TimeCategory, duration);
+        end;
+      }
+    else
+      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
+    end;
+  end;
+end;
+
+procedure TEnselMobileSensorLayer.RegisterLayer;
+begin
+  RegisterOnTiler(False, SliceType, name, 2500, fPalette);
+end;
+
+procedure TEnselMobileSensorLayer.RegisterSlice;
+begin
+  tilerLayer.signalAddSlice(nil);
+end;
+
+function TEnselMobileSensorLayer.SliceType: Integer;
+begin
+  Result := stLocation;
+end;
 
 end.

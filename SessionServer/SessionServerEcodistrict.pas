@@ -240,7 +240,7 @@ type
     function ReadSchemaNames: TArray<string>;
     function handleTilerStatus(aTiler: TTiler): string;
 
-    procedure handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario); override;
+    procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
 
   public
     //
@@ -1414,7 +1414,8 @@ begin
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
     aDBConnection, aTimeSlider, aSelectionEnabled, aMeasuresEnabled,
-    aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers, aMaxNearestObjectDistanceInMeters);
+    aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers, '',
+    aMaxNearestObjectDistanceInMeters);
   fDIObjectProperties := nil; // TObjectList<TDIObjectProperty>.Create;
   fDMQueries := nil;
   fDIQueries := nil;
@@ -1592,7 +1593,7 @@ begin
   Result := fDMQueries;
 end;
 
-procedure TEcodistrictProject.handleClientMessage(aJSONObject: TJSONObject; aScenario: TScenario);
+procedure TEcodistrictProject.handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject);
 var
   jsonPair: TJSONPair;
   dictScenariosID: string;

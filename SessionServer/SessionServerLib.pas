@@ -535,17 +535,26 @@ type
   TChartValues = TList<TChartValue>;
 
   TChart = class(TScenarioElement)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; const aChartType: string);
+  protected
+    fChartType: string;
+    function getJSON: string; override;
+    function getJSONData: string; virtual; abstract;
+  public
+    property chartType: string read fChartType;
+  end;
+
+  TChartLines = class(TChart)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; const aChartType: string;
     aXAxis: TChartAxis; aYAxes: TArray<TChartAxis>);
   destructor Destroy; override;
   private
-    fChartType: string;
     fXAxis: TChartAxis;
     fYAxes: TObjectList<TChartAxis>;
     fValues: TChartValues;
   protected
     function getJSON: string; override;
-    function getJSONData: string;
+    function getJSONData: string; override;
   public
     property chartType: string read fChartType write fChartType;
     property xAxis: TChartAxis read fXAxis;
@@ -3241,9 +3250,9 @@ begin
   Result := '{"x":'+DoubleToJSON(x)+',"y":['+res+']}';
 end;
 
-{ TChart }
+{ TChartLines }
 
-procedure TChart.AddValue(aX: Double; const aY: TArray<Double>);
+procedure TChartLines.AddValue(aX: Double; const aY: TArray<Double>);
 var
   v: TChartValue;
 begin
@@ -3256,13 +3265,12 @@ begin
     end);
 end;
 
-constructor TChart.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; const aChartType: string;
+constructor TChartLines.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; const aChartType: string;
   aXAxis: TChartAxis; aYAxes: TArray<TChartAxis>);
 var
   axis: TChartAxis;
 begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad);
-  fChartType := aChartType;
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aChartType);
   if Assigned(aXAxis)
   then fXAxis := aXAxis
   else fXAxis := TChartAxis.Create('', '', '', '');
@@ -3272,7 +3280,7 @@ begin
   fValues := TChartValues.Create;
 end;
 
-destructor TChart.Destroy;
+destructor TChartLines.Destroy;
 begin
   inherited;
   FreeAndNil(fXAxis);
@@ -3280,7 +3288,7 @@ begin
   FreeAndNil(fValues);
 end;
 
-function TChart.getJSON: string;
+function TChartLines.getJSON: string;
 var
   axis: TChartAxis;
   res: string;
@@ -3288,7 +3296,6 @@ begin
   Result := inherited getJSON;
   if Result<>''
   then Result := Result+',';
-  Result := Result+'"type":"'+fChartType+'"';
   Result := Result+',"x":'+fXAxis.toJSON;
   res := '';
   for axis in fYAxes do
@@ -3298,12 +3305,9 @@ begin
     res  := res+axis.toJSON;
   end;
   Result := Result+',"y":['+res+']';
-  res := getJSONData;
-  if res<>''
-  then Result := Result+',"data":['+res+']';
 end;
 
-function TChart.getJSONData: string;
+function TChartLines.getJSONData: string;
 var
   v: TChartValue;
 begin
@@ -4401,6 +4405,24 @@ class function TLayerOnZoom.Create(aZoomLevel: Integer; aLayer: TLayer): TLayerO
 begin
   Result.zoomLevel := aZoomLevel;
   Result.layer := aLayer;
+end;
+
+{ TChart }
+
+constructor TChart.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
+  const aChartType: string);
+begin
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad);
+  fChartType := aChartType;
+end;
+
+function TChart.getJSON: string;
+begin
+  Result := inherited;
+  if Result<>''
+  then Result := Result+',';
+  Result := Result+'"type":"'+fChartType+'"';
+  Result := Result+',"data":['+getJSONData+']';
 end;
 
 end.
