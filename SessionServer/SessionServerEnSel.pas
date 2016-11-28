@@ -190,26 +190,34 @@ type
     property project: TProject read fProject;
   end;
 
-  TSpiderCategory = class
-  constructor Create(const aCategory: string{; aValue: Double});
+  TSpiderData = class
+  constructor Create(const aTitle, aAxis: string; aValue: Double);
   destructor Destroy; override;
   private
-    fCategory: string;
-    //fValue: Double;
-    fSubcategoriesValues: TDictionary<string, double>;
+    fTitle: string;
+    fAxis: string;
+    fValue: Double;
+    fCategories: TObjectDictionary<string, TSpiderData>; // key=title
   public
-    property category: string read fCategory;
-    //property value: Double read fValue write fValue;
-    property subcategoriesValues: TDictionary<string, double>  read fSubcategoriesValues;
+    property title: string read fTitle;
+    property axis: string read fAxis;
+    property value: Double read fValue write fValue;
+    property categories: TObjectDictionary<string, TSpiderData> read fCategories;
+
+    function getJSON: string;
+
+    procedure AddOrSetData(const aTitles: TArray<string>; const aAxis: String; aValue: Double);
+
     function maxValue: Double;
-    procedure normalize(aMaxValue: Double);
+    procedure normalize(aMaxValue, aMaxScale: Double); overload; // single
+    procedure normalize(aMaxScale: Double); overload; // recursive
   end;
 
   TSpiderChart  = class(TChart)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
   destructor Destroy; override;
   private
-    fData: TObjectDictionary<string, TObjectDictionary<string, TSpiderCategory>>;
+    fData: TSpiderData;
     fWidth: Integer;
     fHeight: Integer;
     fLabels: Boolean;
@@ -219,9 +227,9 @@ type
     function getJSON: string; override;
     function getJSONData: string; override;
   public
-    property data: TObjectDictionary<string, TObjectDictionary<string, TSpiderCategory>> read fData;
-    procedure AddorSetCategory(const aName, aCategory: string{;  aValue: Double});
-    procedure AddOrSetSubCategory(const aName, aCategory, aSubCategory: string;  aValue: Double);
+    property data: TSpiderData read fData;
+//    procedure AddorSetCategory(const aName, aCategory: string{;  aValue: Double});
+//    procedure AddOrSetSubCategory(const aName, aCategory, aSubCategory: string;  aValue: Double);
     procedure normalize;
   end;
 
@@ -858,63 +866,122 @@ begin
   project.SendString('{"winddata":{"speed":'+fWindSpeed.ToString(dotFormat)+',"direction":'+fWindDirection.ToString(dotFormat)+',"time":"'+FormatDateTime(isoDateTimeFormat, fTimestamp)+'"}}');
 end;
 
-{ TSpiderCategory }
+{ TSpiderData }
 
-constructor TSpiderCategory.Create(const aCategory: string{; aValue: Double});
-begin
-  inherited Create;
-  fCategory  := aCategory;
-  //fValue := aValue;
-  fSubcategoriesValues  := TDictionary<string, double>.Create;
-end;
-
-destructor TSpiderCategory.Destroy;
-begin
-  FreeAndNil(fSubcategoriesValues);
-  inherited;
-end;
-
-function TSpiderCategory.maxValue: Double;
+procedure TSpiderData.AddOrSetData(const aTitles: TArray<string>; const aAxis: String; aValue: Double);
 var
-  sv: TPair<string, Double>;
+  sd: TSpiderData;
+  nextTitles: TArray<string>;
+  i: Integer;
 begin
-  Result := Double.NaN;
-  for sv in subcategoriesValues do
+  if length(aTitles)>0 then
   begin
-    if Result.IsNan or (Result<sv.Value)
-    then Result := sv.Value;
+    if not fCategories.TryGetValue(aTitles[0], sd) then
+    begin
+      sd := TSpiderData.Create(aTitles[0], '', Double.NaN);
+      fCategories.Add(aTitles[0], sd);
+    end;
+    setLength(nextTitles, length(aTitles)-1);
+    for i := 0 to length(nextTitles)-1
+    do nextTitles[i] := aTitles[i+1];
+    sd.AddOrSetData(nextTitles, aAxis, aValue);
+  end
+  else
+  begin
+    fAxis := aAxis;
+    fValue := aValue;
   end;
 end;
 
-procedure TSpiderCategory.normalize(aMaxValue: Double);
-var
-  sv: TPair<string, Double>;
+constructor TSpiderData.Create(const aTitle, aAxis: string; aValue: Double);
 begin
-  if not Double.IsNaN(aMaxValue) then
+  inherited Create;
+  fTitle  := aTitle;
+  fAxis := aAxis;
+  fValue := aValue;
+  fCategories := TObjectDictionary<string, TSpiderData>.Create([doOwnsValues]);
+end;
+
+destructor TSpiderData.Destroy;
+begin
+  FreeAndNil(fCategories);
+  inherited;
+end;
+
+function TSpiderData.getJSON: string;
+var
+  jsonCategories: string;
+  ndp: TPair<string, TSpiderData>;
+begin
+  Result :=
+    '"Title":"'+fTitle+'"'+
+    ',"Axis":"'+fAxis+'"';
+  if not Double.IsNan(fValue)
+  then Result := Result+
+    ',"Value":'+fValue.ToString(dotFormat);
+  jsonCategories := '';
+  for ndp in fCategories do
   begin
-    for sv in subcategoriesValues do
+    if jsonCategories<>''
+    then jsonCategories := jsonCategories+',';
+    jsonCategories := jsonCategories+'{'+ndp.Value.getJSON+'}';
+  end;
+  Result := Result+
+    ',"Cat":['+jsonCategories+']';
+end;
+
+function TSpiderData.maxValue: Double;
+var
+  sv: TPair<string, TSpiderData>;
+begin
+  Result := Double.NaN;
+  for sv in categories do
+  begin
+    if Result.IsNan or (Result<sv.Value.value)
+    then Result := sv.Value.value;
+  end;
+end;
+
+procedure TSpiderData.normalize(aMaxScale: Double);
+// recursive
+var
+  sv: TPair<string, TSpiderData>;
+begin
+  normalize(maxValue, aMaxScale);
+  for sv in categories
+  do sv.Value.normalize(aMaxScale);
+end;
+
+procedure TSpiderData.normalize(aMaxValue, aMaxScale: Double);
+// single
+var
+  sv: TPair<string, TSpiderData>;
+begin
+  if not (Double.IsNaN(aMaxValue) or (aMaxValue=0)) then
+  begin
+    for sv in categories do
     begin
-      if not Double.IsNaN(sv.Value)
-      then subcategoriesValues[sv.Key] := 10*sv.Value/aMaxValue;
+      if not Double.IsNaN(sv.Value.value)
+      then sv.Value.value := aMaxScale*sv.Value.value/aMaxValue;
     end;
   end;
 end;
 
 { TSpiderChart }
-
+(*
 procedure TSpiderChart.AddorSetCategory(const aName, aCategory: string{; aValue: Double});
 var
-  categories: TObjectDictionary<string, TSpiderCategory>;
-  cat: TSpiderCategory;
+  categories: TObjectDictionary<string, TSpiderData>;
+  cat: TSpiderData;
 begin
   if not fData.TryGetValue(aName, categories) then
   begin
-    categories := TObjectDictionary<string, TSpiderCategory>.Create;
+    categories := TObjectDictionary<string, TSpiderData>.Create;
     fData.Add(aName, categories);
   end;
   if not categories.TryGetValue(aCategory, cat) then
   begin
-    cat := TSpiderCategory.Create(aCategory{, aValue});
+    cat := TSpiderData.Create(aCategory, Double.NaN);
     categories.Add(aCategory, cat);
   end;
   //else cat.value := aValue;
@@ -922,26 +989,27 @@ end;
 
 procedure TSpiderChart.AddOrSetSubCategory(const aName, aCategory, aSubCategory: string; aValue: Double);
 var
-  categories: TObjectDictionary<string, TSpiderCategory>;
-  cat: TSpiderCategory;
+  categories: TObjectDictionary<string, TSpiderData>;
+  cat: TSpiderData;
 begin
   if not fData.TryGetValue(aName, categories) then
   begin
-    categories := TObjectDictionary<string, TSpiderCategory>.Create;
+    categories := TObjectDictionary<string, TSpiderData>.Create;
     fData.Add(aName, categories);
   end;
   if not categories.TryGetValue(aCategory, cat) then
   begin
-    cat := TSpiderCategory.Create(aCategory{, double.NaN});
+    cat := TSpiderData.Create(aCategory, double.NaN);
     categories.Add(aCategory, cat);
   end;
   cat.subcategoriesValues.AddOrSetValue(aSubCategory, aValue);
 end;
+*)
 
 constructor TSpiderChart.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
 begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, 'spider');
-  fData := TObjectDictionary<string, TObjectDictionary<string, TSpiderCategory>>.Create([doOwnsValues]);
+  fData := TSpiderData.Create(aName, '', double.NaN);
   fWidth := 400;
   fHeight := 400;
   fLabels := True;
@@ -975,78 +1043,14 @@ begin
 end;
 
 function TSpiderChart.getJSONData: string;
-var
-  cat: Tpair<string, TSpiderCategory>;
-  //subcat: TPair<string, Double>;
-  subcatsJSON: string;
-  //8res: string;
-  d: TPair<string, TObjectDictionary<string, TSpiderCategory>>;
-  subcatKeys: TStringList;
-  subcatKey: string;
 begin
-  normalize;
-  Result := '';
-  for d in fData do
-  begin
-    subcatsJSON := '';
-    for cat in d.value do
-    begin
-      //for c in cat. := Low to High do
-
-      subcatKeys := TStringList.Create;
-      try
-        for subcatKey in cat.Value.subcategoriesValues.keys
-        do subcatKeys.Add(subcatKey);
-        subcatKeys.Sort;
-        for subcatKey in subcatKeys do
-        begin
-          if subcatsJSON<>''
-          then subcatsJSON := subcatsJSON+',';
-          subcatsJSON := subcatsJSON+'{'+
-            '"name":"' +d.Key+'" ,'+
-            '"cat":"'+cat.Value.category+'",'+
-            //'"catvalue":'+cat.Value.value.ToString(dotFormat)+','+
-            '"subcat":"'+subcatKey+'",'+
-            '"value":'+cat.Value.subcategoriesValues[subcatKey].ToString(dotFormat)+'}';
-        end;
-      finally
-        subcatKeys.Free;
-      end;
-    end;
-    if Result<>''
-    then Result := Result+',';
-    Result := Result+'['+subcatsJSON+']';
-  end;
+  fData.normalize(fMaxValue);
+  Result := '{'+fData.getJSON+'}';
 end;
 
 procedure TSpiderChart.normalize;
-var
-  nc: TPair<string, TObjectDictionary<string, TSpiderCategory>>;
-  cat: TPair<string,TSpiderCategory>;
-  tmv: Double;
-  mv: Double;
 begin
-  for nc in data do
-  begin
-    // calc total max value
-    tmv := Double.NaN;
-    for cat in nc.Value do
-    begin
-      mv := cat.value.maxValue;
-      if not Double.IsNaN(mv) then
-      begin
-        if Double.IsNaN(tmv)
-        then tmv := mv
-        else if tmv<mv
-        then tmv := mv;
-      end;
-    end;
-    if (not Double.IsNaN(tmv)) and (tmv<>0) then
-    begin
-      for cat in nc.Value
-      do cat.Value.normalize(tmv);
-    end;
-  end;
+
 end;
 
 { TEnselSpiderChart }
@@ -1102,8 +1106,10 @@ begin
           AvgConcentration := aPayload.bb_read_double(aCursor);
           if componentName=fComponent then
           begin
-            AddOrSetSubCategory('Average '+componentName, transportMode, TimeCategory, AvgConcentration);
-            AddOrSetSubCategory('Average exposure', transportMode, TimeCategory, AvgConcentration*duration);
+            fData.AddOrSetData(['Average '+componentName, transportMode], TimeCategory, AvgConcentration);
+            fData.AddOrSetData(['Average exposure', transportMode], TimeCategory, AvgConcentration);
+            //AddOrSetSubCategory('Average '+componentName, transportMode, TimeCategory, AvgConcentration);
+            //AddOrSetSubCategory('Average exposure', transportMode, TimeCategory, AvgConcentration*duration);
           end;
         end;
       kpi_duration:
@@ -1111,7 +1117,8 @@ begin
           duration := aPayload.bb_read_double(aCursor);
           if componentName=fComponent then
           begin
-            AddOrSetSubCategory('Average time', transportMode, TimeCategory, duration);
+            fData.AddOrSetData(['Average time', transportMode], TimeCategory, duration);
+            //AddOrSetSubCategory('Average time', transportMode, TimeCategory, duration);
           end;
         end;
     else
