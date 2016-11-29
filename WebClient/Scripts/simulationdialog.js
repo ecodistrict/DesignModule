@@ -25,7 +25,31 @@ function openSimulationDialog(e) {
   errorLog.style.display = 'none';
   errorLog.innerHTML = '';
 
+// percentage van auto's
+
 // formElement [string], type [string], required [y/n], optionsArray [false/array], labelText [string], idName [string], extraOptions [false/array-2_Elems] ['steps [int]','postfix' [string]]);
+  var swecoData = [
+    {
+      "formElement":"input",
+      "type":"string",
+      "required":"y",
+      "optionsArray":false,
+      "labelText":"Scenario name",
+      "idName":"scenarioName",
+      "extraOptions":false
+    },
+    {
+      "formElement":"slider",
+      "type":"int",
+      "required":"y",
+      "optionsArray":['0', '100'],
+      "labelText":"percentage of cars",
+      "idName":"PenetrationRateSelect",
+      "extraOptions":[1, '%', true]
+    }
+  ];
+
+
   var data = [
     {
       "formElement":"input",
@@ -65,8 +89,9 @@ function openSimulationDialog(e) {
     }
   ];
 
-  for (var i = 0; i < data.length; i++) {
-    fillOptions(data[i]);
+  for (var i = 0; i < swecoData.length; i++) {
+    // fillOptions(data[i]);
+    fillOptions(swecoData[i]);
   }
 
   var container, optionWrapper, opt;
@@ -262,6 +287,7 @@ function openSimulationDialog(e) {
         step: parseInt(extraOptions[0]),
         behaviour: 'tap',
         extraOption: extraOptions[1],
+        toFraction: extraOptions[2],
         tooltips: true,
         range: {
           'min': parseInt(optionsArray[0]),
@@ -281,7 +307,7 @@ function openSimulationDialog(e) {
 
             if (range.noUiSlider) {
               if (range.noUiSlider.options.extraOption.length > 0) {
-                return Math.round(value.repace(range.noUiSlider.options.extraOption, ''));
+                return Math.round(value.replace(range.noUiSlider.options.extraOption, ''));
               } else {
                 return Math.round(value);
               }
@@ -300,7 +326,13 @@ function openSimulationDialog(e) {
           formattedValue = values[handle];
         }
         if (this.target.parentElement) {
+
+          if (range.noUiSlider.options.toFraction) {
+            formattedValue = formattedValue / 100;
+          }
+
           this.target.parentElement.children[1].value = formattedValue;
+
         }
 
       });
@@ -312,6 +344,9 @@ function openSimulationDialog(e) {
 
 
       sliderInput.addEventListener('change', function () {
+        if (range.noUiSlider.options.toFraction) {
+          this.value = this.value * 100;
+        }
         range.noUiSlider.set(this.value);
       });
 
