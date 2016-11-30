@@ -14,7 +14,23 @@ var graphObjectSpider = {
             "matrix":[
               [
                 { "value": 5 },
-                { "value": 10 },
+                { "value": 10,
+                  "data":{
+                  "title":"Situatie 1 - Intermodel integration",
+                  "labels":["Situatie 1"],
+                  "axes":["Air pollution emissions","Noise hindrance","Heat islands","Green and blue areas","Mobility space uses","Opportunity for active mobility"],
+                  "matrix":[
+                    [
+                      { "value": 3 },
+                      { "value": 5 },
+                      { "value": 7 },
+                      { "value": 4 },
+                      { "value": 4 },
+                      { "value": 4 }
+                    ]
+                  ]
+                } // eo situatie 1 - Quality of life
+                },
                 { "value": 4 },
                 { "value": 3 },
                 { "value": 6 },
@@ -38,7 +54,9 @@ var graphObjectSpider = {
             "axes":["Air pollution emissions","Noise hindrance","Heat islands","Green and blue areas","Mobility space uses","Opportunity for active mobility"],
             "matrix":[
               [
-                { "value": 5 },
+                { "value": 5,
+                  "link" : "test123213"
+                },
                 { "value": 9 },
                 { "value": 8 },
                 { "value": 7 },
@@ -231,7 +249,7 @@ var graphObjectSpider = {
     h: 201,
     maxValue: 10, //What is the value that the biggest circle will represent
     levels: 5, //How many levels or inner circles should there be drawn
-    labelFactor: 1.22, 	//How much farther than the radius of the outer circle should the labels be placed
+    labelFactor: 1.32, 	//How much farther than the radius of the outer circle should the labels be placed
     margin: {top: 100, right: 100, bottom: 100, left: 100},
     roundStrokes: true, //If true the area and stroke will follow a round path (cardinal-closed)
     color: d3.scale.category10(), //Color function
@@ -824,6 +842,17 @@ function SpiderChart(graphObject) {
           this.graphObject.activeNode = new spiderNode(this.clicked.data, this.graphObject, this.graphObject.activeNode);
           this.graphObject.Update();
         }
+        console.log(this.clicked);
+        if (typeof this.clicked.link !== 'undefined') {
+          if (GraphManager._getGraph(this.clicked.link)) {
+            this.graphObject.activeNode = new spiderNode(GraphManager._getGraph(this.clicked.link).graph.activeNode, this.graphObject, this.graphObject.activeNode);
+            this.graphObject.Update();
+          }
+
+
+        }
+
+
       }).bind({graphObject : this, "clicked": clicked}));
     }).bind(this));
 
