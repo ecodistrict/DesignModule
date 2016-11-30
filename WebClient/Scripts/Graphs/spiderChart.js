@@ -6,7 +6,7 @@ var graphObjectSpider = {
     "matrix":[
       [
         {
-          "value":5.6666,
+          "value":8.166666,
           "data":{
             "title":"Situatie 1 - Mobility performance",
             "labels":["Situatie 1","Situatie 2"],
@@ -100,7 +100,7 @@ var graphObjectSpider = {
       ], // eo situatie 1
       [
         {
-          "value":8.166666,
+          "value":5.6666,
           "data":{
             "title":"Situatie 2 - Mobility performance",
             "labels":["Situatie 2"],
@@ -376,11 +376,7 @@ function SpiderChart(graphObject) {
     .attr("class", "gridCircle")
     .attr("r", function(d, i){
       return radius/graph.cfg.levels*d;
-    })
-    .style("fill", "#CDCDCD")
-    .style("stroke", "#CDCDCD")
-    .style("fill-opacity", graph.cfg.opacityCircles)
-    .style("filter" , "url(#glow)");
+    }).style("opacity", "0");
 
     /////////////////////////////////////////////////////////
     //////////////////// Draw the axes //////////////////////
@@ -399,9 +395,8 @@ function SpiderChart(graphObject) {
     .attr("x2", function(d, i){ return rScale(maxValue*1.1) * Math.cos(angleSlice*i - Math.PI/2); })
     .attr("y2", function(d, i){ return rScale(maxValue*1.1) * Math.sin(angleSlice*i - Math.PI/2); })
     .attr("class", "line")
-    .style("stroke", "white")
-    .style("stroke-width", graph.cfg.strokeWidth + "px")
-
+    .style("stroke", "#CDCDCD")
+    .style("stroke-width", "1px")
 
     //The radial line function
     var radarLine = d3.svg.line.radial()
@@ -411,7 +406,6 @@ function SpiderChart(graphObject) {
 
     if(graph.cfg.roundStrokes)
       radarLine.interpolate("cardinal-closed");
-
 
     //Create a wrapper for the blobs
     var blobWrapper = g.selectAll(".radarWrapper")
@@ -429,7 +423,7 @@ function SpiderChart(graphObject) {
     .style("fill-opacity", graph.cfg.opacityArea);
     blobWrapper.style("fill", function(d,i) { return graph.cfg.color(i); })
     .style("stroke", function(d,i) { return graph.cfg.color(i); })
-    .style("stroke-width", graph.cfg.strokeWidth + "px")
+    .style("stroke-width", "1.5px")
 
     //Create the outlines
     blobWrapper.append("path")
@@ -437,20 +431,19 @@ function SpiderChart(graphObject) {
     .attr("d", function(d,i) {
       return radarLine(d);
     })
-    .style("stroke-width", graph.cfg.strokeWidth + "px")
+    .style("stroke-width",  "1.5px")
     .style("fill", "none")
-    .style("filter" , "url(#glow)");
+    .style("filter" , "url(#glow_small)");
 
-    //Append the circles
 
-    blobWrapper.selectAll(".radarCircle")
-    .data(function(d,i) { return d; })
-    .enter().append("circle")
-    .attr("class", "radarCircle")
-    .attr("r", graph.cfg.dotRadius * 0.5)
-    .attr("cx", function(d,i){ return rScale(d.value) * Math.cos(angleSlice*i - Math.PI/2); })
-    .attr("cy", function(d,i){ return rScale(d.value) * Math.sin(angleSlice*i - Math.PI/2); })
-    .style("fill-opacity", 0.8).style("fill", function(d,i,j) { return graph.cfg.color(j); })
+    //Filter for the outside glow
+    var filter = g.append('defs').append('filter').attr('id','glow_small'),
+    feGaussianBlur = filter.append('feGaussianBlur').attr('stdDeviation','0.8').attr('result','coloredBlur'),
+    feMerge = filter.append('feMerge'),
+    feMergeNode_1 = feMerge.append('feMergeNode').attr('in','coloredBlur'),
+    feMergeNode_2 = feMerge.append('feMergeNode').attr('in','SourceGraphic');
+
+
 
   }
   this.GetPreview = function(container)    {
