@@ -592,7 +592,8 @@ var GraphManager = {
 
     _startDrag: function (e) {
 
-
+      if (!GraphManager.dragObject || GraphManager.dragObject.dragging)
+          return
 
         GraphManager.zIndexManager.focus(e.currentTarget.graphID);
 
@@ -663,7 +664,7 @@ var GraphManager = {
             window.addEventListener("mousemove", GraphManager._dragMove);
             window.addEventListener("mouseup", GraphManager._endDrag);
         }
-
+        GraphManager.dragObject.dragging = true;
     },
 
     _dragMove: function (e) {
@@ -716,6 +717,8 @@ var GraphManager = {
     },
 
     _endDrag: function (e) {
+
+        GraphManager.dragObject.dragging = false;
         e.preventDefault();
         e.stopPropagation();
         if (is_touch_device()) {
