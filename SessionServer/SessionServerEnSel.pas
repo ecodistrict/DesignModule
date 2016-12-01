@@ -190,23 +190,39 @@ type
     property project: TProject read fProject;
   end;
 
+  TSpiderData = class;
+
+  TSpiderDataValue = class
+  constructor Create(aValue: Double; const aLink: string; aData: TSpiderData);
+  destructor Destroy; override;
+  private
+    fValue: Double;
+    fLink: string;
+    fData: TSpiderData;
+  public
+    property value: Double read fValue write fValue;
+    property link: string read fLink write fLink;
+    property data: TSpiderData read fData write fData;
+  end;
+
   TSpiderData = class
-  constructor Create(const aTitle, aAxis: string; aValue: Double);
+  constructor Create(const aTitle: string);
   destructor Destroy; override;
   private
     fTitle: string;
-    fAxis: string;
-    fValue: Double;
-    fCategories: TObjectDictionary<string, TSpiderData>; // key=title
+    fLabels: TDictionary<string, Integer>;
+    fAxes: TDictionary<string, Integer>;
+    fValues: TObjectList<TObjectList<TSpiderDataValue>>;
+    function getValue(const aLabel, aAxis: string): TSpiderDataValue;
   public
     property title: string read fTitle;
-    property axis: string read fAxis;
-    property value: Double read fValue write fValue;
-    property categories: TObjectDictionary<string, TSpiderData> read fCategories;
+    property labels: TDictionary<string, Integer> read fLabels;
+    property axes: TDictionary<string, Integer> read fAxes;
+    property values: TObjectList<TObjectList<TSpiderDataValue>> read fValues write fValues;
+
+    property value[const aLabel, aAxis: string]: TSpiderDataValue read getValue;
 
     function getJSON: string;
-
-    procedure AddOrSetData(const aTitles: TArray<string>; const aAxis: String; aValue: Double);
 
     function maxValue: Double;
     procedure normalize(aMaxValue, aMaxScale: Double); overload; // single
@@ -217,12 +233,12 @@ type
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
   destructor Destroy; override;
   private
-    fData: TSpiderData;
     fWidth: Integer;
     fHeight: Integer;
-    fLabels: Boolean;
+    //fLabels: Boolean;
     fLegend: Boolean;
     fMaxValue: Double;
+    fData: TSpiderData;
   protected
     function getJSON: string; override;
     function getJSONData: string; override;
@@ -866,8 +882,24 @@ begin
   project.SendString('{"winddata":{"speed":'+fWindSpeed.ToString(dotFormat)+',"direction":'+fWindDirection.ToString(dotFormat)+',"time":"'+FormatDateTime(isoDateTimeFormat, fTimestamp)+'"}}');
 end;
 
-{ TSpiderData }
+{ TSpiderDataValue }
 
+constructor TSpiderDataValue.Create(aValue: Double; const aLink: string; aData: TSpiderData);
+begin
+  inherited Create;
+  fValue := aValue;
+  fLink := aLink;
+  fData := aData;
+end;
+
+destructor TSpiderDataValue.Destroy;
+begin
+
+  inherited;
+end;
+
+{ TSpiderData }
+(*
 procedure TSpiderData.AddOrSetData(const aTitles: TArray<string>; const aAxis: String; aValue: Double);
 var
   sd: TSpiderData;
@@ -892,22 +924,75 @@ begin
     fValue := aValue;
   end;
 end;
-
-constructor TSpiderData.Create(const aTitle, aAxis: string; aValue: Double);
+*)
+constructor TSpiderData.Create(const aTitle: string);
 begin
   inherited Create;
   fTitle  := aTitle;
-  fAxis := aAxis;
-  fValue := aValue;
-  fCategories := TObjectDictionary<string, TSpiderData>.Create([doOwnsValues]);
+  fLabels := TDictionary<string, Integer>.Create;
+  fAxes := TDictionary<string, Integer>.Create;
+  fValues := TObjectList<TObjectList<TSpiderDataValue>>.Create(True);
+end;
+
+procedure TSpiderData.createValue(const aLabel, aAxis: string);
+begin
+
 end;
 
 destructor TSpiderData.Destroy;
 begin
-  FreeAndNil(fCategories);
+  FreeAndNil(fLabels);
+  FreeAndNil(fAxes);
+  FreeAndNil(fValues);
   inherited;
 end;
 
+function TSpiderData.getJSON: string;
+begin
+  // todo:
+end;
+
+function TSpiderData.getValue(const aLabel, aAxis: string): Double;
+var
+  l: Integer;
+  a: Integer;
+  va: TObjectList<TSpiderDataValue>;
+begin
+  // check if new label
+  if not fLabels.TryGetValue(aLabel, l) then
+  begin
+    // new label
+    l := fLabels.Count;
+    fLabels.Add(aLabel, l);
+    a := fAxes.Count-1;
+    // check all new rows in fValues
+    while l>=fValues.Count do
+    begin
+      va := TObjectList<TSpiderDataValue>.Create;
+      // check columns for this row
+      while a>=va.Count
+      do va.Add(TSpiderDataValue.Create(0, '', nil));
+      fValues.Add(va);
+    end;
+  end;
+  // check if new axis
+  if not fAxes.TryGetValue(aAxis, a) then
+  begin
+    // new axis
+    a := fAxes.Count;
+    fAxes.Add(aAxis, a);
+    // check all rows in fValues
+    for va in fValues do
+    begin
+      // check columns for this row
+      while a>=va.Count
+      do va.Add(TSpiderDataValue.Create(0, '', nil));
+    end;
+  end;
+  Result := fValues[l].Items[a];
+end;
+
+(*
 function TSpiderData.getJSON: string;
 var
   jsonCategories: string;
@@ -929,17 +1014,18 @@ begin
   Result := Result+
     ',"Cat":['+jsonCategories+']';
 end;
+*)
 
 function TSpiderData.maxValue: Double;
 var
   sv: TPair<string, TSpiderData>;
 begin
   Result := Double.NaN;
-  for sv in categories do
-  begin
-    if Result.IsNan or (Result<sv.Value.value)
-    then Result := sv.Value.value;
-  end;
+//  for sv in categories do
+//  begin
+//    if Result.IsNan or (Result<sv.Value.value)
+//    then Result := sv.Value.value;
+//  end;
 end;
 
 procedure TSpiderData.normalize(aMaxScale: Double);
@@ -948,8 +1034,16 @@ var
   sv: TPair<string, TSpiderData>;
 begin
   normalize(maxValue, aMaxScale);
-  for sv in categories
-  do sv.Value.normalize(aMaxScale);
+//  for sv in categories
+//  do sv.Value.normalize(aMaxScale);
+end;
+
+procedure TSpiderData.setValue(const aLabel, aAxis: string; const aValue: Double; const aLink: string; const aData: TSpiderData);
+
+  // axis defined per label so always check if value for axis on this label exists
+  while a>=va.Count
+  do va.Add(TSpiderDataValue.Create(0, '', nil));
+
 end;
 
 procedure TSpiderData.normalize(aMaxValue, aMaxScale: Double);
@@ -959,11 +1053,11 @@ var
 begin
   if not (Double.IsNaN(aMaxValue) or (aMaxValue=0)) then
   begin
-    for sv in categories do
-    begin
-      if not Double.IsNaN(sv.Value.value)
-      then sv.Value.value := aMaxScale*sv.Value.value/aMaxValue;
-    end;
+//    for sv in categories do
+//    begin
+//      if not Double.IsNaN(sv.Value.value)
+//      then sv.Value.value := aMaxScale*sv.Value.value/aMaxValue;
+//    end;
   end;
 end;
 

@@ -166,7 +166,6 @@ type
     procedure SendSession();
     procedure SendMeasuresHistory();
     procedure sendQueryDialogData();
-    procedure UpdateSession();
     procedure SendTimeSlider();
     procedure SendSelectionEnabled();
     procedure SendMeasuresEnabled();
@@ -181,6 +180,8 @@ type
     property clientID: string read fClientID;
     property currentScenario: TScenario read fCurrentScenario write setCurrentScenario;
     property refScenario: TScenario read fRefScenario write setRefScenario;
+
+    procedure UpdateSession(); //  rename (moved from protected to public..
 
     procedure signalString(const aString: string);
 
@@ -579,7 +580,7 @@ type
   end;
 
   TScenario = class(TClientSubscribable)
-  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
+  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean);
   destructor Destroy; override;
   protected
     fProject: TProject; // ref
@@ -591,6 +592,7 @@ type
     fKPIs: TObjectDictionary<string, TKPI>; // owns
     fCharts: TObjectDictionary<string, TChart>; // owns
     fAddbasicLayers: Boolean;
+    fUseSimulationSetup: Boolean;
     function getElementID: string; override;
     function selectLayersOnCategories(const aSelectCategories: TArray<string>; aLayers: TList<TLayer>): Boolean;
   public
@@ -603,6 +605,7 @@ type
     property KPIs: TObjectDictionary<string, TKPI> read fKPIs;
     property Charts: TObjectDictionary<string, TChart> read fCharts;
     property addBasicLayers: Boolean read fAddBasicLayers;
+    property useSimulationSetup: Boolean read fUseSimulationSetup;
     procedure ReadBasicData(); virtual;
     procedure registerLayers;
   public
@@ -620,15 +623,15 @@ type
   end;
 
   TScenarioLink = class
-  constructor Create(aID, aParentID, aReferenceID: Integer; const aName, aDescription, aStatus: string; aLink: TScenario);
+  constructor Create(const aID, aParentID, aReferenceID: String; const aName, aDescription, aStatus: string; aLink: TScenario);
   destructor Destroy; override;
   private
     fChildren: TObjectList<TScenarioLink>;
     fLink: TScenario;
     fParent: TScenarioLink;
-    fID: Integer;
-    fParentID: Integer;
-    fReferenceID: Integer;
+    fID: string; //Integer;
+    fParentID: string; //Integer;
+    fReferenceID: string; //Integer;
     fName: string;
     fDescription: string;
     fStatus: string;
@@ -637,17 +640,16 @@ type
     property link: TScenario read fLink write fLink;
     property parent: TScenarioLink read fParent write fParent;
     // scenario
-    property ID: Integer read fID;
-    property parentID: Integer read fParentID;
-    property referenceID: Integer read fReferenceID;
-    //property name: string read fName;
+    property ID: string read fID;
+    property parentID: string read fParentID;
+    property referenceID: string read fReferenceID;
     function name: string;
     property description: string read fDescription;
     property status: string read fStatus;
 
     function root: TScenarioLink;
-    function findScenario(aID: Integer): TScenarioLink;
-    function removeLeave(const aStatus: string): Boolean;
+    function findScenario(const aID: string): TScenarioLink;
+    function removeLeaf(const aStatus: string): Boolean;
     procedure buildHierarchy();
     procedure sortChildren();
     function JSON: string;
@@ -752,6 +754,7 @@ type
     property tiler: TTiler read fTiler;
     property Timers: TTimerPool read fTimers;
     property scenarios: TObjectDictionary<string, TScenario> read fScenarios; // owns, lock with TMonitor
+    property scenarioLinks: TScenarioLink read fScenarioLinks;
     property clients: TGroup read fClients; // owns, lock with TMonitor
 
     // todo: signal clients on write?
@@ -1257,7 +1260,15 @@ begin
     -v, '#00FF00', (-v).ToString(dotFormat),
     0.0, '#FFFFFF', 'no change (0)',
     v, '#FF0000', v.ToString(dotFormat));
-  aTilerLayer.signalAddDiffSlice(diffPalette, fCurrentLayer.tilerLayer.ID, fReferenceLayer.tilerLayer.ID);
+  if Assigned(fCurrentLayer.tilerLayer) and Assigned(fReferenceLayer.tilerLayer)
+  then aTilerLayer.signalAddDiffSlice(diffPalette, fCurrentLayer.tilerLayer.ID, fReferenceLayer.tilerLayer.ID)
+  else
+  begin
+    if not Assigned(fCurrentLayer.tilerLayer)
+    then Log.WriteLn('TDiffLayer.handleTilerInfo: fCurrentLayer.tilerLayer=nil on '+ElementID, llWarning);
+    if not Assigned(fReferenceLayer.tilerLayer)
+    then Log.WriteLn('TDiffLayer.handleTilerInfo: fReferenceLayer.tilerLayer=nil on '+ElementID, llWarning);
+  end;
 end;
 
 procedure TDiffLayer.handleTilerPreview(aTilerLayer: TTilerLayer);
@@ -2010,7 +2021,8 @@ procedure TClient.SendSession;
 
   function view: string;
   begin
-    if Assigned(fCurrentScenario) then Result :=
+    if Assigned(fCurrentScenario)
+    then Result :=
       '"view":{'+
         '"lat":'+Double.ToString(fCurrentScenario.fMapView.lat, dotFormat)+','+
         '"lon":'+Double.ToString(fCurrentScenario.fMapView.lon, dotFormat)+','+
@@ -2026,9 +2038,10 @@ procedure TClient.SendSession;
 
   function jsonSimulationSetup: string;
   begin
-    if fProject.simulationSetup<>''
+
+    if Assigned(fCurrentScenario) and fCurrentScenario.useSimulationSetup and (fProject.simulationSetup<>'')
     then Result := '"simulationSetup":{"data":'+fProject.simulationSetup+'},'
-    else Result := '';
+    else Result := '"simulationSetup":0,';
   end;
 
 begin
@@ -2083,12 +2096,14 @@ end;
 procedure TClient.setCurrentScenario(const aValue: TScenario);
 begin
   fCurrentScenario := aValue;
+  fProject.SendDomains(self, 'updatedomains');
   UpdateSession;
 end;
 
 procedure TClient.setRefScenario(const aValue: TScenario);
 begin
   fRefScenario := aValue;
+  fProject.SendDomains(self, 'updatedomains');
   UpdateSession;
 end;
 
@@ -3296,7 +3311,8 @@ begin
   Result := inherited getJSON;
   if Result<>''
   then Result := Result+',';
-  Result := Result+',"x":'+fXAxis.toJSON;
+  Result :=
+    Result+'"x":'+fXAxis.toJSON;
   res := '';
   for axis in fYAxes do
   begin
@@ -3355,7 +3371,7 @@ begin
   Result := aLayer;
 end;
 
-constructor TScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
+constructor TScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean);
 begin
   inherited Create;
   fProject := aProject;
@@ -3367,6 +3383,7 @@ begin
   fKPIs := TObjectDictionary<string, TKPI>.Create([doOwnsValues]);
   fCharts := TObjectDictionary<string, TChart>.Create([doOwnsValues]);
   fAddbasicLayers := aAddbasicLayers;
+  fUseSimulationSetup := aUseSimulationSetup;
   ReadBasicData;
 end;
 
@@ -3480,7 +3497,7 @@ begin
   end;
 end;
 
-constructor TScenarioLink.Create(aID, aParentID, aReferenceID: Integer; const aName, aDescription, aStatus: string; aLink: TScenario);
+constructor TScenarioLink.Create(const aID, aParentID, aReferenceID: string; const aName, aDescription, aStatus: string; aLink: TScenario);
 begin
   inherited Create;
   fChildren := TObjectList<TScenarioLink>.Create;
@@ -3502,7 +3519,7 @@ begin
   inherited;
 end;
 
-function TScenarioLink.findScenario(aID: Integer): TScenarioLink;
+function TScenarioLink.findScenario(const aID: string): TScenarioLink;
 var
   i: Integer;
 begin
@@ -3529,11 +3546,11 @@ begin
     if Result<>''
     then Result := Result+',';
     Result := Result+
-      '{"id":'+child.ID.toString+','+
+      '{"id":"'+child.ID+'",'+
        '"name":"'+child.name+'",'+
        '"description":"'+child.description+'",'+
        '"status":"'+child.status+'",'+
-       '"reference":'+child.referenceID.toString+','+
+       '"reference":"'+child.referenceID+'",'+
        '"children":'+child.JSON+'}';
   end;
   Result := '['+Result+']';
@@ -3546,13 +3563,13 @@ begin
   else Result := '';
 end;
 
-function TScenarioLink.removeLeave(const aStatus: string): Boolean;
+function TScenarioLink.removeLeaf(const aStatus: string): Boolean;
 var
   i: Integer;
 begin
   for i := fChildren.Count-1 downto 0 do
   begin
-    if fChildren[i].removeLeave(aStatus)
+    if fChildren[i].removeLeaf(aStatus)
     then fChildren.Delete(i);
   end;
   Result := (fChildren.Count=0) and (fStatus=aStatus);
@@ -3669,7 +3686,7 @@ begin
   fConnection := aConnection;
   fClients := TGroup.Create(true); // owns
   fScenarios := TObjectDictionary<string, TScenario>.Create([doOwnsValues]);
-  fScenarioLinks := TScenarioLink.Create(-1, -1, -1, '', '', '', nil);
+  fScenarioLinks := TScenarioLink.Create('', '', '', '', '', '', nil);
   fTimers := TTimerPool.Create;
   fDiffLayers := TObjectDictionary<string, TDiffLayer>.Create([doOwnsValues]);
   fProjectID := aProjectID;
@@ -3935,27 +3952,27 @@ var
   diffLayer: TDiffLayer;
   _diffElementID: string;
 begin
-  if Assigned(aClient.fRefScenario)
-  then Log.WriteLn('TClient.SendDomains ('+aPrefix+'), ref scenario '+aClient.fRefScenario.fID)
+  if Assigned(aClient.refScenario)
+  then Log.WriteLn('TClient.SendDomains ('+aPrefix+'), ref scenario '+aClient.refScenario.ID)
   else Log.WriteLn('TClient.SendDomains ('+aPrefix+'): no ref scenario');
   // todo: add reference and diff layers/charts if fRefScenario<>nil
   domains := TDictionary<string, TClientDomain>.Create;
   try
-    if Assigned(aClient.fCurrentScenario) then
+    if Assigned(aClient.currentScenario) then
     begin
       // layers
       locLayers := TList<TLayer>.Create(TComparer<TLayer>.Construct(compareLayerNames));
       try
-        locLayers.AddRange(aClient.fCurrentScenario.Layers.Values);
+        locLayers.AddRange(aClient.currentScenario.Layers.Values);
         locLayers.Sort;
         for layer in locLayers do
         begin
           if layer.showInDomains then
           begin
             JSON := layer.JSON;
-            if Assigned(aClient.fRefScenario) then
+            if Assigned(aClient.refScenario) then
             begin
-              if aClient.fRefScenario.Layers.TryGetValue(layer.ID, refLayer) then
+              if aClient.refScenario.Layers.TryGetValue(layer.ID, refLayer) then
               begin
                 // todo: full JSON for ref and diff, to include legend?
                 JSON := JSON+',"ref":{'+refLayer.refJSON+'}';
@@ -3995,7 +4012,7 @@ begin
         locLayers.Free;
       end;
       // kpis
-      for nkp in aClient.fCurrentScenario.fKPIs do
+      for nkp in aClient.currentScenario.KPIs do
       begin
         JSON := '{'+nkp.Value.JSON+'}';
         if domains.TryGetValue(nkp.Value.domain, d) then
@@ -4011,7 +4028,7 @@ begin
         end;
       end;
       // charts
-      for ngp in aClient.fCurrentScenario.fCharts do
+      for ngp in aClient.currentScenario.Charts do
       begin
         JSON := '{'+ngp.Value.JSON+'}';
         if domains.TryGetValue(ngp.Value.domain, d) then
@@ -4421,8 +4438,9 @@ begin
   Result := inherited;
   if Result<>''
   then Result := Result+',';
-  Result := Result+'"type":"'+fChartType+'"';
-  Result := Result+',"data":['+getJSONData+']';
+  Result := Result+
+    '"type":"'+fChartType+'",'+
+    '"data":['+getJSONData+']';
 end;
 
 end.

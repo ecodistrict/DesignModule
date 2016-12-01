@@ -52,7 +52,7 @@ begin
   try
     // todo: change to tls connection
 
-    imbConnection := TSocketConnection.Create('PublishSSM',98);//,'OTS_RT',GetSetting('RemoteHost', ''),GetSetting('RemotePort', '4004').ToInteger());
+    imbConnection := TSocketConnection.Create('PublishSSM',98, 'OTS_RT', 'vps17642.public.cloudvps.com', 4004);//,'OTS_RT',GetSetting('RemoteHost', ''),GetSetting('RemotePort', '4004').ToInteger());
     try
       imbConnection.onException := HandleException;
       imbConnection.onDisconnect := HandleDisconnect;
@@ -69,10 +69,14 @@ begin
         // DTV
         // SWECO
         // TUD
+
+
+        // test project
+        (*
         simParameters := TSSMSimulationParameterList.Create;
         simParameters.setParameter('models', 'DataStore;KPI Model;Demo Model');
         simParameters.setParameter('Undefined model name-testparam', 5);
-        // test project
+
         project := TSSMProject.Create(sessionModel, imbConnection,
           'SSM2', 'SSM2',
           tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
@@ -82,34 +86,74 @@ begin
            '{"formElement":"select","type":"int","required":"y","optionsArray":[["0","0%"],["20","20%"],["40","40%"],["60","60%"],["80","80%"],["100","100%"]],"labelText":"percentage fcd vehicles","idName":"fcd","extraOptions":false}]',
           TMapView.Create(52.313939, 4.683429, 14), 0);
         sessionModel.Projects.Add(project);
+        *)
 
-        {
+
         // build sweco project
+        simParameters := TSSMSimulationParameterList.Create;
+        simParameters.setParameter('models', 'DataStore;gtu2fcd;KPI Model;Demo Model;VissimController');
+        simParameters.setParameter('DataStore-Description', '<scenarioName>');
+
+        // todo:
+        simParameters.setParameter('Undefined model name-testparam', 5);
+
         project := TSSMProject.Create(sessionModel, imbConnection,
-            'sweco', 'Eindhoven - Smart Traffic with floating car data',
+          'sweco', 'Eindhoven - Smart Traffic with floating car data',
+          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+          nil, 0, false, false, false, True, false,
+          simParameters,
+          '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
+           '{"formElement":"select","type":"int","required":"y","optionsArray":[["0","0%"],["20","20%"],["40","40%"],["60","60%"],["80","80%"],["100","100%"]],"labelText":"percentage fcd vehicles","idName":"fcd","extraOptions":false}]',
+          TMapView.Create(51.45485, 5.51492, 15), 0);
+        sessionModel.Projects.Add(project);
+
+
+
+        simParameters := TSSMSimulationParameterList.Create;
+        simParameters.setParameter('models', 'DataStore;KPI Model;VissimController');
+
+        simParameters.setParameter('DataStore-Description', '<scenarioName>');
+
+        simParameters.setParameter('VissimController-penetration', '<penetration>');
+        simParameters.setParameter('VissimController-compliance rate', '<compliance rate>');
+        simParameters.setParameter('VissimController-OD Matrix', '<OD Matrix>');
+        simParameters.setParameter('VissimController-DTV case', True);
+
+        // build dtv project
+        project := TSSMProject.Create(sessionModel, imbConnection,
+            'dtv', 'Eindhoven - ODYSA INCAR',
             tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             nil, 0, false, false, false, True, false,
+            simParameters,
+            '[{"formElement":"input","type":"string","required":"y","optionsArray":false,'+
+             '"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
+             '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration rate","idName":"penetration","extraOptions":[1, "%"]},'+
+             '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"compliance rate","idName":"compliance rate","extraOptions":[1, "%"]},'+
+             '{"formElement":"select", "type":"string", "required":"y", '+
+              '"optionsArray":[["ODYSA basic", "ODYSA basic"], '+
+                              '["ODYSA+primary-second", "ODYSA+primary-second"], '+
+                              '["ODYSA-primary+second", "ODYSA-primary+second"]], '+
+              '"labelText":"Origin Destination matrix", "idName":"OD Matrix", "extraOptions":false}]',
             TMapView.Create(51.45485, 5.51492, 15), 0);
         sessionModel.Projects.Add(project);
 
 
         // build tud project
+        simParameters := TSSMSimulationParameterList.Create;
+        simParameters.setParameter('models', 'DataStore;A58 model');
+        simParameters.setParameter('DataStore-Description', '<scenarioName>');
+        simParameters.setParameter('A58 model-penetration', '<penetration>');
+
         project := TSSMProject.Create(sessionModel, imbConnection,
-            'tud', 'Eindhoven - ODYSA INCAR',
-            tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-            nil, 0, false, false, false, True, false,
-            TMapView.Create(51.45485, 5.51492, 15), 0);
+          'tud', 'A58 - CACC and schockwaves on the A58 between Tilburg and Eindhoven',
+          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+          nil, 0, false, false, false, True, false,
+          simParameters,
+          '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
+           '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration","idName":"penetration","extraOptions":[1, "%"]}]',
+          TMapView.Create(51.5275, 5.25729, 13), 0);
         sessionModel.Projects.Add(project);
 
-
-        // build dtv project
-        project := TSSMProject.Create(sessionModel, imbConnection,
-            'dtv', 'A58 - CACC and schockwaves on the A58 between Tilburg and Eindhoven',
-            tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-            nil, 0, false, false, false, True, false,
-            TMapView.Create(51.5275, 5.25729, 13), 0);
-        sessionModel.Projects.Add(project);
-        }
 
         {
         mapView := TMapView.Create(52.313939, 4.683429, 14); //  N201 bij schiphol
