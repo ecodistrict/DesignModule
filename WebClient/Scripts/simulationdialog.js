@@ -281,7 +281,7 @@ function openSimulationDialog(e) {
 
             if (range.noUiSlider) {
               if (range.noUiSlider.options.extraOption.length > 0) {
-                return Math.round(value.repace(range.noUiSlider.options.extraOption, ''));
+                return Math.round(value.replace(range.noUiSlider.options.extraOption, ''));
               } else {
                 return Math.round(value);
               }
