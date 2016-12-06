@@ -19,6 +19,14 @@ const
   RemotePortSwitch = 'RemotePort';
 
 {
+  sensors:
+
+  "468bedca-71e4-3771-99df-50f03c21352f"
+  "4ceb2566-59a0-44f7-8530-8d7e2e68ffd6"
+
+}
+
+{
 function ConsoleCtrlHandler(dwCtrlType: DWORD): Boolean; stdcall;
 begin
   Result := False; // execute default handler

@@ -2575,7 +2575,7 @@ begin
   fObjectsLock.BeginWrite;
   try
     fObjects.Add(aObject.id, aObject);
-    signalObjects(aObject);
+    signalObject(aObject);
   finally
     fObjectsLock.EndWrite;
   end;

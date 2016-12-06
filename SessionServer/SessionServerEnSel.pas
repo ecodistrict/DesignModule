@@ -161,10 +161,13 @@ type
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
   destructor Destroy; override;
   private
-    fEvent: TEventEntry;
-    fEventHandler: TOnEvent;
+    fDataEvent: TEventEntry;
+    fPrivateDataEvent: TEventEntry;
+    fDataEventHandler: TOnEvent;
     fPalette: TWDPalette;
     fChart: TChartLines;
+    fLastLat: Double;
+    fLastLon: Double;
     procedure AddPoint(aObjectID: TGUID; aTimeStamp, aLat, aLon: Double; aSubstance: UInt32; aValue: Double);
   public
     procedure HandleEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
@@ -212,8 +215,16 @@ type
     fTitle: string;
     fLabels: TDictionary<string, Integer>;
     fAxes: TDictionary<string, Integer>;
-    fValues: TObjectList<TObjectList<TSpiderDataValue>>;
+    fValues: TObjectList<TObjectList<TSpiderDataValue>>; // label, axis
+
+    function createValue(const aLabel, aAxis: string): TSpiderDataValue;
     function getValue(const aLabel, aAxis: string): TSpiderDataValue;
+    function getValueData(const aLabel, aAxis: string): TSpiderData;
+    procedure setValueData(const aLabel, aAxis: string; const Value: TSpiderData);
+    function getValueLink(const aLabel, aAxis: string): string;
+    procedure setValueLink(const aLabel, aAxis, Value: string);
+    function getValueValue(const aLabel, aAxis: string): Double;
+    procedure setValueValue(const aLabel, aAxis: string; const Value: Double);
   public
     property title: string read fTitle;
     property labels: TDictionary<string, Integer> read fLabels;
@@ -221,12 +232,18 @@ type
     property values: TObjectList<TObjectList<TSpiderDataValue>> read fValues write fValues;
 
     property value[const aLabel, aAxis: string]: TSpiderDataValue read getValue;
+    property valueValue[const aLabel, aAxis: string]: Double read getValueValue write setValueValue;
+    property valueLink[const aLabel, aAxis: string]: string read getValueLink write setValueLink;
+    property valueData[const aLabel, aAxis: string]: TSpiderData read getValueData write setValueData;
+
+    function GetOrAddValue(const aLabel, aAxis: string): TSpiderDataValue;
 
     function getJSON: string;
 
     function maxValue: Double;
     procedure normalize(aMaxValue, aMaxScale: Double); overload; // single
     procedure normalize(aMaxScale: Double); overload; // recursive
+    function RecalculateAverages: Double;
   end;
 
   TSpiderChart  = class(TChart)
@@ -235,18 +252,15 @@ type
   private
     fWidth: Integer;
     fHeight: Integer;
-    //fLabels: Boolean;
-    fLegend: Boolean;
-    fMaxValue: Double;
+    fMaxScale: Double;
     fData: TSpiderData;
   protected
     function getJSON: string; override;
     function getJSONData: string; override;
   public
     property data: TSpiderData read fData;
-//    procedure AddorSetCategory(const aName, aCategory: string{;  aValue: Double});
-//    procedure AddOrSetSubCategory(const aName, aCategory, aSubCategory: string;  aValue: Double);
     procedure normalize;
+    procedure RecalculateAverages;
   end;
 
   TEnselSpiderChart = class(TSpiderChart)
@@ -934,30 +948,13 @@ begin
   fValues := TObjectList<TObjectList<TSpiderDataValue>>.Create(True);
 end;
 
-procedure TSpiderData.createValue(const aLabel, aAxis: string);
-begin
-
-end;
-
-destructor TSpiderData.Destroy;
-begin
-  FreeAndNil(fLabels);
-  FreeAndNil(fAxes);
-  FreeAndNil(fValues);
-  inherited;
-end;
-
-function TSpiderData.getJSON: string;
-begin
-  // todo:
-end;
-
-function TSpiderData.getValue(const aLabel, aAxis: string): Double;
+function TSpiderData.createValue(const aLabel, aAxis: string): TSpiderDataValue;
 var
   l: Integer;
   a: Integer;
   va: TObjectList<TSpiderDataValue>;
 begin
+  // label, axis
   // check if new label
   if not fLabels.TryGetValue(aLabel, l) then
   begin
@@ -992,72 +989,234 @@ begin
   Result := fValues[l].Items[a];
 end;
 
-(*
+destructor TSpiderData.Destroy;
+begin
+  FreeAndNil(fLabels);
+  FreeAndNil(fAxes);
+  FreeAndNil(fValues);
+  inherited;
+end;
+
 function TSpiderData.getJSON: string;
-var
-  jsonCategories: string;
-  ndp: TPair<string, TSpiderData>;
+
+  function jsonAxes: string;
+  var
+    aip: TPair<string, Integer>;
+  begin
+    Result := '';
+    for aip in fAxes do
+    begin
+      if Result<>''
+      then Result := Result+',';
+      Result := Result+'"'+aip.Key+'"';
+    end;
+  end;
+
+  function jsonLabels: string;
+  var
+    lip: TPair<string, Integer>;
+  begin
+    Result := '';
+    for lip in fLabels do
+    begin
+      if Result<>''
+      then Result := Result+',';
+      Result := Result+'"'+lip.Key+'"';
+    end;
+  end;
+
+  function jsonValues: string;
+  var
+    row: TObjectList<TSpiderDataValue>;
+    col: TSpiderDataValue;
+    jsonRow: string;
+  begin
+    Result := '';
+    for row in fValues do
+    begin
+      jsonRow := '';
+      for col in row do
+      begin
+        if jsonRow<>''
+        then jsonRow := jsonRow+',';
+        if col.value.IsNan
+        then jsonRow := jsonRow+'"value":'+'0'
+        else jsonRow := jsonRow+'"value":'+col.value.ToString(dotFormat);
+        if col.link<>''
+        then jsonRow := jsonRow+',"link":"'+col.link+'"';
+        if Assigned(col.data)
+        then jsonRow := jsonRow+',"data":{'+col.data.getJSON+'}';
+      end;
+      if jsonRow<>'' then
+      begin
+        if Result<>''
+        then Result := Result+',';
+        Result := Result+'['+jsonRow+']';
+      end;
+    end;
+  end;
+
 begin
   Result :=
-    '"Title":"'+fTitle+'"'+
-    ',"Axis":"'+fAxis+'"';
-  if not Double.IsNan(fValue)
-  then Result := Result+
-    ',"Value":'+fValue.ToString(dotFormat);
-  jsonCategories := '';
-  for ndp in fCategories do
-  begin
-    if jsonCategories<>''
-    then jsonCategories := jsonCategories+',';
-    jsonCategories := jsonCategories+'{'+ndp.Value.getJSON+'}';
-  end;
-  Result := Result+
-    ',"Cat":['+jsonCategories+']';
+    '"title":"'+fTitle+'",'+
+    '"labels":['+jsonLabels+'],'+
+    '"axes":['+jsonAxes+'],'+
+    '"matrix":['+jsonValues+']';
 end;
-*)
+
+function TSpiderData.GetOrAddValue(const aLabel, aAxis: string): TSpiderDataValue;
+begin
+  Result := getValue(aLabel, aAxis);
+  if not Assigned(Result)
+  then Result := createValue(aLabel, aAxis);
+end;
+
+function TSpiderData.getValue(const aLabel, aAxis: string): TSpiderDataValue;
+var
+  l: Integer;
+  a: Integer;
+begin
+  if fLabels.TryGetValue(aLabel, l) and fAxes.TryGetValue(aAxis, a)
+  then Result := fValues[l][a]
+  else Result := nil;
+end;
+
+function TSpiderData.getValueData(const aLabel, aAxis: string): TSpiderData;
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if Assigned(sd)
+  then Result := sd.Data
+  else Result := nil;
+end;
+
+function TSpiderData.getValueLink(const aLabel, aAxis: string): string;
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if Assigned(sd)
+  then Result := sd.link
+  else Result := '';
+end;
+
+function TSpiderData.getValueValue(const aLabel, aAxis: string): Double;
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if Assigned(sd)
+  then Result := sd.value
+  else Result := Double.NaN;
+end;
 
 function TSpiderData.maxValue: Double;
 var
-  sv: TPair<string, TSpiderData>;
+  row: TObjectList<TSpiderDataValue>;
+  col: TSpiderDataValue;
 begin
   Result := Double.NaN;
-//  for sv in categories do
-//  begin
-//    if Result.IsNan or (Result<sv.Value.value)
-//    then Result := sv.Value.value;
-//  end;
+  for row in fValues do
+    for col in row do
+    begin
+      if (not col.value.IsNan) and (Result.IsNan or (Result<col.value))
+      then Result := col.value;
+    end;
 end;
 
 procedure TSpiderData.normalize(aMaxScale: Double);
 // recursive
 var
-  sv: TPair<string, TSpiderData>;
+  row: TObjectList<TSpiderDataValue>;
+  col: TSpiderDataValue;
 begin
   normalize(maxValue, aMaxScale);
-//  for sv in categories
-//  do sv.Value.normalize(aMaxScale);
+  for row in fValues do
+    for col in row do
+    begin
+      if Assigned(col.data)
+      then col.data.normalize(aMaxScale);
+    end;
 end;
 
-procedure TSpiderData.setValue(const aLabel, aAxis: string; const aValue: Double; const aLink: string; const aData: TSpiderData);
+function TSpiderData.RecalculateAverages: Double;
+// recursive
+var
+  row: TObjectList<TSpiderDataValue>;
+  col: TSpiderDataValue;
+  c: Integer;
+  v: Double;
+begin
+  Result := Double.NaN;
+  c := 0;
+  for row in fValues do
+    for col in row do
+    begin
+      if Assigned(col.data)  then
+      begin
+        v := col.data.RecalculateAverages();
+        if not v.IsNan
+        then col.value := v;
+      end;
+      if not col.value.IsNan then
+      begin
+        if Result.IsNan
+        then Result := col.value
+        else Result := Result+col.value;
+        c := c+1;
+      end;
+    end;
+  if not Result.IsNan
+  then Result := Result/c;
+end;
 
-  // axis defined per label so always check if value for axis on this label exists
-  while a>=va.Count
-  do va.Add(TSpiderDataValue.Create(0, '', nil));
+procedure TSpiderData.setValueData(const aLabel, aAxis: string; const Value: TSpiderData);
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if not Assigned(sd)
+  then sd := createValue(aLabel, aAxis);
+  // clean up previous value (ignrores nil)
+  sd.data.Free;
+  sd.data := Value; // new value now owned
+end;
 
+procedure TSpiderData.setValueLink(const aLabel, aAxis, Value: string);
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if not Assigned(sd)
+  then sd := createValue(aLabel, aAxis);
+  sd.link := Value;
+end;
+
+procedure TSpiderData.setValueValue(const aLabel, aAxis: string; const Value: Double);
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if not Assigned(sd)
+  then sd := createValue(aLabel, aAxis);
+  sd.value := Value;
 end;
 
 procedure TSpiderData.normalize(aMaxValue, aMaxScale: Double);
 // single
 var
-  sv: TPair<string, TSpiderData>;
+  row: TObjectList<TSpiderDataValue>;
+  col: TSpiderDataValue;
 begin
-  if not (Double.IsNaN(aMaxValue) or (aMaxValue=0)) then
+  if not (aMaxValue.IsNan or (aMaxValue=0)) then
   begin
-//    for sv in categories do
-//    begin
-//      if not Double.IsNaN(sv.Value.value)
-//      then sv.Value.value := aMaxScale*sv.Value.value/aMaxValue;
-//    end;
+    for row in fValues do
+      for col in row do
+      begin
+        if not col.value.IsNan
+        then col.value := aMaxScale*col.value/aMaxValue;
+      end;
   end;
 end;
 
@@ -1103,12 +1262,10 @@ end;
 constructor TSpiderChart.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
 begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, 'spider');
-  fData := TSpiderData.Create(aName, '', double.NaN);
+  fData := TSpiderData.Create(aName);
   fWidth := 400;
   fHeight := 400;
-  fLabels := True;
-  fLegend := True;
-  fMaxValue := 10; // als niet gedefineerd (NaN) pakt hij de maximale van alle values -> 10 is een goede default?
+  fMaxScale := 10; // als niet gedefineerd (NaN) pakt hij de maximale van alle values -> 10 is een goede default?
 end;
 
 destructor TSpiderChart.Destroy;
@@ -1123,28 +1280,33 @@ begin
   if Result<>''
   then Result := Result+',';
   Result := Result+
-    '"level":0'+
-    ',"width":'+fWidth.toString+
-    ',"height":'+fHeight.toString;
-  if fLabels
-  then Result := Result+',"labels":true'
-  else Result := Result+',"labels":false';
-  if fLegend
-  then Result := Result+',"legend":true'
-  else Result := Result+',"legend":false';
-  if not double.IsNan(fMaxValue)
-  then Result := Result+ ',"maxValue":'+fMaxValue.toString(dotFormat);
+    //'"level":0'+
+    '"width":'+fWidth.toString+',"height":'+fHeight.toString+',"maxValue":'+fMaxScale.toString(dotFormat);
+//  if fLabels
+//  then Result := Result+',"labels":true'
+//  else Result := Result+',"labels":false';
+//  if fLegend
+//  then Result := Result+',"legend":true'
+//  else Result := Result+',"legend":false';
+//  if not double.IsNan(fMaxScale)
+//  then Result := Result+ ',"maxValue":'+fMaxScale.toString(dotFormat);
+
 end;
 
 function TSpiderChart.getJSONData: string;
 begin
-  fData.normalize(fMaxValue);
+  fData.normalize(fMaxScale);
   Result := '{'+fData.getJSON+'}';
 end;
 
 procedure TSpiderChart.normalize;
 begin
+  fData.normalize(fMaxScale);
+end;
 
+procedure TSpiderChart.RecalculateAverages;
+begin
+  fData.RecalculateAverages;
 end;
 
 { TEnselSpiderChart }
@@ -1176,6 +1338,7 @@ var
   AvgConcentration: Double;
   duration: Double;
   objectID: TGUID;
+  sd: TSpiderDataValue;
 begin
   duration := 0;
   AvgConcentration := 0;
@@ -1200,8 +1363,23 @@ begin
           AvgConcentration := aPayload.bb_read_double(aCursor);
           if componentName=fComponent then
           begin
-            fData.AddOrSetData(['Average '+componentName, transportMode], TimeCategory, AvgConcentration);
-            fData.AddOrSetData(['Average exposure', transportMode], TimeCategory, AvgConcentration);
+            // todo: not correct
+            sd := fData.GetOrAddValue('Average '+componentName, transportMode);
+            if not Assigned(sd.data)
+            then sd.data := TSpiderData.Create('Average '+componentName+' - '+transportMode);
+            sd.data.GetOrAddValue('Average '+componentName+' - '+transportMode, TimeCategory).value := AvgConcentration;
+
+            sd := fData.GetOrAddValue('Average exposure', transportMode);
+            if not Assigned(sd.data)
+            then sd.data := TSpiderData.Create('Average exposure'+' - '+transportMode);
+            sd.data.GetOrAddValue('Average exposure'+' - '+transportMode, TimeCategory).value := AvgConcentration*duration;
+
+//            fData.valueValue['Average '+componentName, transportMode] := AvgConcentration;
+//            fData.valueValue['Average exposure', transportMode] := AvgConcentration*duration;
+            //TimeCategory
+
+//            fData.AddOrSetData([], TimeCategory, AvgConcentration);
+//            fData.AddOrSetData(['Average exposure', transportMode], TimeCategory, AvgConcentration);
             //AddOrSetSubCategory('Average '+componentName, transportMode, TimeCategory, AvgConcentration);
             //AddOrSetSubCategory('Average exposure', transportMode, TimeCategory, AvgConcentration*duration);
           end;
@@ -1211,7 +1389,14 @@ begin
           duration := aPayload.bb_read_double(aCursor);
           if componentName=fComponent then
           begin
-            fData.AddOrSetData(['Average time', transportMode], TimeCategory, duration);
+            // todo: not correct
+            sd := fData.GetOrAddValue('Average time', transportMode);
+            if not Assigned(sd.data)
+            then sd.data := TSpiderData.Create('Average time'+' - '+transportMode);
+            sd.data.GetOrAddValue('Average time'+' - '+transportMode, TimeCategory).value := duration;
+
+            fData.valueValue['Average time', transportMode] := duration;
+            //fData.AddOrSetData(['Average time', transportMode], TimeCategory, duration);
             //AddOrSetSubCategory('Average time', transportMode, TimeCategory, duration);
           end;
         end;
@@ -1219,6 +1404,9 @@ begin
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
     end;
   end;
+  // update averages
+  RecalculateAverages;
+
 end;
 
 { TEnselScenario }
@@ -1321,7 +1509,7 @@ begin
     TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
     [TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')]);
 
-  //AddChart(mobileChart);
+  AddChart(mobileChart);
 
   palette := CreateNiekPalette('NO2');//  CreateNO2Palette;
   layer := TEnselMobileSensorLayer.Create(Self, 'Personal exposure', 'mobilesensors', 'Mobile sensors', '', false, true, palette, BuildLegendJSON(palette), mobileChart);
@@ -1446,7 +1634,7 @@ end;
 
 function TEnselProject.ReadScenario(const aID: string): TScenario;
 begin
-  Result := TEnselScenario.Create(Self, aID, 'Utrecht', 'Incident in Utrecht', false, Self.mapView); // todo:
+  Result := TEnselScenario.Create(Self, aID, 'Utrecht', 'Incident in Utrecht', false, Self.mapView, False); // todo:
 end;
 
 { TEnselModule }
@@ -1461,7 +1649,7 @@ begin
   fConnection := aConnection;
   fTilerFQDN := aTilerFQDN;
   fTilerStatusURL := aTilerStatusURL;
-  fProjects := TDictionary<string, TProject>.Create;//([doOwnsValues]);
+  fProjects := TDictionary<string, TProject>.Create;
   fMaxNearestObjectDistanceInMeters := aMaxNearestObjectDistanceInMeters;
   //InitPG;
   project := TEnselProject.Create(aSessionModel, aConnection, 'ensel2', 'EnSel2', aTilerFQDN, aTilerStatusURL,
@@ -1482,22 +1670,28 @@ end;
 constructor TEnselMobileSensorLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad,
   aShowInDomains: Boolean; aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
 begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"mobilesensor"', 'Point', ltObject, aShowInDomains, 0);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"mobilesensor"', 'Point', ltTile, aShowInDomains, 0);
   // mobile sensor points
   fChart := aChart;
   fPalette :=  aPalette;
   fLegendJSON := aLegendJSON;
-  fEvent := scenario.project.connection.Subscribe('mobilesensordata');
-  fEventHandler := HandleEvent;
-  fEvent.OnEvent.Add(fEventHandler);
+  fDataEventHandler := HandleEvent;
+  fDataEvent := scenario.project.connection.Subscribe('mobilesensordata');
+  fDataEvent.OnEvent.Add(fDataEventHandler);
+  fPrivateDataEvent := scenario.project.connection.Subscribe(scenario.project.Connection.privateEventName+'.'+'mobilesensordata', false);
+  fPrivateDataEvent.OnEvent.Add(fDataEventHandler);
+  // inquire
+  fDataEvent.signalEvent(
+    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateDataEvent.eventName)+
+    TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, 'ORDER BY ts')); //'ts>=42700 ORDER BY ts'));
 end;
 
 destructor TEnselMobileSensorLayer.Destroy;
 begin
-  if Assigned(fEvent) then
+  if Assigned(fDataEvent) then
   begin
-    if fEvent.OnEvent.Contains(fEventHandler)
-    then fEvent.OnEvent.Remove(fEventHandler);
+    if fDataEvent.OnEvent.Contains(fDataEventHandler)
+    then fDataEvent.OnEvent.Remove(fDataEventHandler);
   end;
   inherited;
 end;
@@ -1516,7 +1710,7 @@ procedure TEnselMobileSensorLayer.AddPoint(aObjectID: TGUID; aTimeStamp, aLat, a
 var
   wdid: TWDID;
   geometryPoint: TWDGeometryPoint;
-  o: TLayerObject;
+//  o: TLayerObject;
 begin
   //wdid := TWDID(aObjectID.ToString());
   wdid := TWDID(TGUID.NewGuid.ToString);
@@ -1526,6 +1720,7 @@ begin
   geometryPoint.x := aLon;
   geometryPoint.y := aLat;
   AddObject(TGeometryPointLayerObject.Create(Self, wdid, geometryPoint, aValue));
+  //Log.WriteLn('ms: '+aLat.ToString()+' x '+aLon.ToString()+': '+aSubstance.ToString()+': '+aValue.ToString());
   fChart.AddValue(aTimeStamp, [aValue]);
 //  end
 //  else
@@ -1539,14 +1734,13 @@ var
   fieldInfo: UInt32;
   objectID: TGUID;
   timestamp: Double;
-  lon: double;
-  lat: double;
 //  pm1: double;
 //  pm10: double;
   no2: double;
 //  pm25: double;
 //  co2: double;
 begin
+  timestamp := 0;
   while aCursor<aLimit do
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
@@ -1556,13 +1750,15 @@ begin
       ((icehWorldCommandBase+2) shl 3) or wt64Bit: // time stamp
         timestamp := aPayload.bb_read_double(aCursor);
       sensordata_longitude:
-        lon := aPayload.bb_read_double(aCursor);
+        fLastLon := aPayload.bb_read_double(aCursor);
       sensordata_latitude:
-        lat := aPayload.bb_read_double(aCursor);
+        fLastLat := aPayload.bb_read_double(aCursor);
       sensordata_no2:
         begin
           no2 := aPayload.bb_read_double(aCursor);
-          AddPoint(objectID, timestamp, lat, lon, sensordata_no2, no2);
+          if (fLastLat<>0) and (fLastLon<>0)
+          then AddPoint(objectID, timestamp, fLastLat, fLastLon, sensordata_no2, no2);
+          // todo: ignoring values on 0,0 for now
         end;
 
       {
