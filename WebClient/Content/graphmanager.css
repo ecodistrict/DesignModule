@@ -18,7 +18,7 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   border-radius: 4px;
   background: white;
-  border: 2px solid rgba(0, 0, 0, 0.2);  
+  border: 2px solid rgba(0, 0, 0, 0.2);
 }
 .graph-info {
   position: absolute;
@@ -28,6 +28,15 @@
   width: 20px;
   height: 20px;
   background-image: url('images/info.png');
+}
+.graph-title {
+  top: 6px;
+  left: 48px;
+  right:48px;
+  position: absolute;
+  height:20px;
+  box-sizing: border-box;
+  text-align:center;
 }
 .graph-resize {
   position: absolute;
@@ -61,7 +70,10 @@ svg text { }
 }
 .xAxis line {  stroke: black }
 .xAxis path {  stroke: black }
-path {  shape-rendering: crispEdges }
 .yAxis { }
 .yAxis line {  stroke: black }
 .yAxis path {  stroke: black }
+
+.c3-xgrid-focus {
+  display: none;
+}

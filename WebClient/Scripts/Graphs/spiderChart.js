@@ -494,7 +494,7 @@ function SpiderChart(graphObject) {
     var marginLeft = GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.axisMargin.y;
     var marginTop = GraphManager.defaultValues.graphPadding.top;
     var marginRight = GraphManager.defaultValues.graphPadding.right;
-    var marginBottom = GraphManager.defaultValues.graphPadding.bottom + GraphManager.defaultValues.axisMargin.x;;
+    var marginBottom = GraphManager.defaultValues.graphPadding.bottom + GraphManager.defaultValues.axisMargin.x;
 
     this._fillSpider(graph);
     graph.svg.attr("width", width);
