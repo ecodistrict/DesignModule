@@ -1695,7 +1695,7 @@ var
   mp: TModelParameter;
   mpv: Variant;
   mpvs: string;
-  rec: Boolean;
+  index: Integer;
 begin
   try
     //_client := aSender as TClient;
@@ -1711,16 +1711,6 @@ begin
     then controlInterface.DataSource := _simParams['datasource'].value;
     controlInterface.Federation := _scenario.ID;
 
-    if (_simParams.ContainsKey('datasourcerecord')) then
-      begin
-        rec := (string.Compare(_simParams['datasourcerecord'].value, 'Yes') = 0);
-      end
-    else
-      begin
-         rec := False;
-      end;
-
-
     // todo: start models (defined in simulation parameters)
     if _simParams.ContainsKey('models') then
     begin
@@ -1729,17 +1719,23 @@ begin
         modelNames.Delimiter := ';';
         modelNames.StrictDelimiter := True;
         modelNames.DelimitedText := _simParams['models'].value;
+
+        //check if we have to delete the DataStore model from the claim list.
+        if (_simParams.ContainsKey('datasourcerecord') and (string.Compare(_simParams['datasourcerecord'].value, 'No', True)=0)) then
+          begin
+            index := modelNames.IndexOf('DataStore');
+            if (index <> -1) then
+               begin
+                modelNames.Delete(index);
+               end;
+          end;
+
         while modelNames.Count>0 do
         begin
           for cim in controlInterface.Models do
           begin
             if (cim.State=msIdle) and (string.Compare(cim.ModelName, ModelNames[0], True)=0) then
             begin
-              if (string.Compare(cim.ModelName, 'DataStore', True)=0) and not rec then
-                begin
-                 ModelNames.Delete(0); //remove datastore from the models we have to claim!
-                 break;
-                end;
               if controlInterface.RequestModelDefaultParameters(cim) then
               begin
                 parameters := TModelParameters.Create(cim.DefaultParameters);
