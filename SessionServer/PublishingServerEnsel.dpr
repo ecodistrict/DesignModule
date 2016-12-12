@@ -87,6 +87,8 @@ begin
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
 
+
+
           // inquire existing session and rebuild internal sessions..
           imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(
             procedure(event: TEventEntry; aInt: Integer; const aString: string)
@@ -95,7 +97,7 @@ begin
               p: TProject;
             begin
               // find project with client
-              for p in sessionModel.Projects do
+              for p in enselModule.Projects.Values do
               begin
                 projectEventPrefix := p.ProjectEvent.eventName+'.';
                 if aString.StartsWith(projectEventPrefix) then

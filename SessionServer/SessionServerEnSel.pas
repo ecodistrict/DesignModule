@@ -335,6 +335,8 @@ type
     fTilerStatusURL: string;
     fProjects: TDictionary<string, TProject>;
     fMaxNearestObjectDistanceInMeters: Integer;
+    public
+    property Projects: TDictionary<string, TProject> read fProjects;
   end;
 
 
@@ -344,24 +346,33 @@ function CreateNiekPalette(const aTitle: string): TWDPalette;
 begin
   Result := TRampPalette.Create(aTitle, [
     TRampPaletteEntry.Create($Ff00AF00, 0, '0'),
-    TRampPaletteEntry.Create($FF00C800, 5, '5'),
+    //TRampPaletteEntry.Create($FF00C800, 5, '5'),
     TRampPaletteEntry.Create($FF00E100, 10, '10'),
-    TRampPaletteEntry.Create($FF32FF32, 15, '15'),
+    //TRampPaletteEntry.Create($FF32FF32, 15, '15'),
     TRampPaletteEntry.Create($FF7DFF4B, 20, '20'),
-    TRampPaletteEntry.Create($FFC8FF4B, 25, '25'),
+    //TRampPaletteEntry.Create($FFC8FF4B, 25, '25'),
     TRampPaletteEntry.Create($FFF2FF4B, 30, '30'),
-    TRampPaletteEntry.Create($FFFFFA01, 35, '35'),
+    //TRampPaletteEntry.Create($FFFFFA01, 35, '35'),
     TRampPaletteEntry.Create($FFFFE101, 40, '40'),
-    TRampPaletteEntry.Create($FFFFC801, 45, '45'),
+    //TRampPaletteEntry.Create($FFFFC801, 45, '45'),
     TRampPaletteEntry.Create($FFFFAF01, 50, '50'),
-    TRampPaletteEntry.Create($FFFF9601, 55, '55'),
+    //TRampPaletteEntry.Create($FFFF9601, 55, '55'),
     TRampPaletteEntry.Create($FFFF7D01, 60, '60'),
-    TRampPaletteEntry.Create($FFFF6401, 65, '65'),
+    //TRampPaletteEntry.Create($FFFF6401, 65, '65'),
     TRampPaletteEntry.Create($FFFF4B01, 70, '70'),
-    TRampPaletteEntry.Create($FFFF0000, 75, '75')],
+    //TRampPaletteEntry.Create($FFFF0000, 75, '75'),
+    TRampPaletteEntry.Create($FFE10000, 80, '80'),
+    //TRampPaletteEntry.Create($FFC80000, 85, '85'),
+    TRampPaletteEntry.Create($FFAF0000, 90, '90'),
+    //TRampPaletteEntry.Create($FF960019, 95, '95'),
+    TRampPaletteEntry.Create($FF7D0032, 100, '100'),
+    //TRampPaletteEntry.Create($FF6E004B, 105, '105'),
+    TRampPaletteEntry.Create($FF640064, 110, '110'),
+    //TRampPaletteEntry.Create($FF500073, 115, '115'),
+    TRampPaletteEntry.Create($FF37005C, 120, '120')],
       $FF00AF00,
       $00000000,
-      $FFFF0000);
+      $FF37005C);
 end;
 
 function CreateNO2Palette: TWDPalette;
@@ -1040,12 +1051,13 @@ function TSpiderData.getJSON: string;
         if jsonRow<>''
         then jsonRow := jsonRow+',';
         if col.value.IsNan
-        then jsonRow := jsonRow+'"value":'+'0'
-        else jsonRow := jsonRow+'"value":'+col.value.ToString(dotFormat);
+        then jsonRow := jsonRow+'{"value":'+'0'
+        else jsonRow := jsonRow+'{"value":'+col.value.ToString(dotFormat);
         if col.link<>''
         then jsonRow := jsonRow+',"link":"'+col.link+'"';
         if Assigned(col.data)
         then jsonRow := jsonRow+',"data":{'+col.data.getJSON+'}';
+        if jsonRow<>'' then jsonRow := jsonRow+'}';
       end;
       if jsonRow<>'' then
       begin
@@ -1634,7 +1646,7 @@ end;
 
 function TEnselProject.ReadScenario(const aID: string): TScenario;
 begin
-  Result := TEnselScenario.Create(Self, aID, 'Utrecht', 'Incident in Utrecht', false, Self.mapView, False); // todo:
+  Result := TEnselScenario.Create(Self, aID, 'Utrecht', 'Luchtkwaliteit in Utrecht', false, Self.mapView, False); // todo:
 end;
 
 { TEnselModule }

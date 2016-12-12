@@ -91,7 +91,7 @@ begin
 
         // build sweco project
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;gtu2fcd;KPI Model;Demo Model;VissimController');
+        simParameters.setParameter('models', 'DataStore;gtu2fcd;KPI Model;Demo Model;VissimController;Traffic (SSM);Air (SSM <-> US)');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
 
         // todo:
@@ -103,14 +103,15 @@ begin
           nil, 0, false, false, false, True, false,
           simParameters,
           '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
-           '{"formElement":"select","type":"int","required":"y","optionsArray":[["0","0%"],["20","20%"],["40","40%"],["60","60%"],["80","80%"],["100","100%"]],"labelText":"percentage fcd vehicles","idName":"fcd","extraOptions":false}]',
+           '{"formElement":"select","type":"int","required":"y","optionsArray":[["0","0%"],["20","20%"],["40","40%"],["60","60%"],["80","80%"],["100","100%"]],"labelText":"percentage fcd vehicles","idName":"fcd","extraOptions":false}, '+
+           '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
           TMapView.Create(51.45485, 5.51492, 15), 0);
         sessionModel.Projects.Add(project);
 
 
 
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;KPI Model;VissimController');
+        simParameters.setParameter('models', 'DataStore;KPI Model;VissimController;Traffic (SSM);Air (SSM <-> US)');
 
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
 
@@ -133,14 +134,15 @@ begin
               '"optionsArray":[["ODYSA basic", "ODYSA basic"], '+
                               '["ODYSA+primary-second", "ODYSA+primary-second"], '+
                               '["ODYSA-primary+second", "ODYSA-primary+second"]], '+
-              '"labelText":"Origin Destination matrix", "idName":"OD Matrix", "extraOptions":false}]',
+              '"labelText":"Origin Destination matrix", "idName":"OD Matrix", "extraOptions":false}, ' +
+              '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
             TMapView.Create(51.45485, 5.51492, 15), 0);
         sessionModel.Projects.Add(project);
 
 
         // build tud project
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;A58 model');
+        simParameters.setParameter('models', 'DataStore;A58 model;Traffic (SSM);Air (SSM <-> US)');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
         simParameters.setParameter('A58 model-penetration', '<penetration>');
 
@@ -150,7 +152,8 @@ begin
           nil, 0, false, false, false, True, false,
           simParameters,
           '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
-           '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration","idName":"penetration","extraOptions":[1, "%"]}]',
+           '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration","idName":"penetration","extraOptions":[1, "%"]},'+
+           '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
           TMapView.Create(51.5275, 5.25729, 13), 0);
         sessionModel.Projects.Add(project);
 
@@ -222,6 +225,7 @@ begin
         ReadLn;
 
       finally
+        //todo: unclaim models?
         FinalizeCommandQueue();
         sessionModel.Free;
       end;

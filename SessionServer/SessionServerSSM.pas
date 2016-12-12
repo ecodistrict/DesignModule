@@ -57,6 +57,9 @@ const
   domainRefOther = '4';
   domainOther = 'Mobility: ('+domainRefOther+') Other';
 
+  domainRefEnvironment = '5';
+  domainEnvironment = 'Environment';
+
 
 const
   SSMIdlePrefix = 'USIdle'; // todo: ?
@@ -1026,6 +1029,7 @@ begin
   fStatistics := TObjectDictionary<string, TSSMStatistic>.Create;
   fGTUStatisticEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.StatisticsGTULane');
   fGTUStatisticEvent.OnNormalEvent := HandleGTUStatisticEvent;
+
   // simulation start
   fSIMStartEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.Sim_Start');
   fSIMStartEvent.OnNormalEvent := HandleSIMStartEvent;
@@ -1315,23 +1319,24 @@ procedure TSSMMCControlInterface.HandleModelChange(aModel: TCIModelEntry2; aChan
 var
   client: TClient;
 begin
-  for client in fProject.clients do
-  begin
-    if Assigned(client.currentScenario) and aModel.IsThisSession(client.currentScenario.ID) then
+  if Assigned(fProject.clients) then
+    for client in fProject.clients do
     begin
-      case aChange of
-        TMChange.mcNew:
-          client.signalString(jsonModelStatusArray(jsonModelStatusNew(aModel.UID.ToString, aModel.ModelName, aModel.State.ToString, aModel.Progress)));
-        TMChange.mcRemove:
-          client.signalString(jsonModelStatusArray(jsonModelStatusDelete(aModel.UID.ToString)));
-      else
-          client.signalString(jsonModelStatusArray(
-            jsonModelStatusNew(aModel.UID.ToString, aModel.ModelName, aModel.State.ToString, aModel.Progress)
-            //jsonModelStatusChange(aModel.UID.ToString, aModel.State.ToString, aModel.Progress))
-          ));
+      if Assigned(client.currentScenario) and aModel.IsThisSession(client.currentScenario.ID) then
+      begin
+        case aChange of
+          TMChange.mcNew:
+            client.signalString(jsonModelStatusArray(jsonModelStatusNew(aModel.UID.ToString, aModel.ModelName, aModel.State.ToString, aModel.Progress)));
+          TMChange.mcRemove:
+            client.signalString(jsonModelStatusArray(jsonModelStatusDelete(aModel.UID.ToString)));
+        else
+            client.signalString(jsonModelStatusArray(
+              jsonModelStatusNew(aModel.UID.ToString, aModel.ModelName, aModel.State.ToString, aModel.Progress)
+              //jsonModelStatusChange(aModel.UID.ToString, aModel.State.ToString, aModel.Progress))
+            ));
+        end;
       end;
     end;
-  end;
 end;
 
 function TSSMMCControlInterface.jsonModelStatusNew(const aModelID, aModelName, aModelStatus: string; aModelProgress: Integer): string;
@@ -1508,6 +1513,7 @@ begin
       end;
       if isObjectValue(jsonPair.JsonValue as TJSONObject, 'start', jsonValue) then
       begin
+        (aClient.currentScenario as TSSMScenario).fSIMStartEvent.SignalEvent(ekNormalEvent, EmptyPayload);
         if not aClient.currentScenario.useSimulationSetup then
         begin
           controlInterface.Federation := aScenario.ID;
@@ -1689,6 +1695,7 @@ var
   mp: TModelParameter;
   mpv: Variant;
   mpvs: string;
+  rec: Boolean;
 begin
   try
     //_client := aSender as TClient;
@@ -1704,6 +1711,16 @@ begin
     then controlInterface.DataSource := _simParams['datasource'].value;
     controlInterface.Federation := _scenario.ID;
 
+    if (_simParams.ContainsKey('datasourcerecord')) then
+      begin
+        rec := (string.Compare(_simParams['datasourcerecord'].value, 'Yes') = 0);
+      end
+    else
+      begin
+         rec := False;
+      end;
+
+
     // todo: start models (defined in simulation parameters)
     if _simParams.ContainsKey('models') then
     begin
@@ -1718,6 +1735,11 @@ begin
           begin
             if (cim.State=msIdle) and (string.Compare(cim.ModelName, ModelNames[0], True)=0) then
             begin
+              if (string.Compare(cim.ModelName, 'DataStore', True)=0) and not rec then
+                begin
+                 ModelNames.Delete(0); //remove datastore from the models we have to claim!
+                 break;
+                end;
               if controlInterface.RequestModelDefaultParameters(cim) then
               begin
                 parameters := TModelParameters.Create(cim.DefaultParameters);
