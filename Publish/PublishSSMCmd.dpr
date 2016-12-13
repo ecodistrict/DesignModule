@@ -91,8 +91,11 @@ begin
 
         // build sweco project
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;gtu2fcd;KPI Model;Demo Model;VissimController;Traffic (SSM);Air (SSM <-> US)');
+        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);gtu2fcd;KPI Model;Demo Model;VissimController');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
+
+        //simParameters.setParameter('Traffic (SSM)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
+        //simParameters.setParameter('Air (SSM <-> US)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
 
         // todo:
         simParameters.setParameter('Undefined model name-testparam', 5);
@@ -105,13 +108,14 @@ begin
           '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
            '{"formElement":"select","type":"int","required":"y","optionsArray":[["0","0%"],["20","20%"],["40","40%"],["60","60%"],["80","80%"],["100","100%"]],"labelText":"percentage fcd vehicles","idName":"fcd","extraOptions":false}, '+
            '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
-          TMapView.Create(51.45485, 5.51492, 15), 0);
+          TMapView.Create(51.45485, 5.51492, 15), 0,
+          'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
         sessionModel.Projects.Add(project);
 
 
 
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;KPI Model;VissimController;Traffic (SSM);Air (SSM <-> US)');
+        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);KPI Model;VissimController');
 
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
 
@@ -119,6 +123,9 @@ begin
         simParameters.setParameter('VissimController-compliance rate', '<compliance rate>');
         simParameters.setParameter('VissimController-OD Matrix', '<OD Matrix>');
         simParameters.setParameter('VissimController-DTV case', True);
+
+        //simParameters.setParameter('Traffic (SSM)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
+        //simParameters.setParameter('Air (SSM <-> US)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
 
         // build dtv project
         project := TSSMProject.Create(sessionModel, imbConnection,
@@ -136,15 +143,20 @@ begin
                               '["ODYSA-primary+second", "ODYSA-primary+second"]], '+
               '"labelText":"Origin Destination matrix", "idName":"OD Matrix", "extraOptions":false}, ' +
               '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
-            TMapView.Create(51.45485, 5.51492, 15), 0);
+            TMapView.Create(51.45485, 5.51492, 15), 0,
+            'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
         sessionModel.Projects.Add(project);
 
 
         // build tud project
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;A58 model'{;Traffic (SSM)}+';Air (SSM <-> US)');
+        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);A58 model');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
         simParameters.setParameter('A58 model-penetration', '<penetration>');
+
+        //simParameters.setParameter('Traffic (SSM)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
+        //simParameters.setParameter('Air (SSM <-> US)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
+
 
         project := TSSMProject.Create(sessionModel, imbConnection,
           'tud', 'A58 - CACC and schockwaves on the A58 between Tilburg and Eindhoven',
@@ -154,7 +166,8 @@ begin
           '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
            '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration","idName":"penetration","extraOptions":[1, "%"]},'+
            '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
-          TMapView.Create(51.5275, 5.25729, 13), 0);
+          TMapView.Create(51.5275, 5.25729, 13), 0,
+          'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
         sessionModel.Projects.Add(project);
 
 
