@@ -282,7 +282,7 @@ type
     const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
     aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
     aSimulationParameters: TSSMSimulationParameterList; const aSimulationSetup: string;
-    aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer);
+    aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer; const aDataSource: string);
   destructor Destroy; override;
   private
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
@@ -1476,7 +1476,7 @@ constructor TSSMProject.Create(aSessionModel: TSessionModel; aConnection: TConne
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
   aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
   aSimulationParameters: TSSMSimulationParameterList; const aSimulationSetup: string;
-  aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer);
+  aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer; const aDataSource: string);
 var
   prefix: string;
 begin
@@ -1491,7 +1491,7 @@ begin
       GetSetting('IMB3RemotePort', 4000),
       'PublishingServerSSM-'+aProjectID, 4, ''),
     '',
-    'ssm', // todo: datasource
+    aDataSource, // todo: datasource
     Self,
     SSMIdlePrefix);
 
