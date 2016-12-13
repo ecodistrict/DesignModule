@@ -142,7 +142,7 @@ begin
 
         // build tud project
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;A58 model;Traffic (SSM);Air (SSM <-> US)');
+        simParameters.setParameter('models', 'DataStore;A58 model'{;Traffic (SSM)}+';Air (SSM <-> US)');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
         simParameters.setParameter('A58 model-penetration', '<penetration>');
 

@@ -221,7 +221,9 @@ type
     property speed: Double read fSpeed;
   public
     procedure HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
-
+    procedure HandleFirstSubscriber; override;
+    procedure HandleLastSubscriber; override;
+    function HandleClientSubscribe(aClient: TClient): Boolean; override;
     procedure HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
@@ -1051,6 +1053,55 @@ begin
   inherited;
 end;
 
+function TSSMScenario.HandleClientSubscribe(aClient: TClient): Boolean;
+begin
+   Result := inherited HandleClientSubscribe(aClient);
+
+end;
+
+procedure TSSMScenario.HandleFirstSubscriber;
+var
+  controlInterface : TSSMMCControlInterface;
+//  _parameters: TJSONArray;
+//  parameter: TJSONValue;
+//  parameterName: string;
+//  parameterValue: string;
+//  parameterType: string;
+//  sp: TSSMSimulationParameter;
+//  _simParams: TSSMSimulationParameterList;
+//  newScenarioName: string;
+//  scenario: TSSMScenario;
+  cim: TCIModelEntry2;
+  parameters: TModelParameters;
+begin
+  inherited; //remove? inherited functionality is empty at this moment -> what if TScenario implements it?
+
+  //claim DataStore Player
+  if not useSimulationSetup then
+  begin
+    controlInterface := (fProject as TSSMProject).controlInterface;
+    controlInterface.Federation := ID;
+    for cim in controlInterface.Models do
+    begin
+      if (cim.State=msIdle) and (string.Compare(cim.ModelName, 'DataStore-player', True)=0) then
+      begin
+        if controlInterface.RequestModelDefaultParameters(cim) then
+        begin
+          parameters := TModelParameters.Create(cim.DefaultParameters);
+          try
+            if not controlInterface.ClaimModel(cim, parameters)
+            then log.WriteLn('TSSMProject.handleClientMessage: could not claim model '+cim.ModelName, llError)
+            else break;
+          finally
+            parameters.Free;
+          end;
+        end
+        else log.WriteLn('TSSMProject.handleClientMessage: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
+      end;
+    end;
+  end;
+end;
+
 procedure TSSMScenario.HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
 var
   action: Integer;
@@ -1194,6 +1245,33 @@ begin
     on e: Exception
     do Log.WriteLn('Exception in TSSMScenario.HandleGTUStatisticEvent: '+e.Message, llError);
   end;
+end;
+
+procedure TSSMScenario.HandleLastSubscriber;
+var
+  controlInterface : TSSMMCControlInterface;
+  cim: TCIModelEntry2;
+  layer: TLayer;
+begin
+  inherited;
+  if not useSimulationSetup then
+      begin
+        controlInterface := (fProject as TSSMProject).controlInterface;
+        // unlcaim datastore module
+        for cim in controlInterface.Models do
+        begin
+          if (cim.State<>msIdle) and (string.Compare(cim.Federation, ID, True)=0) then
+          begin
+            controlInterface.UnclaimModel(cim);
+            fStatistics.Clear();
+            fCharts.Clear();
+            for layer in fLayers.Values do
+              begin
+                layer.objects.Clear();
+              end;
+          end;
+        end;
+      end;
 end;
 
 procedure TSSMScenario.HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
@@ -1390,6 +1468,7 @@ begin
   // todo: switch back to base scenario!
   // todo: extra checks
   aClient.currentScenario := scenarios['base'];
+  aClient.signalString('{"type":"session","payload":{"simulationClose":0,"simulationSetup":1}}');
   //aClient.SendDomains
 end;
 
@@ -1483,8 +1562,8 @@ var
   _simParams: TSSMSimulationParameterList;
   newScenarioName: string;
   scenario: TSSMScenario;
-  cim: TCIModelEntry2;
-  parameters: TModelParameters;
+//  cim: TCIModelEntry2;
+//  parameters: TModelParameters;
 
 begin
   if isObject(aJSONObject, 'simulationControl', jsonPair) then
@@ -1495,17 +1574,7 @@ begin
       if isObjectValue(jsonPair.JsonValue as TJSONObject, 'stop', jsonValue) then
       begin
         (aClient.currentScenario as TSSMScenario).fSIMStopEvent.SignalEvent(ekNormalEvent, EmptyPayload);
-        if not aClient.currentScenario.useSimulationSetup then
-        begin
-          // unlcaim datastore module
-          for cim in controlInterface.Models do
-          begin
-            if (cim.State<>msIdle) and (string.Compare(cim.Federation, aScenario.ID, True)=0) then
-            begin
-              controlInterface.UnclaimModel(cim);
-            end;
-          end;
-        end;
+
         aClient.currentScenario.forEachClient(procedure(aClient: TClient)
           begin
             aClient.SignalString('{"simulationControl":{"stop":true}}');
@@ -1514,29 +1583,6 @@ begin
       if isObjectValue(jsonPair.JsonValue as TJSONObject, 'start', jsonValue) then
       begin
         (aClient.currentScenario as TSSMScenario).fSIMStartEvent.SignalEvent(ekNormalEvent, EmptyPayload);
-        if not aClient.currentScenario.useSimulationSetup then
-        begin
-          controlInterface.Federation := aScenario.ID;
-          // claim datastore module
-          for cim in controlInterface.Models do
-          begin
-            if (cim.State=msIdle) and (string.Compare(cim.ModelName, 'DataStore-player', True)=0) then
-            begin
-              if controlInterface.RequestModelDefaultParameters(cim) then
-              begin
-                parameters := TModelParameters.Create(cim.DefaultParameters);
-                try
-                  if not controlInterface.ClaimModel(cim, parameters)
-                  then log.WriteLn('TSSMProject.handleClientMessage: could not claim model '+cim.ModelName, llError)
-                  else break;
-                finally
-                  parameters.Free;
-                end;
-              end
-              else log.WriteLn('TSSMProject.handleClientMessage: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
-            end;
-          end;
-        end;
         // palyer starts itself so start call (which could never arive because of later subscribe of starting model) is not needed
         aClient.currentScenario.forEachClient(procedure(aClient: TClient)
           begin
@@ -1625,6 +1671,7 @@ begin
         if (isp.Value as TSSMScenario).running
         then aClient.signalString('{"simulationControl":{"start":true,"speed":'+DoubleToJSON((isp.Value as TSSMScenario).speed)+'}}')
         else aClient.signalString('{"simulationControl":{"stop":true}}');
+        aClient.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0}}');
       end;
     except
       on E: Exception
