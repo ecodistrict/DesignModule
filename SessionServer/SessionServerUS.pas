@@ -164,28 +164,28 @@ type
   end;
 
   TUSDBScenario = class
-  constructor Create(aID: Integer; const aName, aDescription: string; aParentID, aReferenceID: Integer; const aTablePrefix, aIMBPrefix, aStatus: string; aPublished: Integer);
+  constructor Create(const aID, aName, aDescription, aParentID, aReferenceID, aTablePrefix, aIMBPrefix, aStatus: string; aPublished: Integer);
   private
-    fID: Integer;
+    fID: string;
     fName: string;
     fDescription: string;
-    fParentID: Integer;
+    fParentID: string;
     fParentname: string;
-    fReferenceID: Integer;
+    fReferenceID: string;
     fReferenceName: string;
     fTablePrefix: string;
     fIMBPrefix: string;
     fStatus: string;
     fPublished: Integer;
   public
-    procedure Relink(aUSDBScenarios: TObjectDictionary<Integer, TUSDBScenario>);
+    procedure Relink(aUSDBScenarios: TObjectDictionary<string, TUSDBScenario>);
   public
-    property ID: Integer read fID;
+    property ID: string read fID;
     property name: string read fName;
     property description: string read fDescription;
-    property parentID: Integer read fParentID;
+    property parentID: string read fParentID;
     property parentName: string read fParentName;
-    property referenceID: Integer read fReferenceID;
+    property referenceID: string read fReferenceID;
     property referenceName: string read fReferenceName;
     property tablePrefix: string read fTablePrefix;
     property IMBPrefix: string read fIMBPrefix;
@@ -198,7 +198,7 @@ type
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
   destructor Destroy; override;
   private
-    fUSDBScenarios: TObjectDictionary<Integer, TUSDBScenario>;
+    fUSDBScenarios: TObjectDictionary<string, TUSDBScenario>;
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
     fPreLoadScenarios: Boolean;
     //fMCProgressTimer: TTimer;
@@ -1270,7 +1270,7 @@ constructor TUSScenario.Create(aProject: TProject; const aID, aName, aDescriptio
 begin
   fTablePrefix := aTablePrefix;
   fMetaLayer := TMetaLayer.Create([doOwnsValues]);
-  inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView);
+  inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView, false);
 end;
 
 destructor TUSScenario.Destroy;
@@ -1675,7 +1675,7 @@ end;
 
 { TUSDBScenario }
 
-constructor TUSDBScenario.Create(aID: Integer; const aName, aDescription: string; aParentID, aReferenceID: Integer; const aTablePrefix, aIMBPrefix, aStatus: string; aPublished: Integer);
+constructor TUSDBScenario.Create(const aID, aName, aDescription, aParentID, aReferenceID, aTablePrefix, aIMBPrefix, aStatus: string; aPublished: Integer);
 begin
   inherited Create;
   fID := aID;
@@ -1691,7 +1691,7 @@ begin
   fPublished := aPublished;
 end;
 
-procedure TUSDBScenario.Relink(aUSDBScenarios: TObjectDictionary<Integer, TUSDBScenario>);
+procedure TUSDBScenario.Relink(aUSDBScenarios: TObjectDictionary<string, TUSDBScenario>);
 var
   s: TUSDBScenario;
 begin
@@ -1709,7 +1709,7 @@ var
   SourceEPSGstr: string;
   SourceEPSG: Integer;
 begin
-  fUSDBScenarios := TObjectDictionary<Integer, TUSDBScenario>.Create;
+  fUSDBScenarios := TObjectDictionary<string, TUSDBScenario>.Create;
   mapView := aMapView;
 
   SourceEPSGstr := GetSetting(SourceEPSGSwitch, 'Amersfoort_RD_New');
@@ -1744,27 +1744,28 @@ end;
 procedure TUSProject.ReadBasicData;
 var
   scenarioID: Integer;
+  s: string;
 begin
   ReadScenarios;
   ReadMeasures;
   // load current scenario and ref scenario first
   scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession));
-  fProjectCurrentScenario := ReadScenario(scenarioID.ToString());
+  fProjectCurrentScenario := ReadScenario(scenarioID.ToString);
   Log.WriteLn('current US scenario: '+fProjectCurrentScenario.ID+' ('+(fProjectCurrentScenario as TUSScenario).fTableprefix+'): "'+fProjectCurrentScenario.description+'"', llOk);
   // ref
   scenarioID := GetScenarioBaseID(OraSession, scenarioID);
   if scenarioID>=0 then
   begin
-    fProjectRefScenario := ReadScenario(scenarioID.ToString());
+    fProjectRefScenario := ReadScenario(scenarioID.ToString);
     Log.WriteLn('reference US scenario: '+fProjectRefScenario.ID+' ('+(fProjectRefScenario as TUSScenario).fTableprefix+'): "'+fProjectRefScenario.description+'"', llOk);
   end
   else Log.WriteLn('NO reference US scenario', llWarning);
   if fPreLoadScenarios then
   begin
-    for scenarioID in fUSDBScenarios.Keys do
+    for s in fUSDBScenarios.Keys do
     begin
-      if fUSDBScenarios[scenarioID]._published>0
-      then ReadScenario(scenarioID.ToString());
+      if fUSDBScenarios[s]._published>0
+      then ReadScenario(s);
     end;
   end;
 end;
@@ -1796,7 +1797,7 @@ begin
   try
     if not fScenarios.TryGetValue(aID, Result) then
     begin
-      if fUSDBScenarios.TryGetValue(aID.ToInteger(), dbScenario) then
+      if fUSDBScenarios.TryGetValue(aID, dbScenario) then
       begin
         //StatusInc;
         Result := TUSScenario.Create(Self, aID, dbScenario.name, dbScenario.description, addBasicLayers, mapView, dbScenario.tablePrefix);
@@ -1814,7 +1815,7 @@ var
   scenarios: TAllRowsResults;
   s: Integer;
   usdbScenario: TUSDBScenario;
-  isp: TPair<Integer, TUSDBScenario>;
+  isp: TPair<string, TUSDBScenario>;
 begin
   // read scenarios from project database
   try
@@ -1824,8 +1825,8 @@ begin
       'ORDER BY ID ASC');
     for s := 0 to Length(scenarios)-1 do
     begin
-      usdbScenario := TUSDBScenario.Create(scenarios[s][0].ToInteger, scenarios[s][1], scenarios[s][5],
-        StrToIntDef(scenarios[s][3], -1), StrToIntDef(scenarios[s][4], -1), scenarios[s][1]+'#', scenarios[s][2], scenarios[s][6], StrToIntDef(scenarios[s][7], 0));
+      usdbScenario := TUSDBScenario.Create(scenarios[s][0], scenarios[s][1], scenarios[s][5],
+        scenarios[s][3], scenarios[s][4], scenarios[s][1]+'#', scenarios[s][2], scenarios[s][6], StrToIntDef(scenarios[s][7], 0));
       fUSDBScenarios.Add(usdbScenario.id, usdbScenario);
       if scenarios[s][7]='1' then
       begin
@@ -1843,8 +1844,8 @@ begin
       'ORDER BY ID ASC');
     for s := 0 to Length(scenarios)-1 do
     begin
-      usdbScenario := TUSDBScenario.Create(scenarios[s][0].ToInteger, scenarios[s][1], scenarios[s][5],
-        StrToIntDef(scenarios[s][3], -1), StrToIntDef(scenarios[s][4], -1), scenarios[s][1]+'#', scenarios[s][2], scenarios[s][6], 1);
+      usdbScenario := TUSDBScenario.Create(scenarios[s][0], scenarios[s][1], scenarios[s][5],
+        scenarios[s][3], scenarios[s][4], scenarios[s][1]+'#', scenarios[s][2], scenarios[s][6], 1);
       fUSDBScenarios.Add(usdbScenario.id, usdbScenario);
       fScenarioLinks.children.Add(TScenarioLink.Create(
         usdbScenario.ID, usdbScenario.parentID, usdbScenario.referenceID,
@@ -1859,7 +1860,7 @@ begin
   then fScenarioLinks.buildHierarchy() // todo: use hierarchy via setting?
   else fScenarioLinks.sortChildren(); // todo: sort scenario links?
   // filter closed 'leaves'
-  fScenarioLinks.removeLeave('CLOSED');
+  fScenarioLinks.removeLeaf('CLOSED');
 end;
 
 function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapView;
