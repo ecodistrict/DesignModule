@@ -227,6 +227,7 @@ type
   public
     property running: Boolean read fRunning;
     property speed: Double read fSpeed;
+    property statistics: TObjectDictionary<string, TSSMStatistic> read fStatistics;
   public
     procedure HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleFirstSubscriber; override;
@@ -1160,7 +1161,7 @@ begin
           fUSLayer := metaLayer[37].CreateUSLayer(
             self, tablePrefix, ConnectStringFromSession(oraSession),
             [imb3Connection.Subscribe(federation+'.'+'GENE_RECEPTOR')], // todo: check
-            sourceProjection, 'US', 'Air');
+            sourceProjection, 'Air', 'NO2');
           if Assigned(fUSLayer) then
           begin
             AddLayer(fUSLayer);
@@ -1196,124 +1197,143 @@ begin
     case action of
       actionNew:
         begin
-          if not fStatistics.TryGetValue(statisticId, stat) then
-          begin
-            if statisticId='All' then
+          TMonitor.Enter(fStatistics);
+          try
+            if not fStatistics.TryGetValue(statisticId, stat) then
             begin
-              domainRef := domainRefAllVehicles;
-              domain := domainAllVehicles;
-            end
-            else if statisticId='Equipped' then
-            begin
-              domainRef := domainRefEquipped;
-              domain := domainEquipped;
-            end
-            else if statisticId='Not equipped' then
-            begin
-              domainRef := domainRefNotEquipped;
-              domain := domainNotEquipped;
-            end
-            else
-            begin
-              domainRef := domainRefOther;
-              domain := domainOther;
+              if statisticId='All' then
+              begin
+                domainRef := domainRefAllVehicles;
+                domain := domainAllVehicles;
+              end
+              else if statisticId='Equipped' then
+              begin
+                domainRef := domainRefEquipped;
+                domain := domainEquipped;
+              end
+              else if statisticId='Not equipped' then
+              begin
+                domainRef := domainRefNotEquipped;
+                domain := domainNotEquipped;
+              end
+              else
+              begin
+                domainRef := domainRefOther;
+                domain := domainOther;
+              end;
+              stat := TSSMStatistic.Create(Self, domain, statisticId, domainRef);
+              fStatistics.Add(stat.ID, stat);
             end;
-            stat := TSSMStatistic.Create(Self, domain, statisticId, domainRef);
-            fStatistics.Add(stat.ID, stat);
+            stat.newTimestamp := timestamp;
+            stat.new(aPayload, (project as TSSMProject).sourceProjection);
+            // create
+
+            chart := TChartLines.Create(Self, stat.domain, stat.ID+'-0', stat.refDomainId+' '+'Total vehicle kilometers', '', false, 'line',
+              TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+              [TChartAxis.Create('km', 'lightBlue', 'Length', 'km')]);
+            stat.charts.Add(chart);
+            AddChart(chart);
+
+            chart := TChartLines.Create(Self, stat.domain, stat.ID+'-1', stat.refDomainId+' '+'Total travel time', '', false, 'line',
+              TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+              [TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min')]);
+            stat.charts.Add(chart);
+            AddChart(chart);
+
+            chart := TChartLines.Create(Self, stat.domain, stat.ID+'-2', stat.refDomainId+' '+'Average speed', '', false, 'line',
+              TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+              [TChartAxis.Create('km/h', 'lightBlue', 'Velocity', 'km/h')]);
+            stat.charts.Add(chart);
+            AddChart(chart);
+
+            chart := TChartLines.Create(Self, stat.domain, stat.ID+'-3', stat.refDomainId+' '+'Average travel time', '', false, 'line',
+              TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+              [TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min')]);
+            stat.charts.Add(chart);
+            AddChart(chart);
+
+            chart := TChartLines.Create(Self, stat.domain, stat.ID+'-4', stat.refDomainId+' '+'Vehicle delay hours', '', false, 'line',
+              TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+              [TChartAxis.Create('hours', 'lightBlue', 'Time', 'h')]);
+            stat.charts.Add(chart);
+            AddChart(chart);
+
+            chart := TChartLines.Create(Self, stat.domain, stat.ID+'-5', stat.refDomainId+' '+'Average trip length', '', false, 'line',
+              TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+              [TChartAxis.Create('km', 'lightBlue', 'Length', 'km')]);
+            stat.charts.Add(chart);
+            AddChart(chart);
+
+            chart := TChartLines.Create(Self, stat.domain, stat.ID+'-6', stat.refDomainId+' '+'Vehicle stops', '', false, 'line',
+              TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+              [TChartAxis.Create('stops', 'lightBlue', 'Dimensionless', '-')]);
+            stat.charts.Add(chart);
+            AddChart(chart);
+
+            project.forEachClient(procedure(aClient: TClient)
+              begin
+                project.SendDomains(aClient, 'updatedomains');
+              end);
+          finally
+            TMonitor.Exit(fStatistics);
           end;
-          stat.newTimestamp := timestamp;
-          stat.new(aPayload, (project as TSSMProject).sourceProjection);
-          // create
-
-          chart := TChartLines.Create(Self, stat.domain, stat.ID+'-0', stat.refDomainId+' '+'Total vehicle kilometers', '', false, 'line',
-            TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-            [TChartAxis.Create('km', 'lightBlue', 'Length', 'km')]);
-          stat.charts.Add(chart);
-          AddChart(chart);
-
-          chart := TChartLines.Create(Self, stat.domain, stat.ID+'-1', stat.refDomainId+' '+'Total travel time', '', false, 'line',
-            TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-            [TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min')]);
-          stat.charts.Add(chart);
-          AddChart(chart);
-
-          chart := TChartLines.Create(Self, stat.domain, stat.ID+'-2', stat.refDomainId+' '+'Average speed', '', false, 'line',
-            TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-            [TChartAxis.Create('km/h', 'lightBlue', 'Velocity', 'km/h')]);
-          stat.charts.Add(chart);
-          AddChart(chart);
-
-          chart := TChartLines.Create(Self, stat.domain, stat.ID+'-3', stat.refDomainId+' '+'Average travel time', '', false, 'line',
-            TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-            [TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min')]);
-          stat.charts.Add(chart);
-          AddChart(chart);
-
-          chart := TChartLines.Create(Self, stat.domain, stat.ID+'-4', stat.refDomainId+' '+'Vehicle delay hours', '', false, 'line',
-            TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-            [TChartAxis.Create('hours', 'lightBlue', 'Time', 'h')]);
-          stat.charts.Add(chart);
-          AddChart(chart);
-
-          chart := TChartLines.Create(Self, stat.domain, stat.ID+'-5', stat.refDomainId+' '+'Average trip length', '', false, 'line',
-            TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-            [TChartAxis.Create('km', 'lightBlue', 'Length', 'km')]);
-          stat.charts.Add(chart);
-          AddChart(chart);
-
-          chart := TChartLines.Create(Self, stat.domain, stat.ID+'-6', stat.refDomainId+' '+'Vehicle stops', '', false, 'line',
-            TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-            [TChartAxis.Create('stops', 'lightBlue', 'Dimensionless', '-')]);
-          stat.charts.Add(chart);
-          AddChart(chart);
-
-          project.forEachClient(procedure(aClient: TClient)
-            begin
-              project.SendDomains(aClient, 'updatedomains');
-            end);
         end;
       actionChange:
         begin
-          if fStatistics.TryGetValue(statisticId, stat) then
-          begin
-            stat.changedTimestamp := timestamp;
-            stat.change(aPayload, (project as TSSMProject).sourceProjection);
+          TMonitor.Enter(fStatistics);
+          try
+            if fStatistics.TryGetValue(statisticId, stat) then
+            begin
+              stat.changedTimestamp := timestamp;
+              stat.change(aPayload, (project as TSSMProject).sourceProjection);
+              try
+                chartLines := stat.charts[0] as TChartLines;
+                chartLines.AddValue(stat.changedTimestamp, [stat.totalGTUDistance]);
 
-            chartLines := stat.charts[0] as TChartLines;
-            chartLines.AddValue(stat.changedTimestamp, [stat.totalGTUDistance]);
+                chartLines := stat.charts[1] as TChartLines;
+                chartLines.AddValue(stat.changedTimestamp, [stat.totalGTUTravelTime]);
 
-            chartLines := stat.charts[1] as TChartLines;
-            chartLines.AddValue(stat.changedTimestamp, [stat.totalGTUTravelTime]);
+                chartLines := stat.charts[2] as TChartLines;
+                chartLines.AddValue(stat.changedTimestamp, [stat.averageGTUSpeed]);
 
-            chartLines := stat.charts[2] as TChartLines;
-            chartLines.AddValue(stat.changedTimestamp, [stat.averageGTUSpeed]);
+                chartLines := stat.charts[3] as TChartLines;
+                chartLines.AddValue(stat.changedTimestamp, [stat.averageGTUTravelTime]);
 
-            chartLines := stat.charts[3] as TChartLines;
-            chartLines.AddValue(stat.changedTimestamp, [stat.averageGTUTravelTime]);
+                chartLines := stat.charts[4] as TChartLines;
+                chartLines.AddValue(stat.changedTimestamp, [stat.totalGTUTimeDelay]);
 
-            chartLines := stat.charts[4] as TChartLines;
-            chartLines.AddValue(stat.changedTimestamp, [stat.totalGTUTimeDelay]);
+                chartLines := stat.charts[5] as TChartLines;
+                chartLines.AddValue(stat.changedTimestamp, [stat.averageTripLength]);
 
-            chartLines := stat.charts[5] as TChartLines;
-            chartLines.AddValue(stat.changedTimestamp, [stat.averageTripLength]);
-
-            chartLines := stat.charts[6] as TChartLines;
-            chartLines.AddValue(stat.changedTimestamp, [stat.totalNumberStops]);
-          end
-          else Log.WriteLn('TSSMScenario.HandleGTUStatisticEvent: change, unknown sensor id '+statisticId, llError);
+                chartLines := stat.charts[6] as TChartLines;
+                chartLines.AddValue(stat.changedTimestamp, [stat.totalNumberStops]);
+              except
+                on E: Exception
+                do Log.WriteLn('Exception in TSSMScenario.HandleGTUStatisticEvent actionChange: '+e.Message, llError);
+              end;
+            end
+            else Log.WriteLn('TSSMScenario.HandleGTUStatisticEvent: change, unknown sensor id '+statisticId, llError);
+          finally
+            TMonitor.Exit(fStatistics);
+          end;
         end;
       actionDelete:
         begin
-          if fStatistics.TryGetValue(statisticId, stat) then
-          begin
-            stat.deletedTimestamp := timestamp;
-            stat.delete(aPayload, (project as TSSMProject).sourceProjection);
-            // todo: implement
-            //for chart in stat.charts
-            //do RemoveChart(chart);
-            fStatistics.Remove(stat.id);
-          end
-          else Log.WriteLn('TSSMScenario.HandleGTUStatisticEvent: delete, unknown sensor id '+statisticId, llError);
+          TMonitor.Enter(fStatistics);
+          try
+            if fStatistics.TryGetValue(statisticId, stat) then
+            begin
+              stat.deletedTimestamp := timestamp;
+              stat.delete(aPayload, (project as TSSMProject).sourceProjection);
+              // todo: implement
+              //for chart in stat.charts
+              //do RemoveChart(chart);
+              fStatistics.Remove(stat.id);
+            end
+            else Log.WriteLn('TSSMScenario.HandleGTUStatisticEvent: delete, unknown sensor id '+statisticId, llError);
+          finally
+            TMonitor.Exit(fStatistics);
+          end;
         end;
     end;
   except
@@ -1577,8 +1597,18 @@ begin
     begin
       scenario.fRunning := False;
       scenario.fSpeed := 1.0;
-      scenario.fStatistics.Clear();
-      scenario.fCharts.Clear();
+      TMonitor.Enter(scenario.statistics);
+      try
+        scenario.fStatistics.Clear();
+      finally
+        TMonitor.Exit(scenario.statistics);
+      end;
+      TMonitor.Enter(scenario.charts);
+      try
+        scenario.charts.Clear();
+      finally
+        TMonitor.Exit(scenario.charts);
+      end;
       for layer in scenario.fLayers.Values do
         begin
           layer.objects.Clear();
