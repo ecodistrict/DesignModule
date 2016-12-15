@@ -150,8 +150,9 @@ begin
 
         // build tud project
         simParameters := TSSMSimulationParameterList.Create;
+        //simParameters.setParameter('models', 'DataStore;A58 model');
         simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);A58 model');
-        simParameters.setParameter('DataStore-Description', '<scenarioName>');
+        simParameters.setParameter('DataStore-Description', '<scenarioName>');
         simParameters.setParameter('A58 model-penetration', '<penetration>');
 
         //simParameters.setParameter('Traffic (SSM)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');

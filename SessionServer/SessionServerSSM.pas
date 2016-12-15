@@ -1056,7 +1056,9 @@ end;
 function TSSMScenario.HandleClientSubscribe(aClient: TClient): Boolean;
 begin
    Result := inherited HandleClientSubscribe(aClient);
-
+   aClient.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0}}');
+   if running then
+      aClient.SignalString('{"simulationControl":{"speed":'+DoubleToJSON(fSpeed)+', "start": true}}');
 end;
 
 procedure TSSMScenario.HandleFirstSubscriber;
@@ -1249,29 +1251,31 @@ end;
 
 procedure TSSMScenario.HandleLastSubscriber;
 var
-  controlInterface : TSSMMCControlInterface;
-  cim: TCIModelEntry2;
-  layer: TLayer;
+  //controlInterface : TSSMMCControlInterface;
+  //cim: TCIModelEntry2;
+  //layer: TLayer;
+  EmptyPayload: ByteBuffers.TByteBuffer;
 begin
   inherited;
-  if not useSimulationSetup then
-      begin
-        controlInterface := (fProject as TSSMProject).controlInterface;
-        // unlcaim datastore module
-        for cim in controlInterface.Models do
-        begin
-          if (cim.State<>msIdle) and (string.Compare(cim.Federation, ID, True)=0) then
-          begin
-            controlInterface.UnclaimModel(cim);
-            fStatistics.Clear();
-            fCharts.Clear();
-            for layer in fLayers.Values do
-              begin
-                layer.objects.Clear();
-              end;
-          end;
-        end;
-      end;
+  fSIMStopEvent.SignalEvent(ekNormalEvent, EmptyPayload)
+//  if not useSimulationSetup then
+//      begin
+//        controlInterface := (fProject as TSSMProject).controlInterface;
+//        // unlcaim datastore module
+//        for cim in controlInterface.Models do
+//        begin
+//          if (cim.State<>msIdle) and (string.Compare(cim.Federation, ID, True)=0) then
+//          begin
+//            controlInterface.UnclaimModel(cim);
+//            fStatistics.Clear();
+//            fCharts.Clear();
+//            for layer in fLayers.Values do
+//              begin
+//                layer.objects.Clear();
+//              end;
+//          end;
+//        end;
+//      end;
 end;
 
 procedure TSSMScenario.HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
@@ -1457,6 +1461,10 @@ end;
 procedure TSSMProject.closeSimulation(aClient: TClient; const aFederation: string);
 var
   cim: TCIModelEntry2;
+  genericScenario: TScenario;
+  scenario: TSSMScenario;
+  layer: TLayer;
+  link: TScenarioLink;
 begin
   for cim in controlInterface.Models do
   begin
@@ -1464,6 +1472,46 @@ begin
     begin
       controlInterface.UnclaimModel(cim);
     end;
+  end;
+  if (fScenarios.TryGetValue(aFederation, genericScenario) and (genericScenario Is TSSMScenario)) then
+  begin
+    scenario := genericScenario as TSSMScenario;
+    scenario.forEachClient(procedure (aClient: TClient)
+    begin
+      //todo: force scenario change?
+      aClient.currentScenario := scenarios['base'];
+      aClient.signalString('{"type":"session","payload":{"simulationClose":0,"simulationSetup":1}}');
+    end
+    );
+    //remove or reset the scenario
+    if scenario.useSimulationSetup then
+    begin
+      //fScenarios.Remove((aFederation));
+      link := scenarioLinks.findScenario(aFederation);
+      if Assigned(link) then
+      if Assigned(link.parent) then
+      begin
+        link.parent.children.Remove(link);
+        //freeAndNil(link);
+      end
+      else
+      begin
+        scenarioLinks.children.Remove(link);
+      end;
+      //todo: clean-up scenario?? and link?? freeAndNil(scenario);
+    end
+    else
+    begin
+      scenario.fRunning := False;
+      scenario.fSpeed := 1.0;
+      scenario.fStatistics.Clear();
+      scenario.fCharts.Clear();
+      for layer in scenario.fLayers.Values do
+        begin
+          layer.objects.Clear();
+        end;
+    end;
+
   end;
   // todo: switch back to base scenario!
   // todo: extra checks
@@ -1604,7 +1652,7 @@ begin
   end
   else if aJSONObject.TryGetValue<TJSONValue>('setupSimulation', jsonValue) then
   begin
-    closeSimulation(aClient, aScenario.ID);
+    //closeSimulation(aClient, aScenario.ID); //redundant??
     _simParams := TSSMSimulationParameterList.CreateCopy(simulationParameters);
     try
       if jsonValue.TryGetValue<TJSONArray>('parameters', _parameters) then
