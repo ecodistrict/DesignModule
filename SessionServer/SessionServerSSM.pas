@@ -224,11 +224,16 @@ type
     fSIMSpeedEvent: TIMBEventEntry;
 
     fUSLayer: TUSLayer;
+
+    fAirSSMEmissionsEvent: TIMBEventEntry;
+    fAirSSMEmissionsChartTotal: TChartLines;
+    fAirSSMEmissionsChartFraction: TChartLines;
   public
     property running: Boolean read fRunning;
     property speed: Double read fSpeed;
     property statistics: TObjectDictionary<string, TSSMStatistic> read fStatistics;
   public
+    procedure HandleAirSSMEmissions(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleFirstSubscriber; override;
     procedure HandleLastSubscriber; override;
@@ -1061,6 +1066,20 @@ begin
   // simulation speed
   fSIMSpeedEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.Sim_Speed');
   fSIMSpeedEvent.OnNormalEvent := HandleSimSpeedEvent;
+  // Air SSM Emissions
+
+  fAirSSMEmissionsChartTotal := TChartLines.Create(Self, 'Air', 'ase', 'Emissions total', '', false, 'line',
+      TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+      [TChartAxis.Create('g', 'lightBlue', 'Mass', 'g')]);
+  AddChart(fAirSSMEmissionsChartTotal);
+  fAirSSMEmissionsChartFraction := TChartLines.Create(Self, 'Air', 'ase', 'Emissions fraction', '', false, 'line',
+      TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+      [TChartAxis.Create('g/min', 'lightBlue', 'Mass rate', 'g/min')]);
+  AddChart(fAirSSMEmissionsChartFraction);
+
+
+  fAirSSMEmissionsEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.Air_ssm_emissions');
+  fAirSSMEmissionsEvent.OnNormalEvent := HandleAirSSMEmissions;
 end;
 
 destructor TSSMScenario.Destroy;
@@ -1071,6 +1090,20 @@ begin
   fSIMSpeedEvent.UnSubscribe;
   FreeAndNil(fStatistics);
   inherited;
+end;
+
+procedure TSSMScenario.HandleAirSSMEmissions(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+var
+  timeStamp: double;
+  totalEmission: double;
+  fractionalEmission: double;
+begin
+  aPayload.Read(timeStamp);
+  aPayload.Read(totalEmission);
+  aPayload.Read(fractionalEmission);
+
+  fAirSSMEmissionsChartTotal.AddValue(timeStamp, [totalEmission]);
+  fAirSSMEmissionsChartFraction.AddValue(timeStamp, [fractionalEmission]);
 end;
 
 function TSSMScenario.HandleClientSubscribe(aClient: TClient): Boolean;
