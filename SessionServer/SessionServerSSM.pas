@@ -210,7 +210,7 @@ type
   end;
 
   TSSMScenario = class (TScenario)
-  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean);
+  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean; aRecorded: Boolean);
   destructor Destroy; override;
   protected
     fGTUStatisticEvent: TIMBEventEntry;
@@ -218,6 +218,7 @@ type
     fStatistics: TObjectDictionary<string, TSSMStatistic>;
     fRunning: Boolean;
     fSpeed: Double;
+    fRecorded: Boolean;
 
     fSIMStartEvent: TIMBEventEntry;
     fSIMStopEvent: TIMBEventEntry;
@@ -302,7 +303,7 @@ type
     fUSScenario: string;
     procedure handleRecordingsEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
   public
-    function createSSMScenario(const aID, aName, aDescription: string; aUseSimulationSetup: Boolean): TSSMScenario;
+    function createSSMScenario(const aID, aName, aDescription: string; aUseSimulationSetup, aRecorded: Boolean): TSSMScenario;
     procedure closeSimulation(aClient: TClient; const aFederation: string);
 
     procedure ReadBasicData(); override;
@@ -1042,7 +1043,7 @@ end;
 
 { TSSMScenario }
 
-constructor TSSMScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean);
+constructor TSSMScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean; aRecorded: Boolean);
 begin
   fUSLayer := nil;
   inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView, aUseSimulationSetup);
@@ -1060,6 +1061,8 @@ begin
   // simulation speed
   fSIMSpeedEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.Sim_Speed');
   fSIMSpeedEvent.OnNormalEvent := HandleSimSpeedEvent;
+
+  fRecorded := aRecorded;
 end;
 
 destructor TSSMScenario.Destroy;
@@ -1631,13 +1634,13 @@ begin
     aSimulationSetup, aMaxNearestObjectDistanceInMeters);
 end;
 
-function TSSMProject.createSSMScenario(const aID, aName, aDescription: string; aUseSimulationSetup: Boolean): TSSMScenario;
+function TSSMProject.createSSMScenario(const aID, aName, aDescription: string; aUseSimulationSetup, aRecorded: Boolean): TSSMScenario;
 var
   gtuLayer: TSSMCarLayer;
   linkLayer: TSSMLinkLayer;
   switchLayer: TLayerSwitch;
 begin
-  Result := TSSMScenario.Create(Self, aID, aName, aDescription, false, mapView, aUseSimulationSetup);
+  Result := TSSMScenario.Create(Self, aID, aName, aDescription, false, mapView, aUseSimulationSetup, aRecorded);
   scenarios.Add(Result.ID, Result);
   // links
   linkLayer := TSSMLinkLayer.Create(Result, domainAllVehicles, 'LINK', 'LINK', 'LINK', false, false, 10, nil);
@@ -1751,7 +1754,7 @@ begin
       _simParams['scenarioName']  := sp;
 
       newScenarioName := _simParams['scenarioName'].value;
-      scenario := createSSMScenario(TGUID.NewGuid.ToString, 'new simulation', newScenarioName, True);
+      scenario := createSSMScenario(TGUID.NewGuid.ToString, 'new simulation', newScenarioName, True, False);
       // link
       scenarioLinks.children.Add(
         TScenarioLink.Create(scenario.ID, //  InterlockedIncrement(fScenarioNewLinkID),
@@ -1835,7 +1838,7 @@ begin
     aPayload.Read(description);
     if not scenarios.TryGetValue(federation, scenario) then
     begin
-      scenario := createSSMScenario(federation, description, 'recorded scenario', False);
+      scenario := createSSMScenario(federation, description, 'recorded scenario', False, True);
       scenarioLinks.children.Add(TScenarioLink.Create(
         scenario.ID, '', '', description, 'recorded scenario', 'recorded', scenario));
     end;
