@@ -46,7 +46,8 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
-        <DCC_UnitSearchPath>logger;imb;imb3;world;..\SessionServer;..\SessionServer\mc;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_Define>NONET;$(DCC_Define)</DCC_Define>
+        <DCC_UnitSearchPath>logger;imb;imb3;world;..\SessionServer;..\SessionServer\mc;..\SessionServer\odac;..\SessionServer\oracletools;..\SessionServer\avl;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <SanitizedProjectName>PublishSSMCmd</SanitizedProjectName>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>

@@ -16,6 +16,11 @@ uses
   ModelControllerLib,
   CommandQueue,
 
+  // US
+  SessionServerUS,
+  Ora,
+  MyOraLib,
+
   WinApi.Windows,
 
   System.JSON,
@@ -115,6 +120,7 @@ type
     fGTUEvent: TIMBEventEntry;
     fLinkLayer: TSSMLinkLayer;
     fPalette: TWDPalette;
+    fRedirectEvent: TIMBEventEntry;
   public
     procedure HandleGTUEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
   public
@@ -216,6 +222,8 @@ type
     fSIMStartEvent: TIMBEventEntry;
     fSIMStopEvent: TIMBEventEntry;
     fSIMSpeedEvent: TIMBEventEntry;
+
+    fUSLayer: TUSLayer;
   public
     property running: Boolean read fRunning;
     property speed: Double read fSpeed;
@@ -282,7 +290,7 @@ type
     const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
     aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
     aSimulationParameters: TSSMSimulationParameterList; const aSimulationSetup: string;
-    aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer; const aDataSource: string);
+    aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer; const aDataSource, aUSScenario: string);
   destructor Destroy; override;
   private
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
@@ -291,6 +299,7 @@ type
     //fScenarioNewLinkID: Integer;
     fRecordingsEvent: TIMBEventEntry;
     fPrivateEvent: TIMBEventEntry;
+    fUSScenario: string;
     procedure handleRecordingsEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
   public
     function createSSMScenario(const aID, aName, aDescription: string; aUseSimulationSetup: Boolean): TSSMScenario;
@@ -306,6 +315,7 @@ type
     property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
     property controlInterface: TSSMMCControlInterface read fControlInterface;
     property simulationParameters: TSSMSimulationParameterList read fSimulationParameters;
+    property USScenario: string read fUSScenario;
   end;
 
 
@@ -759,6 +769,8 @@ begin
   // GTU
   fGTUEvent := (scenario.project as TSSMProject).controlInterface.Connection.Subscribe(aScenario.ID+'.GTU');
   fGTUEvent.OnNormalEvent := HandleGTUEvent;
+  // redirect
+  fRedirectEvent := (scenario.project as TSSMProject).controlInterface.Connection.Publish('OTS_RT'+'.GTU', False);
   // legend
   SetLength(entries, 6);
 
@@ -822,7 +834,13 @@ var
   link: TLayerObject;
   oldLinkId: AnsiString;
   newLinkId: AnsiString;
+  redirPayload: ByteBuffers.TByteBuffer;
 begin
+  // send gtu event to OTS_RT
+  redirPayload.Clear(aPayload.ReadAvailable);
+  redirPayload.write(aPayload.ReadAddr^, aPayload.ReadAvailable);
+  fRedirectEvent.SignalEvent(ekNormalEvent, redirPayload);
+
   aPayload.Read(action);
   aPayload.Read(timestamp);
   aPayload.Read(gtuId);
@@ -1026,6 +1044,7 @@ end;
 
 constructor TSSMScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean);
 begin
+  fUSLayer := nil;
   inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView, aUseSimulationSetup);
   // statistics
   fStatistics := TObjectDictionary<string, TSSMStatistic>.Create;
@@ -1073,6 +1092,16 @@ var
 //  scenario: TSSMScenario;
   cim: TCIModelEntry2;
   parameters: TModelParameters;
+
+  oraSession: TOraSession;
+  tablePrefix: string;
+  metaLayer: TDictionary<Integer, TMetaLayerEntry>;
+  sourceProjection: TGIS_CSProjectedCoordinateSystem;
+  imb3Connection: TIMBConnection;
+  scenarioName: string;
+  scenarioID: Integer;
+  federation: string;
+
 begin
   inherited; //remove? inherited functionality is empty at this moment -> what if TScenario implements it?
 
@@ -1098,6 +1127,50 @@ begin
         end
         else log.WriteLn('TSSMProject.handleClientMessage: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
       end;
+    end;
+  end;
+
+  // add US layers
+  if not Assigned(fUSLayer) then
+  begin
+    oraSession := TOraSession.Create(nil);
+    try
+      oraSession.ConnectString := (project as TSSMProject).controlInterface.DataSource;
+      oraSession.Open;
+
+      scenarioName := (project as TSSMProject).usScenario;
+
+      if scenarioName<>''
+      then scenarioID := GetScenarioIDOnName(oraSession, scenarioName)
+      else scenarioID := GetCurrentScenarioID(oraSession);
+
+      tablePrefix := GetScenarioTablePrefix(oraSession, scenarioID);
+      federation := GetScenarioFederation(oraSession, scenarioID);
+
+      sourceProjection := (project as TSSMProject).sourceProjection;
+
+      imb3Connection := (project as TSSMProject).controlInterface.Connection;
+
+      metaLayer := TDictionary<Integer, TMetaLayerEntry>.Create;
+      try
+        if ReadMetaLayer(oraSession, tablePrefix, metaLayer) then
+        begin
+          fUSLayer := metaLayer[37].CreateUSLayer(
+            self, tablePrefix, ConnectStringFromSession(oraSession),
+            [imb3Connection.Subscribe(federation+'.'+'GENE_RECEPTOR')], // todo: check
+            sourceProjection, 'US', 'Air');
+          if Assigned(fUSLayer) then
+          begin
+            AddLayer(fUSLayer);
+            // schedule reading objects and send to tiler
+            AddCommandToQueue(Self, fUSLayer.ReadObjects);
+          end;
+        end;
+      finally
+        metaLayer.Free;
+      end;
+    finally
+      oraSession.Free;
     end;
   end;
 end;
@@ -1476,11 +1549,12 @@ constructor TSSMProject.Create(aSessionModel: TSessionModel; aConnection: TConne
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
   aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
   aSimulationParameters: TSSMSimulationParameterList; const aSimulationSetup: string;
-  aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer; const aDataSource: string);
+  aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer; const aDataSource, aUSScenario: string);
 var
   prefix: string;
 begin
   //fScenarioNewLinkID := 0;
+  fUSScenario := aUSScenario;
   if Assigned(aSimulationParameters)
   then fSimulationParameters := aSimulationParameters
   else fSimulationParameters := TSSMSimulationParameterList.Create;
@@ -1838,6 +1912,8 @@ begin
                   end;
 
                   // todo: wait for ready.. or not lock..
+                  while cim.State<>msReady
+                  do Sleep(100);
 
                 finally
                   parameters.Free;

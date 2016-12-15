@@ -257,7 +257,7 @@ type
     function Encode: TByteBuffer; override;
   public
     property geometryPoint: TWDGeometryPoint read fGeometryPoint;
-    property value: Double read fValue;
+    property value: Double read fValue write fValue;
     function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; override;
     function intersects(aGeometry: TWDGeometry): Boolean; override;
   end;
@@ -340,7 +340,7 @@ type
     function Encode: TByteBuffer; override;
   public
     property geometry: TWDGeometry read fGeometry;
-    property value: Double read fValue;
+    property value: Double read fValue write fValue;
     function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; override;
     function intersects(aGeometry: TWDGeometry): Boolean; override;
   end;

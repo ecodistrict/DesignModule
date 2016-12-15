@@ -90,6 +90,7 @@ begin
 
 
         // build sweco project
+        // US: V?
         simParameters := TSSMSimulationParameterList.Create;
         simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);gtu2fcd;KPI Model;Demo Model;VissimController');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
@@ -109,7 +110,8 @@ begin
            '{"formElement":"select","type":"int","required":"y","optionsArray":[["0","0%"],["20","20%"],["40","40%"],["60","60%"],["80","80%"],["100","100%"]],"labelText":"percentage fcd vehicles","idName":"fcd","extraOptions":false}, '+
            '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
           TMapView.Create(51.45485, 5.51492, 15), 0,
-          'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
+          'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde',
+          'V2');
         sessionModel.Projects.Add(project);
 
 
@@ -144,7 +146,8 @@ begin
               '"labelText":"Origin Destination matrix", "idName":"OD Matrix", "extraOptions":false}, ' +
               '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
             TMapView.Create(51.45485, 5.51492, 15), 0,
-            'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
+            'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde',
+            'V2');
         sessionModel.Projects.Add(project);
 
 
@@ -158,6 +161,7 @@ begin
         //simParameters.setParameter('Air (SSM <-> US)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
 
 
+        // US: V3
         project := TSSMProject.Create(sessionModel, imbConnection,
           'tud', 'A58 - CACC and schockwaves on the A58 between Tilburg and Eindhoven',
           tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
@@ -167,7 +171,8 @@ begin
            '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration","idName":"penetration","extraOptions":[1, "%"]},'+
            '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
           TMapView.Create(51.5275, 5.25729, 13), 0,
-          'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
+          'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde',
+          'V3');
         sessionModel.Projects.Add(project);
 
 
