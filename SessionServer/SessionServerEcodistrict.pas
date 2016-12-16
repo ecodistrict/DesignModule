@@ -2052,8 +2052,8 @@ begin
     if not scenarios.TryGetValue(aID, Result) then
     begin
       if aID=EcodistrictBaseScenario
-      then Result := TEcodistrictScenario.Create(Self, Self.ProjectID, Self.ProjectName, Self.ProjectDescription, Self.addBasicLayers, Self.mapView)
-      else Result := TEcodistrictScenario.Create(Self, aID, '', '', Self.addBasicLayers, Self.mapView);
+      then Result := TEcodistrictScenario.Create(Self, Self.ProjectID, Self.ProjectName, Self.ProjectDescription, Self.addBasicLayers, Self.mapView, False)
+      else Result := TEcodistrictScenario.Create(Self, aID, '', '', Self.addBasicLayers, Self.mapView, False);
       scenarios.Add(aID, Result);
     end;
   finally
@@ -3221,7 +3221,7 @@ begin
     // add base scenario
     if not result.scenarios.TryGetValue(EcodistrictBaseScenario, scenario) then
     begin
-      scenario := TEcodistrictScenario.Create(result, result.ProjectID, result.ProjectName, result.ProjectDescription, result.addBasicLayers, (result as TEcodistrictProject).mapView);
+      scenario := TEcodistrictScenario.Create(result, result.ProjectID, result.ProjectName, result.ProjectDescription, result.addBasicLayers, (result as TEcodistrictProject).mapView, False);
       result.scenarios.Add(EcodistrictBaseScenario, scenario);
       Log.WriteLn('added base scenario '+EcodistrictBaseScenario+': '+result.ProjectName+', '+result.ProjectDescription, llNormal, 1);
     end
@@ -3462,7 +3462,7 @@ begin
       else
       begin
         // add scenario
-        scenario := TEcodistrictScenario.Create(project, aVariantId, aVariantName, aVariantDescription, project.addBasicLayers, (project as TEcodistrictProject).mapView);
+        scenario := TEcodistrictScenario.Create(project, aVariantId, aVariantName, aVariantDescription, project.addBasicLayers, (project as TEcodistrictProject).mapView, False);
         project.scenarios.Add(aVariantId, scenario);
         Log.WriteLn('added scenario '+aVariantId+': '+aVariantName+', '+aVariantDescription, llNormal, 1);
       end;

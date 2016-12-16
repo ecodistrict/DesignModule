@@ -207,7 +207,7 @@ begin
     preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
     tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
     fProject := TUSProject.Create(
-      fSessionModel, fSessionModel.Connection,
+      fSessionModel, fSessionModel.Connection, connection,
       projectID, projectName,
       tilerName,
       GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),

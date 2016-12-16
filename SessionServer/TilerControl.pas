@@ -101,6 +101,8 @@ type
       aCurrentLayerID, aReferenceLayerID: Integer;
       aCurrentTimeStamp: TDateTime=0; aReferenceTimeStamp: TDateTime=0; aTimeStamp: TDateTime=0);
     // slice properties and data
+    // todo: signalPalette will own the given palette should be named something else like UpdatePalette or setPalette
+    // todo: split into palette handling and signaling
     procedure signalPalette(aPalette: TWDPalette; aTimeStamp: TDateTime=0); // update palette
     procedure signalData(const aData: TByteBuffer; aTimeStamp: TDateTime=0);
     // when any slice is build

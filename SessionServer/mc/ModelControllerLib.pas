@@ -3957,6 +3957,9 @@ end;
 
 destructor TMCControlInterface2.Destroy;
 begin
+  // todo: check
+  FPrivateEvent.OnNormalEvent := nil;
+  FControllersEvent.OnNormalEvent := nil;
   FreeAndNil(FModels);
   FreeAndNil(FLock);
   FConnection := nil;

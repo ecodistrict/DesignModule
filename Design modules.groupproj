@@ -27,9 +27,6 @@
         <Projects Include="EcoRestApi\EcoRestApi.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="TilerServer\TilerStatus.dproj">
-            <Dependencies/>
-        </Projects>
         <Projects Include="SessionServer\PublishingServerEnsel.dproj">
             <Dependencies/>
         </Projects>
@@ -125,15 +122,6 @@
     <Target Name="EcoRestApi:Make">
         <MSBuild Projects="EcoRestApi\EcoRestApi.dproj" Targets="Make"/>
     </Target>
-    <Target Name="TilerStatus">
-        <MSBuild Projects="TilerServer\TilerStatus.dproj"/>
-    </Target>
-    <Target Name="TilerStatus:Clean">
-        <MSBuild Projects="TilerServer\TilerStatus.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="TilerStatus:Make">
-        <MSBuild Projects="TilerServer\TilerStatus.dproj" Targets="Make"/>
-    </Target>
     <Target Name="PublishingServerEnsel">
         <MSBuild Projects="SessionServer\PublishingServerEnsel.dproj"/>
     </Target>
@@ -180,13 +168,13 @@
         <MSBuild Projects="Publish\PublishSSMCmd.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;TilerStatus;PublishingServerEnsel;TestEnselSource;EcoRefresh;PublishGetData;PublishSSMCmd"/>
+        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;PublishingServerEnsel;TestEnselSource;EcoRefresh;PublishGetData;PublishSSMCmd"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;TilerStatus:Clean;PublishingServerEnsel:Clean;TestEnselSource:Clean;EcoRefresh:Clean;PublishGetData:Clean;PublishSSMCmd:Clean"/>
+        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;PublishingServerEnsel:Clean;TestEnselSource:Clean;EcoRefresh:Clean;PublishGetData:Clean;PublishSSMCmd:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;TilerStatus:Make;PublishingServerEnsel:Make;TestEnselSource:Make;EcoRefresh:Make;PublishGetData:Make;PublishSSMCmd:Make"/>
+        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;PublishingServerEnsel:Make;TestEnselSource:Make;EcoRefresh:Make;PublishGetData:Make;PublishSSMCmd:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
