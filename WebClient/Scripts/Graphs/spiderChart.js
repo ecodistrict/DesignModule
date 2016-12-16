@@ -835,16 +835,12 @@ function SpiderChart(graphObject) {
           this.graphObject.activeNode = new spiderNode(this.clicked.data, this.graphObject, this.graphObject.activeNode);
           this.graphObject.Update();
         }
-        console.log(this.clicked);
         if (typeof this.clicked.link !== 'undefined') {
           if (GraphManager._getGraph(this.clicked.link)) {
             this.graphObject.activeNode = new spiderNode(GraphManager._getGraph(this.clicked.link).graph.activeNode, this.graphObject, this.graphObject.activeNode);
             this.graphObject.Update();
           }
-
-
         }
-
 
       }).bind({graphObject : this, "clicked": clicked}));
     }).bind(this));
