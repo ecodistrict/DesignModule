@@ -225,10 +225,16 @@ type
     fSIMSpeedEvent: TIMBEventEntry;
 
     fUSLayer: TUSLayer;
+
+    fAirSSMEmissionsEvent: TIMBEventEntry;
+    fAirSSMEmissionsChartTotal: TChartLines;
+    fAirSSMEmissionsChartFraction: TChartLines;
   public
     property running: Boolean read fRunning;
     property speed: Double read fSpeed;
+    property statistics: TObjectDictionary<string, TSSMStatistic> read fStatistics;
   public
+    procedure HandleAirSSMEmissions(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleFirstSubscriber; override;
     procedure HandleLastSubscriber; override;
@@ -1063,6 +1069,20 @@ begin
   fSIMSpeedEvent.OnNormalEvent := HandleSimSpeedEvent;
 
   fRecorded := aRecorded;
+  // Air SSM Emissions
+
+  fAirSSMEmissionsChartTotal := TChartLines.Create(Self, 'Air', 'aset', 'Emissions total', '', false, 'line',
+      TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+      [TChartAxis.Create('g', 'lightBlue', 'Mass', 'g')]);
+  AddChart(fAirSSMEmissionsChartTotal);
+  fAirSSMEmissionsChartFraction := TChartLines.Create(Self, 'Air', 'asef', 'Emissions fraction', '', false, 'line',
+      TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+      [TChartAxis.Create('g/min', 'lightBlue', 'Mass rate', 'g/min')]);
+  AddChart(fAirSSMEmissionsChartFraction);
+
+
+  fAirSSMEmissionsEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.Air_ssm_emissions');
+  fAirSSMEmissionsEvent.OnNormalEvent := HandleAirSSMEmissions;
 end;
 
 destructor TSSMScenario.Destroy;
@@ -1073,6 +1093,20 @@ begin
   fSIMSpeedEvent.UnSubscribe;
   FreeAndNil(fStatistics);
   inherited;
+end;
+
+procedure TSSMScenario.HandleAirSSMEmissions(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
+var
+  timeStamp: double;
+  totalEmission: double;
+  fractionalEmission: double;
+begin
+  aPayload.Read(timeStamp);
+  aPayload.Read(totalEmission);
+  aPayload.Read(fractionalEmission);
+
+  fAirSSMEmissionsChartTotal.AddValue(timeStamp, [totalEmission]);
+  fAirSSMEmissionsChartFraction.AddValue(timeStamp, [fractionalEmission]);
 end;
 
 function TSSMScenario.HandleClientSubscribe(aClient: TClient): Boolean;
@@ -1163,7 +1197,7 @@ begin
           fUSLayer := metaLayer[37].CreateUSLayer(
             self, tablePrefix, ConnectStringFromSession(oraSession),
             [imb3Connection.Subscribe(federation+'.'+'GENE_RECEPTOR')], // todo: check
-            sourceProjection, 'US', 'Air');
+            sourceProjection, 'Air', 'NO2');
           if Assigned(fUSLayer) then
           begin
             AddLayer(fUSLayer);
@@ -1199,6 +1233,8 @@ begin
     case action of
       actionNew:
         begin
+          TMonitor.Enter(fStatistics);
+          try
           if not fStatistics.TryGetValue(statisticId, stat) then
           begin
             if statisticId='All' then
@@ -1274,14 +1310,19 @@ begin
             begin
               project.SendDomains(aClient, 'updatedomains');
             end);
+          finally
+            TMonitor.Exit(fStatistics);
+        end;
         end;
       actionChange:
         begin
+          TMonitor.Enter(fStatistics);
+          try
           if fStatistics.TryGetValue(statisticId, stat) then
           begin
             stat.changedTimestamp := timestamp;
             stat.change(aPayload, (project as TSSMProject).sourceProjection);
-
+              try
             chartLines := stat.charts[0] as TChartLines;
             chartLines.AddValue(stat.changedTimestamp, [stat.totalGTUDistance]);
 
@@ -1302,11 +1343,20 @@ begin
 
             chartLines := stat.charts[6] as TChartLines;
             chartLines.AddValue(stat.changedTimestamp, [stat.totalNumberStops]);
+              except
+                on E: Exception
+                do Log.WriteLn('Exception in TSSMScenario.HandleGTUStatisticEvent actionChange: '+e.Message, llError);
+              end;
           end
           else Log.WriteLn('TSSMScenario.HandleGTUStatisticEvent: change, unknown sensor id '+statisticId, llError);
+          finally
+            TMonitor.Exit(fStatistics);
+        end;
         end;
       actionDelete:
         begin
+          TMonitor.Enter(fStatistics);
+          try
           if fStatistics.TryGetValue(statisticId, stat) then
           begin
             stat.deletedTimestamp := timestamp;
@@ -1317,7 +1367,10 @@ begin
             fStatistics.Remove(stat.id);
           end
           else Log.WriteLn('TSSMScenario.HandleGTUStatisticEvent: delete, unknown sensor id '+statisticId, llError);
+          finally
+            TMonitor.Exit(fStatistics);
         end;
+    end;
     end;
   except
     on e: Exception
@@ -1580,8 +1633,18 @@ begin
     begin
       scenario.fRunning := False;
       scenario.fSpeed := 1.0;
+      TMonitor.Enter(scenario.statistics);
+      try
       scenario.fStatistics.Clear();
-      scenario.fCharts.Clear();
+      finally
+        TMonitor.Exit(scenario.statistics);
+      end;
+      TMonitor.Enter(scenario.charts);
+      try
+        scenario.charts.Clear();
+      finally
+        TMonitor.Exit(scenario.charts);
+      end;
       for layer in scenario.fLayers.Values do
         begin
           layer.objects.Clear();

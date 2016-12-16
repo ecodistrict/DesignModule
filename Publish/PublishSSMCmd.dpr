@@ -117,7 +117,7 @@ begin
 
 
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);KPI Model;VissimController');
+        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;KPI Model;VissimController');
 
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
 
@@ -153,8 +153,8 @@ begin
 
         // build tud project
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;A58 model');
-        //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);A58 model');
+        //simParameters.setParameter('models', 'DataStore;SSMAirModule;A58 model');
+        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;A58 model');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
         simParameters.setParameter('A58 model-penetration', '<penetration>');
 
