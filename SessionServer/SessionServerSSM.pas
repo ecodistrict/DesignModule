@@ -223,7 +223,7 @@ type
     fSIMStopEvent: TIMBEventEntry;
     fSIMSpeedEvent: TIMBEventEntry;
 
-    fUSLayer: TUSLayer;
+    fUSLayersLoaded: Boolean;
 
     fAirSSMEmissionsEvent: TIMBEventEntry;
     fAirSSMEmissionsChartTotal: TChartLines;
@@ -1050,7 +1050,7 @@ end;
 
 constructor TSSMScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean);
 begin
-  fUSLayer := nil;
+  fUSLayersLoaded := False;
   inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView, aUseSimulationSetup);
   // statistics
   fStatistics := TObjectDictionary<string, TSSMStatistic>.Create;
@@ -1115,6 +1115,21 @@ begin
 end;
 
 procedure TSSMScenario.HandleFirstSubscriber;
+
+  function SubscribeDataEvents(aIMB3Connection: TIMBConnection; const aFederation, aIMBEventClass: string): TIMBEventEntryArray;
+  var
+    eventNames: TArray<System.string>;
+    ev: string;
+  begin
+    setLength(Result, 0);
+    eventNames := aIMBEventClass.Split([',']);
+    for ev in eventNames do
+    begin
+      setLength(Result, Length(Result)+1);
+      Result[Length(Result)-1] := aIMB3Connection.Subscribe(aFederation+'.'+ev.trim)
+    end;
+  end;
+
 var
   controlInterface : TSSMMCControlInterface;
 //  _parameters: TJSONArray;
@@ -1137,6 +1152,8 @@ var
   scenarioName: string;
   scenarioID: Integer;
   federation: string;
+  imlep: TPair<Integer, TMetaLayerEntry>;
+  layer: TUSLayer;
 
 begin
   inherited; //remove? inherited functionality is empty at this moment -> what if TScenario implements it?
@@ -1167,7 +1184,7 @@ begin
   end;
 
   // add US layers
-  if not Assigned(fUSLayer) then
+  if not fUSLayersLoaded then
   begin
     oraSession := TOraSession.Create(nil);
     try
@@ -1191,16 +1208,25 @@ begin
       try
         if ReadMetaLayer(oraSession, tablePrefix, metaLayer) then
         begin
-          fUSLayer := metaLayer[37].CreateUSLayer(
-            self, tablePrefix, ConnectStringFromSession(oraSession),
-            [imb3Connection.Subscribe(federation+'.'+'GENE_RECEPTOR')], // todo: check
-            sourceProjection, 'Air', 'NO2');
-          if Assigned(fUSLayer) then
+          for imlep in metalayer do
           begin
-            AddLayer(fUSLayer);
-            // schedule reading objects and send to tiler
-            AddCommandToQueue(Self, fUSLayer.ReadObjects);
+            if imlep.value._published>0 then
+            begin
+              layer := imlep.value.CreateUSLayer(
+                self, tablePrefix, ConnectStringFromSession(oraSession),
+                SubscribeDataEvents(imb3Connection, federation, imlep.Value.IMB_EVENTCLASS),
+                sourceProjection, imlep.value.Domain, imlep.value.description);
+              if Assigned(layer) then
+              begin
+                AddLayer(layer);
+                // schedule reading objects and send to tiler
+                AddCommandToQueue(Self, layer.ReadObjects);
+                Log.WriteLn('Added US layer '+imlep.value.Domain+'\'+imlep.value.description);
+              end
+              else Log.WriteLn('Could not add US layer '+imlep.value.Domain+'\'+imlep.value.description, llError);
+            end;
           end;
+          fUSLayersLoaded := True;
         end;
       finally
         metaLayer.Free;
