@@ -150,6 +150,10 @@ L.Control.TimeSlider = L.Control.extend({
     .style('pointer-events', 'auto')
     .style('font-size', '14px');
 
+    selectedTime.on('click', function() {
+        timeslider._control._expand();
+    });
+
     rescale();
 
 
@@ -261,9 +265,10 @@ L.Control.TimeSlider = L.Control.extend({
   },
 
   _collapse: function () {
+
     L.DomUtil.removeClass(this._container, 'leaflet-control-timeslider-expanded');
     L.DomUtil.addClass(this._timeslider, 'leaflet-control-timeslider-expanded');
-    // this._timeslider.sendSelectedTime('now');
+
   }
 });
 

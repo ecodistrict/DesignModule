@@ -210,13 +210,16 @@ L.control.timeslidersettings.createSettings = function (definition, layerid) {
     this.clearSettings(!this._div.firstChild, layerid);
     // content holding settings elements
     this._content = this._div.appendChild(L.DomUtil.create('div', 'settings-content'));
+    this._title = this._div.appendChild(L.DomUtil.create('div', 'settings-title'));
     // close cross right upper
     this._close = this._div.appendChild(L.DomUtil.create('div', 'settings-close'));
     this._close.innerHTML = '&#x2715;';
     this._close.onclick = function (e) {
       this.onclick = null;
+      console.log(this.parentNode);
       this.parentNode.removeChild(this);
       L.control.timeslidersettings._div.removeChild(L.control.timeslidersettings._content);
+      L.control.timeslidersettings._div.removeChild(L.control.timeslidersettings._title);
       // todo: remove control from map?
     };
     if (definition.grid)
