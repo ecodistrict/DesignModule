@@ -101,9 +101,8 @@ type
       aCurrentLayerID, aReferenceLayerID: Integer;
       aCurrentTimeStamp: TDateTime=0; aReferenceTimeStamp: TDateTime=0; aTimeStamp: TDateTime=0);
     // slice properties and data
-    // todo: signalPalette will own the given palette should be named something else like UpdatePalette or setPalette
-    // todo: split into palette handling and signaling
-    procedure signalPalette(aPalette: TWDPalette; aTimeStamp: TDateTime=0); // update palette
+    procedure updatePalette(aPalette: TWDPalette; aTimeStamp: TDateTime=0);
+    procedure signalPalette(aTimeStamp: TDateTime=0);
     procedure signalData(const aData: TByteBuffer; aTimeStamp: TDateTime=0);
     // when any slice is build
     procedure signalRequestPreview;
@@ -513,10 +512,8 @@ begin
     TByteBuffer.bb_tag_rawbytestring(icehTilerSliceUpdate, aData));
 end;
 
-procedure TTilerLayer.signalPalette(aPalette: TWDPalette; aTimeStamp: TDateTime);
+procedure TTilerLayer.signalPalette(aTimeStamp: TDateTime);
 begin
-  fPalette.Free;
-  fPalette := aPalette;
   if Assigned(fPalette) then
   begin
     fEvent.signalEvent(
@@ -544,6 +541,16 @@ end;
 procedure TTilerLayer.signalRequestPreview;
 begin
   fEvent.signalEvent(TByteBuffer.bb_tag_uint32(icehTilerRequestPreviewImage, PreviewImageWidth));
+end;
+
+procedure TTilerLayer.updatePalette(aPalette: TWDPalette; aTimeStamp: TDateTime);
+begin
+  if fPalette<>aPalette then
+  begin
+    fPalette.Free;
+    fPalette := aPalette;
+    signalPalette(aTimeStamp);
+  end;
 end;
 
 { TTiler }
