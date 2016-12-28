@@ -5,15 +5,84 @@
   animation-duration: 10s;
   /*top: -30px;*/
 }
-#windArrow {  width: 100px }
 .leaflet-control-windDirection-animation {  animation-name: sensorFade }
 /* Chrome, Safari, Opera */
 @-webkit-keyframes sensorFade {
-    from {  background-color: lightgreen }
-    to {  background-color: white }
+  from {  background-color: lightgreen }
+  to {  background-color: white }
 }
 /* Standard syntax */
 @keyframes sensorFade {
-    from {  background-color: lightgreen }
-    to {  background-color: white }
+  from {  background-color: lightgreen }
+  to {  background-color: white }
+}
+
+#windArrow {
+  -webkit-transition: 1s ease-in-out;
+   -moz-transition: 1s ease-in-out;
+   -o-transition: 1s ease-in-out;
+   transition: 1s ease-in-out;
+}
+
+
+.selectedArrow {
+  left:5px;
+  top:5px;
+  position: absolute;
+}
+.windDirectionDiv {
+  width:200px;
+  height:200px;
+  padding:5px;
+  position:relative;
+}
+
+.north, .east, .south, .west {
+  position: absolute;
+  text-align: center;
+  /*background-color: blue;*/
+  line-height: 30px;
+}
+.arrowImage {
+  position: absolute;
+  width:120px;
+  height:120px;
+  left:45px;
+  top:45px;
+}
+.north {
+  left:90px;
+  top:5px;
+  width:30px;
+  height:30px;
+}
+.east {
+  left:175px;
+  top:90px;
+  width:30px;
+  height:30px;
+}
+.south {
+  left:90px;
+  top:175px;
+  width:30px;
+  height:30px;
+}
+.west {
+  left:5px;
+  top:90px;
+  width:30px;
+  height:30px;
+}
+.windDirectionText {
+  top:125px;
+  font-size:10px;
+  left:0px;
+  right:0px;
+  position: absolute;
+  text-align: center;
+  -webkit-transition: 1s ease-in-out;
+   -moz-transition: 1s ease-in-out;
+   -o-transition: 1s ease-in-out;
+   transition: 1s ease-in-out;
 }

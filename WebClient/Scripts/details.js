@@ -241,7 +241,7 @@
 
         //}
 
-        for (var i = 0; i < GraphManager.graphs.length; i++)
+        for (var i = 0, len = GraphManager.graphs.length; i < len; i++)
         {
             GraphManager.graphs[i].graph.GetPreview(this.charts);
             chartCount++;

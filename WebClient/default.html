@@ -71,6 +71,13 @@
   <div id="connectionStatus" class="connection-status connection-status-disconnected" ></div>
   <!-- error messages -->
   <div id="userMessages" class="userMessages userMessages-hidden"><p id="userMessage">There is a message</p></div>
+
+  <div id="messagesContainer" class="Messages messages-hidden">
+    <span id="introText">Log:</span>
+    <span id="deleteLogItems" onclick="deleteLogItems()">Delete all</span>
+    <div id="messages"></div>
+  </div>
+
   <!-- current-reference-difference selector -->
   <div id="currefdiff" class="currefdiff leaflet-container" title="Show the current version of the layer, reference version or difference between those"></div>
   <!-- time related elements-->
