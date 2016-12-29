@@ -287,29 +287,6 @@ var GraphManager = {
       graph = new SpiderChart(graphObject);
       break;
 
-      // todo
-      // # line
-        // preview aanpassen
-      // # Bar
-        // preview aanpassen
-        // grouped check
-      // # spline
-        // preview aanpassen
-      // # Area
-        // preview aanpassen
-      // # step
-        // preview aanpassen
-      // # area-step
-        // preview aanpassen
-      // # area-spline
-        // preview aanpassen
-      // # scatter
-        // preview aanpassen
-      // # donut
-        // preview aanpassen
-      // # gauge
-        // preview aanpassen
-
       // NEW
       case 'line':
       graph = new Chart(graphObject);
@@ -349,7 +326,7 @@ var GraphManager = {
       default: console.log("Graph type not yet supported");
       break;
     }
-
+    console.log(graph);
 
     graph.Initialize(container);
     return graph;

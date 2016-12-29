@@ -58,14 +58,12 @@ L.Control.Arrow = L.Control.extend({
     west.innerHTML = 'W';
     var arrow = windDirectionDiv.appendChild(L.DomUtil.create('img', "arrowImage"));
 
-
     var points = windDirectionDiv.appendChild(L.DomUtil.create('img', "selectedArrow"));
     points.src = "Content/images/wind_points.png";
 
     this.arrow = arrow;
     arrow.id = "windArrow";
     arrow.src = "Content/images/arrow_wind.png";
-
 
   },
 

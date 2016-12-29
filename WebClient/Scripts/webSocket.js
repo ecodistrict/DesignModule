@@ -247,7 +247,8 @@ var wsLookup = {
     connection: function (payload) {
         // connection specific, from ws2imb
         if (payload.message)
-            showUserMessage(payload.message, payload.messageType);
+          AddErrorMessage(payload.message, payload.messageType);
+
     },
     sensor: function (payload) {
         DataManager.NewSensor(payload);
@@ -307,7 +308,7 @@ var wsLookup = {
 
         if (typeof payload.speed !== "undefined") {
             DataManager.simSpeed = payload.speed;
-            showUserMessage("Simulation speed changed to: " + payload.speed, 1);
+            AddErrorMessage("Simulation speed changed to: " + payload.speed);
         }
     },
     ccv: function (payload) {
@@ -349,7 +350,7 @@ function wsConnect() {
         for (var x = 0; x < messages.length; x++) {
             message = messages[x];
 
-            //check if message is of the new type, if so direct call otherwise 
+            //check if message is of the new type, if so direct call otherwise
             if (typeof message.type !== "undefined") {
                 if (typeof wsLookup[message.type] !== "undefined")
                     wsLookup[message.type](message.payload);
@@ -505,9 +506,9 @@ function wsConnect() {
     };
     ws.onerror = function (evt) {
         if (evt.message)
-            showUserMessage("disconnect: " + evt.message);
+            AddErrorMessage("disconnect: " + evt.message, 'error');
         else
-            showUserMessage("disconnected");
+            AddErrorMessage("disconnected", 'error');
 
         connectionStatus.classList.remove('connection-status-connected');
         connectionStatus.classList.add('connection-status-disconnected');
@@ -518,10 +519,10 @@ function wsConnect() {
         if (typeof wsLastConnectDateTime !== "undefined") {
             var timeDiff = Math.abs(wsLastConnectDateTime.getTime() - new Date().getTime());
             if (evt.code && evt.code != 1000)
-                showUserMessage("disconnected (close " + evt.code + ", " + evt.reason + ") after " + Math.round(timeDiff / 1000) + " seconds");
+                AddErrorMessage("disconnected (close " + evt.code + ", " + evt.reason + ") after " + Math.round(timeDiff / 1000) + " seconds", 'error');
         }
         else if (evt.code && evt.code != 1000)
-            showUserMessage("disconnected (close " + evt.code + ", " + evt.reason + ")");
+            AddErrorMessage("disconnected (close " + evt.code + ", " + evt.reason + ")", 'error');
     };
 };
 

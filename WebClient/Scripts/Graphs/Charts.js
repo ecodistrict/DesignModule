@@ -105,10 +105,11 @@ function Chart(graphObject) {
     var width = DataManager.detailsInfo.chartWidth;
     var height = DataManager.detailsInfo.chartHeight;
 
-    svg = d3.select(this.previewDiv).select('svg');
+    var svg = d3.select(this.previewDiv).select('svg');
 
     var columns = graph.data.columns;
-    this.graphObject.preview.chart.load({
+    console.log(graph.preview.chart);
+    graph.preview.chart.load({
       columns: columns,
       type: this.graphObject.type,
       selection: {
@@ -118,6 +119,9 @@ function Chart(graphObject) {
 
   }
   this.GetPreview = function(container)    {
+
+    var graph = this.graphObject;
+
     if (this.previewDiv != null)
     return container.appendChild(this.previewDiv);
 
@@ -132,7 +136,7 @@ function Chart(graphObject) {
     previewContainer.addEventListener("click", this._clickEvent);
     var title = previewContainer.appendChild(document.createElement("h4"));
     title.className = "detailTitle graphDetailTitle";
-    title.textContent = this.graphObject.title;
+    title.textContent = graph.title;
     title.style.width = DataManager.detailsInfo.elementWidth + "px";
 
     var svgContainer = previewContainer.appendChild(document.createElement("div"));
@@ -145,10 +149,9 @@ function Chart(graphObject) {
     .attr("height", DataManager.detailsInfo.chartHeight);
 
     svg.className = "graph-svg-preview";
-    this.graphObject.preview.container = previewContainer;
-    this.graphObject.preview.svg = svg;
-    this.graphObject.preview.container
-    this.graphObject.preview.chart = c3.generate({
+    graph.preview.container = previewContainer;
+    graph.preview.svg = svg;
+    graph.preview.chart = c3.generate({
       bindto: svg,
       data: {
         columns: []
@@ -169,26 +172,27 @@ function Chart(graphObject) {
       }
     });
 
-    this.graphObject.preview.chart.internal.config.axis_x_tick_outer = false;
-    this.graphObject.preview.chart.internal.config.interaction_enabled = false;
-    this.graphObject.preview.chart.internal.config.tooltip_show = false;
 
-    switch(this.graphObject.type) {
+    graph.preview.chart.internal.config.axis_x_tick_outer = false;
+    graph.preview.chart.internal.config.interaction_enabled = false;
+    graph.preview.chart.internal.config.tooltip_show = false;
+
+    switch(graph.type) {
       case 'pie':
-      this.graphObject.preview.chart.internal.config.pie_label_show = false;
+      graph.preview.chart.internal.config.pie_label_show = false;
       break;
       case 'donut':
-      this.graphObject.preview.chart.internal.config.donut_label_show = false;
+      graph.preview.chart.internal.config.donut_label_show = false;
       break;
       case 'gauge':
-      this.graphObject.preview.chart.internal.config.gauge_label_format = function(value, ratio){
+      graph.preview.chart.internal.config.gauge_label_format = function(value, ratio){
         return ''; //returning here the value and not the ratio
       }
       break;
       default:
     }
 
-    var graph = this.graphObject;
+
     this._UpdatePreview();
   }
   this.Update = function () {

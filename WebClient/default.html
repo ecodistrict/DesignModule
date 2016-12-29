@@ -3,6 +3,7 @@
 <head>
   <title>Design module</title>
   <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <!-- leaflet css -->
@@ -124,8 +125,9 @@
   <script src="Scripts/syncManager.js"></script>
   <script src="Scripts/UnitConverter.js"></script>
   <!-- charts -->
-  <script src="Scripts/c3.min.js"></script>
   <script src="Scripts/d3.js"></script>
+
+  <script src="Scripts/c3.js"></script>
   <script src="Scripts/bullet.js"></script>
   <script src="Scripts/graphManager.js"></script>
   <script src="Scripts/Graphs/lineGraphs.js"></script>
@@ -144,7 +146,7 @@
     // session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
     // session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
     // session = 'ensel';
-    // session = 'ssm';
+    // session = 'ssm';  
   }
   var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
   var scenario = '';
