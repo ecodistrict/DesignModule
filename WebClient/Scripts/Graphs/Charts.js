@@ -35,9 +35,8 @@ function generateCharts() {
       },
       title:"Air humidity" + types[i],
       id : "test" + i,
-      type : types[i],
-      width : 300,
-      height : 200,
+      type : types[i]
+
     }
     GraphManager.MakeGraph(chartObject);
   }
@@ -50,9 +49,7 @@ var chartObject = {
   ]},
   title:"Air humidity",
   id : "test123",
-  type : "line",
-  width : 400,
-  height : 400,
+  type : "line"
 }
 
 
@@ -219,7 +216,7 @@ function Chart(graphObject) {
       }
 
       });
-      graph.chart.internal.config.legend_show = this.visible;      
+      graph.chart.internal.config.legend_show = this.visible;
       d3.select(this.graphObject.container).select('.graph-title').html(this.graphObject.title);
       graph.chart.element.style.marginTop = '26px';
       this._fillCharts(graph);
