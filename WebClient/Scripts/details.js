@@ -43,7 +43,8 @@
         if (this.options.collapsed) {
             if (!L.Browser.android) {
                 L.DomEvent.on(container, {
-                    mouseenter: this._expand
+                    mouseenter: this._expand,
+                    mouseleave: this._collapse
                 }, this);
             }
 

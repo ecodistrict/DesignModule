@@ -280,6 +280,11 @@ LayerManager.Object = function (data, layergroup) {
     this.latlng = L.latLng(data.lat, data.lng);
     this.layergroup = layergroup;
 
+    if (data.fillColor && data.fillColor != "" && data.fillColor != "" && data.fillColor != "" && data.fillColor != "" && data.fillColor != "" && data.fillColor != "")
+    {
+
+    }
+
     //http://leafletjs.com/reference.html#path-options
     this.style = {
         stroke: true,
@@ -526,10 +531,12 @@ LayerManager.DetailsLayer = function (data) {
 
     this.updatePreview = function () {
         if (this.previewDisplay && this.active) {
-            this.previewDisplay.img.src = this.active.getPreview;
+            this.previewDisplay.img.src = this.active.getPreview();
         }
     }
 
+    //if (data.type == "object")
+    //    delete data.type;
 
     //set the active/ref/diff layers!
     if (data.type) //check for new system!
@@ -636,6 +643,7 @@ LayerManager.BaseLayer = function (layer, detailsLayer, crd) {
     this.legend = layer.legend;
     this.crd = crd;
     this.detailsLayer = detailsLayer;
+    this.type = layer.type;
 
     this.showLegend = function () {
         if (!this.legend)
@@ -1018,7 +1026,7 @@ LayerManager.SwitchLayer = function (layer, detailsLayer, crd) {
 
     this.getPreview = function () {
         if (this.layers.length > 0)
-            return this.layers[0].getPreview();
+            return this.layers[0].layer.getPreview();
         return "";
     }
 

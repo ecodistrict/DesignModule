@@ -17,7 +17,6 @@ var legend = null;
 
 L.control.legend._moveit = function (e) {
 
-
   if (e.type === 'touchmove') {
     if (legend) {
       legend.style.left = (legend._mdx + e.changedTouches[0].clientX)+'px';

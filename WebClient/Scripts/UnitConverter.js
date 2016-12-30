@@ -147,6 +147,7 @@
             qnt: 'Mass rate', si: "kg/s", units: [
                { unit: 'g/s', factor: 1000, offset: 0 },
                { unit: 'kg/h', factor: 3600, offset: 0 },
+               { unit: 'g/min', factor: 1000/60, offset: 0},
                { unit: 'ton (metric)/h', factor: 3.6, offset: 0 },
                { unit: 'lb/s', factor: 2.20462262184878, offset: 0 },
                { unit: 'lb/h', factor: 7936.69690548188, offset: 0 }

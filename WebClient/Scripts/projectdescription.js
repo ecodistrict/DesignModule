@@ -59,16 +59,16 @@ L.control.projectDescription.showScenarios = function () {
 
     modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
     modelDialogAddButton(mddb, 'Apply', function () {
-      var selectedRadio = document.querySelector('input[name=activeScenario]:checked');
-      options.activeScenario = selectedRadio ? selectedRadio.value : -1;
-      selectedRadio = document.querySelector('input[name=referenceScenario]:checked');
-      options.referenceScenario = selectedRadio ? selectedRadio.value : -1;
-      wsSend({
-        selectScenario: {
-          currentScenario: options.activeScenario,
-          referenceScenario: options.referenceScenario
-        }
-      });
+        var selectedRadio = document.querySelector('input[name=activeScenario]:checked');
+        options.activeScenario = selectedRadio ? selectedRadio.value : "";//-1; todo: check if works in schiedam
+        selectedRadio = document.querySelector('input[name=referenceScenario]:checked');
+        options.referenceScenario = selectedRadio ? selectedRadio.value : "";//-1; todo check if works in schiedam
+        wsSend({
+            selectScenario: {
+            currentScenario: options.activeScenario,
+            referenceScenario: options.referenceScenario
+            }
+        });
       modalDialogClose();
     });
 

@@ -106,8 +106,8 @@
         var table = this._modelControl.Table = modelDiv.appendChild(document.createElement('table'));
         table.className = 'modelControlTable';
 
-        var header = table.appendChild(this.GetTableRow('name:', 'status:', 'progress:', 'header'));
-        header.id = 'mcTableHeader';
+        //var header = table.appendChild(this.GetTableRow('name:', 'status:', 'progress:', 'header'));
+        //header.id = 'mcTableHeader';
 
         var empty = true;
         for (var v in this._models)
@@ -139,9 +139,15 @@
     },
 
     AddModel: function (model) {
-        console.log("NewModel: " + model);
-        this._models[model.id] = model;
-        this.FillModelControl();
+        if (typeof this._models[model.id] !== "undefined")
+        {
+            this.UpdateModel(model);
+        }
+        else
+        {
+            this._models[model.id] = model;
+            this.FillModelControl();
+        }
     },
 
     DisplayModel: function(model) {
@@ -153,7 +159,6 @@
     },
 
     RemoveModel: function (modelid) {
-        console.log("RemoveModel: " + modelid);
         if (typeof this._models[modelid] === 'undefined')
             return;
 
@@ -177,7 +182,6 @@
     },
 
     UpdateModel: function (payload) {
-        console.log("UpdateModel: " + payload);
         if (typeof this._models[payload.id] !== 'undefined')
         {
             var model = this._models[payload.id];

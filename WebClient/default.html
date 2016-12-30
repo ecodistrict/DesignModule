@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Design module</title>
@@ -116,25 +116,32 @@
     <script src="Scripts/ModelControl.js"></script>
     <!-- charts -->
     <script src="Scripts/d3.js"></script>
+    <script src="Scripts/c3.js"></script>
     <script src="Scripts/bullet.js"></script>
     <script src="Scripts/graphManager.js"></script>
     <script src="Scripts/Graphs/lineGraphs.js"></script>
   <script src="Scripts/Graphs/spiderChart.js"></script>
+    <script src="Scripts/Graphs/Charts.js"></script>
+    <script src="Scripts/Graphs/BarChart.js"></script>
     <!-- local scripts -->
     <script>
         // determine parameters and config
-        var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
-        //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
-        var session = getParameterByName('session', '');
-        if (session == '') {
+         var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
+        // var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
+         var session = getParameterByName('session', '');
+         if (session == '') {
+             session = '6B84B11553BC4AA6B2B6A0759F6EB278'; //us_demo
             // session = '1234$undefined$57b4281041e330e716b22a74'; // default test session
             // session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
             // session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
             // session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
             // session = 'ensel';
+            // session = 'ensel2';
             // session = 'ssm';
             // session = 'ssm2';
             // session = 'sweco';
+            // session = "tud";
+            // session = 'dtv';
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
@@ -204,8 +211,12 @@
         //simulation
         var simulationControl = L.control.simulation(); // todo (NK): why pass baseLayers as options?
         map.addControl(simulationControl);
-        map.removeControl(simulationControl);
+        //map.removeControl(simulationControl);
         DataManager.simulationControl = simulationControl;
+
+        DataManager.simCloseControl = L.control.SimulationClose();
+        //map.addControl(DataManager.simCloseControl);
+        
 
         //presenter/viewer
         var presenterViewerControl = L.control.PresenterViewer();
@@ -239,7 +250,7 @@
         map.addControl(timesliderControl);
         timesliderControl._collapse();
         InfoTextControl['leaflet-control-timeslider'] = { active: false };
-        map.removeControl(timesliderControl);
+        //map.removeControl(timesliderControl);
 
         DataManager.modelControl = L.control.ModelControl();
         //map.addControl(DataManager.modelControl);
@@ -247,6 +258,7 @@
 
         //start-stop
         var startControl = L.control.startstop();
+        DataManager.startControl = startControl;
         //map.addControl(startControl);
         //startControl.setPosition("bottomright");
 

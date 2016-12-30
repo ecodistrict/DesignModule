@@ -33,6 +33,34 @@
                 map.flyTo(message.move.center, message.move.zoom);
             }
         }
+        if (typeof message.scenario !== "undefined")
+        {
+            if (DataManager.sessionInfo.referenceScenario != message.scenario)
+            {
+                wsSend({
+                    selectScenario: {
+                        currentScenario: options.activeScenario,
+                        referenceScenario: message.scenario
+                    }
+                });
+            }
+        }
+        if (typeof message.playback !== "undefined")
+        {
+            if (message.playback.play)
+            {
+                DataManager.startControl.SyncStartCommand();
+            }
+            else if (message.playback.stop)
+            {
+                DataManager.startControl.SyncStopCommand();
+            }
+
+            if (message.playback.speed)
+            {
+                DataManager.startControl.SyncSpeedCommand(message.playback.speed);
+            }
+        }
     },
     handleCCPMessage: function(message) {
         if (typeof message.initRequest !== "undefined")
@@ -174,6 +202,58 @@
 
         SyncManager.group = "";
     },
+    speedChange: function(speed) {
+        if (!SyncManager.presenter)
+            return;
+
+        var obj = {
+            type: "ccv",
+            group: SyncManager.group,
+            payload: {
+                playback: { speed: speed }
+            }
+        };
+        wsSend(obj);
+    },
+    startPress: function() {
+        if (!SyncManager.presenter)
+            return;
+
+        var obj = {
+            type: "ccv",
+            group: SyncManager.group,
+            payload: {
+                playback: {play: true}
+            }
+        };
+        wsSend(obj);
+    },
+    stopPress: function() {
+        if (!SyncManager.presenter)
+            return;
+
+        var obj = {
+            type: "ccv",
+            group: SyncManager.group,
+            payload: {
+                playback: { stop: true }
+            }
+        };
+    },
+    newActiveScenario: function(scenario)
+    {
+        if (!SyncManager.presenter)
+            return;
+
+        var obj = {
+            type: "ccv",
+            group: SyncManager.group,
+            payload: {
+                scenario: scenario
+            }
+        };
+        wsSend(obj);
+    },
     enableMove: function () {
         SyncManager.syncs.move = false;
         map.dragging.enable();
@@ -195,12 +275,10 @@
     enableTime: function () {
         SyncManager.syncs.time = false;
         startControl.enable();
-        //todo: implement
     },
     disableTime: function () {
         SyncManager.syncs.time = true;
         startControl.disable();
-        //todo: implement
     },
     updateSessionData: function()
     {
@@ -324,6 +402,14 @@
     },
     testViewer: function () {
         SyncManager.requestViewer("pietje123");
+    },
+
+    Presenting: function () {
+        return SyncManager.presenter;
+    },
+
+    Viewing: function () {
+        return SyncManager.viewer;
     }
 
 }

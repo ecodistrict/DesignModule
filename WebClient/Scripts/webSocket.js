@@ -91,22 +91,32 @@ var wsLookup = {
     },
     session: function (payload) {
         // handle session message
-        if (typeof payload.description !== "undefined") {
+        if (typeof payload.description !== "undefined") { //todo: test if this doesn't create errors
             DataManager.sessionInfo.description = payload.description;
             projectDescription.options.description = payload.description;
             projectDescription.update();
-        }
-        if (typeof payload.activeScenario !== "undefined") {
-            DataManager.sessionInfo.scenario = payload.activeScenario;
-            projectDescription.options.activeScenario = payload.activeScenario;
-        }
-        if (typeof payload.referenceScenario !== "undefined") {
-            DataManager.sessionInfo.referenceScenario = payload.referenceScenario;
-            projectDescription.options.referenceScenario = payload.referenceScenario;
-        }
-        else {
-            DataManager.sessionInfo.referenceScenario = null;
-            projectDescription.options.referenceScenario = payload.referenceScenario;
+
+            if (typeof payload.activeScenario !== "undefined") {
+                if (DataManager.sessionInfo.scenario != payload.activeScenario)
+                {
+                    SyncManager.newActiveScenario(payload.activeScenario);
+                }
+                DataManager.sessionInfo.scenario = payload.activeScenario;
+                projectDescription.options.activeScenario = payload.activeScenario;
+            }
+            else
+            {
+                DataManager.sessionInfo.scenario = null;
+                projectDescription.options.activeScenario = payload.activeScenario;
+            }
+            if (typeof payload.referenceScenario !== "undefined") {
+                DataManager.sessionInfo.referenceScenario = payload.referenceScenario;
+                projectDescription.options.referenceScenario = payload.referenceScenario;
+            }
+            else {
+                DataManager.sessionInfo.referenceScenario = null;
+                projectDescription.options.referenceScenario = payload.referenceScenario;
+            }
         }
         if (typeof payload.scenarios !== "undefined")
             projectDescription.options.scenarios = payload.scenarios;
@@ -183,24 +193,37 @@ var wsLookup = {
                 InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
             }
         }
+
         //else {
         //    map.removeControl(presenterViewerControl)
         //    map.removeControl(startControl);
         //    map.removeControl(DataManager.modelControl);
         //    InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
         //}
-        if (payload.simulationSetup)
-        {
-            DataManager.simulationSetupData = payload.simulationSetup.data;
-            map.addControl(simulationControl);
-            InfoTextControl['leaflet-control-simulation'] = { description: 'Click here to config or edit a simulation', active: true, iconPosition: 'left' };
+        if (typeof payload.simulationSetup !== "undefined") {
+            if (payload.simulationSetup) {
+                DataManager.simulationSetupData = payload.simulationSetup.data;
+                map.addControl(simulationControl);
+                InfoTextControl['leaflet-control-simulation'] = { description: 'Click here to config or edit a simulation', active: true, iconPosition: 'left' };
+            }
+            else {
+                DataManager.simulationSetupData = null;
+                map.removeControl(simulationControl);
+                InfoTextControl['leaflet-control-simulation'] = { active: false };
+            }
         }
-        else
+        if (typeof payload.simulationClose !== "undefined")
         {
-            DataManager.simulationSetupData = null;
-            map.removeControl(simulationControl);
-            InfoTextControl['leaflet-control-simulation'] = { active: false };
+            if (payload.simulationClose) {
+                map.addControl(DataManager.simCloseControl);
+                InfoTextControl['leaflet-control-simclose'] = { description: 'Click here to close the current simulation', active: true, iconPosition: 'left' };
+            }
+            else {
+                map.removeControl(DataManager.simCloseControl);
+                InfoTextControl['leaflet-control-simclose'] = { active: false };
+            }
         }
+        
         if (typeof payload.startstopControlEnabled !== "undefined") {
             if (payload.startstopControlEnabled) {
                 map.addControl(startControl);
@@ -309,7 +332,6 @@ var wsLookup = {
     },
     ccb: function (payload) {
         //todo handle broadcast messages
-        var i = 10;
     },
     groupcontrol: function (payload) {
         SyncManager.handleControlMessage(payload);

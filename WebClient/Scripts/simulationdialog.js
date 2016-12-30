@@ -31,42 +31,51 @@ function openSimulationDialog(e) {
 // formElement [string], type [string], required [y/n], optionsArray [false/array], labelText [string], idName [string], extraOptions [false/array-2_Elems] ['steps [int]','postfix' [string]]);
   var data = DataManager.simulationSetupData;
  //var data = [
- //   {
- //     "formElement":"input",
- //     "type":"string",
- //     "required":"y",
- //     "optionsArray":false,
- //     "labelText":"Scenario name",
- //     "idName":"scenarioName",
- //     "extraOptions":false
- //   },
- //   {
- //     "formElement":"slider",
- //     "type":"int",
- //     "required":"y",
- //     "optionsArray":['0', '100'],
- //     "labelText":"Penetration rate",
- //     "idName":"PenetrationRateSelect",
- //     "extraOptions":[1, '%']
- //   },
- //   {
- //     "formElement":"slider",
- //     "type":"int",
- //     "required":"y",
- //     "optionsArray":['0', '100'],
- //     "labelText":"Follow-on behavior",
- //     "idName":"followOn",
- //     "extraOptions":[1, '%']
- //   },
- //   {
- //     "formElement":"select",
- //     "type":"int",
- //     "required":"y",
- //     "optionsArray":[['A', 'OD Basis'], ['B', 'OD variant 1'], ['C', 'OD variant 2']],
- //     "labelText":"Origin Destination matrix",
- //     "idName":"MatrixChoice",
- //     "extraOptions":false
- //   }
+    //{
+    //  "formElement":"input",
+    //  "type":"string",
+    //  "required":"y",
+    //  "optionsArray":false,
+    //  "labelText":"Scenario name",
+    //  "idName":"scenarioName",
+    //  "extraOptions":false
+    //},
+    //{
+    //  "formElement":"slider",
+    //  "type":"int",
+    //  "required":"y",
+    //  "optionsArray":['0', '100'],
+    //  "labelText":"Penetration rate",
+    //  "idName":"PenetrationRateSelect",
+    //  "extraOptions":[1, '%']
+    //},
+    //{
+    //  "formElement":"slider",
+    //  "type":"int",
+    //  "required":"y",
+    //  "optionsArray":['0', '100'],
+    //  "labelText":"Follow-on behavior",
+    //  "idName":"followOn",
+    //  "extraOptions":[1, '%']
+    //},
+    //{
+    //  "formElement":"select",
+    //  "type":"int",
+    //  "required":"y",
+    //  "optionsArray":[['A', 'OD Basis'], ['B', 'OD variant 1'], ['C', 'OD variant 2']],
+    //  "labelText":"Origin Destination matrix",
+    //  "idName":"MatrixChoice",
+    //  "extraOptions":false
+    //   },
+    //{
+    //    "formElement": "radio",
+    //    "type": "string",
+    //    "required": "y",
+    //    "optionsArray": ['Yes','No'],
+    //    "labelText": "Record Simulation",
+    //    "idName": "Record",
+    //    extraOptions: {checked: 'No'}
+    //}
     // ];
 
   if (typeof data === "undefined")
@@ -180,6 +189,12 @@ function openSimulationDialog(e) {
         optionWrapper.className = idName;
         container.appendChild(opt);
         optionWrapper.appendChild(button);
+        if (extraOptions && extraOptions.checked && extraOptions.checked == option)
+        {
+            opt.checked = true;
+            opt.value = option;
+            button.className = 'selected';
+        }
       }
       f.appendChild(optionWrapper);
     } else if (formElement === 'select') {
@@ -379,7 +394,17 @@ function simulationDialogApply() {
             errorLog.innerHTML = errorLog.innerHTML + '<span>' + elem.placeholder + ' is not correct!' + '</span>';
           }
         } else {
-          formResult.push({ name: elem.name, value: elem.value, type: elem.dataset.type });
+            var result;
+            switch (elem.dataset.type)
+            {
+                case "int": result = parseInt(elem.value);
+                    break;
+                case "float": result = parseFloat(elem.value);
+                    break;
+                default: result = elem.value;
+                    break;
+            }
+          formResult.push({ name: elem.name, value: result, type: elem.dataset.type });
           elem.classList.remove('empty');
         }
       }
