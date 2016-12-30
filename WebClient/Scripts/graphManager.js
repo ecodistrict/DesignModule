@@ -119,7 +119,8 @@ var GraphManager = {
     minWidth: 300, //Minimum resize width for a graph
     minHeight: 200, //Minumum resize height for a graph
     xOffset: 25, //x offset when aligning graphs on top of each other
-    yOffset: 25 //y offset when aligning graphs on top of each other
+    yOffset: 25, //y offset when aligning graphs on top of each other
+    margins: {top: 40,right: 20,bottom: 30,left: 40}
   },
 
   Initialize: function () {
@@ -266,7 +267,7 @@ var GraphManager = {
     graphObject.xAxisOrient = (typeof graphObject.xAxisOrient === 'undefined') ? GraphManager.defaultValues.xAxisOrient : graphObject.xAxisOrient;
     graphObject.yAxisOrient = (typeof graphObject.yAxisOrient === 'undefined') ? GraphManager.defaultValues.yAxisOrient : graphObject.yAxisOrient;
     graphObject.holdminmax = (typeof graphObject.holdminmax === 'undefined') ? GraphManager.defaultValues.holdminmax : graphObject.holdminmax;
-
+    graphObject.margins = (typeof graphObject.margins === 'undefined') ? GraphManager.defaultValues.margins : graphObject.margins;
     return graphObject;
   },
 
@@ -326,7 +327,6 @@ var GraphManager = {
       default: console.log("Graph type not yet supported");
       break;
     }
-    console.log(graph);
 
     graph.Initialize(container);
     return graph;

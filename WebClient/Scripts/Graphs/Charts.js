@@ -33,36 +33,24 @@ function generateCharts() {
       "data":   {
         columns: column
       },
-      "title":"Air humidity",
-      margins : {top: 40,right: 20,bottom: 30,left: 40},
+      title:"Air humidity" + types[i],
       id : "test" + i,
       type : types[i],
-      divWidth : 300,
-      divHeight : 200,
       width : 300,
       height : 200,
     }
-
-
     GraphManager.MakeGraph(chartObject);
-
   }
-
 }
-
-
 
 var chartObject = {
   "data":   {columns: [
     ['name', 22, 55, 25],
     ['name1', 12, 22, 65, 12]
   ]},
-  "title":"Air humidity",
-  margins : {top: 40,right: 20,bottom: 30,left: 40},
+  title:"Air humidity",
   id : "test123",
   type : "line",
-  divWidth : 400,
-  divHeight : 400,
   width : 400,
   height : 400,
 }
@@ -104,11 +92,9 @@ function Chart(graphObject) {
     var graph = this.graphObject;
     var width = DataManager.detailsInfo.chartWidth;
     var height = DataManager.detailsInfo.chartHeight;
-
     var svg = d3.select(this.previewDiv).select('svg');
 
     var columns = graph.data.columns;
-    console.log(graph.preview.chart);
     graph.preview.chart.load({
       columns: columns,
       type: this.graphObject.type,
@@ -203,10 +189,10 @@ function Chart(graphObject) {
     //sets data and displaydata
     var width = graph.container.clientWidth;
     var height = graph.container.clientHeight;
-    var marginLeft = GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.axisMargin.y;
-    var marginTop = GraphManager.defaultValues.graphPadding.top;
-    var marginRight = GraphManager.defaultValues.graphPadding.right;
-    var marginBottom = GraphManager.defaultValues.graphPadding.bottom + GraphManager.defaultValues.axisMargin.x;
+    var marginLeft = GraphManager.defaultValues.margins.left + GraphManager.defaultValues.axisMargin.y;
+    var marginTop = GraphManager.defaultValues.margins.top;
+    var marginRight = GraphManager.defaultValues.margins.right;
+    var marginBottom = GraphManager.defaultValues.margins.bottom + GraphManager.defaultValues.axisMargin.x;
 
     graph.chart = c3.generate({
       bindto: graph.svg,
