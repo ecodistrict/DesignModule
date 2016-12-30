@@ -1,833 +1,923 @@
 var graphPosition = {
-  bottomLeft: "bottomleft",
-  bottomRight: "bottomright",
-  topLeft: "topleft",
-  topRight: "topRight"
+    bottomLeft: "bottomleft",
+    bottomRight: "bottomright",
+    topLeft: "topleft",
+    topRight: "topRight"
 }
 
 var graphType = {
-  horizontalBar: "hbar",
-  verticalBar: "vbar",
-  line: "line",
-  spider: "spider",
-  scatterplot: "splot"
+    horizontalBar: "hbar",
+    verticalBar: "vbar",
+    line: "line",
+    spider: "spider",
+    scatterplot: "splot"
+}
+
+var clickOptions = {
+    none: "none",
+    xAxis: "xAxis",
+    yAxis: "yAxis",
+    both: "both"
 }
 
 var GraphManager = {
-  alignedGraphs: [],
-  movedGraphs: [],
-  hiddenGraphs: [],
-  graphs: [],
-  position: null,
-  container: null,
-  zIndexManager: {
-    baseIndex: 501,
-    graphDivs: [],
-    updateIndexes: function () {
-      for (var i = o; i < GraphManager.zIndexManager.graphDivs.length; i++) {
-        GraphManager.zIndexManager.graphDivs[i].style.zIndex = "" + (GraphManager.zIndexManager.baseIndex + i + 1);
-      }
-    },
-    focus: function (graphID) {
-      var graphDiv = null;
-      for (var i = 0; i < GraphManager.zIndexManager.graphDivs.length; i++) {
-        if (graphDiv != null) {
-          GraphManager.zIndexManager.graphDivs[i].style.zIndex = "" + (GraphManager.zIndexManager.baseIndex + i);
-          GraphManager.zIndexManager.graphDivs[i - 1] = GraphManager.zIndexManager.graphDivs[i];
+    alignedGraphs: [],
+    movedGraphs: [],
+    hiddenGraphs: [],
+    graphs: [],
+    position: null,
+    container: null,
+    zIndexManager: {
+        baseIndex: 501,
+        graphDivs: [],
+        updateIndexes: function () {
+            for (var i = o; i < GraphManager.zIndexManager.graphDivs.length; i++) {
+                GraphManager.zIndexManager.graphDivs[i].style.zIndex = "" + (GraphManager.zIndexManager.baseIndex + i + 1);
+            }
+        },
+        focus: function (graphID) {
+            var graphDiv = null;
+            for (var i = 0; i < GraphManager.zIndexManager.graphDivs.length; i++) {
+                if (graphDiv != null) {
+                    GraphManager.zIndexManager.graphDivs[i].style.zIndex = "" + (GraphManager.zIndexManager.baseIndex + i);
+                    GraphManager.zIndexManager.graphDivs[i - 1] = GraphManager.zIndexManager.graphDivs[i];
+                }
+                else if (GraphManager.zIndexManager.graphDivs[i].graphID == graphID) {
+                    graphDiv = GraphManager.zIndexManager.graphDivs[i];
+                }
+            }
+            if (graphDiv != null) {
+                GraphManager.zIndexManager.graphDivs[GraphManager.zIndexManager.graphDivs.length - 1] = graphDiv;
+                graphDiv.style.zIndex = "" + (GraphManager.zIndexManager.baseIndex + GraphManager.zIndexManager.graphDivs.length);
+            }
+        },
+        newGraph: function (graphDiv) {
+            GraphManager.zIndexManager.graphDivs.push(graphDiv);
+            graphDiv.style.zIndex = "" + (GraphManager.zIndexManager.baseIndex + GraphManager.zIndexManager.graphDivs.length);
+        },
+        removeGraph: function (graphID) {
+
         }
-        else if (GraphManager.zIndexManager.graphDivs[i].graphID == graphID) {
-          graphDiv = GraphManager.zIndexManager.graphDivs[i];
-        }
-      }
-      if (graphDiv != null) {
-        GraphManager.zIndexManager.graphDivs[GraphManager.zIndexManager.graphDivs.length - 1] = graphDiv;
-        graphDiv.style.zIndex = "" + (GraphManager.zIndexManager.baseIndex + GraphManager.zIndexManager.graphDivs.length);
-      }
     },
-    newGraph: function (graphDiv) {
-      GraphManager.zIndexManager.graphDivs.push(graphDiv);
-      graphDiv.style.zIndex = "" + (GraphManager.zIndexManager.baseIndex + GraphManager.zIndexManager.graphDivs.length);
+    dragObject: {
+        dragDiv: null,
+        moved: null,
+        hAlign: null,
+        vAlign: null,
+        hSign: null,
+        vSign: null,
+        startMouseX: null,
+        startMouseY: null,
+        startDivX: null,
+        startDivY: null,
+        prevIndex: null
     },
-    removeGraph: function (graphID) {
-
-    }
-  },
-  dragObject: {
-    dragDiv: null,
-    moved: null,
-    hAlign: null,
-    vAlign: null,
-    hSign: null,
-    vSign: null,
-    startMouseX: null,
-    startMouseY: null,
-    startDivX: null,
-    startDivY: null,
-    prevIndex: null
-  },
-  resizeObject: {
-    resizeDiv: null,
-    startMouseX: null,
-    startMouseY: null,
-    startDivW: null,
-    startDivH: null,
-  },
-  idcounter: 0, //Only for fake data purposes
-  defaultValues: {
-    width: 300, //Width of a graph div todo: positioning when not using default values
-    height: 200, //Height of a graph div
-    description: "No Description", //Description will be showed if no description is provided
-    name: "No Name", //Displayed if no name if provided
-    position: graphPosition.topLeft, //prevered positioning of graphs
-    type: graphType.line, //Default graph type
-    interpolation: "linear", //https://coderwall.com/p/thtwbw/d3-js-interpolation-options
-    flashBorder: false, //todo: implementation. makes border of a graph flash when received new data
-    maxPoints: 200, //9007199254740991, //Graph only plots the last x points of an array
-    x: { label: "" }, //Attribute name for the attribute holding the value for the x-axis
-    y: [{ color: "LightBlue", label: "" }], //Attribute name for the attribute holding the value of the y-axis along with color and label
-    xScale: "linear", //sets the scale to use for the x axis "linear"/"ordinal"/"power"/"log" todo: time
-    yScale: "linear", //sets the scale to use for the y axis "linear"/"ordinal"/"power"/"log" todo: time
-    xAxis: true, //sets showing of x axis
-    yAxis: true, //sets showing of y axis
-    xAxisOrient: "bottom", //sets orientation of xAxis: "bottom"/"top"
-    yAxisOrient: "left", //sets orientation of yAxis: "left"/"right"
-    holdminmax: true, //Keeps a progressive track on min max values of the graph even if those min/max values won't be displayed anymore
-    additive: false, //For entries with multiple y values, stacks them together if true
-    leftMargin: 48, //Left margin of the GraphManager
-    rightMargin: 63, //Right margin of the GraphManager
-    topMargin: 48, //Top margin of the GraphManager
-    bottomMargin: 50, //Bottom margin of the GraphManager
-    axisMargin: { //Margins for the axis
-      x: 20,
-      y: 40
+    resizeObject: {
+        resizeDiv: null,
+        startMouseX: null,
+        startMouseY: null,
+        startDivW: null,
+        startDivH: null,
     },
-    graphPadding: {
-      left: 10,
-      right: 10,
-      top: 30,
-      bottom: 10
+    idcounter: 0, //Only for fake data purposes
+    ActiveCount: 0,
+    defaultValues: {
+        width: 300, //Width of a graph div todo: positioning when not using default values
+        height: 200, //Height of a graph div
+        description: "No Description", //Description will be showed if no description is provided
+        name: "No Name", //Displayed if no name if provided
+        position: graphPosition.topLeft, //prevered positioning of graphs
+        type: graphType.line, //Default graph type
+        interpolation: "linear", //https://coderwall.com/p/thtwbw/d3-js-interpolation-options
+        flashBorder: false, //todo: implementation. makes border of a graph flash when received new data
+        maxPoints: 100, //9007199254740991, //Graph only plots the last x points of an array
+        x: { label: "" }, //Attribute name for the attribute holding the value for the x-axis
+        y: [{ color: "LightBlue", label: "" }], //Attribute name for the attribute holding the value of the y-axis along with color and label
+        xScale: "linear", //sets the scale to use for the x axis "linear"/"ordinal"/"power"/"log" todo: date
+        yScale: "linear", //sets the scale to use for the y axis "linear"/"ordinal"/"power"/"log" todo: date
+        xAxis: true, //sets showing of x axis
+        yAxis: true, //sets showing of y axis
+        xAxisOrient: "bottom", //sets orientation of xAxis: "bottom"/"top"
+        yAxisOrient: "left", //sets orientation of yAxis: "left"/"right"
+        holdminmax: true, //Keeps a progressive track on min max values of the graph even if those min/max values won't be displayed anymore
+        additive: false, //For entries with multiple y values, stacks them together if true
+        leftMargin: 48, //Left margin of the GraphManager
+        rightMargin: 63, //Right margin of the GraphManager
+        topMargin: 48, //Top margin of the GraphManager
+        bottomMargin: 50, //Bottom margin of the GraphManager
+        axisMargin: { //Margins for the axis
+            x: 20,
+            y: 40
+        },
+        margins: { top: 40, right: 20, bottom: 30, left: 40 }, //used for new charts
+        graphPadding: {
+            left: 10,
+            right: 10,
+            top: 30,
+            bottom: 10
+        },
+        axisTextPadding: 5,
+        draggable: true, //Makes graphs draggable or not
+        snapping: true, //Makes graphs snap to aligned graphs and inserts them on drop
+        snapRange: 10, //Falloff distance to consider a snap
+        resizable: true, //Whether or not graphs can be resized
+        resizeSnapping: true, //Makes graphs snap to the default size (and then they can also snap tot he aligned graphs)
+        resizeSnapRange: 10, //Falloff distance to consider a resize snap
+        maxWidth: null, //Maximum resize width for a graph
+        maxHeight: null, //Maximum resize height for a graph
+        minWidth: 300, //Minimum resize width for a graph
+        minHeight: 200, //Minumum resize height for a graph
+        clickable: clickOptions.none,
+        xOffset: 25, //x offset when aligning graphs on top of each other
+        yOffset: 25 //y offset when aligning graphs on top of each other
     },
-    axisTextPadding: 5,
-    draggable: true, //Makes graphs draggable or not
-    snapping: true, //Makes graphs snap to aligned graphs and inserts them on drop
-    snapRange: 10, //Falloff distance to consider a snap
-    resizable: true, //Whether or not graphs can be resized
-    resizeSnapping: true, //Makes graphs snap to the default size (and then they can also snap tot he aligned graphs)
-    resizeSnapRange: 10, //Falloff distance to consider a resize snap
-    maxWidth: null, //Maximum resize width for a graph
-    maxHeight: null, //Maximum resize height for a graph
-    minWidth: 300, //Minimum resize width for a graph
-    minHeight: 200, //Minumum resize height for a graph
-    xOffset: 25, //x offset when aligning graphs on top of each other
-    yOffset: 25, //y offset when aligning graphs on top of each other
-    margins: {top: 40,right: 20,bottom: 30,left: 40}
-  },
 
-  Initialize: function () {
-    GraphManager.position = GraphManager.defaultValues.position;
+    Initialize: function () {
+        GraphManager.position = GraphManager.defaultValues.position;
 
-    this.container = document.body.appendChild(document.createElement("div"));
-    this.container.id = "graphsContainer";
-    //this.container.style.position = "fixed";
-    this.container.style.left = this.defaultValues.leftMargin + "px";
-    this.container.style.top = this.defaultValues.topMargin + "px";
-    //this.container.style.backgroundColor = "rgba(255, 0, 255, 0.5)";
-    this.container.style.zIndex = "" + GraphManager.zIndexManager.baseIndex;
-    this._resize();
-    window.addEventListener("resize", this._resize);
-  },
+        this.container = document.body.appendChild(document.createElement("div"));
+        this.container.id = "graphsContainer";
+        //this.container.style.position = "fixed";
+        this.container.style.left = this.defaultValues.leftMargin + "px";
+        this.container.style.top = this.defaultValues.topMargin + "px";
+        //this.container.style.backgroundColor = "rgba(255, 0, 255, 0.5)";
+        this.container.style.zIndex = "" + GraphManager.zIndexManager.baseIndex;
+        this._resize();
+        window.addEventListener("resize", this._resize);
+    },
 
-  _resize: function () {
-    var w = window.innerWidth;
-    var h = window.innerHeight;
+    _resize: function () {
+        var w = window.innerWidth;
+        var h = window.innerHeight;
 
-    GraphManager.container.style.width = w - (GraphManager.defaultValues.leftMargin + GraphManager.defaultValues.rightMargin) + "px";
-    GraphManager.container.style.height = h - (GraphManager.defaultValues.topMargin + GraphManager.defaultValues.bottomMargin) + "px";
+        GraphManager.container.style.width = w - (GraphManager.defaultValues.leftMargin + GraphManager.defaultValues.rightMargin) + "px";
+        GraphManager.container.style.height = h - (GraphManager.defaultValues.topMargin + GraphManager.defaultValues.bottomMargin) + "px";
 
-    GraphManager.RepositionGraphs();
-  },
+        GraphManager.RepositionGraphs();
+    },
 
-  //todo check if SetPosition is obsolete
-  SetPosition: function (aPos) {
-    GraphManager.position = aPos;
-    GraphManager.RepositionGraphs();
-  },
+    //todo check if SetPosition is obsolete
+    SetPosition: function (aPos) {
+        GraphManager.position = aPos;
+        GraphManager.RepositionGraphs();
+    },
 
-  MakeGraph: function (graphObject) {
-
-    //todo remove code block when testing is not needed anymore
-    if (typeof graphObject == 'undefined') {
-      graphObject = { id: GraphManager.idcounter };
-      GraphManager.idcounter++;
-    }
-
-
-    var g = GraphManager._getGraph(graphObject.id);
-    if (g != null)
-    return;
-
-    var graphDiv = GraphManager.container.appendChild(document.createElement("div"));
-    graphDiv.className = "graphDiv";
-    if (graphObject.divWidth) {
-      graphDiv.style.width = graphObject.divWidth + "px";
-    } else {
-      graphDiv.style.width = GraphManager.defaultValues.width + "px";
-    }
-    if (graphObject.divHeight) {
-      graphDiv.style.height = graphObject.divHeight + "px";
-    } else {
-      graphDiv.style.height = GraphManager.defaultValues.height + "px";
-    }
-    GraphManager.zIndexManager.newGraph(graphDiv);
-    //graphDiv.style.position = "absolute";
-    //graphDiv.style.backgroundColor = "rgba(" + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", 1)";
-
-    if (is_touch_device()) {
-
-      graphDiv.addEventListener("touchstart", GraphManager._startDrag);
-    } else {
-      graphDiv.addEventListener("mousedown", GraphManager._startDrag);
-    }
-    graphDiv.graphID = graphObject.id;
-
-    var div = graphDiv.appendChild(document.createElement('div'));
-    div.className = 'modalDialog-close';
-    div.innerHTML = '&#x2715;';
-    div.graphID = graphDiv.graphID;
-
-    if (is_touch_device()) {
-      div.addEventListener("touchstart", function (e) {
-        var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
-        graphDiv.graph._closeGraph();
-      });
-    } else {
-      div.addEventListener("click", function (e) {
-        var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
-        graphDiv.graph._closeGraph();
-      });
-    }
-    var infoDiv = graphDiv.appendChild(document.createElement("div"));
-    infoDiv.className = "graph-info";
-    infoDiv.graphID = graphDiv.graphID;
-
-    var div = graphDiv.appendChild(document.createElement("div"));
-    div.className = "graph-title";
-    div.graphID = graphDiv.graphID;
-
-    if (is_touch_device()) {
-      infoDiv.addEventListener("touchstart", GraphManager._showGraphInfo);
-    } else {
-      infoDiv.addEventListener("click", GraphManager._showGraphInfo);
-    }
-
-    var resizeDiv = graphDiv.appendChild(document.createElement("div"));
-    resizeDiv.className = "graph-resize";
-    resizeDiv.graphID = graphDiv.graphID;
-    if (is_touch_device()) {
-      resizeDiv.addEventListener("touchstart", GraphManager._startGraphResize);
-    } else {
-      resizeDiv.addEventListener("mousedown", GraphManager._startGraphResize);
-    }
-
-    //graphObject =
-    GraphManager.SetGraphParameters(graphObject);
-
-    ////only for label testing!
-    //graphObject.x.label = "x-axis";
-    //graphObject.y[0].label = "y-axis";
-
-    GraphManager.BuildGraph(graphObject, graphDiv);
-
-    GraphManager.graphs.push(graphDiv);
-
-
-    //if (graphObject.id == "b1919ec3-4b69-42c3-9847-1cd6b42c6fff-KPI07")
-    detailsControl._update();
-
-    GraphManager.hiddenGraphs.push(graphDiv);
-
-    //graphDiv.graph.GetPreview(GraphManager.container, 134, 100);
-    // graphDiv.style.visibility = "hidden";
-  },
-
-  SetGraphParameters: function (graphObject) {
-    graphObject.type = (typeof graphObject.type === 'undefined') ? GraphManager.defaultValues.type : graphObject.type;
-    //graphObject.name = (typeof graphObject.name === 'undefined') ? GraphManager.defaultValues.name : graphObject.name;
-    graphObject.width = (typeof graphObject.width === 'undefined') ? GraphManager.defaultValues.width : graphObject.width;
-    graphObject.height = (typeof graphObject.height === 'undefined') ? GraphManager.defaultValues.height : graphObject.height;
-    graphObject.x = (typeof graphObject.x === 'undefined') ? GraphManager.defaultValues.x : graphObject.x;
-    graphObject.y = (typeof graphObject.y === 'undefined') ? JSON.parse(JSON.stringify(GraphManager.defaultValues.y)) : graphObject.y;
-    graphObject.xScale = (typeof graphObject.xScale === 'undefined') ? GraphManager.defaultValues.xScale : graphObject.xScale;
-    graphObject.yScale = (typeof graphObject.yScale === 'undefined') ? GraphManager.defaultValues.yScale : graphObject.yScale;
-    graphObject.maxPoints = (typeof graphObject.maxPoints === 'undefined') ? GraphManager.defaultValues.maxPoints : graphObject.maxPoints;
-    graphObject.interpolation = (typeof graphObject.interpolation === 'undefined') ? GraphManager.defaultValues.interpolation : graphObject.interpolation;
-    graphObject.additive = (typeof graphObject.additive === 'undefined') ? GraphManager.defaultValues.additive : graphObject.additive;
-    graphObject.xAxis = (typeof graphObject.xAxis === 'undefined') ? GraphManager.defaultValues.xAxis : graphObject.xAxis;
-    graphObject.yAxis = (typeof graphObject.yAxis === 'undefined') ? GraphManager.defaultValues.yAxis : graphObject.yAxis;
-    graphObject.xAxisOrient = (typeof graphObject.xAxisOrient === 'undefined') ? GraphManager.defaultValues.xAxisOrient : graphObject.xAxisOrient;
-    graphObject.yAxisOrient = (typeof graphObject.yAxisOrient === 'undefined') ? GraphManager.defaultValues.yAxisOrient : graphObject.yAxisOrient;
-    graphObject.holdminmax = (typeof graphObject.holdminmax === 'undefined') ? GraphManager.defaultValues.holdminmax : graphObject.holdminmax;
-    graphObject.margins = (typeof graphObject.margins === 'undefined') ? GraphManager.defaultValues.margins : graphObject.margins;
-    return graphObject;
-  },
-
-  BuildGraph: function (graphObject, container) {
-    var graph;
-    if (!graphObject.type) {
-      graphObject.type = graphType.line;
-    }
-
-    switch (graphObject.type) {
-      // case graphType.line:
-      // graph = new LineBottomLeft(graphObject);
-      //     break;
-      case 'spider':
-      // graph = new LineBottomLeft(graphObject);
-      GraphManager.defaultValues.minWidth = 400;
-      GraphManager.defaultValues.minHeight = 400;
-      graph = new SpiderChart(graphObject);
-      break;
-
-      // NEW
-      case 'line':
-      graph = new Chart(graphObject);
-      break;
-      case 'bar':
-      // graph = new BarChart(graphObject);
-      graph = new Chart(graphObject);
-      break;
-      case 'spline':
-      graph = new Chart(graphObject);
-      break;
-      case 'area':
-      graph = new Chart(graphObject);
-      break;
-      case 'step':
-      graph = new Chart(graphObject);
-      break;
-      case 'area-step':
-      graph = new Chart(graphObject);
-      break;
-      case 'area-spline':
-      graph = new Chart(graphObject);
-      break;
-      case 'scatter':
-      graph = new Chart(graphObject);
-      break;
-      case 'pie':
-      graph = new Chart(graphObject);
-      break;
-      case 'donut':
-      graph = new Chart(graphObject);
-      break;
-      case 'gauge':
-      graph = new Chart(graphObject);
-      break;
-
-      default: console.log("Graph type not yet supported");
-      break;
-    }
-
-    graph.Initialize(container);
-    return graph;
-  },
-
-  BuildLineGraph: function (graphObject, container) {
-    //todo implement different axis orientations of line graphs!
-
-    var graph = new LineBottomLeft(graphObject);
-    graph.Initialize(container);
-    return graph;
-  },
-
-  UpdateGraphs: function (dataArray) {
-    for (var i = 0; i < dataArray.length; i++) {
-      var graph = GraphManager._getGraph(dataArray[i].id);
-      if (graph == null) //only update graphs that exist
-      continue;
-      graph.graph.Update(dataArray[i]);
-      //GraphManager.UpdateGraph(graph.graph, dataArray[i]);
-    }
-  },
-
-
-
-  RepositionGraphs: function () {
-    for (var i = 0; i < GraphManager.alignedGraphs.length; i++)
-    GraphManager.PositionGraph(GraphManager.alignedGraphs[i], i);
-  },
-
-  PositionGraph: function (graphDiv, i) {
-    var h = GraphManager.container.clientHeight;
-    var w = GraphManager.container.clientWidth;
-
-
-    var defaultHeight = GraphManager.defaultValues.height;
-    var defaultWidth = GraphManager.defaultValues.width;
-    if (parseInt(graphDiv.style.height) > GraphManager.defaultValues.height) {
-      defaultHeight = parseInt(graphDiv.style.height);
-    }
-    if (parseInt(graphDiv.style.width) > GraphManager.defaultValues.width) {
-      defaultWidth = parseInt(graphDiv.style.width);
-    }
-
-
-
-    var amount = i;
-
-    if (defaultHeight > h || defaultWidth > w) {
-      //todo a single graph does not fit the container!
-      console.log('doesn\'t fit');
-      // return;
-    }
-
-    var col = 0;
-
-    while ((amount * defaultHeight) > h) {
-      col++;
-      amount -= Math.floor(h / defaultHeight);
-    }
-
-    var row = amount;
-    if ((amount + 1) * defaultHeight > h) //check if our new graph fits into the current column
-    {
-      col++;
-      row = 0;
-    }
-
-    var halign, valign
-
-    var xStart, yStart, xSign, ySign;
-    switch (GraphManager.position) {
-      case graphPosition.bottomLeft: halign = "left"; valign = "bottom";
-      xStart = 0;
-      yStart = h - GraphManager.defaultValues.height;
-      xSign = 1;
-      ySign = -1;
-      break;
-      case graphPosition.bottomRight: halign = "right"; valign = "bottom";
-      xStart = w - GraphManager.defaultValues.width;
-      yStart = h - GraphManager.defaultValues.height;
-      xSign = -1;
-      ySign = -1;
-      break;
-      case graphPosition.topLeft: halign = "left"; valign = "top";
-      xStart = 0;
-      yStart = 0;
-      xSign = 1;
-      ySign = 1;
-      break;
-      case graphPosition.topRight: halign = "right"; valign = "top";
-      xStart = w - GraphManager.defaultValues.width;
-      yStart = 0;
-      xSign = -1;
-      ySign = 1;
-      break;
-    }
-
-    if (col % 2 == 0) //same side aligning
-    {
-      col /= 2;
-      if (GraphManager.position == graphPosition.bottomLeft || GraphManager.position == graphPosition.topLeft) {
-        graphDiv.style.left = col * GraphManager.defaultValues.xOffset + "px";//GraphManager.defaultValues.width + "px";
-      }
-      else {
-        graphDiv.style.left = w - (GraphManager.defaultValues.width + (col * GraphManager.defaultValues.xOffset)) + "px";
-      }
-    }
-    else //other side aligning
-    {
-      col = (col - 1) / 2;
-      if (GraphManager.position == graphPosition.bottomLeft || GraphManager.position == graphPosition.topLeft) {
-        graphDiv.style.left = w - (GraphManager.defaultValues.width + (col * GraphManager.defaultValues.xOffset)) + "px";
-      }
-      else {
-        graphDiv.style.left = col * GraphManager.defaultValues.xOffset + "px";
-      }
-    }
-
-    if (GraphManager.position == graphPosition.topLeft || GraphManager.position == graphPosition.topRight) {
-      graphDiv.style.top = (row * GraphManager.defaultValues.height) + (GraphManager.defaultValues.yOffset * col) + "px";
-    }
-    else {
-      graphDiv.style.top = h - (((row + 1) * GraphManager.defaultValues.height) + (col * GraphManager.defaultValues.yOffset)) + "px";
-    }
-  },
-
-  RemoveGraph: function (graphID) {
-
-    var graphDiv = null;
-    var removed = false;
-    for (var i = 0; i < GraphManager.alignedGraphs.length; i++) {
-      if (GraphManager.alignedGraphs[i].graphID == graphID) {
-        graphDiv = GraphManager.alignedGraphs[i];
-        GraphManager.alignedGraphs.splice(i, 1);
-      }
-    }
-    for (var i = 0; i < GraphManager.movedGraphs.length; i++) {
-      if (GraphManager.movedGraphs[i].graphID == graphID) {
-        graphDiv = GraphManager.movedGraphs[i];
-        GraphManager.movedGraphs.splice(i, 1);
-      }
-    }
-
-    if (graphDiv != null) {
-      GraphManager.hiddenGraphs.push(graphDiv);
-      graphDiv.style.visibility = "hidden";
-      GraphManager.RepositionGraphs();
-    }
-  },
-
-  AddGraph: function (graphDiv) {
-    //check to see if it's a hidden graph?
-    for (var i = 0; i < GraphManager.hiddenGraphs.length; i++) {
-      if (GraphManager.hiddenGraphs[i].graphID == graphDiv.graphID) {
-        GraphManager.hiddenGraphs.splice(i, 1);
-      }
-    }
-
-    graphDiv.style.visibility = "visible";
-    GraphManager.container.appendChild(graphDiv);
-    GraphManager.alignedGraphs.push(graphDiv);
-    GraphManager.PositionGraph(graphDiv, GraphManager.alignedGraphs.length - 1);
-    GraphManager.zIndexManager.focus(graphDiv.graphID);
-  },
-
-  AddGraphData: function(graph, data)
-  {
-    //check if there are changes
-    if (data == null)
-    return;
-
-
-    //can I assume the arrays always have the same length!?
-    for (var i = 0; i < graph.data.length; i++)
-    {
-      if (data.y[i] != null)
-      graph.data[i].push({ x: data.x, y: data.y[i] });
-    }
-
-    for (var i = 0; i < graph.data.length; i++)
-    {
-      if (graph.data[i].length <= graph.maxPoints) //we can still push the new points to the display data
-      {
-        if (graph.data[i].length > graph.displayData[i].length)
-        graph.displayData[i].push({x: data.x, y: data.y[i]})
-      }
-      else //rebuild display data
-      {
-        graph.displayData[i] = [];
-        for (var j = graph.data[i].length - graph.maxPoints; j < graph.data[i].length; j++)
+    SetPreviews: function (container) {
+        var counter = 0;
+        for (var i = 0; i < GraphManager.graphs.length; i++)
         {
-          graph.displayData[i].push(graph.data[i][j]);
+            if (GraphManager.graphs[i].enabled)
+            {
+                counter++;
+                GraphManager.graphs[i].graph.GetPreview(container);
+            }
         }
-      }
-    }
-  },
+        return counter;
+    },
 
-  _showGraphInfo: function (e) {
-    console.log("Todo: show graph info");
-  },
-
-  _getGraph: function (graphID) {
-    for (var i = 0; i < GraphManager.alignedGraphs.length; i++)
-    if (GraphManager.alignedGraphs[i].graphID == graphID)
-    return GraphManager.alignedGraphs[i];
-
-    for (var i = 0; i < GraphManager.movedGraphs.length; i++)
-    if (GraphManager.movedGraphs[i].graphID == graphID)
-    return GraphManager.movedGraphs[i];
-
-    for (var i = 0; i < GraphManager.hiddenGraphs.length; i++)
-    if (GraphManager.hiddenGraphs[i].graphID == graphID)
-    return GraphManager.hiddenGraphs[i];
-
-    return null
-  },
-
-  _startGraphResize: function (e) {
-    if (!GraphManager.defaultValues.resizable)
-    return;
-
-    if (!GraphManager.dragObject || GraphManager.dragObject.resizing)
-    return
-
-
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
-    GraphManager.resizeObject.resizeDiv = graphDiv;
-    GraphManager.resizeObject.startDivW = parseInt(graphDiv.style.width);
-    GraphManager.resizeObject.startDivH = parseInt(graphDiv.style.height);
-
-    if (typeof (e.clientX) === 'undefined') {
-      GraphManager.resizeObject.startMouseX = e.changedTouches[0].clientX;
-      GraphManager.resizeObject.startMouseY = e.changedTouches[0].clientY;
-    } else {
-      GraphManager.resizeObject.startMouseX = e.clientX;
-      GraphManager.resizeObject.startMouseY = e.clientY;
-    }
-
-    graphDiv.style.opacity = "0.5";
-
-    if (is_touch_device()) {
-      window.addEventListener('touchmove', GraphManager._resizeGraphMove);
-      window.addEventListener('touchend', GraphManager._endGraphResize);
-    } else {
-      window.addEventListener("mousemove", GraphManager._resizeGraphMove);
-      window.addEventListener("mouseup", GraphManager._endGraphResize);
-    }
-    GraphManager.dragObject.resizing = true;
-  },
-
-  _resizeGraphMove: function (e) {
-
-    e.preventDefault();
-    e.stopPropagation();
-    if (typeof (e.clientX) === 'undefined') {
-      var deltaX = e.changedTouches[0].clientX - GraphManager.resizeObject.startMouseX;
-      var deltaY = e.changedTouches[0].clientY - GraphManager.resizeObject.startMouseY;
-    } else {
-      var deltaX = e.clientX - GraphManager.resizeObject.startMouseX;
-      var deltaY = e.clientY - GraphManager.resizeObject.startMouseY;
-    }
-
-
-    var width = GraphManager.resizeObject.startDivW + deltaX;
-    var height = GraphManager.resizeObject.startDivH + deltaY;
-
-    if (GraphManager.defaultValues.maxWidth != null)
-    width = Math.min(width, GraphManager.defaultValues.maxWidth);
-
-    if (GraphManager.defaultValues.maxHeight != null)
-    height = Math.min(height, GraphManager.defaultValues.maxHeight);
-
-    width = Math.round(Math.max(GraphManager.defaultValues.minWidth, width));
-    height = Math.round(Math.max(GraphManager.defaultValues.minHeight, height));
-
-    if (Math.abs(width - GraphManager.defaultValues.width) < GraphManager.defaultValues.resizeSnapRange && Math.abs(height - GraphManager.defaultValues.height) < GraphManager.defaultValues.resizeSnapRange) {
-      width = GraphManager.defaultValues.width;
-      height = GraphManager.defaultValues.height;
-    }
-
-    GraphManager.resizeObject.resizeDiv.style.width = width + "px";
-    GraphManager.resizeObject.resizeDiv.style.height = height + "px";
-
-  },
-
-  _endGraphResize: function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (is_touch_device()) {
-      window.removeEventListener("touchmove", GraphManager._resizeGraphMove);
-      window.removeEventListener("touchend", GraphManager._endGraphResize);
-    } else {
-      window.removeEventListener("mousemove", GraphManager._resizeGraphMove);
-      window.removeEventListener("mouseup", GraphManager._endGraphResize);
-    }
-
-
-
-
-    GraphManager.resizeObject.resizeDiv.style.opacity = "1";
-    GraphManager.resizeObject.resizeDiv.graph.Update();
-    GraphManager.dragObject.resizing = false;
-  },
-
-  _startDrag: function (e) {
-
-    if (!GraphManager.dragObject || GraphManager.dragObject.dragging)
-    return
-
-    GraphManager.zIndexManager.focus(e.currentTarget.graphID);
-
-    if (!GraphManager.defaultValues.draggable)
-    return;
-
-    var graphDiv = null;
-    for (var i = 0; i < GraphManager.alignedGraphs.length; i++) {
-
-      if (GraphManager.alignedGraphs[i].graphID == e.currentTarget.graphID) {
-        graphDiv = GraphManager.alignedGraphs[i];
-        GraphManager.alignedGraphs.splice(i, 1);
-        GraphManager.dragObject.prevIndex = i;
-        break;
-      }
-    }
-    if (graphDiv == null) {
-      for (var i = 0; i < GraphManager.movedGraphs.length; i++) {
-        if (GraphManager.movedGraphs[i].graphID == e.currentTarget.graphID) {
-          graphDiv = GraphManager.movedGraphs[i];
-          GraphManager.movedGraphs.splice(i, 1);
-          GraphManager.dragObject.prevIndex = null;
-          break;
+    updateDomains: function (activegraphs) {
+        GraphManager.ActiveCount = 0;
+        for (var i = 0; i < GraphManager.graphs.length; i++)
+        {
+            if (typeof activegraphs[GraphManager.graphs[i].graphID] !== "undefined") {
+                GraphManager.ActiveCount++;
+                GraphManager.graphs[i].enabled = true;
+            }
+            else {
+                GraphManager.graphs[i].enabled = false;
+                if (GraphManager.graphs[i].graph.visible)
+                {
+                    GraphManager.graphs[i].graph.HideGraph();
+                }
+            }
+            //todo show/hide graphs we're already showing??
         }
-      }
-    }
+    },
 
-    // console.log(GraphManager.dragObject.dragDiv);
+    MakeGraph: function (graphObject) {
 
-    e.preventDefault();
-    e.stopPropagation();
-
-    GraphManager.dragObject.dragDiv = graphDiv;
-    GraphManager.dragObject.moved = false;
-
-    if (graphDiv.style.left != "") {
-      GraphManager.dragObject.hAlign = "left";
-      GraphManager.dragObject.hSign = 1;
-    } else {
-      GraphManager.dragObject.hAlign = "right";
-      GraphManager.dragObject.hSign = -1;
-    }
-
-    if (graphDiv.style.top != "") {
-      GraphManager.dragObject.vAlign = "top";
-      GraphManager.dragObject.vSign = 1;
-    } else {
-      GraphManager.dragObject.vAlign = "bottom";
-      GraphManager.dragObject.vSign = -1;
-    }
-
-
-    if (typeof (e.clientX) === 'undefined') {
-      GraphManager.dragObject.startMouseX = e.changedTouches[0].clientX;
-      GraphManager.dragObject.startMouseY = e.changedTouches[0].clientY;
-    } else {
-      GraphManager.dragObject.startMouseX = e.clientX;
-      GraphManager.dragObject.startMouseY = e.clientY;
-    }
-
-    GraphManager.dragObject.startDivX = parseInt(graphDiv.style[GraphManager.dragObject.hAlign]);
-    GraphManager.dragObject.startDivY = parseInt(graphDiv.style[GraphManager.dragObject.vAlign]);
-
-    if (is_touch_device()) {
-      window.addEventListener('touchmove', GraphManager._dragMove);
-      window.addEventListener('touchend', GraphManager._endDrag);
-    } else {
-      window.addEventListener("mousemove", GraphManager._dragMove);
-      window.addEventListener("mouseup", GraphManager._endDrag);
-    }
-
-    GraphManager.dragObject.dragging = true;
-  },
-
-  _dragMove: function (e) {
-
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (typeof (e.clientX) === 'undefined') {
-      var deltaX = e.touches[0].clientX - GraphManager.dragObject.startMouseX;
-      var deltaY = e.touches[0].clientY - GraphManager.dragObject.startMouseY;
-    } else {
-      var deltaX = e.clientX - GraphManager.dragObject.startMouseX;
-      var deltaY = e.clientY - GraphManager.dragObject.startMouseY;
-    }
-
-    var dragDiv = GraphManager.dragObject.dragDiv;
-    var dragObject = GraphManager.dragObject;
-
-    var newX = (GraphManager.dragObject.startDivX + (deltaX * dragObject.hSign));
-    var newY = (GraphManager.dragObject.startDivY + (deltaY * dragObject.vSign));
-
-    if (parseInt(dragDiv.style.width) != GraphManager.defaultValues.width || parseInt(dragDiv.style.height) != GraphManager.defaultValues.height) {
-      //graph doesn't have default width/height
-    }
-
-
-    //check snapping on own start position
-    if (GraphManager.defaultValues.snapping && GraphManager.dragObject.prevIndex != null) {
-      if (Math.abs(newX - dragObject.startDivX) < GraphManager.defaultValues.snapRange && Math.abs(newY - dragObject.startDivY) < GraphManager.defaultValues.snapRange) {
-        newX = GraphManager.dragObject.startDivX;
-        newY = GraphManager.dragObject.startDivY;
-      }
-    }
-
-    if (GraphManager.defaultValues.snapping) // Check snapping on other
-    {
-      for (var i = 0; i < GraphManager.alignedGraphs.length; i++) {
-        if (Math.abs(newX - parseInt(GraphManager.alignedGraphs[i].style[dragObject.hAlign])) < GraphManager.defaultValues.snapRange && Math.abs(newY - parseInt(GraphManager.alignedGraphs[i].style[dragObject.vAlign])) < GraphManager.defaultValues.snapRange) {
-          newX = parseInt(GraphManager.alignedGraphs[i].style[dragObject.hAlign]);
-          newY = parseInt(GraphManager.alignedGraphs[i].style[dragObject.vAlign]);
-          break;
+        //todo remove code block when testing is not needed anymore
+        if (typeof graphObject == 'undefined') {
+            graphObject = { id: GraphManager.idcounter };
+            GraphManager.idcounter++;
         }
-      }
-    }
-
-    dragDiv.style[dragObject.hAlign] = newX + "px";
-    dragDiv.style[dragObject.vAlign] = newY + "px";
-
-  },
-
-  _endDrag: function (e) {
-
-    GraphManager.dragObject.dragging = false;
-    e.preventDefault();
-    e.stopPropagation();
-    if (is_touch_device()) {
-      window.removeEventListener('touchmove', GraphManager._dragMove);
-      window.removeEventListener('touchend', GraphManager._endDrag);
-    } else {
-      window.removeEventListener("mousemove", GraphManager._dragMove);
-      window.removeEventListener("mouseup", GraphManager._endDrag);
-    }
 
 
+        var g = GraphManager._getGraph(graphObject.id);
+        if (g != null)
+            return;
 
-    if (GraphManager.defaultValues.snapping) {
-      var snapped = false;
-
-      var dragObject = GraphManager.dragObject;
-
-      var dragDiv = dragObject.dragDiv;
-
-      var divX = parseInt(dragDiv.style[dragObject.hAlign]);
-      var divY = parseInt(dragDiv.style[dragObject.vAlign]);
-
-      if (GraphManager.dragObject.prevIndex != null) { //check own snap
-        if (divX == dragObject.startDivX && divY == dragObject.startDivY) {
-          GraphManager.alignedGraphs.splice(dragObject.prevIndex, 0, dragDiv);
-          snapped = true;
+        var graphDiv = GraphManager.container.appendChild(document.createElement("div"));
+        graphDiv.className = "graphDiv";
+        if (graphObject.divWidth) {
+          graphDiv.style.width = graphObject.divWidth + "px";
+        } else {
+          graphDiv.style.width = GraphManager.defaultValues.width + "px";
         }
-      }
+        if (graphObject.divHeight) {
+          graphDiv.style.height = graphObject.divHeight + "px";
+        } else {
+          graphDiv.style.height = GraphManager.defaultValues.height + "px";
+        }
+        GraphManager.zIndexManager.newGraph(graphDiv);
+        //graphDiv.style.position = "absolute";
+        //graphDiv.style.backgroundColor = "rgba(" + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", 1)";
 
-      if (!snapped) {
+        if (is_touch_device()) {
+
+            graphDiv.addEventListener("touchstart", GraphManager._startDrag);
+        } else {
+            graphDiv.addEventListener("mousedown", GraphManager._startDrag);
+        }
+        graphDiv.graphID = graphObject.id;
+
+        var div = graphDiv.appendChild(document.createElement('div'));
+        div.className = 'modalDialog-close';
+        div.innerHTML = '&#x2715;';
+        div.graphID = graphDiv.graphID;
+
+        if (is_touch_device()) {
+            div.addEventListener("touchstart", function (e) {
+                var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
+                graphDiv.graph._closeGraph();
+            });
+        } else {
+            div.addEventListener("click", function (e) {
+                var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
+                graphDiv.graph._closeGraph();
+            });
+        }
+        //var infoDiv = graphDiv.appendChild(document.createElement("div"));
+        //infoDiv.className = "graph-info";
+        //infoDiv.graphID = graphDiv.graphID;
+
+        //if (is_touch_device()) {
+        //    infoDiv.addEventListener("touchstart", GraphManager._showGraphInfo);
+        //} else {
+        //    infoDiv.addEventListener("click", GraphManager._showGraphInfo);
+        //}
+
+        var resizeDiv = graphDiv.appendChild(document.createElement("div"));
+        resizeDiv.className = "graph-resize";
+        resizeDiv.graphID = graphDiv.graphID;
+        if (is_touch_device()) {
+            resizeDiv.addEventListener("touchstart", GraphManager._startGraphResize);
+        } else {
+            resizeDiv.addEventListener("mousedown", GraphManager._startGraphResize);
+        }
+
+        //graphObject =
+        GraphManager.SetGraphParameters(graphObject);
+
+        ////only for label testing!
+        //graphObject.x.label = "x-axis";
+        //graphObject.y[0].label = "y-axis";
+
+        GraphManager.BuildGraph(graphObject, graphDiv);
+
+        GraphManager.graphs.push(graphDiv);
+
+
+        //if (graphObject.id == "b1919ec3-4b69-42c3-9847-1cd6b42c6fff-KPI07")
+        //detailsControl._update();
+
+        GraphManager.hiddenGraphs.push(graphDiv);
+
+        //graphDiv.graph.GetPreview(GraphManager.container, 134, 100);
+        // graphDiv.style.visibility = "hidden";
+    },
+
+    SetGraphParameters: function (graphObject) {
+        graphObject.type = (typeof graphObject.type === 'undefined') ? GraphManager.defaultValues.type : graphObject.type;
+        //graphObject.name = (typeof graphObject.name === 'undefined') ? GraphManager.defaultValues.name : graphObject.name;
+        graphObject.width = (typeof graphObject.width === 'undefined') ? GraphManager.defaultValues.width : graphObject.width;
+        graphObject.height = (typeof graphObject.height === 'undefined') ? GraphManager.defaultValues.height : graphObject.height;
+        graphObject.x = (typeof graphObject.x === 'undefined') ? GraphManager.defaultValues.x : graphObject.x;
+        graphObject.y = (typeof graphObject.y === 'undefined') ? JSON.parse(JSON.stringify(GraphManager.defaultValues.y)) : graphObject.y;
+        graphObject.xScale = (typeof graphObject.xScale === 'undefined') ? GraphManager.defaultValues.xScale : graphObject.xScale;
+        graphObject.yScale = (typeof graphObject.yScale === 'undefined') ? GraphManager.defaultValues.yScale : graphObject.yScale;
+        graphObject.maxPoints = (typeof graphObject.maxPoints === 'undefined') ? GraphManager.defaultValues.maxPoints : graphObject.maxPoints;
+        graphObject.interpolation = (typeof graphObject.interpolation === 'undefined') ? GraphManager.defaultValues.interpolation : graphObject.interpolation;
+        graphObject.additive = (typeof graphObject.additive === 'undefined') ? GraphManager.defaultValues.additive : graphObject.additive;
+        graphObject.xAxis = (typeof graphObject.xAxis === 'undefined') ? GraphManager.defaultValues.xAxis : graphObject.xAxis;
+        graphObject.yAxis = (typeof graphObject.yAxis === 'undefined') ? GraphManager.defaultValues.yAxis : graphObject.yAxis;
+        graphObject.xAxisOrient = (typeof graphObject.xAxisOrient === 'undefined') ? GraphManager.defaultValues.xAxisOrient : graphObject.xAxisOrient;
+        graphObject.yAxisOrient = (typeof graphObject.yAxisOrient === 'undefined') ? GraphManager.defaultValues.yAxisOrient : graphObject.yAxisOrient;
+        graphObject.holdminmax = (typeof graphObject.holdminmax === 'undefined') ? GraphManager.defaultValues.holdminmax : graphObject.holdminmax;
+        graphObject.clickable = (typeof graphObject.clickable === 'undefined') ? GraphManager.defaultValues.clickable : graphObject.clickable;
+        graphObject.margins = (typeof graphObject.margins === 'undefined') ? GraphManager.defaultValues.margins : graphObject.margins;
+        return graphObject;
+    },
+
+    BuildGraph: function (graphObject, container) {
+        var graph;
+        if (!graphObject.type) {
+            graphObject.type = graphType.line;
+        }
+
+        switch (graphObject.type) {
+            // case graphType.line:
+            // graph = new LineBottomLeft(graphObject);
+            //     break;
+            case 'spider':
+                // graph = new LineBottomLeft(graphObject);
+                GraphManager.defaultValues.minWidth = 400;
+                GraphManager.defaultValues.minHeight = 400;
+                graph = new SpiderChart(graphObject);
+                break;
+
+                // todo
+                // # line
+                // preview aanpassen
+                // # Bar
+                // preview aanpassen
+                // grouped check
+                // # spline
+                // preview aanpassen
+                // # Area
+                // preview aanpassen
+                // # step
+                // preview aanpassen
+                // # area-step
+                // preview aanpassen
+                // # area-spline
+                // preview aanpassen
+                // # scatter
+                // preview aanpassen
+                // # donut
+                // preview aanpassen
+                // # gauge
+                // preview aanpassen
+
+                // NEW
+            case 'line':
+                graph = new Chart(graphObject);
+                break;
+            case 'bar':
+                // graph = new BarChart(graphObject);
+                graph = new Chart(graphObject);
+                break;
+            case 'spline':
+                graph = new Chart(graphObject);
+                break;
+            case 'area':
+                graph = new Chart(graphObject);
+                break;
+            case 'step':
+                graph = new Chart(graphObject);
+                break;
+            case 'area-step':
+                graph = new Chart(graphObject);
+                break;
+            case 'area-spline':
+                graph = new Chart(graphObject);
+                break;
+            case 'scatter':
+                graph = new Chart(graphObject);
+                break;
+            case 'pie':
+                graph = new Chart(graphObject);
+                break;
+            case 'donut':
+                graph = new Chart(graphObject);
+                break;
+            case 'gauge':
+                graph = new Chart(graphObject);
+                break;
+
+            default: console.log("Graph type not yet supported");
+                break;
+        }
+
+
+        graph.Initialize(container);
+        return graph;
+    },
+
+    BuildLineGraph: function (graphObject, container) {
+        //todo implement different axis orientations of line graphs!
+
+        var graph = new LineBottomLeft(graphObject);
+        graph.Initialize(container);
+        if (typeof graphObject.data !== "undefined")
+            graph.Update(graphObject.data);
+        return graph;
+    },
+
+    UpdateGraphs: function (dataArray) {
+        for (var i = 0; i < dataArray.length; i++) {
+            var graph = GraphManager._getGraph(dataArray[i].id);
+            if (graph == null) //only update graphs that exist
+                continue;
+            graph.graph.Update(dataArray[i].data);
+            //GraphManager.UpdateGraph(graph.graph, dataArray[i]);
+        }
+    },
+
+    RepositionGraphs: function () {
+        for (var i = 0; i < GraphManager.alignedGraphs.length; i++)
+            GraphManager.PositionGraph(GraphManager.alignedGraphs[i], i);
+    },
+
+    PositionGraph: function (graphDiv, i) {
+        var h = GraphManager.container.clientHeight;
+        var w = GraphManager.container.clientWidth;
+
+
+        var defaultHeight = GraphManager.defaultValues.height;
+        var defaultWidth = GraphManager.defaultValues.width;
+        if (parseInt(graphDiv.style.height) > GraphManager.defaultValues.height) {
+          defaultHeight = parseInt(graphDiv.style.height);
+        }
+        if (parseInt(graphDiv.style.width) > GraphManager.defaultValues.width) {
+          defaultWidth = parseInt(graphDiv.style.width);
+        }
+
+
+
+        var amount = i;
+
+        if (defaultHeight > h || defaultWidth > w) {
+            //todo a single graph does not fit the container!
+            console.log('doesn\'t fit');
+            // return;
+        }
+
+        var col = 0;
+
+        while ((amount * defaultHeight) > h) {
+            col++;
+            amount -= Math.floor(h / defaultHeight);
+        }
+
+        var row = amount;
+        if ((amount + 1) * defaultHeight > h) //check if our new graph fits into the current column
+        {
+            col++;
+            row = 0;
+        }
+
+        var halign, valign
+
+        var xStart, yStart, xSign, ySign;
+        switch (GraphManager.position) {
+            case graphPosition.bottomLeft: halign = "left"; valign = "bottom";
+                xStart = 0;
+                yStart = h - GraphManager.defaultValues.height;
+                xSign = 1;
+                ySign = -1;
+                break;
+            case graphPosition.bottomRight: halign = "right"; valign = "bottom";
+                xStart = w - GraphManager.defaultValues.width;
+                yStart = h - GraphManager.defaultValues.height;
+                xSign = -1;
+                ySign = -1;
+                break;
+            case graphPosition.topLeft: halign = "left"; valign = "top";
+                xStart = 0;
+                yStart = 0;
+                xSign = 1;
+                ySign = 1;
+                break;
+            case graphPosition.topRight: halign = "right"; valign = "top";
+                xStart = w - GraphManager.defaultValues.width;
+                yStart = 0;
+                xSign = -1;
+                ySign = 1;
+                break;
+        }
+
+        if (col % 2 == 0) //same side aligning
+        {
+            col /= 2;
+            if (GraphManager.position == graphPosition.bottomLeft || GraphManager.position == graphPosition.topLeft) {
+                graphDiv.style.left = col * GraphManager.defaultValues.xOffset + "px";//GraphManager.defaultValues.width + "px";
+            }
+            else {
+                graphDiv.style.left = w - (GraphManager.defaultValues.width + (col * GraphManager.defaultValues.xOffset)) + "px";
+            }
+        }
+        else //other side aligning
+        {
+            col = (col - 1) / 2;
+            if (GraphManager.position == graphPosition.bottomLeft || GraphManager.position == graphPosition.topLeft) {
+                graphDiv.style.left = w - (GraphManager.defaultValues.width + (col * GraphManager.defaultValues.xOffset)) + "px";
+            }
+            else {
+                graphDiv.style.left = col * GraphManager.defaultValues.xOffset + "px";
+            }
+        }
+
+        if (GraphManager.position == graphPosition.topLeft || GraphManager.position == graphPosition.topRight) {
+            graphDiv.style.top = (row * GraphManager.defaultValues.height) + (GraphManager.defaultValues.yOffset * col) + "px";
+        }
+        else {
+            graphDiv.style.top = h - (((row + 1) * GraphManager.defaultValues.height) + (col * GraphManager.defaultValues.yOffset)) + "px";
+        }
+    },
+
+    RemoveGraph: function (graphID) {
+
+        var graphDiv = null;
+        var removed = false;
         for (var i = 0; i < GraphManager.alignedGraphs.length; i++) {
-          if (divX == parseInt(GraphManager.alignedGraphs[i].style[dragObject.hAlign]) && divY == parseInt(GraphManager.alignedGraphs[i].style[dragObject.vAlign])) {
-            var index = i;
-            if (dragObject.prevIndex != null && index >= dragObject.prevIndex)
-            index++;
-            GraphManager.alignedGraphs.splice(index, 0, dragDiv);
-            snapped = true;
-            break;
-          }
+            if (GraphManager.alignedGraphs[i].graphID == graphID) {
+                graphDiv = GraphManager.alignedGraphs[i];
+                GraphManager.alignedGraphs.splice(i, 1);
+            }
         }
-      }
-      if (!snapped) {
-        GraphManager.movedGraphs.push(dragDiv);
-      }
-    }
-    else {
-      GraphManager.movedGraphs.push(GraphManager.dragObject.dragDiv);
-    }
+        for (var i = 0; i < GraphManager.movedGraphs.length; i++) {
+            if (GraphManager.movedGraphs[i].graphID == graphID) {
+                graphDiv = GraphManager.movedGraphs[i];
+                GraphManager.movedGraphs.splice(i, 1);
+            }
+        }
 
-    GraphManager.RepositionGraphs();
-  }
+        if (graphDiv != null) {
+            GraphManager.hiddenGraphs.push(graphDiv);
+            graphDiv.style.visibility = "hidden";
+            GraphManager.RepositionGraphs();
+        }
+    },
+
+    AddGraph: function (graphDiv) {
+        //check to see if it's a hidden graph?
+        for (var i = 0; i < GraphManager.hiddenGraphs.length; i++) {
+            if (GraphManager.hiddenGraphs[i].graphID == graphDiv.graphID) {
+                GraphManager.hiddenGraphs.splice(i, 1);
+            }
+        }
+
+        graphDiv.style.visibility = "visible";
+        GraphManager.container.appendChild(graphDiv);
+        GraphManager.alignedGraphs.push(graphDiv);
+        GraphManager.PositionGraph(graphDiv, GraphManager.alignedGraphs.length - 1);
+        GraphManager.zIndexManager.focus(graphDiv.graphID);
+    },
+    /*
+    data: [
+    { x: value,
+      y: [value, null, value] -> graph with 3 lines  
+    },
+    ...
+    ]
+    */
+    AddGraphData: function(graph, data)
+    {
+        //check if there are changes
+        if (data == null)
+            return;
+
+        var maxX = null
+
+        for (var x = 0; x < graph.data.length ; x++)
+        {
+            if (graph.data[x].length > 0 && (maxX == null || graph.data[x][graph.data[x].length - 1].x.value > maxX))
+                maxX = graph.data[x][graph.data[x].length - 1].x.value;
+        }
+
+        for (var j = 0; j < data.length; j++) {
+            //can I assume the arrays always have the same length!?
+            for (var i = 0; i < graph.data.length; i++) {
+                var xNum = new UnitConverter.ConvNum(graph.x.qnt, data[j].x);
+                xNum.SetUnit(graph.x.unit);
+                if (maxX != null && xNum.value < maxX) //check if new xValue is bigger then all the others!
+                    continue;
+                maxX = xNum.value;
+                if (data[j].y[i] != null) {
+                    if (typeof data[j].y[i] === "boolean" && !data[j].y[i]) {
+                        graph.data[i].push(null);
+                    }
+                    else {
+                        var yNum = new UnitConverter.ConvNum(graph.y[0].qnt, data[j].y[i]);
+                        yNum.SetUnit(graph.y[0].unit);
+                        graph.data[i].push({ x: xNum, y: yNum });
+                    }
+                }
+            }
+        }
+
+        //todo check if we can add them instead of rebuilding display data
+        graph.displayData = [];
+        
+        for (var j = 0; j < graph.data.length; j++)
+        {
+            graph.displayData.push([]);
+            for (var i = Math.max(0, graph.data[j].length - graph.maxPoints) ; i < graph.data[j].length; i++)
+                graph.displayData[j].push(graph.data[j][i]);
+        }
+
+        //for (var i = 0; i < graph.data.length; i++)
+        //{
+        //    if (graph.data[i].length <= graph.maxPoints) //we can still push the new points to the display data
+        //    {
+        //        if (graph.data[i].length > graph.displayData[i].length)
+        //            graph.displayData[i].push({x: data.x, y: data.y[i]})
+        //    }
+        //    else //rebuild display data
+        //    {
+        //        graph.displayData[i] = [];
+        //        for (var j = graph.data[i].length - graph.maxPoints; j < graph.data[i].length; j++)
+        //        {
+        //            graph.displayData[i].push(graph.data[i][j]);
+        //        }
+        //    }
+        //}
+    },
+
+    _showGraphInfo: function (e) {
+        console.log("Todo: show graph info");
+    },
+
+    _getGraph: function (graphID) {
+        for (var i = 0; i < GraphManager.alignedGraphs.length; i++)
+            if (GraphManager.alignedGraphs[i].graphID == graphID)
+                return GraphManager.alignedGraphs[i];
+
+        for (var i = 0; i < GraphManager.movedGraphs.length; i++)
+            if (GraphManager.movedGraphs[i].graphID == graphID)
+                return GraphManager.movedGraphs[i];
+
+        for (var i = 0; i < GraphManager.hiddenGraphs.length; i++)
+            if (GraphManager.hiddenGraphs[i].graphID == graphID)
+                return GraphManager.hiddenGraphs[i];
+
+        return null
+    },
+
+    _startGraphResize: function (e) {
+        if (!GraphManager.defaultValues.resizable)
+            return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
+        GraphManager.resizeObject.resizeDiv = graphDiv;
+        GraphManager.resizeObject.startDivW = parseInt(graphDiv.style.width);
+        GraphManager.resizeObject.startDivH = parseInt(graphDiv.style.height);
+
+        if (typeof (e.clientX) === 'undefined') {
+            GraphManager.resizeObject.startMouseX = e.changedTouches[0].clientX;
+            GraphManager.resizeObject.startMouseY = e.changedTouches[0].clientY;
+        } else {
+            GraphManager.resizeObject.startMouseX = e.clientX;
+            GraphManager.resizeObject.startMouseY = e.clientY;
+        }
+
+        graphDiv.style.opacity = "0.5";
+
+        if (is_touch_device()) {
+            window.addEventListener('touchmove', GraphManager._resizeGraphMove);
+            window.addEventListener('touchend', GraphManager._endGraphResize);
+        } else {
+            window.addEventListener("mousemove", GraphManager._resizeGraphMove);
+            window.addEventListener("mouseup", GraphManager._endGraphResize);
+        }
+
+    },
+
+    _resizeGraphMove: function (e) {
+
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof (e.clientX) === 'undefined') {
+            var deltaX = e.changedTouches[0].clientX - GraphManager.resizeObject.startMouseX;
+            var deltaY = e.changedTouches[0].clientY - GraphManager.resizeObject.startMouseY;
+        } else {
+            var deltaX = e.clientX - GraphManager.resizeObject.startMouseX;
+            var deltaY = e.clientY - GraphManager.resizeObject.startMouseY;
+        }
+
+
+        var width = GraphManager.resizeObject.startDivW + deltaX;
+        var height = GraphManager.resizeObject.startDivH + deltaY;
+
+        if (GraphManager.defaultValues.maxWidth != null)
+            width = Math.min(width, GraphManager.defaultValues.maxWidth);
+
+        if (GraphManager.defaultValues.maxHeight != null)
+            height = Math.min(height, GraphManager.defaultValues.maxHeight);
+
+        width = Math.round(Math.max(GraphManager.defaultValues.minWidth, width));
+        height = Math.round(Math.max(GraphManager.defaultValues.minHeight, height));
+
+        if (Math.abs(width - GraphManager.defaultValues.width) < GraphManager.defaultValues.resizeSnapRange && Math.abs(height - GraphManager.defaultValues.height) < GraphManager.defaultValues.resizeSnapRange) {
+            width = GraphManager.defaultValues.width;
+            height = GraphManager.defaultValues.height;
+        }
+
+        GraphManager.resizeObject.resizeDiv.style.width = width + "px";
+        GraphManager.resizeObject.resizeDiv.style.height = height + "px";
+
+    },
+
+    _endGraphResize: function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (is_touch_device()) {
+            window.removeEventListener("touchmove", GraphManager._resizeGraphMove);
+            window.removeEventListener("touchend", GraphManager._endGraphResize);
+        } else {
+            window.removeEventListener("mousemove", GraphManager._resizeGraphMove);
+            window.removeEventListener("mouseup", GraphManager._endGraphResize);
+        }
+
+
+
+
+        GraphManager.resizeObject.resizeDiv.style.opacity = "1";
+        GraphManager.resizeObject.resizeDiv.graph.Update();
+    },
+
+    _startDrag: function (e) {
+
+
+
+        GraphManager.zIndexManager.focus(e.currentTarget.graphID);
+
+        if (!GraphManager.defaultValues.draggable)
+            return;
+
+        var graphDiv = null;
+        for (var i = 0; i < GraphManager.alignedGraphs.length; i++) {
+
+            if (GraphManager.alignedGraphs[i].graphID == e.currentTarget.graphID) {
+                graphDiv = GraphManager.alignedGraphs[i];
+                GraphManager.alignedGraphs.splice(i, 1);
+                GraphManager.dragObject.prevIndex = i;
+                break;
+            }
+        }
+        if (graphDiv == null) {
+            for (var i = 0; i < GraphManager.movedGraphs.length; i++) {
+                if (GraphManager.movedGraphs[i].graphID == e.currentTarget.graphID) {
+                    graphDiv = GraphManager.movedGraphs[i];
+                    GraphManager.movedGraphs.splice(i, 1);
+                    GraphManager.dragObject.prevIndex = null;
+                    break;
+                }
+            }
+        }
+
+        // console.log(GraphManager.dragObject.dragDiv);
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        GraphManager.dragObject.dragDiv = graphDiv;
+        GraphManager.dragObject.moved = false;
+
+        if (graphDiv.style.left != "") {
+            GraphManager.dragObject.hAlign = "left";
+            GraphManager.dragObject.hSign = 1;
+        } else {
+            GraphManager.dragObject.hAlign = "right";
+            GraphManager.dragObject.hSign = -1;
+        }
+
+        if (graphDiv.style.top != "") {
+            GraphManager.dragObject.vAlign = "top";
+            GraphManager.dragObject.vSign = 1;
+        } else {
+            GraphManager.dragObject.vAlign = "bottom";
+            GraphManager.dragObject.vSign = -1;
+        }
+
+
+        if (typeof (e.clientX) === 'undefined') {
+            GraphManager.dragObject.startMouseX = e.changedTouches[0].clientX;
+            GraphManager.dragObject.startMouseY = e.changedTouches[0].clientY;
+        } else {
+            GraphManager.dragObject.startMouseX = e.clientX;
+            GraphManager.dragObject.startMouseY = e.clientY;
+        }
+
+        GraphManager.dragObject.startDivX = parseInt(graphDiv.style[GraphManager.dragObject.hAlign]);
+        GraphManager.dragObject.startDivY = parseInt(graphDiv.style[GraphManager.dragObject.vAlign]);
+
+        if (is_touch_device()) {
+            window.addEventListener('touchmove', GraphManager._dragMove);
+            window.addEventListener('touchend', GraphManager._endDrag);
+        } else {
+            window.addEventListener("mousemove", GraphManager._dragMove);
+            window.addEventListener("mouseup", GraphManager._endDrag);
+        }
+
+    },
+
+    _dragMove: function (e) {
+
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (typeof (e.clientX) === 'undefined') {
+            var deltaX = e.touches[0].clientX - GraphManager.dragObject.startMouseX;
+            var deltaY = e.touches[0].clientY - GraphManager.dragObject.startMouseY;
+        } else {
+            var deltaX = e.clientX - GraphManager.dragObject.startMouseX;
+            var deltaY = e.clientY - GraphManager.dragObject.startMouseY;
+        }
+
+        var dragDiv = GraphManager.dragObject.dragDiv;
+        var dragObject = GraphManager.dragObject;
+
+        var newX = (GraphManager.dragObject.startDivX + (deltaX * dragObject.hSign));
+        var newY = (GraphManager.dragObject.startDivY + (deltaY * dragObject.vSign));
+
+        if (parseInt(dragDiv.style.width) != GraphManager.defaultValues.width || parseInt(dragDiv.style.height) != GraphManager.defaultValues.height) {
+            //graph doesn't have default width/height
+        }
+
+
+        //check snapping on own start position
+        if (GraphManager.defaultValues.snapping && GraphManager.dragObject.prevIndex != null) {
+            if (Math.abs(newX - dragObject.startDivX) < GraphManager.defaultValues.snapRange && Math.abs(newY - dragObject.startDivY) < GraphManager.defaultValues.snapRange) {
+                newX = GraphManager.dragObject.startDivX;
+                newY = GraphManager.dragObject.startDivY;
+            }
+        }
+
+        if (GraphManager.defaultValues.snapping) // Check snapping on other
+        {
+            for (var i = 0; i < GraphManager.alignedGraphs.length; i++) {
+                if (Math.abs(newX - parseInt(GraphManager.alignedGraphs[i].style[dragObject.hAlign])) < GraphManager.defaultValues.snapRange && Math.abs(newY - parseInt(GraphManager.alignedGraphs[i].style[dragObject.vAlign])) < GraphManager.defaultValues.snapRange) {
+                    newX = parseInt(GraphManager.alignedGraphs[i].style[dragObject.hAlign]);
+                    newY = parseInt(GraphManager.alignedGraphs[i].style[dragObject.vAlign]);
+                    break;
+                }
+            }
+        }
+
+        dragDiv.style[dragObject.hAlign] = newX + "px";
+        dragDiv.style[dragObject.vAlign] = newY + "px";
+
+    },
+
+    _endDrag: function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (is_touch_device()) {
+            window.removeEventListener('touchmove', GraphManager._dragMove);
+            window.removeEventListener('touchend', GraphManager._endDrag);
+        } else {
+            window.removeEventListener("mousemove", GraphManager._dragMove);
+            window.removeEventListener("mouseup", GraphManager._endDrag);
+        }
+
+
+
+        if (GraphManager.defaultValues.snapping) {
+            var snapped = false;
+
+            var dragObject = GraphManager.dragObject;
+
+            var dragDiv = dragObject.dragDiv;
+
+            var divX = parseInt(dragDiv.style[dragObject.hAlign]);
+            var divY = parseInt(dragDiv.style[dragObject.vAlign]);
+
+            if (GraphManager.dragObject.prevIndex != null) { //check own snap
+                if (divX == dragObject.startDivX && divY == dragObject.startDivY) {
+                    GraphManager.alignedGraphs.splice(dragObject.prevIndex, 0, dragDiv);
+                    snapped = true;
+                }
+            }
+
+            if (!snapped) {
+                for (var i = 0; i < GraphManager.alignedGraphs.length; i++) {
+                    if (divX == parseInt(GraphManager.alignedGraphs[i].style[dragObject.hAlign]) && divY == parseInt(GraphManager.alignedGraphs[i].style[dragObject.vAlign])) {
+                        var index = i;
+                        if (dragObject.prevIndex != null && index >= dragObject.prevIndex)
+                            index++;
+                        GraphManager.alignedGraphs.splice(index, 0, dragDiv);
+                        snapped = true;
+                        break;
+                    }
+                }
+            }
+            if (!snapped) {
+                GraphManager.movedGraphs.push(dragDiv);
+            }
+        }
+        else {
+            GraphManager.movedGraphs.push(GraphManager.dragObject.dragDiv);
+        }
+
+        GraphManager.RepositionGraphs();
+    }
 }
 
 
 function is_touch_device() {
-  try {
-    document.createEvent("TouchEvent");
-    return true;
-  } catch (e) {
-    return false;
-  }
+    try {
+        document.createEvent("TouchEvent");
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 //UpdateGraph: function (graph, data)
