@@ -120,7 +120,9 @@ var GraphManager = {
     minHeight: 200, //Minumum resize height for a graph
     xOffset: 25, //x offset when aligning graphs on top of each other
     yOffset: 25, //y offset when aligning graphs on top of each other
-    margins: {top: 40,right: 20,bottom: 30,left: 40}
+    margins: {top: 40,right: 20,bottom: 30,left: 40},
+    showLabels: false,
+    showLegends: false
   },
 
   Initialize: function () {

@@ -35,9 +35,8 @@ function generateCharts() {
       },
       title:"Air humidity" + types[i],
       id : "test" + i,
-      type : types[i],
-      width : 300,
-      height : 200,
+      type : types[i]
+
     }
     GraphManager.MakeGraph(chartObject);
   }
@@ -50,9 +49,7 @@ var chartObject = {
   ]},
   title:"Air humidity",
   id : "test123",
-  type : "line",
-  width : 400,
-  height : 400,
+  type : "line"
 }
 
 
@@ -198,8 +195,7 @@ function Chart(graphObject) {
       bindto: graph.svg,
       data: {
         columns: [],
-        labels: true,
-
+        labels: GraphManager.defaultValues.showLabels,
       },
       size: {
         height: height - marginTop,
@@ -209,7 +205,7 @@ function Chart(graphObject) {
         grouped: false
       },
       legend: {
-        show: false
+        show: GraphManager.defaultValues.showLegends
       },
       gauge: {
         label: {
@@ -221,7 +217,7 @@ function Chart(graphObject) {
 
       });
       graph.chart.internal.config.legend_show = this.visible;
-      this.graphObject.container.getElementsByClassName('graph-title')[0].innerText = this.graphObject.title;
+      d3.select(this.graphObject.container).select('.graph-title').html(this.graphObject.title);
       graph.chart.element.style.marginTop = '26px';
       this._fillCharts(graph);
       graph.svg.attr("width", width - (marginLeft + marginRight));
