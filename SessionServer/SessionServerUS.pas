@@ -241,7 +241,7 @@ type
 
 function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapView;
 function getUSProjectID(aOraSession: TOraSession; const aDefault: string): string;
-procedure setUSProjectID(aOraSession: TOraSession; const aValue: string);
+procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon: Double; aZoomLevel: Integer);
 function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer): Integer;
 
 function Left(const s: string; n: Integer): string;
@@ -272,7 +272,7 @@ begin
   dbConnection := TOraSession.Create(nil);
   dbConnection.ConnectString := aConnectString;
   dbConnection.Open;
-  setUSProjectID(dbConnection, aProjectID); // store project id in database
+  setUSProjectID(dbConnection, aProjectID, aMapView.lat, aMapView.lon, aMapView.zoom); // store project id in database
   aMapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
   Result := dbConnection;
 end;
@@ -2206,12 +2206,41 @@ begin
   end;
 end;
 
-procedure setUSProjectID(aOraSession: TOraSession; const aValue: string);
+procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon: Double; aZoomLevel: Integer);
+var
+  tryInsert: Boolean;
 begin
-  aOraSession.ExecSQL(
-    'UPDATE PUBL_PROJECT '+
-    'SET ProjectID='''+aValue+'''');
-  aOraSession.Commit;
+  // todo: update does not generate exception: how to check?
+  try
+    aOraSession.ExecSQL(
+      'UPDATE PUBL_PROJECT '+
+      'SET ProjectID='''+aProjectID+''', '+
+          'LAT='+aLat.ToString(dotFormat)+', '+
+          'LON='+aLon.ToString(dotFormat)+', '+
+          'ZOOM='+aZoomLevel.ToString);
+      aOraSession.Commit;
+      tryInsert := False;
+  except
+    on E: Exception do
+    begin
+      Log.WriteLn('Could not update project id, try to insert..');
+      tryInsert := True;
+    end;
+  end;
+  if tryInsert then
+  begin
+    try
+      aOraSession.ExecSQL(
+        'INSERT INTO PUBL_PROJECT (PROJECTID, LAT, LON, ZOOM) '+
+        'VALUES ('''+aProjectID+''', '+aLat.ToString(dotFormat)+', '+aLon.ToString(dotFormat)+', '+aZoomLevel.ToString+')');
+      aOraSession.Commit;
+    except
+      on E: Exception do
+      begin
+        Log.WriteLn('Could not insert project id: '+E.Message, llWarning);
+      end;
+    end;
+  end;
 end;
 
 function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer): Integer;
