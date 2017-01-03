@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
   <title>Design module</title>
@@ -137,7 +137,8 @@
   <!-- local scripts -->
   <script>
   // determine parameters and config
-  var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
+  //var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
+  var wsBaseURL = 'ws://vps17642.public.cloudvps.com';
   //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
   var session = getParameterByName('session', '');
   if (session == '') {
@@ -147,7 +148,7 @@
     // session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
     // session = 'ensel';
     // session = 'ssm';
-    session = '6B84B11553BC4AA6B2B6A0759F6EB278';  
+    // session = '6B84B11553BC4AA6B2B6A0759F6EB278'; // us_demo 
   }
   var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
   var scenario = '';
