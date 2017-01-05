@@ -20,7 +20,10 @@ using IMB;
 
 // netsh http add iplisten ipaddress=0.0.0.0:8080
 
-// netsh http add urlacl url=http://+:8080/sessions user=vps17642\cornelissenja
+// old netsh http add urlacl url=http://+:8080/sessions user=vps17642\cornelissenja
+
+// netsh http add urlacl url=http://+:80/sessions user=vps17642\cornelissenja
+// netsh http add urlacl url=https://+:443/sessions user=vps17642\cornelissenja
 
 // install as windows service: installutil.exe in dotnet folder (C:\Windows\Microsoft.NET\Framework\vx.x.xxxxx)
 // installutil.exe <path>\WS2IMBSvc.exe
@@ -47,44 +50,79 @@ namespace WS2IMBSvc
 
         protected override void OnStart(string[] args)
         {
-            Lookups.connection = new TSocketConnection(IMBModelName, IMBModelID, "", IMBHub);
-            Uri baseAddress = new Uri(WebSocketUrl);
-            Lookups.host = new ServiceHost(typeof(WebSocketsServer), baseAddress);
+            try
+            {
+                Lookups.connection = new TSocketConnection(IMBModelName, IMBModelID, "", IMBHub);
+                var baseAddresses = new List<Uri>();
+                foreach (var url in WebSocketUrl.Split('|'))
+                    baseAddresses.Add(new Uri(url));
+                Lookups.host = new ServiceHost(typeof(WebSocketsServer), baseAddresses.ToArray());
 
-            // Enable metadata publishing.
-            ServiceMetadataBehavior smb = new ServiceMetadataBehavior();
-            smb.HttpGetEnabled = true;
-            smb.MetadataExporter.PolicyVersion = PolicyVersion.Policy15;
-            Lookups.host.Description.Behaviors.Add(smb);
+                // Enable metadata publishing.
+                ServiceMetadataBehavior smb = new ServiceMetadataBehavior();
+                smb.HttpGetEnabled = true;
+                smb.MetadataExporter.PolicyVersion = PolicyVersion.Policy15;
+                Lookups.host.Description.Behaviors.Add(smb);
 
-            CustomBinding binding = new CustomBinding();
-            // http://www.rauch.io/2015/06/25/all-wcf-timeouts-explained/
-            // https://msdn.microsoft.com/en-us/library/hh924831(v=vs.110).aspx
-            binding.ReceiveTimeout = new TimeSpan(3, 0, 0);
-            binding.SendTimeout = new TimeSpan(3, 0, 0);
-            binding.Elements.Add(new ByteStreamMessageEncodingBindingElement());
-            HttpTransportBindingElement transport = new HttpTransportBindingElement();
-            transport.WebSocketSettings.TransportUsage = WebSocketTransportUsage.Always;
-            transport.WebSocketSettings.CreateNotificationOnConnection = true;
-            transport.WebSocketSettings.KeepAliveInterval = new TimeSpan(3, 0, 0);
-            transport.KeepAliveEnabled = true; // default true?
-            binding.Elements.Add(transport);
+                CustomBinding binding = new CustomBinding();
+                // http://www.rauch.io/2015/06/25/all-wcf-timeouts-explained/
+                // https://msdn.microsoft.com/en-us/library/hh924831(v=vs.110).aspx
+                binding.ReceiveTimeout = new TimeSpan(3, 0, 0);
+                binding.SendTimeout = new TimeSpan(3, 0, 0);
+                binding.Elements.Add(new ByteStreamMessageEncodingBindingElement());
 
-            var endPoint = Lookups.host.AddServiceEndpoint(typeof(IWebSocketsServer), binding, "");
-            endPoint.EndpointBehaviors.Add(new ClientTrackerEndpointBehavior());
+                HttpTransportBindingElement transport = new HttpTransportBindingElement();
+                transport.WebSocketSettings.TransportUsage = WebSocketTransportUsage.Always;
+                transport.WebSocketSettings.CreateNotificationOnConnection = true;
+                transport.WebSocketSettings.KeepAliveInterval = new TimeSpan(3, 0, 0);
+                transport.KeepAliveEnabled = true; // default true?
+                binding.Elements.Add(transport);
 
-            Lookups.host.Open();
-            //var dispatcher = Lookups.host.ChannelDispatchers[0] as ChannelDispatcher;
-            Debug.WriteLine("Started WS2IMB service");
+                var endPoint = Lookups.host.AddServiceEndpoint(typeof(IWebSocketsServer), binding, "");
+                endPoint.EndpointBehaviors.Add(new ClientTrackerEndpointBehavior());
+
+                CustomBinding bindingSSL = new CustomBinding();
+                // http://www.rauch.io/2015/06/25/all-wcf-timeouts-explained/
+                // https://msdn.microsoft.com/en-us/library/hh924831(v=vs.110).aspx
+                bindingSSL.ReceiveTimeout = new TimeSpan(3, 0, 0);
+                bindingSSL.SendTimeout = new TimeSpan(3, 0, 0);
+                bindingSSL.Elements.Add(new ByteStreamMessageEncodingBindingElement());
+
+                HttpsTransportBindingElement transportSSL = new HttpsTransportBindingElement();
+                transportSSL.WebSocketSettings.TransportUsage = WebSocketTransportUsage.Always;
+                transportSSL.WebSocketSettings.CreateNotificationOnConnection = true;
+                transportSSL.WebSocketSettings.KeepAliveInterval = new TimeSpan(3, 0, 0);
+                transportSSL.KeepAliveEnabled = true; // default true?
+                bindingSSL.Elements.Add(transportSSL);
+
+                var endPointSSL = Lookups.host.AddServiceEndpoint(typeof(IWebSocketsServer), bindingSSL, "");
+                endPointSSL.EndpointBehaviors.Add(new ClientTrackerEndpointBehavior());
+
+
+                Lookups.host.Open();
+                //var dispatcher = Lookups.host.ChannelDispatchers[0] as ChannelDispatcher;
+                Debug.WriteLine("Started WS2IMB service");
+            }
+            catch(Exception e)
+            {
+                Debug.WriteLine("## Exception Starting WS2IMB service: " + e.Message);
+            }
         }
 
         protected override void OnStop()
         {
-            Lookups.host.Close();
-            ((IDisposable)Lookups.host).Dispose();
-            Lookups.host = null;
-            Lookups.connection.close();
-            Debug.WriteLine("Stopped WS2IMB service");
+            try
+            {
+                Lookups.host.Close();
+                ((IDisposable)Lookups.host).Dispose();
+                Lookups.host = null;
+                Lookups.connection.close();
+                Debug.WriteLine("Stopped WS2IMB service");
+            }
+            catch(Exception e)
+            {
+                Debug.WriteLine("## Exception Stopping WS2IMB service: " + e.Message);
+            }
         }
     }
 
@@ -217,8 +255,10 @@ namespace WS2IMBSvc
                 var sessionName = queryParameters["session"];
                 if (sessionName == null || sessionName == "") sessionName = "unknown";
                 //var remoteAddress = OperationContext.Current.IncomingMessageHeaders.From;
-                var remoteAddress = (OperationContext.Current.IncomingMessageProperties[RemoteEndpointMessageProperty.Name] as RemoteEndpointMessageProperty).Address;
-                Debug.WriteLine("Start of client " + remoteAddress + " on session: " + sessionName+ " ("+channel.SessionId.ToString()+")");
+                var repmp = OperationContext.Current.IncomingMessageProperties[RemoteEndpointMessageProperty.Name] as RemoteEndpointMessageProperty;
+
+                Debug.WriteLine("Start of client " + repmp.Address + ":" + repmp.Port.ToString() + " on session: " + sessionName + " (" + channel.SessionId.ToString() + ")");
+
                 // signal start of client on session
                 TEventEntry sessionEvent = Lookups.connection.publish(Lookups.RootEventName + "." + sessionName, false);
                 channelEvent = Lookups.connection.subscribe(sessionEvent.eventName + "." + channel.SessionId, false);

@@ -25,7 +25,7 @@ namespace WS2IMBSvc.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("http://localhost:8080/sessions")]
+        [global::System.Configuration.DefaultSettingValueAttribute("http://localhost:80/sessions|https://localhost:443/sessions")]
         public string WebSocketUrl {
             get {
                 return ((string)(this["WebSocketUrl"]));
