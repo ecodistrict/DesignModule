@@ -31,6 +31,7 @@ uses
 
   GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
 
+  System.SyncObjs,
   System.JSON,
   System.Math,
   System.Classes,
@@ -141,6 +142,13 @@ type
     // todo: encode ?
   end;
 
+  TUSUpdateQueueEntry = record
+  class function Create(aObjectID, aAction: Integer): TUSUpdateQueueEntry; static;
+  public
+    objectID: Integer;
+    action: Integer;
+  end;
+
   TUSLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
@@ -156,12 +164,15 @@ type
     fPalette: TWDPalette;
     fSourceProjection: TGIS_CSProjectedCoordinateSystem; // ref
     fDataEvents: array of TIMBEventEntry;
+
     fNewQuery: TOraQuery;
     fChangeQuery: TOraQuery;
+    fUpdateQueue: TList<TUSUpdateQueueEntry>;
+    fUpdateQueueEvent: TEvent;
+    fUpdateThread: TThread;
+    procedure UpdateQueuehandler();
 
     function UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
-    function newObjectQuery(const oid: TWDID): string;
-    function changeObjectQuery(const oid: TWDID): string;
     procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
   public
     procedure ReadObjects(aSender: TObject);
@@ -1148,12 +1159,15 @@ begin
   inherited Destroy;
 end;
 
-{ TUSLayer }
+{ TUSUpdateQueueEntry }
 
-function TUSLayer.changeObjectQuery(const oid: TWDID): string;
+class function TUSUpdateQueueEntry.Create(aObjectID, aAction: Integer): TUSUpdateQueueEntry;
 begin
-  // todo: implement
+  Result.objectID := aObjectID;
+  Result.action := aAction;
 end;
+
+{ TUSLayer }
 
 constructor TUSLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
   const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
@@ -1191,7 +1205,13 @@ begin
   end
   else  fChangeQuery := nil;
 
+  fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
+  fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
+  fUpdateThread := TThread.CreateAnonymousThread(UpdateQueuehandler);
+  fUpdateThread.FreeOnTerminate := False;
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, aDiffRange, aBasicLayer);
+  fUpdateThread.NameThreadForDebugging(ElementID + ' queue handler');
+  fUpdateThread.Start;
 
   setLength(fDataEvents, length(aDataEvent));
   for i := 0 to length(aDataEvent)-1 do
@@ -1204,6 +1224,11 @@ end;
 destructor TUSLayer.Destroy;
 begin
   inherited;
+  fUpdateThread.Terminate;
+  fUpdateQueueEvent.SetEvent;
+  FreeAndNil(fUpdateThread);
+  FreeAndNil(fUpdateQueueEvent);
+  FreeAndNil(fUpdateQueue);
   FreeAndNil(fPoiCategories);
   FreeAndNil(fPalette);
   FreeAndNil(fNewQuery);
@@ -1216,6 +1241,14 @@ var
   wdid: TWDID;
   o: TLayerObject;
 begin
+  TMonitor.Enter(fUpdateQueueEvent);
+  try
+    fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
+    fUpdateQueueEvent.SetEvent;
+  finally
+    TMonitor.Exit(fUpdateQueueEvent);
+  end;
+  {
   try
     wdid := AnsiString(aObjectID.ToString);
     if aAction=actionDelete then
@@ -1252,11 +1285,7 @@ begin
     on E: Exception
     do log.WriteLn('Exception in TUSLayer.handleChangeObject: '+e.Message, llError);
   end;
-end;
-
-function TUSLayer.newObjectQuery(const oid: TWDID): string;
-begin
-  // todo: implement
+  }
 end;
 
 function TUSLayer.UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
@@ -1377,6 +1406,70 @@ begin
       Result := TGeometryLayerObject.Create(Self, oid, geometry, value);
     end
     else (aObject as TGeometryLayerObject).value := value;
+  end;
+end;
+
+procedure TUSLayer.UpdateQueuehandler;
+var
+  localQueue: TList<TUSUpdateQueueEntry>;
+  tempQueue: TList<TUSUpdateQueueEntry>;
+  entry: TUSUpdateQueueEntry;
+  newCount: Integer;
+  newIDs: string;
+  ChangeCount: Integer;
+  ChangeIDs: string;
+begin
+  localQueue := TList<TUSUpdateQueueEntry>.Create;
+  try
+    while not TThread.CheckTerminated do
+    begin
+      if fUpdateQueueEvent.WaitFor=wrSignaled then
+      begin
+        // swap queues
+        TMonitor.Enter(fUpdateQueueEvent);
+        try
+          tempQueue := fUpdateQueue;
+          fUpdateQueue := localQueue;
+          localQueue := tempQueue;
+        finally
+          TMonitor.Enter(fUpdateQueueEvent);
+        end;
+        if localQueue.Count>0 then
+        begin
+          // updating objects, lock for the whole of the duration
+          // todo: implement
+          {
+          fObjectsLock.BeginWrite;
+          try
+            newCount := 0;
+            newIDs := '';
+            ChangeCount := 0;
+            ChangeIDs := '';
+            for entry in localQueue do
+            begin
+              // process entries
+              if entry.action=actionDelete then
+              begin
+
+              end
+              else if entry.action=actionNew then
+              begin
+
+              end
+              else if entry.action=actionChange then
+              begin
+
+              end;
+            end;
+          finally
+            fObjectsLock.EndWrite;
+          end;
+          }
+        end;
+      end;
+    end;
+  finally
+    localQueue.Free;
   end;
 end;
 

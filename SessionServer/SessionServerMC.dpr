@@ -38,7 +38,7 @@ const
   IMB4RemoteHostSwitch = 'IMB4RemoteHost';
   IMB4RemotePortSwitch = 'IMB4RemotePort';
 
-  RecoverySection = 'recovery';
+//  RecoverySection = 'recovery';
 
 type
   TModel = class(TMCModelStarter2)
@@ -98,8 +98,10 @@ end;
 procedure TModel.HandleDisconnect(aConnection: TConnection);
 begin
   Log.WriteLn('DISCONNECT from IMB4 connection', llError);
-  Log.WriteLn('FORCING halt', llError);
-  Halt; // todo: force restart in MC mode
+  //Log.WriteLn('FORCING halt', llError);
+  //Halt; // todo: force restart in MC mode
+  // todo: start reconnect
+
 end;
 
 procedure TModel.HandleException(aConnection: TConnection; aException: Exception);
@@ -177,7 +179,7 @@ end;
 
 procedure TModel.StartModel(aParameters: TModelParameters);
 var
-  p: Integer;
+//  p: Integer;
   dbConnection: TOraSession;
   projectID: string;
   projectName: string;
@@ -191,12 +193,13 @@ begin
     if aParameters.Count>0
     then WriteLn('   parameters')
     else WriteLn('## NO parameters defined');
+    {
     for p := 0 to aParameters.Count - 1 do
     begin
       WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
       standardIni.WriteString(RecoverySection, aParameters[p].Name, aParameters[p].ValueAsStore);
     end;
-
+    }
     fIMBLogger := AddIMBLogger(Self.Connection);
 
     dbConnection := TOraSession.Create(nil);
@@ -239,7 +242,7 @@ begin
     fProject := nil;
     FreeAndNil(fIMBLogger);
     // erase recovery section to NOT start in recovery mode next time
-    StandardIni.EraseSection(RecoverySection);
+    //StandardIni.EraseSection(RecoverySection);
     // execute actions needed to stop the model
     System.TMonitor.Enter(Log);
     try
@@ -269,13 +272,14 @@ var
   Parameters: TModelParameters;
   Session: TOraSession;
   connectString: string;
-  sectionValues: TStringList;
-  i: Integer;
-  st: string;
-  p: TArray<string>;
-  vt: TModelParameterValueType;
+//  sectionValues: TStringList;
+//  i: Integer;
+//  st: string;
+//  p: TArray<string>;
+//  vt: TModelParameterValueType;
 begin
   // check if we have started in manual or node controller mode
+  {
   if StandardIni.SectionExists(RecoverySection) then
   begin
     Log.WriteLn('Started in recovery mode', llWarning);
@@ -309,7 +313,8 @@ begin
       Parameters.Free;
     end;
   end
-  else if not CommandLine.TestSwitch(ControllerSwitch) then
+  else }
+  if not CommandLine.TestSwitch(ControllerSwitch) then
   begin
     Log.WriteLn('Started in manual mode', llOk);
     Parameters := TModelParameters.Create;
