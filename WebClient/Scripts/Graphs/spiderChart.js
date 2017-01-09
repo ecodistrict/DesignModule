@@ -570,7 +570,7 @@ function SpiderChart(graphObject) {
     var legend;
 
     LegendOptions = [];
-    for (var i = 0; i < this.activeNode.labels.length; i++) {
+    for (var i = 0, len = this.activeNode.labels.length; i < len; i++) {
       LegendOptions.push(this.activeNode.labels[i]);
     }
     //Initiate Legend
@@ -751,7 +751,7 @@ function SpiderChart(graphObject) {
       .style("fill-opacity", 0.7);
     }
 
-    for (var i=0; i < blobWrapper[0].length; i++) {
+    for (var i=0, len = blobWrapper[0].length; i < len; i++) {
       blobWrapper[0][i].addEventListener('mouseover', mouseOverFunction.bind({svg:svg,path:blobWrapper[0][i]}))
       blobWrapper[0][i].addEventListener('mouseout', (function(){
         //Bring back all blobs
@@ -835,16 +835,12 @@ function SpiderChart(graphObject) {
           this.graphObject.activeNode = new spiderNode(this.clicked.data, this.graphObject, this.graphObject.activeNode);
           this.graphObject.Update();
         }
-        console.log(this.clicked);
         if (typeof this.clicked.link !== 'undefined') {
           if (GraphManager._getGraph(this.clicked.link)) {
             this.graphObject.activeNode = new spiderNode(GraphManager._getGraph(this.clicked.link).graph.activeNode, this.graphObject, this.graphObject.activeNode);
             this.graphObject.Update();
           }
-
-
         }
-
 
       }).bind({graphObject : this, "clicked": clicked}));
     }).bind(this));

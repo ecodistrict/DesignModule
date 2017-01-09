@@ -77,14 +77,14 @@
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <DCC_UsePackage>FireDACASADriver;FireDACSqliteDriver;bindcompfmx;DBXSqliteDriver;FireDACPgDriver;FireDACODBCDriver;RESTBackendComponents;emsclientfiredac;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;FireDACCommon;bindcomp;inetdb;tethering;TeeDB;DBXInterBaseDriver;Tee;vclFireDAC;xmlrtl;svnui;DbxCommonDriver;vclimg;IndyProtocols;dbxcds;DBXMySQLDriver;FireDACCommonDriver;MetropolisUILiveTile;bindcompdbx;bindengine;vclactnband;vcldb;soaprtl;vcldsnap;bindcompvcl;FMXTee;TeeUI;vclie;fmxFireDAC;FireDACADSDriver;vcltouch;emsclient;CustomIPTransport;vclribbon;VCLRESTComponents;FireDAC;VclSmp;dsnap;IndyIPServer;fmxase;vcl;IndyCore;Intraweb;IndyIPCommon;CloudService;dsnapcon;FireDACIBDriver;FmxTeeUI;inet;fmxobj;FireDACMySQLDriver;soapmidas;vclx;soapserver;inetdbxpress;svn;dsnapxml;fmxdae;RESTComponents;FireDACMSAccDriver;dbexpress;adortl;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>FireDACASADriver;FireDACSqliteDriver;bindcompfmx;DBXSqliteDriver;FireDACPgDriver;FireDACODBCDriver;RESTBackendComponents;emsclientfiredac;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;FireDACCommon;bindcomp;inetdb;tethering;TeeDB;DBXInterBaseDriver;Tee;vclFireDAC;xmlrtl;svnui;DbxCommonDriver;vclimg;IndyProtocols;dbxcds;DBXMySQLDriver;FireDACCommonDriver;MetropolisUILiveTile;bindengine;vclactnband;vcldb;soaprtl;vcldsnap;bindcompvcl;FMXTee;TeeUI;vclie;fmxFireDAC;FireDACADSDriver;vcltouch;emsclient;CustomIPTransport;vclribbon;VCLRESTComponents;FireDAC;VclSmp;dsnap;IndyIPServer;fmxase;vcl;IndyCore;Intraweb;IndyIPCommon;CloudService;dsnapcon;FireDACIBDriver;FmxTeeUI;inet;fmxobj;FireDACMySQLDriver;soapmidas;vclx;soapserver;inetdbxpress;svn;dsnapxml;fmxdae;RESTComponents;FireDACMSAccDriver;dbexpress;adortl;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UsePackage>FireDACASADriver;FireDACSqliteDriver;bindcompfmx;DBXSqliteDriver;FireDACPgDriver;FireDACODBCDriver;RESTBackendComponents;emsclientfiredac;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;FireDACCommon;bindcomp;inetdb;tethering;TeeDB;DBXInterBaseDriver;Tee;vclFireDAC;xmlrtl;DbxCommonDriver;vclimg;IndyProtocols;dbxcds;DBXMySQLDriver;FireDACCommonDriver;MetropolisUILiveTile;bindcompdbx;bindengine;vclactnband;vcldb;soaprtl;vcldsnap;bindcompvcl;FMXTee;TeeUI;vclie;fmxFireDAC;FireDACADSDriver;vcltouch;emsclient;CustomIPTransport;vclribbon;VCLRESTComponents;FireDAC;VclSmp;dsnap;IndyIPServer;fmxase;vcl;IndyCore;Intraweb;IndyIPCommon;CloudService;dsnapcon;FireDACIBDriver;FmxTeeUI;inet;fmxobj;FireDACMySQLDriver;soapmidas;vclx;soapserver;inetdbxpress;dsnapxml;fmxdae;RESTComponents;FireDACMSAccDriver;dbexpress;adortl;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>FireDACASADriver;FireDACSqliteDriver;bindcompfmx;DBXSqliteDriver;FireDACPgDriver;FireDACODBCDriver;RESTBackendComponents;emsclientfiredac;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;FireDACCommon;bindcomp;inetdb;tethering;TeeDB;DBXInterBaseDriver;Tee;vclFireDAC;xmlrtl;DbxCommonDriver;vclimg;IndyProtocols;dbxcds;DBXMySQLDriver;FireDACCommonDriver;MetropolisUILiveTile;bindengine;vclactnband;vcldb;soaprtl;vcldsnap;bindcompvcl;FMXTee;TeeUI;vclie;fmxFireDAC;FireDACADSDriver;vcltouch;emsclient;CustomIPTransport;vclribbon;VCLRESTComponents;FireDAC;VclSmp;dsnap;IndyIPServer;fmxase;vcl;IndyCore;Intraweb;IndyIPCommon;CloudService;dsnapcon;FireDACIBDriver;FmxTeeUI;inet;fmxobj;FireDACMySQLDriver;soapmidas;vclx;soapserver;inetdbxpress;dsnapxml;fmxdae;RESTComponents;FireDACMSAccDriver;dbexpress;adortl;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -100,6 +100,8 @@
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
+        <DCC_RangeChecking>true</DCC_RangeChecking>
+        <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
         <Debugger_RunParams>-debug</Debugger_RunParams>
         <Debugger_HostApplication>C:\Windows\System32\inetsrv\w3wp.exe</Debugger_HostApplication>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
@@ -145,11 +147,10 @@
                     <Source Name="MainSource">TilerWebService.dpr</Source>
                 </Source>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k230.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp230.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="C:\Users\cornelissenja\AppData\Local\Source\Delphi Third Party\Steema\TeeChart\2015.16\Source\..\TeeTree\Compiled\Delphi23.win32\Bin\DclTree2D23Tee9.bpl">TeeTree 2 Components</Excluded_Packages>
-                    <Excluded_Packages Name="C:\Users\cornelissenja\AppData\Local\Source\Delphi Third Party\Steema\TeeChart\2015.16\Source\..\TeeTree\Compiled\Delphi23.win32\Bin\DclFMXTree23.bpl">TeeTree for FireMonkey</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcltee9230.bpl">TeeChart Standard VCL Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclBindCompFireDAC240.bpl">LiveBinding Expression Components FireDac</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclbindcompdbx240.bpl">LiveBindings Expression Components DbExpress</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k240.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp240.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">

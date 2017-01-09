@@ -77,6 +77,8 @@ const
 
   ModelIdleKillTime = 3600; // 3 hours
 
+  dotFormat: TFormatSettings = (DecimalSeparator:'.');
+
 
 type
   TModelState = (
@@ -121,6 +123,7 @@ type
   constructor Create(const aName: string; const aValue: string); overload;
   constructor Create(const aName: string; aValue: Boolean); overload;
   constructor Create(aModelParameter: TModelParameter); overload;
+  constructor Create(const aName, aStore: string; aValueType: TModelParameterValueType); overload;
   destructor Destroy; override;
   private
     FName: string;
@@ -131,11 +134,14 @@ type
     function GetValueAsString: string;
     procedure SetValue(const aValue: Variant);
     function GetValueList: TModelParameterValueList;
+    function GetValueAsStore: String;
+    procedure SetValueAsStore(const aValue: String);
   public
     property Name: string read FName;
     property ValueType: TModelParameterValueType read FValueType;
     property Value: Variant read GetValue write SetValue;
     property ValueAsString: String read GetValueAsString;
+    property ValueAsStore: String read GetValueAsStore write SetValueAsStore;
     property ValueList: TModelParameterValueList read GetValueList;
     function GetValueListIndexOf(const aValue: Variant): Integer;
     // serialization
@@ -730,6 +736,14 @@ begin
   Create(aModelParameter.FName, aModelParameter.FValueType, aModelParameter.FValue, aModelParameter.FValueList);
 end;
 
+constructor TModelParameter.Create(const aName, aStore: string; aValueType: TModelParameterValueType);
+begin
+  inherited Create;
+  FName := aName;
+  FValueType := aValueType;
+  ValueAsStore := aStore;
+end;
+
 constructor TModelParameter.Create(const aName: string; aValueType: TModelParameterValueType; aValue: Variant);
 begin
   inherited Create;
@@ -811,6 +825,36 @@ end;
 function TModelParameter.GetValue: Variant;
 begin
   Result := FValue;
+end;
+
+function TModelParameter.GetValueAsStore: String;
+var
+  i: Integer;
+  d: Double;
+begin
+  case FValueType of
+    mpvtFloat:
+      begin
+        d := fValue;
+        Result := Ord(FValueType).ToString+','+d.toString(dotFormat);
+      end;
+    mpvtBoolean:
+      begin
+        i :=  fValue;
+        Result := Ord(FValueType).ToString+','+i.ToString;
+      end;
+    mpvtInteger:
+      begin
+        i :=  fValue;
+        Result := Ord(FValueType).ToString+','+i.toString;
+      end;
+    mpvtString:
+      begin
+        Result := Ord(FValueType).ToString+','+fValue;
+      end;
+  else
+    Result := '';
+  end;
 end;
 
 function TModelParameter.GetValueAsString: string;
@@ -1031,6 +1075,40 @@ begin
     end;
   end
   else SetValueOnType;
+end;
+
+procedure TModelParameter.SetValueAsStore(const aValue: String);
+var
+  p: TArray<string>;
+  vt: Integer;
+  d: Double;
+  b: Boolean;
+  i: Integer;
+begin
+  p := aValue.Split([',']);
+  vt := p[0].ToInteger();
+  if Ord(FValueType)<>vt
+  then Log.WriteLn('unexpected parameter type '+FName+': got '+vt.ToString+', expected '+FValueType.ToString, llWarning);
+  case FValueType of
+    mpvtFloat:
+      begin
+        d := StrToFloat(aValue, dotFormat);
+        FValue := d;
+      end;
+    mpvtBoolean:
+      begin
+        i := aValue.ToInteger;
+        b := i.ToBoolean;
+        FValue := b;
+      end;
+    mpvtInteger:
+      begin
+        i := aValue.ToInteger;
+        FValue := i;
+      end;
+  else // mpvtString
+        FValue := p[1];
+  end;
 end;
 
 { TModelParameters }

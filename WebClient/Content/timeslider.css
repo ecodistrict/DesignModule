@@ -34,7 +34,7 @@ text {  color: black }
   top: 1px;
   cursor: pointer;
 }
-.timeslider-close:hover {  font-weight: bold }
+.timeslider-close:hover, .timeslider-settings:hover {  font-weight: bold }
 /* time slider leaflet button */
 .leaflet-control-timeslider-toggle {
   background-position: 50% 50%;

@@ -32,6 +32,7 @@ uses
 
   GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
 
+  System.SyncObjs,
   System.JSON,
   System.Math,
   System.Classes,
@@ -144,6 +145,13 @@ type
     // todo: encode ?
   end;
 
+  TUSUpdateQueueEntry = record
+  class function Create(aObjectID, aAction: Integer): TUSUpdateQueueEntry; static;
+  public
+    objectID: Integer;
+    action: Integer;
+  end;
+
   TUSChartValue = class
     constructor Create(aValue: string);
     destructor Destroy; override;
@@ -215,15 +223,18 @@ type
     fPalette: TWDPalette;
     fSourceProjection: TGIS_CSProjectedCoordinateSystem; // ref
     fDataEvents: array of TIMBEventEntry;
+
     fNewQuery: TOraQuery;
     fChangeQuery: TOraQuery;
+    fUpdateQueue: TList<TUSUpdateQueueEntry>;
+    fUpdateQueueEvent: TEvent;
+    fUpdateThread: TThread;
+    procedure UpdateQueuehandler();
 
     function UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
-    function newObjectQuery(const oid: TWDID): string;
-    function changeObjectQuery(const oid: TWDID): string;
     procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
   public
-    procedure ReadObjects(aOraSession: TObject);
+    procedure ReadObjects(aSender: TObject);
     procedure RegisterLayer; override;
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
@@ -302,7 +313,7 @@ type
 
 function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapView;
 function getUSProjectID(aOraSession: TOraSession; const aDefault: string): string;
-procedure setUSProjectID(aOraSession: TOraSession; const aValue: string);
+procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon: Double; aZoomLevel: Integer);
 function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer): Integer;
 
 function Left(const s: string; n: Integer): string;
@@ -333,7 +344,7 @@ begin
   dbConnection := TOraSession.Create(nil);
   dbConnection.ConnectString := aConnectString;
   dbConnection.Open;
-  setUSProjectID(dbConnection, aProjectID); // store project id in database
+  setUSProjectID(dbConnection, aProjectID, aMapView.lat, aMapView.lon, aMapView.zoom); // store project id in database
   aMapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
   Result := dbConnection;
 end;
@@ -1209,12 +1220,15 @@ begin
   inherited Destroy;
 end;
 
-{ TUSLayer }
+{ TUSUpdateQueueEntry }
 
-function TUSLayer.changeObjectQuery(const oid: TWDID): string;
+class function TUSUpdateQueueEntry.Create(aObjectID, aAction: Integer): TUSUpdateQueueEntry;
 begin
-  // todo: implement
+  Result.objectID := aObjectID;
+  Result.action := aAction;
 end;
+
+{ TUSLayer }
 
 constructor TUSLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
   const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
@@ -1234,13 +1248,6 @@ begin
 
   fSourceProjection := aSourceProjection;
 
-  setLength(fDataEvents, length(aDataEvent));
-  for i := 0 to length(aDataEvent)-1 do
-  begin
-    fDataEvents[i] := aDataEvent[i];
-    fDataEvents[i].OnChangeObject := handleChangeObject;
-  end;
-
   if aNewQuery<>'' then
   begin
     fNewQuery := TOraQuery.Create(nil);
@@ -1259,12 +1266,30 @@ begin
   end
   else  fChangeQuery := nil;
 
+  fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
+  fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
+  fUpdateThread := TThread.CreateAnonymousThread(UpdateQueuehandler);
+  fUpdateThread.FreeOnTerminate := False;
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, aDiffRange, aBasicLayer);
+  fUpdateThread.NameThreadForDebugging(ElementID + ' queue handler');
+  fUpdateThread.Start;
+
+  setLength(fDataEvents, length(aDataEvent));
+  for i := 0 to length(aDataEvent)-1 do
+  begin
+    fDataEvents[i] := aDataEvent[i];
+    fDataEvents[i].OnChangeObject := handleChangeObject;
+  end;
 end;
 
 destructor TUSLayer.Destroy;
 begin
   inherited;
+  fUpdateThread.Terminate;
+  fUpdateQueueEvent.SetEvent;
+  FreeAndNil(fUpdateThread);
+  FreeAndNil(fUpdateQueueEvent);
+  FreeAndNil(fUpdateQueue);
   FreeAndNil(fPoiCategories);
   FreeAndNil(fPalette);
   FreeAndNil(fNewQuery);
@@ -1277,42 +1302,51 @@ var
   wdid: TWDID;
   o: TLayerObject;
 begin
-  wdid := AnsiString(aObjectID.ToString);
-  if aAction=actionDelete then
-  begin
-    if FindObject(wdid, o)
-    then RemoveObject(o);
-  end
-  else
-  begin
-    if aAction=actionNew then
+  TMonitor.Enter(fUpdateQueueEvent);
+  try
+    fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
+    fUpdateQueueEvent.SetEvent;
+  finally
+    TMonitor.Exit(fUpdateQueueEvent);
+  end;
+  {
+  try
+    wdid := AnsiString(aObjectID.ToString);
+    if aAction=actionDelete then
     begin
-      if not FindObject(wdid, o) then
-      begin
-        fNewQuery.ParamByName('OBJECT_ID').AsInteger := aObjectID;
-        fNewQuery.Execute;
-        if not fNewQuery.Eof
-        then AddObject(UpdateObject(fNewQuery, wdid, nil))
-        else Log.WriteLn('TUSLayer.handleChangeObject: no result on new object ('+aObjectID.toString+') query '+fNewQuery.SQL.Text, llWarning);
-      end;
+      if FindObject(wdid, o)
+      then RemoveObject(o);
     end
-    else if aAction=actionChange then
+    else
     begin
-      if FindObject(wdid, o) then
+      if aAction=actionNew then
       begin
-        fChangeQuery.ParamByName('OBJECT_ID').AsInteger := aObjectID;
-        fChangeQuery.Execute;
-        if not fChangeQuery.Eof
-        then UpdateObject(fChangeQuery, wdid, o)
-        else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+aObjectID.toString+') query '+fChangeQuery.SQL.Text, llWarning);
+        if not FindObject(wdid, o) then
+        begin
+          fNewQuery.ParamByName('OBJECT_ID').AsInteger := aObjectID;
+          fNewQuery.Execute;
+          if not fNewQuery.Eof
+          then AddObject(UpdateObject(fNewQuery, wdid, nil))
+          else Log.WriteLn('TUSLayer.handleChangeObject: no result on new object ('+aObjectID.toString+') query '+fNewQuery.SQL.Text, llWarning);
+        end;
+      end
+      else if aAction=actionChange then
+      begin
+        if FindObject(wdid, o) then
+        begin
+          fChangeQuery.ParamByName('OBJECT_ID').AsInteger := aObjectID;
+          fChangeQuery.Execute;
+          if not fChangeQuery.Eof
+          then UpdateObject(fChangeQuery, wdid, o)
+          else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+aObjectID.toString+') query '+fChangeQuery.SQL.Text, llWarning);
+        end;
       end;
     end;
+  except
+    on E: Exception
+    do log.WriteLn('Exception in TUSLayer.handleChangeObject: '+e.Message, llError);
   end;
-end;
-
-function TUSLayer.newObjectQuery(const oid: TWDID): string;
-begin
-  // todo: implement
+  }
 end;
 
 function TUSLayer.UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
@@ -1348,7 +1382,7 @@ begin
     4: // road (VALUE_EXPR)
       begin
         // unidirectional, not left and right
-        value := FieldFloatValueOrNaN(aQuery.Fields[1]);
+        value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
         if not Assigned(aObject) then
         begin
           geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
@@ -1436,7 +1470,71 @@ begin
   end;
 end;
 
-procedure TUSLayer.ReadObjects(aOraSession: TObject);
+procedure TUSLayer.UpdateQueuehandler;
+var
+  localQueue: TList<TUSUpdateQueueEntry>;
+  tempQueue: TList<TUSUpdateQueueEntry>;
+  entry: TUSUpdateQueueEntry;
+  newCount: Integer;
+  newIDs: string;
+  ChangeCount: Integer;
+  ChangeIDs: string;
+begin
+  localQueue := TList<TUSUpdateQueueEntry>.Create;
+  try
+    while not TThread.CheckTerminated do
+    begin
+      if fUpdateQueueEvent.WaitFor=wrSignaled then
+      begin
+        // swap queues
+        TMonitor.Enter(fUpdateQueueEvent);
+        try
+          tempQueue := fUpdateQueue;
+          fUpdateQueue := localQueue;
+          localQueue := tempQueue;
+        finally
+          TMonitor.Enter(fUpdateQueueEvent);
+        end;
+        if localQueue.Count>0 then
+        begin
+          // updating objects, lock for the whole of the duration
+          // todo: implement
+          {
+          fObjectsLock.BeginWrite;
+          try
+            newCount := 0;
+            newIDs := '';
+            ChangeCount := 0;
+            ChangeIDs := '';
+            for entry in localQueue do
+            begin
+              // process entries
+              if entry.action=actionDelete then
+              begin
+
+              end
+              else if entry.action=actionNew then
+              begin
+
+              end
+              else if entry.action=actionChange then
+              begin
+
+              end;
+            end;
+          finally
+            fObjectsLock.EndWrite;
+          end;
+          }
+        end;
+      end;
+    end;
+  finally
+    localQueue.Free;
+  end;
+end;
+
+procedure TUSLayer.ReadObjects(aSender: TObject);
 
   function FieldFloatValueOrNaN(aField: TField): Double;
   begin
@@ -1446,6 +1544,7 @@ procedure TUSLayer.ReadObjects(aOraSession: TObject);
   end;
 
 var
+  oraSession: TOraSession;
   query: TOraQuery;
 //  geometry: TWDGeometry;
   oid: RawByteString;
@@ -1466,98 +1565,104 @@ begin
   // send objects to tiler?
 
   // create new ora session because we are running in a different thread
-
-  query := TOraQuery.Create(nil);
+  oraSession := TOraSession.Create(nil);
   try
-    query.Session := aOraSession as TOraSession;
-    query.SQL.Text := fQuery; //.Replace('SELECT ', 'SELECT t1.OBJECT_ID,');
-    query.Open;
-    query.First;
-    while not query.Eof do
-    begin
-      oid := AnsiString(query.Fields[0].AsInteger.ToString);
-      objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
-      (*
-      case fLayerType of
-        1, 11:
-          begin
-            value := FieldFloatValueOrNaN(query.FieldByName('VALUE'));
-            geometryPoint := CreateWDGeometryPointFromSDOShape(query, 'SHAPE');
-            projectGeometryPoint(geometryPoint, fSourceProjection);
-            objects.Add(oid, TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value));
-          end;
-        4: // road (VALUE_EXPR)
-          begin
-            // unidirectional, not left and right
-            value := FieldFloatValueOrNaN(query.Fields[1]);
-            geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
-            projectGeometry(geometry, fSourceProjection);
-            objects.Add(oid, TGeometryLayerObject.Create(Self, oid, geometry, value));
-          end;
-        5,9: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
-          begin
-            // Left and right
-            value := FieldFloatValueOrNaN(query.Fields[1]);
-            value2 := FieldFloatValueOrNaN(query.Fields[2]);
-            texture := FieldFloatValueOrNaN(query.Fields[3]);
-            texture2 := FieldFloatValueOrNaN(query.Fields[4]);
-            geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
-            projectGeometry(geometry, fSourceProjection);
-            objects.Add(oid, TUSRoadICLR.Create(Self, oid, geometry, value, value2, texture, texture2));
-          end;
-        21: // POI
-          begin
-            //
-            geometryPoint := TWDGeometryPoint.Create;
-            try
-              geometryPoint.x := query.Fields[1].AsFloat;
-              geometryPoint.y := query.Fields[2].AsFloat;
-              // no projection, is already in lat/lon
-              poiType := query.Fields[3].AsString;
-              poiCat := query.Fields[4].AsString;
-              if not fPoiCategories.TryGetValue(poicat+'_'+poiType, usPOI) then
-              begin
-                usPOI := TUSPOI.Create(fNewPoiCatID, TPicture.Create);
-                fNewPoiCatID := fNewPoiCatID+1;
-                try
-                  resourceFolder := ExtractFilePath(ParamStr(0));
-                  usPOI.picture.Graphic.LoadFromFile(resourceFolder+poicat+'_'+poiType+'.png');
-                except
-                  on e: Exception
-                  do Log.WriteLn('Exception loading POI image '+resourceFolder+poicat+'_'+poiType+'.png', llError);
-                end;
-                // signal POI image to tiler
-                //ImageToBytes(usPOI);
-                //fTilerLayer.s
-                {
-                stream  := TBytesStream.Create;
-                try
-                  usPOI.picture.Graphic.SaveToStream(stream);
-                  fOutputEvent.signalEvent(TByteBuffer.bb_tag_tbytes(icehTilerPOIImage, stream.Bytes)); // todo: check correct number of bytes
-                finally
-                  stream.Free;
-                end;
-                }
-              end;
-            finally
-              objects.Add(oid, TGeometryLayerPOIObject.Create(Self, oid, usPOI.ID, geometryPoint));
+    oraSession.connectString := fConnectString;
+    oraSession.open;
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := oraSession;
+      query.SQL.Text := fQuery; //.Replace('SELECT ', 'SELECT t1.OBJECT_ID,');
+      query.Open;
+      query.First;
+      while not query.Eof do
+      begin
+        oid := AnsiString(query.Fields[0].AsInteger.ToString);
+        objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
+        (*
+        case fLayerType of
+          1, 11:
+            begin
+              value := FieldFloatValueOrNaN(query.FieldByName('VALUE'));
+              geometryPoint := CreateWDGeometryPointFromSDOShape(query, 'SHAPE');
+              projectGeometryPoint(geometryPoint, fSourceProjection);
+              objects.Add(oid, TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value));
             end;
-          end
-      else
-        value := FieldFloatValueOrNaN(query.FieldByName('VALUE'));
-        geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
-        projectGeometry(geometry, fSourceProjection);
-        objects.Add(oid, TGeometryLayerObject.Create(Self, oid, geometry, value));
+          4: // road (VALUE_EXPR)
+            begin
+              // unidirectional, not left and right
+              value := FieldFloatValueOrNaN(query.Fields[1]);
+              geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
+              projectGeometry(geometry, fSourceProjection);
+              objects.Add(oid, TGeometryLayerObject.Create(Self, oid, geometry, value));
+            end;
+          5,9: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
+            begin
+              // Left and right
+              value := FieldFloatValueOrNaN(query.Fields[1]);
+              value2 := FieldFloatValueOrNaN(query.Fields[2]);
+              texture := FieldFloatValueOrNaN(query.Fields[3]);
+              texture2 := FieldFloatValueOrNaN(query.Fields[4]);
+              geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
+              projectGeometry(geometry, fSourceProjection);
+              objects.Add(oid, TUSRoadICLR.Create(Self, oid, geometry, value, value2, texture, texture2));
+            end;
+          21: // POI
+            begin
+              //
+              geometryPoint := TWDGeometryPoint.Create;
+              try
+                geometryPoint.x := query.Fields[1].AsFloat;
+                geometryPoint.y := query.Fields[2].AsFloat;
+                // no projection, is already in lat/lon
+                poiType := query.Fields[3].AsString;
+                poiCat := query.Fields[4].AsString;
+                if not fPoiCategories.TryGetValue(poicat+'_'+poiType, usPOI) then
+                begin
+                  usPOI := TUSPOI.Create(fNewPoiCatID, TPicture.Create);
+                  fNewPoiCatID := fNewPoiCatID+1;
+                  try
+                    resourceFolder := ExtractFilePath(ParamStr(0));
+                    usPOI.picture.Graphic.LoadFromFile(resourceFolder+poicat+'_'+poiType+'.png');
+                  except
+                    on e: Exception
+                    do Log.WriteLn('Exception loading POI image '+resourceFolder+poicat+'_'+poiType+'.png', llError);
+                  end;
+                  // signal POI image to tiler
+                  //ImageToBytes(usPOI);
+                  //fTilerLayer.s
+                  {
+                  stream  := TBytesStream.Create;
+                  try
+                    usPOI.picture.Graphic.SaveToStream(stream);
+                    fOutputEvent.signalEvent(TByteBuffer.bb_tag_tbytes(icehTilerPOIImage, stream.Bytes)); // todo: check correct number of bytes
+                  finally
+                    stream.Free;
+                  end;
+                  }
+                end;
+              finally
+                objects.Add(oid, TGeometryLayerPOIObject.Create(Self, oid, usPOI.ID, geometryPoint));
+              end;
+            end
+        else
+          value := FieldFloatValueOrNaN(query.FieldByName('VALUE'));
+          geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
+          projectGeometry(geometry, fSourceProjection);
+          objects.Add(oid, TGeometryLayerObject.Create(Self, oid, geometry, value));
+        end;
+        *)
+        query.Next;
       end;
-      *)
-      query.Next;
+    finally
+      query.Free;
     end;
+    Log.WriteLn(elementID+' ('+fLayerType.toString+'): '+name+', read objects (us)', llNormal, 1);
+    // register with tiler
+    RegisterLayer;
   finally
-    query.Free;
+    oraSession.Free;
   end;
-  Log.WriteLn(elementID+' ('+fLayerType.toString+'): '+name+', read objects (us)', llNormal, 1);
-  // register with tiler
-  RegisterLayer;
 end;
 
 procedure TUSLayer.RegisterLayer;
@@ -2365,12 +2470,41 @@ begin
   end;
 end;
 
-procedure setUSProjectID(aOraSession: TOraSession; const aValue: string);
+procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon: Double; aZoomLevel: Integer);
+var
+  tryInsert: Boolean;
 begin
-  aOraSession.ExecSQL(
-    'UPDATE PUBL_PROJECT '+
-    'SET ProjectID='''+aValue+'''');
-  aOraSession.Commit;
+  // todo: update does not generate exception: how to check?
+  try
+    aOraSession.ExecSQL(
+      'UPDATE PUBL_PROJECT '+
+      'SET ProjectID='''+aProjectID+''', '+
+          'LAT='+aLat.ToString(dotFormat)+', '+
+          'LON='+aLon.ToString(dotFormat)+', '+
+          'ZOOM='+aZoomLevel.ToString);
+      aOraSession.Commit;
+      tryInsert := False;
+  except
+    on E: Exception do
+    begin
+      Log.WriteLn('Could not update project id, try to insert..');
+      tryInsert := True;
+    end;
+  end;
+  if tryInsert then
+  begin
+    try
+      aOraSession.ExecSQL(
+        'INSERT INTO PUBL_PROJECT (PROJECTID, LAT, LON, ZOOM) '+
+        'VALUES ('''+aProjectID+''', '+aLat.ToString(dotFormat)+', '+aLon.ToString(dotFormat)+', '+aZoomLevel.ToString+')');
+      aOraSession.Commit;
+    except
+      on E: Exception do
+      begin
+        Log.WriteLn('Could not insert project id: '+E.Message, llWarning);
+      end;
+    end;
+  end;
 end;
 
 function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer): Integer;

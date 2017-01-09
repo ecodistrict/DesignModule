@@ -1,6 +1,6 @@
 function generateCharts() {
 
-  types = ['line','bar','spline','area','area','step','area-step','area-spline','scatter','pie','donut','gauge','spider'];
+  types = ['line','bar','spline','area','step','area-step','area-spline','scatter','pie','donut','gauge'];
   // dataset = [
   //   [],
   //   [['name', 13, 8, 12],['name1', 3, 16, 24, 2]],
@@ -11,45 +11,45 @@ function generateCharts() {
   //   [['name', 312, 15, 51],['name1', 6, 6, 6, 6]],
   //   [['name', 221, 255, 225],['name1', 18, 91, 13, 1]]
   // ];
+  var columns = [];
+  columns['columns'] = [];
+  columns['columns'].push(['name', 22, 55, 25]);
+  columns['columns'].push(['name1', 12, 22, 65, 12, null, 52, 13]);
+
+
+  columns['gauge'] = [];
+  columns['gauge'].push(['name', 12, 44]);
+  columns['gauge'].push(['name1', 12, 22]);
+
   for (var i = 0; i < types.length; i++) {
-  chartObject = {
-      "data":   {
-        columns: [
-          ['name', 22, 55, 25],['name1', 12, 22, 65, 12]
-      ]
-    },
-      "title":"Air humidity",
-      margins : {top: 40,right: 20,bottom: 30,left: 40},
-      id : "test123" + i,
-      type : types[i],
-      divWidth : 300,
-      divHeight : 200,
-      width : 300,
-      height : 200,
+
+    if (types[i] === 'gauge') {
+      var column = columns['gauge'];
+    } else {
+      var column = columns['columns'];
     }
 
+    chartObject = {
+      "data":   {
+        columns: column
+      },
+      title:"Air humidity" + types[i],
+      id : "test" + i,
+      type : types[i]
 
-GraphManager.MakeGraph(chartObject);
-
+    }
+    GraphManager.MakeGraph(chartObject);
   }
-
 }
-
-
 
 var chartObject = {
   "data":   {columns: [
     ['name', 22, 55, 25],
     ['name1', 12, 22, 65, 12]
   ]},
-  "title":"Air humidity",
-  margins : {top: 40,right: 20,bottom: 30,left: 40},
+  title:"Air humidity",
   id : "test123",
-  type : "line",
-  divWidth : 400,
-  divHeight : 400,
-  width : 400,
-  height : 400,
+  type : "line"
 }
 
 
@@ -89,11 +89,10 @@ function Chart(graphObject) {
     var graph = this.graphObject;
     var width = DataManager.detailsInfo.chartWidth;
     var height = DataManager.detailsInfo.chartHeight;
-
-    svg = d3.select(this.previewDiv).select('svg');
+    var svg = d3.select(this.previewDiv).select('svg');
 
     var columns = graph.data.columns;
-    this.graphObject.preview.chart.load({
+    graph.preview.chart.load({
       columns: columns,
       type: this.graphObject.type,
       selection: {
@@ -103,6 +102,9 @@ function Chart(graphObject) {
 
   }
   this.GetPreview = function(container)    {
+
+    var graph = this.graphObject;
+
     if (this.previewDiv != null)
     return container.appendChild(this.previewDiv);
 
@@ -117,7 +119,7 @@ function Chart(graphObject) {
     previewContainer.addEventListener("click", this._clickEvent);
     var title = previewContainer.appendChild(document.createElement("h4"));
     title.className = "detailTitle graphDetailTitle";
-    title.textContent = this.graphObject.title;
+    title.textContent = graph.title;
     title.style.width = DataManager.detailsInfo.elementWidth + "px";
 
     var svgContainer = previewContainer.appendChild(document.createElement("div"));
@@ -130,10 +132,9 @@ function Chart(graphObject) {
     .attr("height", DataManager.detailsInfo.chartHeight);
 
     svg.className = "graph-svg-preview";
-    this.graphObject.preview.container = previewContainer;
-    this.graphObject.preview.svg = svg;
-    this.graphObject.preview.container
-    this.graphObject.preview.chart = c3.generate({
+    graph.preview.container = previewContainer;
+    graph.preview.svg = svg;
+    graph.preview.chart = c3.generate({
       bindto: svg,
       data: {
         columns: []
@@ -155,24 +156,26 @@ function Chart(graphObject) {
     });
 
 
-    this.graphObject.preview.chart.internal.config.axis_x_tick_outer = false;
-    this.graphObject.preview.chart.internal.config.interaction_enabled = false;
-    this.graphObject.preview.chart.internal.config.tooltip_show = false;
+    graph.preview.chart.internal.config.axis_x_tick_outer = false;
+    graph.preview.chart.internal.config.interaction_enabled = false;
+    graph.preview.chart.internal.config.tooltip_show = false;
 
-    switch(this.graphObject.type) {
+    switch(graph.type) {
       case 'pie':
-      this.graphObject.preview.chart.internal.config.pie_label_show = false;
+      graph.preview.chart.internal.config.pie_label_show = false;
       break;
       case 'donut':
-      this.graphObject.preview.chart.internal.config.donut_label_show = false;
+      graph.preview.chart.internal.config.donut_label_show = false;
       break;
       case 'gauge':
-      this.graphObject.preview.chart.internal.config.gauge_label_show = false; // Doesnt work! todo
+      graph.preview.chart.internal.config.gauge_label_format = function(value, ratio){
+        return ''; //returning here the value and not the ratio
+      }
       break;
       default:
     }
 
-    var graph = this.graphObject;
+
     this._UpdatePreview();
   }
   this.Update = function () {
@@ -183,109 +186,104 @@ function Chart(graphObject) {
     //sets data and displaydata
     var width = graph.container.clientWidth;
     var height = graph.container.clientHeight;
-    var marginLeft = GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.axisMargin.y;
-    var marginTop = GraphManager.defaultValues.graphPadding.top;
-    var marginRight = GraphManager.defaultValues.graphPadding.right;
-    var marginBottom = GraphManager.defaultValues.graphPadding.bottom + GraphManager.defaultValues.axisMargin.x;
+    var marginLeft = GraphManager.defaultValues.margins.left + GraphManager.defaultValues.axisMargin.y;
+    var marginTop = GraphManager.defaultValues.margins.top;
+    var marginRight = GraphManager.defaultValues.margins.right;
+    var marginBottom = GraphManager.defaultValues.margins.bottom + GraphManager.defaultValues.axisMargin.x;
 
     graph.chart = c3.generate({
       bindto: graph.svg,
       data: {
         columns: [],
-        labels: true,
-        selection: {
-          grouped: false
-        }
+        labels: GraphManager.defaultValues.showLabels,
       },
       size: {
         height: height - marginTop,
         width: width - marginRight
       },
-      selection: {
-        grouped: false
-      },
       tooltip: {
         grouped: false
       },
       legend: {
-        show: false
+        show: GraphManager.defaultValues.showLegends
+      },
+      gauge: {
+        label: {
+          format: function(value, ratio) {
+            return '';
+          }
+        }
       }
 
-    });
-
-
-    // graph.chart.legend.show = this.visible;
-
-    graph.chart.internal.config.legend_show = this.visible;
-
-
-    this.graphObject.container.getElementsByClassName('graph-title')[0].innerText = this.graphObject.title;
-
-    graph.chart.element.style.marginTop = '26px';
-    this._fillCharts(graph);
-    graph.svg.attr("width", width - (marginLeft + marginRight));
-    graph.svg.attr("height", height - (marginTop + marginBottom));
-    this._UpdatePreview();
-
-  }
-
-  this._clickEvent = function (e) {
-    var graph = e.currentTarget.graph;
-    if (graph.visible) {
-      graph._closeGraph();
-    } else {
-      graph._openGraph();
-    }
-  }
-
-  this._closeGraph = function () {
-    this.visible = false;
-    GraphManager.RemoveGraph(this.graphID)
-    L.DomUtil.removeClass(this.previewDiv, "chartPreviewActive");
-    this.graphObject.chart.internal.config.legend_show = false;
-    this.graphObject.chart.legend.show = false;
-    this.Update();
-  }
-
-  this._openGraph = function () {
-    this.visible = true;
-    this._resetSize();
-    GraphManager.AddGraph(this.graphObject.container);
-    L.DomUtil.addClass(this.previewDiv, "chartPreviewActive");
-    this.graphObject.chart.internal.config.legend_show = true;
-    this.graphObject.chart.legend.show = true;
-  }
-
-  this._resetSize = function () {
-    var changed = false
-    if (parseInt(this.graphObject.container.style.width) != this.graphObject.width) {
-      this.graphObject.container.style.width = this.graphObject.width + "px";
-      changed = true;
-    }
-    if (parseInt(this.graphObject.container.style.height) != this.graphObject.height) {
-      this.graphObject.container.style.height = this.graphObject.height + "px";
-      changed = true;
-    }
-    if (changed) {
-      this.graphObject.chart.resize({
-        height: parseInt(this.graphObject.height),
-        width: parseInt(this.graphObject.width)
       });
+      graph.chart.internal.config.legend_show = this.visible;
+      d3.select(this.graphObject.container).select('.graph-title').html(this.graphObject.title);
+      graph.chart.element.style.marginTop = '26px';
+      this._fillCharts(graph);
+      graph.svg.attr("width", width - (marginLeft + marginRight));
+      graph.svg.attr("height", height - (marginTop + marginBottom));
+      this._UpdatePreview();
     }
 
-    this.Update();
-  }
+    this._clickEvent = function (e) {
+      var graph = e.currentTarget.graph;
+      if (graph.visible) {
+        graph._closeGraph();
+      } else {
+        graph._openGraph();
+      }
+    }
+    this.ShowGraph = function() {
+      this._openGraph();
+    }
+    this.HideGraph = function() {
+      this._closeGraph();
+    }
+    this._closeGraph = function () {
+      this.visible = false;
+      GraphManager.RemoveGraph(this.graphID)
+      L.DomUtil.removeClass(this.previewDiv, "chartPreviewActive");
+      this.graphObject.chart.internal.config.legend_show = false;
+      this.graphObject.chart.legend.show = false;
+      this.Update();
+    }
 
-  this._fillCharts  = function (graph) {
-    // d3.select(graph.container).select('svg').remove();
-    var columns = graph.data.columns;
-    graph.chart.load({
-      columns: columns,
-      keys: {
-        value: ['upload','download'],
-      },
-      type: graph.type
-    });
+    this._openGraph = function () {
+      this.visible = true;
+      this._resetSize();
+      GraphManager.AddGraph(this.graphObject.container);
+      L.DomUtil.addClass(this.previewDiv, "chartPreviewActive");
+      this.graphObject.chart.internal.config.legend_show = true;
+      this.graphObject.chart.legend.show = true;
+    }
 
+    this._resetSize = function () {
+      var changed = false
+      if (parseInt(this.graphObject.container.style.width) != this.graphObject.width) {
+        this.graphObject.container.style.width = this.graphObject.width + "px";
+        changed = true;
+      }
+      if (parseInt(this.graphObject.container.style.height) != this.graphObject.height) {
+        this.graphObject.container.style.height = this.graphObject.height + "px";
+        changed = true;
+      }
+      if (changed) {
+        this.graphObject.chart.resize({
+          height: parseInt(this.graphObject.height),
+          width: parseInt(this.graphObject.width)
+        });
+      }
+
+      this.Update();
+    }
+
+    this._fillCharts  = function (graph) {
+      // d3.select(graph.container).select('svg').remove();
+      var columns = graph.data.columns;
+      graph.chart.load({
+        columns: columns,
+        type: graph.type
+      });
+
+    }
   }
-}

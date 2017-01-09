@@ -82,7 +82,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UnitSearchPath>tatukGIS\LibSrc\DX10\VCL\WIN32;tatukGIS\Lib\DX10\VCL\WIN32;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>tatukGIS\LibSrc\DX10.1\VCL\WIN32;tatukGIS\Lib\DX10.1\VCL\WIN32;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <UWP_DelphiLogo44>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_44.png</UWP_DelphiLogo44>
@@ -92,7 +92,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UnitSearchPath>tatukGIS\LibSrc\DX10\VCL\WIN64;tatukGIS\Lib\DX10\VCL\WIN64;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>tatukGIS\LibSrc\DX10.1\VCL\WIN64;tatukGIS\Lib\DX10.1\VCL\WIN64;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -161,11 +161,8 @@
                     <Source Name="MainSource">SessionServerSvc.dpr</Source>
                 </Source>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k230.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp230.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="C:\Users\cornelissenja\AppData\Local\Source\Delphi Third Party\Steema\TeeChart\2015.16\Source\..\TeeTree\Compiled\Delphi23.win32\Bin\DclTree2D23Tee9.bpl">TeeTree 2 Components</Excluded_Packages>
-                    <Excluded_Packages Name="C:\Users\cornelissenja\AppData\Local\Source\Delphi Third Party\Steema\TeeChart\2015.16\Source\..\TeeTree\Compiled\Delphi23.win32\Bin\DclFMXTree23.bpl">TeeTree for FireMonkey</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcltee9230.bpl">TeeChart Standard VCL Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k240.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp240.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">

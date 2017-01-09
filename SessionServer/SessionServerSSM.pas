@@ -238,8 +238,8 @@ type
   public
     procedure HandleAirSSMEmissions(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
-    procedure HandleFirstSubscriber; override;
-    procedure HandleLastSubscriber; override;
+    procedure HandleFirstSubscriber(aClient: TClient); override;
+    procedure HandleLastSubscriber(aClient: TClient); override;
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
     procedure HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
@@ -1122,7 +1122,7 @@ begin
       aClient.signalString('{"stop": true}}');
 end;
 
-procedure TSSMScenario.HandleFirstSubscriber;
+procedure TSSMScenario.HandleFirstSubscriber(aClient: TClient);
 
   function SubscribeDataEvents(aIMB3Connection: TIMBConnection; const aFederation, aIMBEventClass: string): TIMBEventEntryArray;
   var
@@ -1205,7 +1205,6 @@ begin
     end;
 
   end;
-
   // add US layers
   if not fUSLayersLoaded then
   begin
@@ -1258,6 +1257,32 @@ begin
       oraSession.Free;
     end;
   end;
+
+  //claim DataStore Player
+  if not useSimulationSetup then
+  begin
+    controlInterface := (fProject as TSSMProject).controlInterface;
+    controlInterface.Federation := ID;
+    for cim in controlInterface.Models do
+    begin
+      if (cim.State=msIdle) and (string.Compare(cim.ModelName, 'DataStore-player', True)=0) then
+      begin
+        if controlInterface.RequestModelDefaultParameters(cim) then
+        begin
+          parameters := TModelParameters.Create(cim.DefaultParameters);
+          try
+            if not controlInterface.ClaimModel(cim, parameters)
+            then log.WriteLn('TSSMProject.handleClientMessage: could not claim model '+cim.ModelName, llError)
+            else break;
+          finally
+            parameters.Free;
+          end;
+        end
+        else log.WriteLn('TSSMProject.handleClientMessage: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
+      end;
+    end;
+  end;
+
 end;
 
 procedure TSSMScenario.HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
@@ -1424,7 +1449,7 @@ begin
   end;
 end;
 
-procedure TSSMScenario.HandleLastSubscriber;
+procedure TSSMScenario.HandleLastSubscriber(aClient: TClient);
 var
   //controlInterface : TSSMMCControlInterface;
   //cim: TCIModelEntry2;

@@ -38,6 +38,8 @@ const
   IMB4RemoteHostSwitch = 'IMB4RemoteHost';
   IMB4RemotePortSwitch = 'IMB4RemotePort';
 
+//  RecoverySection = 'recovery';
+
 type
   TModel = class(TMCModelStarter2)
   constructor Create();
@@ -96,8 +98,10 @@ end;
 procedure TModel.HandleDisconnect(aConnection: TConnection);
 begin
   Log.WriteLn('DISCONNECT from IMB4 connection', llError);
-  Log.WriteLn('FORCING halt', llError);
-  Halt; // todo: force restart in MC mode
+  //Log.WriteLn('FORCING halt', llError);
+  //Halt; // todo: force restart in MC mode
+  // todo: start reconnect
+
 end;
 
 procedure TModel.HandleException(aConnection: TConnection; aException: Exception);
@@ -175,7 +179,7 @@ end;
 
 procedure TModel.StartModel(aParameters: TModelParameters);
 var
-  p: Integer;
+//  p: Integer;
   dbConnection: TOraSession;
   projectID: string;
   projectName: string;
@@ -189,23 +193,25 @@ begin
     if aParameters.Count>0
     then WriteLn('   parameters')
     else WriteLn('## NO parameters defined');
+    {
     for p := 0 to aParameters.Count - 1 do
     begin
       WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
+      standardIni.WriteString(RecoverySection, aParameters[p].Name, aParameters[p].ValueAsStore);
     end;
-
+    }
     fIMBLogger := AddIMBLogger(Self.Connection);
 
     dbConnection := TOraSession.Create(nil);
     dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
     dbConnection.Open;
     projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
-    setUSProjectID(dbConnection, projectID); // store project id in database
     projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
     mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
     Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
     preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
     tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
+    setUSProjectID(dbConnection, projectID, mapView.lat, mapView.lon, mapView.zoom); // store project properties in database
     fProject := TUSProject.Create(
       fSessionModel, fSessionModel.Connection, connection,
       projectID, projectName,
@@ -235,6 +241,8 @@ begin
   try
     fProject := nil;
     FreeAndNil(fIMBLogger);
+    // erase recovery section to NOT start in recovery mode next time
+    //StandardIni.EraseSection(RecoverySection);
     // execute actions needed to stop the model
     System.TMonitor.Enter(Log);
     try
@@ -264,8 +272,48 @@ var
   Parameters: TModelParameters;
   Session: TOraSession;
   connectString: string;
+//  sectionValues: TStringList;
+//  i: Integer;
+//  st: string;
+//  p: TArray<string>;
+//  vt: TModelParameterValueType;
 begin
   // check if we have started in manual or node controller mode
+  {
+  if StandardIni.SectionExists(RecoverySection) then
+  begin
+    Log.WriteLn('Started in recovery mode', llWarning);
+    Parameters := TModelParameters.Create;
+    try
+      sectionValues := TStringList.Create;
+      try
+        StandardIni.ReadSectionValues(RecoverySection, sectionValues);
+        for i := 0 to sectionValues.Count-1 do
+        begin
+          st := sectionValues.Values[sectionValues.Names[i]];
+          p := st.Split([',']);
+          vt := TModelParameterValueType(p[0].ToInteger);
+          Parameters.Add(TModelParameter.Create(sectionValues.Names[i], st, vt));
+        end;
+      finally
+        sectionValues.Free;
+      end;
+      // set federation if defined
+      if Parameters.ParameterExists(FederationParameterName)
+      then Connection.Federation := Parameters.Value[FederationParameterName];
+      // default signal busy state
+      SignalModelState(msBusy);
+      try
+        StartModel(Parameters);
+      except
+        on E: Exception
+        do Log.WriteLn('Exception in TModel.CheckManualStart (StartModel): '+E.Message, llError);
+      end;
+    finally
+      Parameters.Free;
+    end;
+  end
+  else }
   if not CommandLine.TestSwitch(ControllerSwitch) then
   begin
     Log.WriteLn('Started in manual mode', llOk);

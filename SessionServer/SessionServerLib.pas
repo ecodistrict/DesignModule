@@ -109,8 +109,8 @@ type
   public
     function HandleClientSubscribe(aClient: TClient): Boolean; virtual;
     function HandleClientUnsubscribe(aClient: TClient): Boolean; virtual;
-    procedure HandleFirstSubscriber; virtual;
-    procedure HandleLastSubscriber; virtual;
+    procedure HandleFirstSubscriber(aClient: TClient); virtual;
+    procedure HandleLastSubscriber(aClient: TClient); virtual;
     procedure forEachClient(aForEachClient: TForEachClient);
   end;
 
@@ -1086,26 +1086,15 @@ var
 begin
   gradients := '';
   labels := '';
-  // todo: manual reverse or detect high to low values? reverse order of legend (palette stays the same..)
-  {
-  if (aPalette.entries.Count>1) and aReverse then
-
-  end
-  else
+  for e in aPalette.entries do
   begin
-  }
-    for e in aPalette.entries do
-    begin
-      if gradients<>''
-      then gradients := gradients+',';
-      gradients := gradients+'{"color":"'+ColorToJSON(e.color)+'","position":'+e.value.ToString(dotFormat)+'}';
-      if labels<>''
-      then labels := labels+',';
-      labels := labels+'{"description":'+jsonString(e.description)+',"position":'+e.value.ToString(dotFormat)+'}';
-    end;
-  {
+    if gradients<>''
+    then gradients := gradients+',';
+    gradients := gradients+'{"color":"'+ColorToJSON(e.color)+'","position":'+e.value.ToString(dotFormat)+'}';
+    if labels<>''
+    then labels := labels+',';
+    labels := labels+'{"description":'+jsonString(e.description)+',"position":'+e.value.ToString(dotFormat)+'}';
   end;
-  }
   Result :=
     '"scale": {'+
       '"width": "'+aWidth.ToString+'px",'+
@@ -1188,7 +1177,7 @@ begin
     begin
       clients.Add(aClient);
       if clients.Count=1
-      then HandleFirstSubscriber;
+      then HandleFirstSubscriber(aClient);
       Result := True;
     end
     else Result := False;
@@ -1206,9 +1195,9 @@ begin
     i := clients.IndexOf(aClient);
     if i>=0 then
     begin
+      if clients.Count=1
+      then HandleLastSubscriber(aClient);
       clients.Delete(i);
-      if clients.Count=0
-      then HandleLastSubscriber;
       Result := True;
     end
     else Result := False;
@@ -1217,12 +1206,12 @@ begin
   end;
 end;
 
-procedure TClientSubscribable.HandleFirstSubscriber;
+procedure TClientSubscribable.HandleFirstSubscriber(aClient: TClient);
 begin
   // default no action
 end;
 
-procedure TClientSubscribable.HandleLastSubscriber;
+procedure TClientSubscribable.HandleLastSubscriber(aClient: TClient);
 begin
   // default no action
 end;
@@ -1292,7 +1281,7 @@ begin
   forEachClient(
     procedure(aClient: TClient)
     begin
-      aClient.SendRefresh(elementID {fCurrentLayer.elementID}, timeStampStr, tiles); // todo: extra processing needed?
+      aClient.SendRefresh(elementID, timeStampStr, tiles);
       Log.WriteLn('TDiffLayer.handleRefreshTrigger for '+elementID+', direct subscribed client: '+aClient.fClientID, llNormal, 1);
     end);
   // signal current layer of diff layer refresh
@@ -2078,7 +2067,7 @@ end;
 
 procedure TClient.SendRefreshRef(const aElementID, aTimeStamp, aRef: string);
 begin
-  // todo: how te see that a layer is a ref layer for this client?
+  // todo: how to see that a layer is a ref layer for this client?
   signalString('{"type":"refresh","payload":{"id":"'+aElementID+'","timestamp":"'+aTimeStamp+'","ref":{'+aRef+'}}}');
 end;
 
@@ -2479,12 +2468,10 @@ end;
 function TGeometryLayerObject.distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double;
 var
   part: TWDGeometryPart;
-  //point: TWDGeometryPoint;
   d: Double;
   p: Integer;
   x1,y1,x2,y2: Double;
 begin
-  // todo: poor man solution for now, just distance to any point of geometry..
   if (fLayer.fGeometryType='MultiPolygon') and fGeometry.PointInAnyPart(aX, aY)
   then Result := 0
   else
@@ -2492,14 +2479,6 @@ begin
     Result := Infinity;
     for part in fGeometry.parts do
     begin
-      {
-      for point in part.points do
-      begin
-        d := aDistanceLatLon.distanceInMeters(Abs(point.y-aY), Abs(point.x-aX));
-        if Result>d
-        then Result := d;
-      end;
-      }
       if part.points.Count>0 then
       begin
         if part.points.Count>1 then
@@ -2513,11 +2492,7 @@ begin
             y1 := y2;
             x2 := part.points[p].x;
             y2 := part.points[p].y;
-            {
-            d := Abs( ((x2-x1)*aDistanceLatLon.m_per_deg_lon*(y1-aY)*aDistanceLatLon.m_per_deg_lat)-
-                      ((x1-aX)*aDistanceLatLon.m_per_deg_lon*(y2-y1)*aDistanceLatLon.m_per_deg_lat))
-                 /sqrt(sqr((x2-x1)*aDistanceLatLon.m_per_deg_lon)+sqr((y2-y1)*aDistanceLatLon.m_per_deg_lat));
-            }
+            // distance to line segment
             d := pDistance(aDistanceLatLon, aX, aY, x1, y1, x2, y2);
             if Result>d
             then Result := d;
@@ -2958,7 +2933,7 @@ begin
   begin
     // todo: replace with batch buffer
     timeStamp := 0; // todo:
-    //fTilerLayer.signalPalette(timeStamp);
+    fTilerLayer.signalPalette(timeStamp);
     // signal objects (which will trigger creation of layer if not already done above)
     buffer := '';
     for iop in aObjects do
@@ -3083,7 +3058,7 @@ var
   diffLayer: TDiffLayer;
 begin
   Result := inherited;
-  // todo: handle unsubscribe on dependent diff layers
+  // handle unsubscribe on dependent diff layers
   TMonitor.Enter(fDependentDiffLayers);
   try
     for diffLayer in fDependentDiffLayers
@@ -3100,7 +3075,6 @@ var
   anvp: TPair<string, string>;
   _json: string;
 begin
-  // todo: implement
   _json := '';
   fObjectsLock.BeginRead;
   try

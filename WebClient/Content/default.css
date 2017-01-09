@@ -52,8 +52,9 @@
 }
 .button:hover {
   text-decoration: none;
-  opacity: 0.5;
+  background-color: rgb(100, 181, 208);
   cursor:pointer;
+  color:#fff;
 }
 .button:active {
   position: relative;
