@@ -67,8 +67,8 @@ type
       const aSchema, aQuery: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string): TLayer;
     procedure ReadBasicData(); override;
   public
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
+    //function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
+    //function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aSelectedIDs: TArray<string>): string; overload; override;
 
@@ -849,132 +849,136 @@ begin
   Log.WriteLn(aLayer.elementID+': '+aLayer.name+', read objects (svg paths)', llNormal, 1);
 end;
 
-function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string;
-var
-  layers: TList<TLayer>;
-  categories: string;
-  objectsGeoJSON: string;
-  totalObjectCount: Integer;
-  extent: TWDExtent;
-  l: TLayer;
-  objectCount: Integer;
-begin
-  Result := '';
-  layers := TList<TLayer>.Create;
-  try
-    if selectLayersOnCategories(aSelectCategories, layers) then
-    begin
-      categories := '';
-      objectsGeoJSON := '';
-      totalObjectCount := 0;
-      extent := TWDExtent.FromGeometry(aGeometry);
-      for l in layers do
-      begin
-        objectCount := l.findObjectsInGeometry(extent, aGeometry, objectsGeoJSON);
-        if objectCount>0 then
-        begin
-          if categories=''
-          then categories := '"'+l.id+'"'
-          else categories := categories+',"'+l.id+'"';
-          totalObjectCount := totalObjectCount+objectCount;
-        end;
-      end;
-      Result :=
-        '{"selectedObjects":{"selectCategories":['+categories+'],'+
-         '"mode":"'+aMode+'",'+
-         '"objects":['+objectsGeoJSON+']}}';
-      Log.WriteLn('select on geometry:  found '+totalObjectCount.ToString+' objects in '+categories);
-    end;
-    // todo: else warning?
-  finally
-    layers.Free;
-  end;
-end;
+//from shape?
+//function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string;
+//var
+//  layers: TList<TLayer>;
+//  categories: string;
+//  objectsGeoJSON: string;
+//  totalObjectCount: Integer;
+//  extent: TWDExtent;
+//  l: TLayer;
+//  objectCount: Integer;
+//begin
+//  Result := '';
+//  layers := TList<TLayer>.Create;
+//  try
+//    if selectLayersOnCategories(aSelectCategories, layers) then
+//    begin
+//      categories := '';
+//      objectsGeoJSON := '';
+//      totalObjectCount := 0;
+//      extent := TWDExtent.FromGeometry(aGeometry);
+//      for l in layers do
+//      begin
+//        objectCount := l.findObjectsInGeometry(extent, aGeometry, objectsGeoJSON);
+//        if objectCount>0 then
+//        begin
+//          if categories=''
+//          then categories := '"'+l.id+'"'
+//          else categories := categories+',"'+l.id+'"';
+//          totalObjectCount := totalObjectCount+objectCount;
+//        end;
+//      end;
+//      Result :=
+//        '{"selectedObjects":{"selectCategories":['+categories+'],'+
+//         '"mode":"'+aMode+'",'+
+//         '"objects":['+objectsGeoJSON+']}}';
+//      Log.WriteLn('select on geometry:  found '+totalObjectCount.ToString+' objects in '+categories);
+//    end;
+//    // todo: else warning?
+//  finally
+//    layers.Free;
+//  end;
+//end;
 
-function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string;
-var
-  layers: TList<TLayer>;
-  dist: TDistanceLatLon;
-  nearestObject: TLayerObject;
-  nearestObjectLayer: TLayer;
-  nearestObjectDistanceInMeters: Double;
-  l: TLayer;
-  o: TLayerObject;
-  categories: string;
-  objectsGeoJSON: string;
-  totalObjectCount: Integer;
-  objectCount: Integer;
-begin
-  Result := '';
-  layers := TList<TLayer>.Create;
-  try
-    if selectLayersOnCategories(aSelectCategories, layers) then
-    begin
-      dist := TDistanceLatLon.Create(aY, aY);
-      if (aRadius=0) then
-      begin
-        nearestObject := nil;
-        nearestObjectLayer := nil;
-        nearestObjectDistanceInMeters := Double.PositiveInfinity;
-        for l in layers do
-        begin
-          o := l.findNearestObject(dist, aX, aY, nearestObjectDistanceInMeters);
-          if assigned(o) and (nearestObjectDistanceInMeters<fProject.maxNearestObjectDistanceInMeters) then
-          begin
-            nearestObjectLayer := l;
-            nearestObject := o;
-            if nearestObjectDistanceInMeters=0
-            then break;
-          end;
-        end;
-        if Assigned(nearestObject) then
-        begin
-          // todo:
-          Result :=
-            '{"selectedObjects":{"selectCategories":["'+nearestObjectLayer.ID+'"],'+
-             '"mode":"'+aMode+'",'+
-             '"objects":['+nearestObject.JSON2D[nearestObjectLayer.geometryType, '']+']}}';
-          Log.WriteLn('found nearest object layer: '+nearestObjectLayer.ID+', object: '+string(nearestObject.ID)+', distance: '+nearestObjectDistanceInMeters.toString);
-        end
-        else
-        begin
-          // todo:
-          Result :=
-            '{"selectedObjects":{"selectCategories":[],'+
-             '"mode":"'+aMode+'",'+
-             '"objects":[]}}';
-          Log.WriteLn('found no nearest object within distance: '+nearestObjectDistanceInMeters.toString+' > '+fProject.maxNearestObjectDistanceInMeters.ToString);
-        end;
-      end
-      else
-      begin
-        categories := '';
-        objectsGeoJSON := '';
-        totalObjectCount := 0;
-        for l in layers do
-        begin
-          objectCount := l.findObjectsInCircle(dist, aX, aY, aRadius, objectsGeoJSON);
-          if objectCount>0 then
-          begin
-            if categories=''
-            then categories := '"'+l.id+'"'
-            else categories := categories+',"'+l.id+'"';
-            totalObjectCount := totalObjectCount+objectCount;
-          end;
-        end;
-        Result :=
-          '{"selectedObjects":{"selectCategories":['+categories+'],'+
-           '"mode":"'+aMode+'",'+
-           '"objects":['+objectsGeoJSON+']}}';
-        Log.WriteLn('select on radius:  found '+totalObjectCount.ToString+' objects in '+categories);
-      end;
-    end;
-    // todo: else warning?
-  finally
-    layers.Free;
-  end;
-end;
 
+//on click?
+//function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string;
+//var
+//  layers: TList<TLayer>;
+//  dist: TDistanceLatLon;
+//  nearestObject: TLayerObject;
+//  nearestObjectLayer: TLayer;
+//  nearestObjectDistanceInMeters: Double;
+//  l: TLayer;
+//  o: TLayerObject;
+//  categories: string;
+//  objectsGeoJSON: string;
+//  totalObjectCount: Integer;
+//  objectCount: Integer;
+//begin
+//  Result := '';
+//  layers := TList<TLayer>.Create;
+//  try
+//    if selectLayersOnCategories(aSelectCategories, layers) then
+//    begin
+//      dist := TDistanceLatLon.Create(aY, aY);
+//      if (aRadius=0) then
+//      begin
+//        nearestObject := nil;
+//        nearestObjectLayer := nil;
+//        nearestObjectDistanceInMeters := Double.PositiveInfinity;
+//        for l in layers do
+//        begin
+//          o := l.findNearestObject(dist, aX, aY, nearestObjectDistanceInMeters);
+//          if assigned(o) and (nearestObjectDistanceInMeters<fProject.maxNearestObjectDistanceInMeters) then
+//          begin
+//            nearestObjectLayer := l;
+//            nearestObject := o;
+//            if nearestObjectDistanceInMeters=0
+//            then break;
+//          end;
+//        end;
+//        if Assigned(nearestObject) then
+//        begin
+//          // todo:
+//          Result :=
+//            '{"selectedObjects":{"selectCategories":["'+nearestObjectLayer.ID+'"],'+
+//             '"mode":"'+aMode+'",'+
+//             '"objects":['+nearestObject.JSON2D[nearestObjectLayer.geometryType, '']+']}}';
+//          Log.WriteLn('found nearest object layer: '+nearestObjectLayer.ID+', object: '+string(nearestObject.ID)+', distance: '+nearestObjectDistanceInMeters.toString);
+//        end
+//        else
+//        begin
+//          // todo:
+//          Result :=
+//            '{"selectedObjects":{"selectCategories":[],'+
+//             '"mode":"'+aMode+'",'+
+//             '"objects":[]}}';
+//          Log.WriteLn('found no nearest object within distance: '+nearestObjectDistanceInMeters.toString+' > '+fProject.maxNearestObjectDistanceInMeters.ToString);
+//        end;
+//      end
+//      else
+//      begin
+//        categories := '';
+//        objectsGeoJSON := '';
+//        totalObjectCount := 0;
+//        for l in layers do
+//        begin
+//          objectCount := l.findObjectsInCircle(dist, aX, aY, aRadius, objectsGeoJSON);
+//          if objectCount>0 then
+//          begin
+//            if categories=''
+//            then categories := '"'+l.id+'"'
+//            else categories := categories+',"'+l.id+'"';
+//            totalObjectCount := totalObjectCount+objectCount;
+//          end;
+//        end;
+//        Result :=
+//          '{"selectedObjects":{"selectCategories":['+categories+'],'+
+//           '"mode":"'+aMode+'",'+
+//           '"objects":['+objectsGeoJSON+']}}';
+//        Log.WriteLn('select on radius:  found '+totalObjectCount.ToString+' objects in '+categories);
+//      end;
+//    end;
+//    // todo: else warning?
+//  finally
+//    layers.Free;
+//  end;
+//end;
+
+//select from query
 function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string;
 var
   layers: TList<TLayer>;

@@ -6,6 +6,7 @@ uses
   StdIni,
   imb4,
   Data.DB,
+  FireDAC.Comp.Client,
   TimerPool,
   WorldDataCode,
   WorldLegends,
@@ -17,7 +18,7 @@ uses
   Vcl.graphics,
   Vcl.Imaging.pngimage,
 
-  // use vcl bitmaps (FMX: conflict on server)
+  // use vcl bitmaps (FMX: conflict on er)
 
   Logger, // after bitmap units (also use log)
   CommandQueue,
@@ -543,6 +544,78 @@ type
     function getJSONData: string; virtual; abstract;
   public
     property chartType: string read fChartType;
+  end;
+
+  TSpiderData = class;
+
+  TSpiderDataValue = class
+  constructor Create(aValue: Double; const aLink: string; aData: TSpiderData);
+  destructor Destroy; override;
+  private
+    fValue: Double;
+    fLink: string;
+    fData: TSpiderData;
+  public
+    property value: Double read fValue write fValue;
+    property link: string read fLink write fLink;
+    property data: TSpiderData read fData write fData;
+  end;
+
+
+  TSpiderChart  = class(TChart)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
+  destructor Destroy; override;
+  private
+    fWidth: Integer;
+    fHeight: Integer;
+    fMaxScale: Double;
+  protected
+    fData: TSpiderData;
+  protected
+    function getJSON: string; override;
+    function getJSONData: string; override;
+  public
+    property data: TSpiderData read fData;
+    procedure normalize;
+    procedure RecalculateAverages;
+  end;
+
+  TSpiderData = class
+  constructor Create(const aTitle: string);
+  destructor Destroy; override;
+  private
+    fTitle: string;
+    fLabels: TDictionary<string, Integer>;
+    fAxes: TDictionary<string, Integer>;
+    fValues: TObjectList<TObjectList<TSpiderDataValue>>; // label, axis
+
+    function createValue(const aLabel, aAxis: string): TSpiderDataValue;
+    function getValue(const aLabel, aAxis: string): TSpiderDataValue;
+    function getValueData(const aLabel, aAxis: string): TSpiderData;
+    procedure setValueData(const aLabel, aAxis: string; const Value: TSpiderData);
+    function getValueLink(const aLabel, aAxis: string): string;
+    procedure setValueLink(const aLabel, aAxis, Value: string);
+    function getValueValue(const aLabel, aAxis: string): Double;
+    procedure setValueValue(const aLabel, aAxis: string; const Value: Double);
+  public
+    property title: string read fTitle;
+    property labels: TDictionary<string, Integer> read fLabels;
+    property axes: TDictionary<string, Integer> read fAxes;
+    property values: TObjectList<TObjectList<TSpiderDataValue>> read fValues write fValues;
+
+    property value[const aLabel, aAxis: string]: TSpiderDataValue read getValue;
+    property valueValue[const aLabel, aAxis: string]: Double read getValueValue write setValueValue;
+    property valueLink[const aLabel, aAxis: string]: string read getValueLink write setValueLink;
+    property valueData[const aLabel, aAxis: string]: TSpiderData read getValueData write setValueData;
+
+    function GetOrAddValue(const aLabel, aAxis: string): TSpiderDataValue;
+
+    function getJSON: string;
+
+    function maxValue: Double;
+    procedure normalize(aMaxValue, aMaxScale: Double); overload; // single
+    procedure normalize(aMaxScale: Double); overload; // recursive
+    function RecalculateAverages: Double;
   end;
 
   TChartLines = class(TChart)
@@ -3456,13 +3529,129 @@ begin
 end;
 
 function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string;
+var
+  layers: TList<TLayer>;
+  categories: string;
+  objectsGeoJSON: string;
+  totalObjectCount: Integer;
+  extent: TWDExtent;
+  l: TLayer;
+  objectCount: Integer;
 begin
   Result := '';
+  layers := TList<TLayer>.Create;
+  try
+    if selectLayersOnCategories(aSelectCategories, layers) then
+    begin
+      categories := '';
+      objectsGeoJSON := '';
+      totalObjectCount := 0;
+      extent := TWDExtent.FromGeometry(aGeometry);
+      for l in layers do
+      begin
+        objectCount := l.findObjectsInGeometry(extent, aGeometry, objectsGeoJSON);
+        if objectCount>0 then
+        begin
+          if categories=''
+          then categories := '"'+l.id+'"'
+          else categories := categories+',"'+l.id+'"';
+          totalObjectCount := totalObjectCount+objectCount;
+        end;
+      end;
+      Result :=
+        '{"selectedObjects":{"selectCategories":['+categories+'],'+
+         '"mode":"'+aMode+'",'+
+         '"objects":['+objectsGeoJSON+']}}';
+      Log.WriteLn('select on geometry:  found '+totalObjectCount.ToString+' objects in '+categories);
+    end;
+    // todo: else warning?
+  finally
+    layers.Free;
+  end;
 end;
 
 function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string;
+  var
+  layers: TList<TLayer>;
+  dist: TDistanceLatLon;
+  nearestObject: TLayerObject;
+  nearestObjectLayer: TLayer;
+  nearestObjectDistanceInMeters: Double;
+  l: TLayer;
+  o: TLayerObject;
+  categories: string;
+  objectsGeoJSON: string;
+  totalObjectCount: Integer;
+  objectCount: Integer;
 begin
   Result := '';
+  layers := TList<TLayer>.Create;
+  try
+    if selectLayersOnCategories(aSelectCategories, layers) then
+    begin
+      dist := TDistanceLatLon.Create(aY, aY);
+      if (aRadius=0) then
+      begin
+        nearestObject := nil;
+        nearestObjectLayer := nil;
+        nearestObjectDistanceInMeters := Double.PositiveInfinity;
+        for l in layers do
+        begin
+          o := l.findNearestObject(dist, aX, aY, nearestObjectDistanceInMeters);
+          if assigned(o) and (nearestObjectDistanceInMeters<fProject.maxNearestObjectDistanceInMeters) then
+          begin
+            nearestObjectLayer := l;
+            nearestObject := o;
+            if nearestObjectDistanceInMeters=0
+            then break;
+          end;
+        end;
+        if Assigned(nearestObject) then
+        begin
+          // todo:
+          Result :=
+            '{"selectedObjects":{"selectCategories":["'+nearestObjectLayer.ID+'"],'+
+             '"mode":"'+aMode+'",'+
+             '"objects":['+nearestObject.JSON2D[nearestObjectLayer.geometryType, '']+']}}';
+          Log.WriteLn('found nearest object layer: '+nearestObjectLayer.ID+', object: '+string(nearestObject.ID)+', distance: '+nearestObjectDistanceInMeters.toString);
+        end
+        else
+        begin
+          // todo:
+          Result :=
+            '{"selectedObjects":{"selectCategories":[],'+
+             '"mode":"'+aMode+'",'+
+             '"objects":[]}}';
+          Log.WriteLn('found no nearest object within distance: '+nearestObjectDistanceInMeters.toString+' > '+fProject.maxNearestObjectDistanceInMeters.ToString);
+        end;
+      end
+      else
+      begin
+        categories := '';
+        objectsGeoJSON := '';
+        totalObjectCount := 0;
+        for l in layers do
+        begin
+          objectCount := l.findObjectsInCircle(dist, aX, aY, aRadius, objectsGeoJSON);
+          if objectCount>0 then
+          begin
+            if categories=''
+            then categories := '"'+l.id+'"'
+            else categories := categories+',"'+l.id+'"';
+            totalObjectCount := totalObjectCount+objectCount;
+          end;
+        end;
+        Result :=
+          '{"selectedObjects":{"selectCategories":['+categories+'],'+
+           '"mode":"'+aMode+'",'+
+           '"objects":['+objectsGeoJSON+']}}';
+        Log.WriteLn('select on radius:  found '+totalObjectCount.ToString+' objects in '+categories);
+      end;
+    end;
+    // todo: else warning?
+  finally
+    layers.Free;
+  end;
 end;
 
 function TScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string;
@@ -4441,6 +4630,357 @@ begin
   Result := Result+
     '"type":"'+fChartType+'",'+
     '"data":['+getJSONData+']';
+end;
+
+{ TSpiderChart }
+
+constructor TSpiderChart.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean);
+begin
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, 'spider');
+  fData := TSpiderData.Create(aName);
+  fWidth := 400;
+  fHeight := 400;
+  fMaxScale := 10; // als niet gedefineerd (NaN) pakt hij de maximale van alle values -> 10 is een goede default?
+end;
+
+destructor TSpiderChart.Destroy;
+begin
+  FreeAndNil(fData);
+  inherited;
+end;
+
+function TSpiderChart.getJSON: string;
+begin
+  Result := inherited getJSON;
+  if Result<>''
+  then Result := Result+',';
+  Result := Result+
+    //'"level":0'+
+    '"width":'+fWidth.toString+',"height":'+fHeight.toString+',"maxValue":'+fMaxScale.toString(dotFormat);
+//  if fLabels
+//  then Result := Result+',"labels":true'
+//  else Result := Result+',"labels":false';
+//  if fLegend
+//  then Result := Result+',"legend":true'
+//  else Result := Result+',"legend":false';
+//  if not double.IsNan(fMaxScale)
+//  then Result := Result+ ',"maxValue":'+fMaxScale.toString(dotFormat);
+end;
+
+function TSpiderChart.getJSONData: string;
+begin
+  fData.normalize(fMaxScale);
+  Result := '{'+fData.getJSON+'}';
+end;
+
+procedure TSpiderChart.normalize;
+begin
+  fData.normalize(fMaxScale);
+end;
+
+procedure TSpiderChart.RecalculateAverages;
+begin
+  fData.RecalculateAverages;
+end;
+
+{ TSpiderData }
+
+constructor TSpiderData.Create(const aTitle: string);
+begin
+  inherited Create;
+  fTitle  := aTitle;
+  fLabels := TDictionary<string, Integer>.Create;
+  fAxes := TDictionary<string, Integer>.Create;
+  fValues := TObjectList<TObjectList<TSpiderDataValue>>.Create(True);
+end;
+
+function TSpiderData.createValue(const aLabel, aAxis: string): TSpiderDataValue;
+var
+  l: Integer;
+  a: Integer;
+  va: TObjectList<TSpiderDataValue>;
+begin
+  // label, axis
+  // check if new label
+  if not fLabels.TryGetValue(aLabel, l) then
+  begin
+    // new label
+    l := fLabels.Count;
+    fLabels.Add(aLabel, l);
+    a := fAxes.Count-1;
+    // check all new rows in fValues
+    while l>=fValues.Count do
+    begin
+      va := TObjectList<TSpiderDataValue>.Create;
+      // check columns for this row
+      while a>=va.Count
+      do va.Add(TSpiderDataValue.Create(0, '', nil));
+      fValues.Add(va);
+    end;
+  end;
+  // check if new axis
+  if not fAxes.TryGetValue(aAxis, a) then
+  begin
+    // new axis
+    a := fAxes.Count;
+    fAxes.Add(aAxis, a);
+    // check all rows in fValues
+    for va in fValues do
+    begin
+      // check columns for this row
+      while a>=va.Count
+      do va.Add(TSpiderDataValue.Create(0, '', nil));
+    end;
+  end;
+  Result := fValues[l].Items[a];
+end;
+
+destructor TSpiderData.Destroy;
+begin
+  FreeAndNil(fLabels);
+  FreeAndNil(fAxes);
+  FreeAndNil(fValues);
+  inherited;
+end;
+
+function TSpiderData.getJSON: string;
+
+  function jsonAxes: string;
+  var
+    aip: TPair<string, Integer>;
+  begin
+    Result := '';
+    for aip in fAxes do
+    begin
+      if Result<>''
+      then Result := Result+',';
+      Result := Result+'"'+aip.Key+'"';
+    end;
+  end;
+
+  function jsonLabels: string;
+  var
+    lip: TPair<string, Integer>;
+  begin
+    Result := '';
+    for lip in fLabels do
+    begin
+      if Result<>''
+      then Result := Result+',';
+      Result := Result+'"'+lip.Key+'"';
+    end;
+  end;
+
+  function jsonValues: string;
+  var
+    row: TObjectList<TSpiderDataValue>;
+    col: TSpiderDataValue;
+    jsonRow: string;
+  begin
+    Result := '';
+    for row in fValues do
+    begin
+      jsonRow := '';
+      for col in row do
+      begin
+        if jsonRow<>''
+        then jsonRow := jsonRow+',';
+        if col.value.IsNan
+        then jsonRow := jsonRow+'{"value":'+'0'
+        else jsonRow := jsonRow+'{"value":'+col.value.ToString(dotFormat);
+        if col.link<>''
+        then jsonRow := jsonRow+',"link":"'+col.link+'"';
+        if Assigned(col.data)
+        then jsonRow := jsonRow+',"data":{'+col.data.getJSON+'}';
+        if jsonRow<>'' then jsonRow := jsonRow+'}';
+      end;
+      if jsonRow<>'' then
+      begin
+        if Result<>''
+        then Result := Result+',';
+        Result := Result+'['+jsonRow+']';
+      end;
+    end;
+  end;
+
+begin
+  Result :=
+    '"title":"'+fTitle+'",'+
+    '"labels":['+jsonLabels+'],'+
+    '"axes":['+jsonAxes+'],'+
+    '"matrix":['+jsonValues+']';
+end;
+
+function TSpiderData.GetOrAddValue(const aLabel, aAxis: string): TSpiderDataValue;
+begin
+  Result := getValue(aLabel, aAxis);
+  if not Assigned(Result)
+  then Result := createValue(aLabel, aAxis);
+end;
+
+function TSpiderData.getValue(const aLabel, aAxis: string): TSpiderDataValue;
+var
+  l: Integer;
+  a: Integer;
+begin
+  if fLabels.TryGetValue(aLabel, l) and fAxes.TryGetValue(aAxis, a)
+  then Result := fValues[l][a]
+  else Result := nil;
+end;
+
+function TSpiderData.getValueData(const aLabel, aAxis: string): TSpiderData;
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if Assigned(sd)
+  then Result := sd.Data
+  else Result := nil;
+end;
+
+function TSpiderData.getValueLink(const aLabel, aAxis: string): string;
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if Assigned(sd)
+  then Result := sd.link
+  else Result := '';
+end;
+
+function TSpiderData.getValueValue(const aLabel, aAxis: string): Double;
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if Assigned(sd)
+  then Result := sd.value
+  else Result := Double.NaN;
+end;
+
+function TSpiderData.maxValue: Double;
+var
+  row: TObjectList<TSpiderDataValue>;
+  col: TSpiderDataValue;
+begin
+  Result := Double.NaN;
+  for row in fValues do
+    for col in row do
+    begin
+      if (not col.value.IsNan) and (Result.IsNan or (Result<col.value))
+      then Result := col.value;
+    end;
+end;
+
+procedure TSpiderData.normalize(aMaxScale: Double);
+// recursive
+var
+  row: TObjectList<TSpiderDataValue>;
+  col: TSpiderDataValue;
+begin
+  normalize(maxValue, aMaxScale);
+  for row in fValues do
+    for col in row do
+    begin
+      if Assigned(col.data)
+      then col.data.normalize(aMaxScale);
+    end;
+end;
+
+function TSpiderData.RecalculateAverages: Double;
+// recursive
+var
+  row: TObjectList<TSpiderDataValue>;
+  col: TSpiderDataValue;
+  c: Integer;
+  v: Double;
+begin
+  Result := Double.NaN;
+  c := 0;
+  for row in fValues do
+    for col in row do
+    begin
+      if Assigned(col.data)  then
+      begin
+        v := col.data.RecalculateAverages();
+        if not v.IsNan
+        then col.value := v;
+      end;
+      if not col.value.IsNan then
+      begin
+        if Result.IsNan
+        then Result := col.value
+        else Result := Result+col.value;
+        c := c+1;
+      end;
+    end;
+  if not Result.IsNan
+  then Result := Result/c;
+end;
+
+procedure TSpiderData.setValueData(const aLabel, aAxis: string; const Value: TSpiderData);
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if not Assigned(sd)
+  then sd := createValue(aLabel, aAxis);
+  // clean up previous value (ignrores nil)
+  sd.data.Free;
+  sd.data := Value; // new value now owned
+end;
+
+procedure TSpiderData.setValueLink(const aLabel, aAxis, Value: string);
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if not Assigned(sd)
+  then sd := createValue(aLabel, aAxis);
+  sd.link := Value;
+end;
+
+procedure TSpiderData.setValueValue(const aLabel, aAxis: string; const Value: Double);
+var
+  sd: TSpiderDataValue;
+begin
+  sd := getValue(aLabel, aAxis);
+  if not Assigned(sd)
+  then sd := createValue(aLabel, aAxis);
+  sd.value := Value;
+end;
+
+procedure TSpiderData.normalize(aMaxValue, aMaxScale: Double);
+// single
+var
+  row: TObjectList<TSpiderDataValue>;
+  col: TSpiderDataValue;
+begin
+  if not (aMaxValue.IsNan or (aMaxValue=0)) then
+  begin
+    for row in fValues do
+      for col in row do
+      begin
+        if not col.value.IsNan
+        then col.value := aMaxScale*col.value/aMaxValue;
+      end;
+  end;
+end;
+
+{ TSpiderDataValue }
+
+constructor TSpiderDataValue.Create(aValue: Double; const aLink: string; aData: TSpiderData);
+begin
+  inherited Create;
+  fValue := aValue;
+  fLink := aLink;
+  fData := aData;
+end;
+
+destructor TSpiderDataValue.Destroy;
+begin
+
+  inherited;
 end;
 
 end.

@@ -11,6 +11,7 @@ uses
   Data.DB,
   OraSmart,
   MyOraLib,
+  MyStr,
 
   ODBFiles2,
 
@@ -36,7 +37,9 @@ uses
   System.Classes,
   System.SysUtils,
   System.Generics.Defaults,
+  System.RegularExpressions,
   System.Generics.Collections;
+
 
 type
   TUSLayer = class; // forward
@@ -141,6 +144,62 @@ type
     // todo: encode ?
   end;
 
+  TUSChartValue = class
+    constructor Create(aValue: string);
+    destructor Destroy; override;
+    protected
+      fStringValue: string;
+      fNumValue: Double;
+      fNumber: Boolean;
+    public
+      function GetJSON: string;
+  end;
+
+  TUSChartSeries = class
+    constructor Create(aLines: TDictionary<string, string>; const aPrefix: string; const aID: Integer; const aSeriesID: string);
+    destructor Destroy; override;
+  private
+    function GetColumnJSON: string;
+    protected
+      fTitle, fXCol, fYCol, fType, fMultiBar, fStackGroup, fVertAxis: string;
+      fID: Integer;
+      fActive: Boolean;
+      fYValues: TList<TUSChartValue>;
+      procedure AddXValues(aValues: array of string);
+    public
+      property XCol: string read fXCol;
+      property YCol: string read fYCol;
+      property MultiBar: string read fMultiBar;
+      property StackGroup: string read fStackGroup;
+      property VertAxis: string read fVertAxis;
+      property Active: Boolean read fActive;
+      property Title: string read fTitle;
+      procedure FillData(aData: TDictionary<string, TStringList>);
+  end;
+
+  TUSChart = class(TChart)
+    constructor Create(aScenario: TScenario; aLines: TDictionary<string, string>; aPrefix, aGroup, aTitle, aTableName: string);
+    destructor Destroy; override;
+  private
+    fType, fTitle, fGroup, fJSON: string;
+    fSeries: TDictionary<string, TUSChartSeries>;
+    fGroups: TDictionary<string, TList<string>>;
+    fDoubleAxes, fChanged: Boolean;
+    fXValues: TDictionary<string, TList<TUSChartValue>>;
+    function getJSONColumns: string;
+    function getJSONXS: string;
+    function getJSONX: string;
+    function getJSONGroups: string;
+    function getJSONTypes: string;
+    function getJSONAxes: string;
+    function getJSONAxis: string;
+  public
+    function getJSON: string; override;
+    function getJSONData: string; override;
+    procedure FillData(aData: TDictionary<string, TStringList>);
+    property Series: TDictionary<string, TUSChartSeries> read fSeries;
+  end;
+
   TUSLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
@@ -175,6 +234,8 @@ type
   private
     fTableprefix: string;
     fIMBConnection: TIMBConnection; // ref
+    procedure ReadIndicators (aTableNames: array of string; aOraSession: TOraSession);
+    procedure ReadIndicator (aTableName: string; aOraSession: TOraSession);
   public
     procedure ReadBasicData(); override;
   public
@@ -1596,7 +1657,8 @@ procedure TUSScenario.ReadBasicData;
     Layers.Add(layer.ID, layer);
     Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
     // schedule reading objects and send to tiler
-    AddCommandToQueue(aOraSession, layer.ReadObjects);
+    //todo: uncomment!
+    //AddCommandToQueue(aOraSession, layer.ReadObjects);
   end;
 
   function SubscribeDataEvents(const aUserName, aIMBEventClass: string): TIMBEventEntryArray;
@@ -1761,7 +1823,8 @@ begin
             Layers.Add(layer.ID, layer);
             Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
             // schedule reading objects and send to tiler
-            AddCommandToQueue(oraSession, layer.ReadObjects);
+            //todo: uncomment
+            //AddCommandToQueue(oraSession, layer.ReadObjects);
           end
           else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' '+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
         end;
@@ -1783,15 +1846,123 @@ begin
       'WHERE view_name LIKE '''+FTablePrefix+'%\_INDIC\_DEF%'' ESCAPE ''\'' '+
       ') '+
       'ORDER BY name');
-    for tableName in indicTableNames do
-    begin
-      //fIndicators.Add(TIndicator.Create(Self, FModelControl.Connection, FDomainsEvent, FSession, FTablePrefix, FSessionName, tableName));
-      Log.WriteLn(elementID+': added indicator: '+tableName, llNormal, 1);
-    end;
+//    for tableName in indicTableNames do
+//    begin
+//      TUSChart.Create(Self, FTablePrefix, tableName, oraSession);
+//      //fIndicators.Add(TIndicator.Create(Self, FModelControl.Connection, FDomainsEvent, FSession, FTablePrefix, FSessionName, tableName));
+//      Log.WriteLn(elementID+': added indicator: '+tableName, llNormal, 1);
+//    end;
+    ReadIndicators(indicTableNames, oraSession);
     Log.WriteLn(elementID+': finished building scenario');
   finally
     metaLayer.Free;
   end;
+end;
+
+procedure TUSScenario.ReadIndicator(aTableName: string; aOraSession: TOraSession);
+var
+  defQuery, datQuery, datTableName: string;
+  defResult, datResult: TAllRowsResults;
+  rowResult: TSingleRowResult;
+  domain, iD, name, description, tab, gridPrefix, column: string;
+  dataCols: TStringList;
+  lines: TDictionary<string, string>;
+  data, chartDef: TDictionary<string, TStringList>;
+  dataCol: TStringList;
+  singleRowResult: TSingleRowResult;
+  gridWidth, gridHeight, i, j: Integer;
+  uscharts: TList<TUSChart>;
+  chartSeries: TUSChartSeries;
+begin
+  defQuery := 'SELECT * FROM ' + aTableName;
+  defResult := ReturnAllResults(aOraSession, defQuery);
+  uscharts := TList<TUSChart>.Create;
+  dataCols := TStringList.Create;
+  dataCols.Duplicates := TDuplicates.dupIgnore;
+  lines := TDictionary<string, string>.Create;
+
+  for singleRowResult in defResult do
+    lines.Add(singleRowResult[0], singleRowResult[1]);
+
+
+  if lines.ContainsKey('Tab') then
+    tab := lines['Tab']
+  else
+    tab := 'unknown tab';
+
+  //check size of active indicator grid, if none is specified we assume 1x1
+  if lines.ContainsKey('Grid') then
+  begin
+    gridWidth := length(lines['Grid'].Split(['*'])[0].Split([',']));
+    gridHeight := length(lines['Grid'].Split(['*'])[1].Split([',']));
+  end
+  else
+  begin
+    gridWidth := 1;
+    gridHeight := 1;
+  end;
+
+  // loop over our grid
+  for i := 1 to gridWidth do
+    for j := 1 to gridHeight do
+      begin
+        gridPrefix := 'Grid' + IntToStr(i) + ',' + IntToStr(j) + '$';
+
+        if lines.ContainsKey(gridPrefix + 'GraphicType') then
+        begin
+          if lines[gridPrefix + 'GraphicType'] = 'TChart' then
+            uscharts.Add(TUSChart.Create(Self, lines, gridPrefix, tab, tab + ' (' + inttostr(i) + '-' + inttostr(j) + ')', aTableName));
+        end
+        else
+          continue;
+      end;
+
+  for i := 0 to uscharts.Count - 1 do
+    begin
+      for chartSeries in uscharts[i].Series.Values do
+        begin
+          if dataCols.IndexOf(chartSeries.XCol) = -1 then
+            dataCols.Add(chartSeries.XCol);
+          if dataCols.IndexOf(chartSeries.YCol) = -1 then
+            dataCols.Add(chartSeries.YCol);
+        end;
+    end;
+  data := TDictionary<string, TStringList>.Create;
+  if dataCols.Count > 0 then
+  begin
+    datTableName := aTableName.Replace('_DEF', '_DAT');
+    datQuery := 'SELECT ' + dataCols[0];
+    for i := 1 to dataCols.Count - 1 do
+      datQuery := datQuery + ', ' + dataCols[i];
+    datQuery := datQuery + ' FROM ' + datTableName;
+    datResult := ReturnAllResults(aOraSession, datQuery);
+    for i := 0 to dataCols.Count -1 do
+      begin
+        dataCol := TStringList.Create;
+        for j := 0 to length(datResult) - 1 do
+            dataCol.Add(datResult[j,i]);
+
+        data.Add(dataCols[i], dataCol);
+      end;
+  end;
+
+  for i := 0 to uscharts.Count - 1 do
+  begin
+    uscharts[i].FillData(data);
+    AddChart(uscharts[i]);
+  end;
+
+
+
+
+end;
+
+procedure TUSScenario.ReadIndicators(aTableNames: array of string; aOraSession: TOraSession);
+var
+  tableName: string;
+begin
+  for tableName in aTableNames do
+    ReadIndicator(tableName, aOraSession);
 end;
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aSelectedIDs: TArray<string>): string;
@@ -2228,6 +2399,381 @@ begin
   finally
     table.Free;
   end;
+end;
+
+{ TUSChart }
+
+constructor TUSChart.Create(aScenario: TScenario; aLines: TDictionary<string, string>; aPrefix, aGroup, aTitle, aTableName: string);
+var
+  domain, name, description: string;
+  defaultLoad: Boolean;
+  index: Integer;
+  seriesNumber, line, seriesIdentifier: string;
+  series: TUSChartSeries;
+  seriesIDs: TStringList;
+begin
+  domain := 'US Charts';
+  name := '';
+  description := 'No Description';
+  defaultLoad := True;
+
+  if aLines.ContainsKey(aPrefix + 'TChart$$Title.Text.Strings ') then
+    fTitle := copy(aLines[aPrefix + 'TChart$$Title.Text.Strings '], 5, length(aLines[aPrefix + 'TChart$$Title.Text.Strings ']) - 6)
+  else
+    fTitle := aTitle;
+
+  fGroup := aGroup;
+  fSeries := TDictionary<string, TUSChartSeries>.Create;
+  fChartType := 'line';
+  fGroups := TDictionary<string, TList<string>>.Create;
+  fDoubleAxes := False;
+
+  fJSON := '';
+  fChanged := True;
+
+  seriesIDs := TStringList.Create;
+
+  for line in aLines.Keys do
+  begin
+    if line.Contains('TChart$Series') then
+    begin
+      seriesIdentifier := (line.Split(['TChart$Series'])[1]).Split([':'])[0];
+      if seriesIDs.IndexOf(seriesIdentifier) = -1 then
+        seriesIDs.Add(seriesIdentifier);
+    end;
+  end;
+
+  seriesIDs.Sort();
+
+
+  for index := 0 to 99 do
+  begin
+    if index > seriesIDs.Count - 1 then
+      break;
+
+    if index < 10 then
+      seriesNumber := 'Series0'+ IntToStr(index)
+    else
+      seriesNumber := 'Series' + IntToStr(index);
+
+    if aLines.ContainsKey(aPrefix + seriesNumber + 'Data') then
+    begin
+      series := TUSChartSeries.Create(aLines, aPrefix, index, seriesIDs[index]);
+      if series.Active then
+      begin
+        fSeries.Add(seriesNumber, series);
+        if series.VertAxis = 'y2' then
+          fDoubleAxes := True;
+        if fGroups.ContainsKey(series.StackGroup) then
+          fGroups[series.StackGroup].Add(series.fTitle)
+        else
+        begin
+          fGroups.Add(series.StackGroup, TList<string>.Create);
+          fGroups[series.StackGroup].Add(series.fTitle);
+        end;
+      end;
+    end
+    else
+      break;
+
+  end;
+
+
+
+  inherited Create(aScenario, domain, aTableName + aPrefix, name, description, defaultLoad, 'bar');
+end;
+
+destructor TUSChart.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TUSChart.FillData(aData: TDictionary<string, TStringList>);
+var
+  chartSeries: TUSChartSeries;
+  index: Integer;
+begin
+  fXValues := TDictionary<string, TList<TUSChartValue>>.Create;
+  for chartSeries in fSeries.Values do
+    begin
+      if chartSeries.Active and not fXValues.ContainsKey(chartSeries.XCol) then
+      begin
+        fxValues.Add(chartSeries.XCol, TList<TUSChartValue>.Create);
+        for index := 0 to aData[chartSeries.XCol].Count - 1 do
+          fXValues[chartSeries.XCol].Add(TUSChartValue.Create(aData[chartSeries.XCol][index]));
+      end;
+      chartSeries.FillData(aData);
+    end;
+
+end;
+
+function TUSChart.getJSON: string;
+begin
+//  Result := inherited getJSON;   //todo data is geen array meer maar een object??
+//  if Result<>'' then
+//    Result := Result + ',';
+  if fChanged or not fChanged then    //to do remove the not fChanged
+  begin
+    fJSON :=
+      '"type":"'+fChartType+'",'+
+      '"title":"' + fTitle + '",' +
+      '"id":"' + ID + '",' +
+      '"data":{'+getJSONData+'},' +
+      '"axis":{'+ getJSONAxis + '}';
+
+    fChanged := False;
+  end;
+  Result := fJSON;
+end;
+
+function TUSChart.getJSONAxes: string;
+var
+  serie: TUSChartSeries;
+begin
+  if fDoubleAxes then
+  begin
+    Result := '';
+    for serie in fSeries.Values do
+      begin
+        if Result <> '' then
+          Result := Result + ',';
+        Result := Result + '"' + serie.Title + '": "' + serie.VertAxis + '"';
+      end;
+  end;
+end;
+
+function TUSChart.getJSONAxis: string;
+begin
+  Result :=  '"x": {"type": "category"}';
+  if fDoubleAxes then
+    Result := Result + ', "y2": {"show": true }';
+end;
+
+function TUSChart.getJSONColumns: string;
+var
+  dataList: TList<TUSChartValue>;
+  key: string;
+  columnString: string;
+  index: Integer;
+  serie: TUSChartSeries;
+begin
+  Result := '';
+  for key in fXValues.Keys do
+    begin
+      if Result <> '' then
+        Result := Result + ',';
+      Result := Result + '[';
+      columnString := '"' + key + '"';
+      dataList := fXValues[key];
+      for index := 0 to dataList.Count - 1 do
+        begin
+          columnString := columnString + ',' + dataList[index].GetJSON;
+        end;
+        Result := Result + columnString + ']';
+    end;
+  for serie in fSeries.Values do
+  begin
+    if serie.Active then
+      begin
+        if Result <> '' then
+          Result := Result + ',';
+        Result := Result + '[' + serie.GetColumnJSON + ']';
+      end;
+  end;
+
+end;
+
+function TUSChart.getJSONData: string;
+begin
+    Result := '"columns":[' + getJSONColumns +'],';
+    if fXValues.Count > 1 then
+      Result := Result + '"xs":{' + getJSONXS + '},'
+    else if fXValues.Count = 1 then
+      Result := Result + '"x":' + getJSONX + ',';
+
+    Result := Result + '"groups":[' + getJSONGroups + '],' +
+    '"types":[' + getJSONTypes + '],' +
+    '"axes":{' + getJSONAxes + '}';
+end;
+
+
+function TUSChart.getJSONGroups: string;
+var
+  groupList: TList<string>;
+  group, groupstring: string;
+begin
+  Result := '';
+  for groupList in fGroups.Values do
+  begin
+    if Result <> '' then
+      Result := Result + ',';
+    groupstring := '';
+    for group in groupList do
+      begin
+        if groupstring <> '' then
+          groupstring := groupstring + ',';
+        groupstring := groupstring + '"' + group + '"';
+      end;
+      Result := Result + '[' + groupstring + ']';
+  end;
+
+end;
+
+function TUSChart.getJSONTypes: string;
+begin
+
+end;
+
+function TUSChart.getJSONX: string;
+var
+  key: string;
+begin
+  Result := '';
+  for key in fXValues.Keys do
+    if Result = '' then
+      Result := '"' + key + '"';
+end;
+
+function TUSChart.getJSONXS: string;
+var
+  serie: TUSChartSeries;
+begin
+  Result := '';
+  for serie in fSeries.Values do
+  begin
+    if Result <> '' then
+      Result := Result + ',';
+    Result := Result + '"' + serie.YCol + '":"' + serie.XCol + '"';
+  end;
+
+end;
+
+{ TUSChartSeries }
+
+procedure TUSChartSeries.AddXValues(aValues: array of string);
+begin
+
+end;
+
+constructor TUSChartSeries.Create(aLines: TDictionary<string, string>; const aPrefix: string; const aID: Integer; const aSeriesID: string);
+var
+  sPrefix, sPrefixLong, key: string;
+  seriesLines: TDictionary<string, string>;
+begin
+  fID := aID;
+  sPrefix := 'Series' + IntToStr(aID);
+  seriesLines := TDictionary<string, string>.Create;
+  if aID < 10 then
+    sPrefixLong := 'Series0' + IntToStr(aID)
+  else
+    sPrefixLong := sPrefix;
+
+  fXCol := aLines[aPrefix + sPrefixLong + 'Data'].Split([','])[1];
+  fYCol := aLines[aPrefix + sPrefixLong + 'Data'].Split([','])[0];
+
+  for key in aLines.Keys do
+    begin
+      if (key.StartsWith(aPrefix + 'TChart$Series' + aSeriesID + ':')) and key.Contains('$$') then
+      begin
+        seriesLines.AddOrSetValue(key.Split(['$$'])[1], aLines[key]);
+      end;
+    end;
+
+  if aLines.ContainsKey(aPrefix + sPrefixLong + 'Caption ') then
+    fTitle := aLines[aPrefix + sPrefixLong + 'Caption ']
+  else if aLines.ContainsKey(aPrefix + sPrefix + 'Caption ')  then
+    fTitle := aLines[aPrefix + sPrefix + 'Caption ']
+  else if seriesLines.ContainsKey('Title ') then
+    fTitle := seriesLines['Title ']
+  else
+    fTitle := 'Unknown Title';
+
+  fTitle := StripChars(fTitle, ['"', '''']);
+
+  if seriesLines.ContainsKey('MultiBar ') then
+    fMultiBar := seriesLines['MultiBar ']
+  else
+    fMultiBar := ' mbNone';
+
+  if fMultiBar <> ' mbNone' then
+  begin
+    if seriesLines.ContainsKey('StackGroup ') then
+      fStackGroup := seriesLines['StackGroup ']
+    else
+      fStackGroup := '0';
+  end
+  else
+  begin
+    fStackGroup := aSeriesID;
+  end;
+
+  if seriesLines.ContainsKey('Active ') and ((seriesLines['Active '] = ' False') or (seriesLines['Active '] = 'False')) then
+    fActive := False
+  else
+    fActive := True;
+
+  if seriesLines.ContainsKey('VertAxis ') and (seriesLines['VertAxis '] = ' aRightAxis') then
+    fVertAxis := 'y2'
+  else
+    fVertAxis := 'y';
+
+
+end;
+
+destructor TUSChartSeries.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TUSChartSeries.FillData(aData: TDictionary<string, TStringList>);
+var
+  index: Integer;
+begin
+  fYValues := TList<TUSChartValue>.Create;
+  for index := 0 to aData[YCol].Count - 1 do
+    fYValues.Add(TUSChartValue.Create(aData[YCol][index]));
+end;
+
+function TUSChartSeries.GetColumnJSON: string;
+var
+  index: Integer;
+begin
+  Result := '"' + fTitle + '"';
+  for index := 0 to fYValues.Count - 1 do
+    begin
+      Result := Result + ',' + fYValues[index].GetJSON;
+    end;
+end;
+
+{ TUSChartValue }
+
+constructor TUSChartValue.Create(aValue: string);
+begin
+  if aValue = '' then
+    fStringValue := 'null'
+  else
+    fStringValue := '"' + aValue + '"';
+
+  fNumValue := StrToFloatDef(aValue, NaN);
+  if isNaN(fNumValue) then
+    fNumber := False
+  else
+    fNumber := True;
+end;
+
+destructor TUSChartValue.Destroy;
+begin
+
+end;
+
+function TUSChartValue.GetJSON: string;
+begin
+  if fNumber then
+    Result := FloatToStr(fNumValue).Replace(',', '.')
+  else
+    Result := fStringValue;
 end;
 
 end.

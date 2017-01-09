@@ -92,7 +92,8 @@ begin
         // build sweco project
         // US: V?
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);gtu2fcd;KPI Model;Demo Model;VissimController');
+        //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);gtu2fcd;KPI Model;Demo Model;VissimController');
+        simParameters.setParameter('models', 'DataStore;'{Traffic (SSM);Air (SSM <-> US)} + ';gtu2fcd;KPI Model;Demo Model;VissimController');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
 
         //simParameters.setParameter('Traffic (SSM)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
@@ -153,8 +154,8 @@ begin
 
         // build tud project
         simParameters := TSSMSimulationParameterList.Create;
-        //simParameters.setParameter('models', 'DataStore;SSMAirModule;A58 model');
-        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;A58 model');
+        simParameters.setParameter('models', 'DataStore;SSMAirModule;A58 model');
+        //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;A58 model');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
         simParameters.setParameter('A58 model-penetration', '<penetration>');
 
