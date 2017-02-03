@@ -1587,6 +1587,7 @@ end;
 }
 function TDLTriangle.ValueOnPoint(x, y: TDLCoordinate): TDLValue;
 begin
+  NCalculated:=false; //tmp hack, should be made better....
   if not NCalculated then
   begin
     // N := (Vertex3-Vertex1)x(Vertex2-Vertex1)

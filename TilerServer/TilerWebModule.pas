@@ -52,9 +52,9 @@ uses
 
   // theming problem on server where profile is loaded and D2D canvas is availble only test fails in orginal unit
   // Delphi 10.1 version
-//  FMX.Canvas.D2D.my10_1,
+  FMX.Canvas.D2D.my10_1,
   // Delphi 10 version
-  FMX.Canvas.D2D.my,
+//  FMX.Canvas.D2D.my,
 
   // TPolygon
   System.Math.Vectors,
@@ -1609,6 +1609,7 @@ var
   fieldInfo: UInt32;
   id: TWDID;
   netPoint: TDLPoint;
+  triangle: TDLTriangle;
   point: TWDGeometryPoint;
   len: UInt64;
   value: Double;
