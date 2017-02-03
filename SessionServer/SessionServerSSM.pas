@@ -220,6 +220,7 @@ type
     fSpeed: Double;
     fRecorded: Boolean;
     fRecording: Boolean;
+    fClaimed: Boolean;
 
     fSIMStartEvent: TIMBEventEntry;
     fSIMStopEvent: TIMBEventEntry;
@@ -233,6 +234,7 @@ type
   public
     property running: Boolean read fRunning;
     property recording: Boolean read fRecording write fRecording;
+    property claimed: Boolean read fClaimed write fClaimed;
     property speed: Double read fSpeed;
     property statistics: TObjectDictionary<string, TSSMStatistic> read fStatistics;
   public
@@ -241,6 +243,7 @@ type
     procedure HandleFirstSubscriber(aClient: TClient); override;
     procedure HandleLastSubscriber(aClient: TClient); override;
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
     procedure HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
@@ -713,7 +716,7 @@ begin
             else
             begin
               speed := double.NaN;
-              log.WriteLn('TSSMLinkLayer.HandleLinkEvent unknown gtu in link change: '+string(UTF8String(gtuId)), llError);
+              //log.WriteLn('TSSMLinkLayer.HandleLinkEvent unknown gtu in link change: '+string(UTF8String(gtuId)), llError);
             end;
           finally
             fCarLayer.objectsLock.EndRead;
@@ -933,8 +936,8 @@ begin
             {
           end;
           }
-        end
-        else Log.WriteLn('TSSMLayer.HandleGTUEvent: change, unknown car id '+gtuId, llError);
+        end;
+        //else Log.WriteLn('TSSMLayer.HandleGTUEvent: change, unknown car id '+gtuId, llError);
       end;
     actionDelete:
       begin
@@ -1072,6 +1075,7 @@ begin
 
   fRecorded := aRecorded;
   fRecording := False;
+  fClaimed := False;
   // Air SSM Emissions
 
   fAirSSMEmissionsChartTotal := TChartLines.Create(Self, 'Air', 'aset', 'Emissions total', '', false, 'line',
@@ -1119,7 +1123,13 @@ begin
    if running then
       aClient.SignalString('{"simulationControl":{"speed":'+DoubleToJSON(fSpeed)+', "start": true}}')
    else
-      aClient.signalString('{"stop": true}}');
+      aClient.signalString('{"simulationControl":{"stop": true}}');
+end;
+
+function TSSMScenario.HandleClientUnsubscribe(aClient: TClient): Boolean;
+
+begin
+  Result := inherited
 end;
 
 procedure TSSMScenario.HandleFirstSubscriber(aClient: TClient);
@@ -1137,7 +1147,6 @@ procedure TSSMScenario.HandleFirstSubscriber(aClient: TClient);
       Result[Length(Result)-1] := aIMB3Connection.Subscribe(aFederation+'.'+ev.trim)
     end;
   end;
-
 var
   controlInterface : TSSMMCControlInterface;
 //  _parameters: TJSONArray;
@@ -1162,7 +1171,6 @@ var
   federation: string;
   imlep: TPair<Integer, TMetaLayerEntry>;
   layer: TUSLayer;
-
 begin
   inherited; //remove? inherited functionality is empty at this moment -> what if TScenario implements it?
 
@@ -1189,23 +1197,22 @@ begin
         else log.WriteLn('TSSMProject.handleClientMessage: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
       end;
     end;
-    if not Assigned (fAirSSMEmissionsChartTotal) then
-    begin
-      fAirSSMEmissionsChartTotal := TChartLines.Create(Self, 'Air', 'aset', 'Emissions total', '', false, 'line',
-        TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-        [TChartAxis.Create('gram NO2', 'lightBlue', 'Mass', 'g')]);
-      AddChart(fAirSSMEmissionsChartTotal);
-    end;
-    if not Assigned (fAirSSMEmissionsChartFraction) then
-    begin
-      fAirSSMEmissionsChartFraction := TChartLines.Create(Self, 'Air', 'asef', 'Emissions fraction', '', false, 'line',
-        TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-        [TChartAxis.Create('kg NO2/h', 'lightBlue', 'Mass rate', 'kg/h')]);
-      AddChart(fAirSSMEmissionsChartFraction);
-    end;
-
+//    if not Assigned (fAirSSMEmissionsChartTotal) then
+//    begin
+//      fAirSSMEmissionsChartTotal := TChartLines.Create(Self, 'Air', 'aset', 'Emissions total', '', false, 'line',
+//        TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+//        [TChartAxis.Create('gram NO2', 'lightBlue', 'Mass', 'g')]);
+//      AddChart(fAirSSMEmissionsChartTotal);
+//    end;
+//    if not Assigned (fAirSSMEmissionsChartFraction) then
+//    begin
+//      fAirSSMEmissionsChartFraction := TChartLines.Create(Self, 'Air', 'asef', 'Emissions fraction', '', false, 'line',
+//        TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+//        [TChartAxis.Create('kg NO2/h', 'lightBlue', 'Mass rate', 'kg/h')]);
+//      AddChart(fAirSSMEmissionsChartFraction);
+//    end;
   end;
-  // add US layers
+   //add US layers
   if not fUSLayersLoaded then
   begin
     oraSession := TOraSession.Create(nil);
@@ -1239,17 +1246,16 @@ begin
                 SubscribeDataEvents(imb3Connection, federation, imlep.Value.IMB_EVENTCLASS),
                 sourceProjection, imlep.value.Domain, imlep.value.description);
               if Assigned(layer) then
-              begin
+
                 AddLayer(layer);
                 // schedule reading objects and send to
-                //AddCommandToQueue(Self, layer.ReadObjects);
-                Log.WriteLn('Added US layer '+imlep.value.Domain+'\'+imlep.value.description);
+                AddCommandToQueue(Self, layer.ReadObjects);
+                Log.WriteLn('Added layer '+imlep.value.Domain+'\'+imlep.value.description);
               end
               else Log.WriteLn('Could not add US layer '+imlep.value.Domain+'\'+imlep.value.description, llError);
             end;
           end;
           fUSLayersLoaded := True;
-        end;
       finally
         metaLayer.Free;
       end;
@@ -1257,32 +1263,6 @@ begin
       oraSession.Free;
     end;
   end;
-
-  //claim DataStore Player
-  if not useSimulationSetup then
-  begin
-    controlInterface := (fProject as TSSMProject).controlInterface;
-    controlInterface.Federation := ID;
-    for cim in controlInterface.Models do
-    begin
-      if (cim.State=msIdle) and (string.Compare(cim.ModelName, 'DataStore-player', True)=0) then
-      begin
-        if controlInterface.RequestModelDefaultParameters(cim) then
-        begin
-          parameters := TModelParameters.Create(cim.DefaultParameters);
-          try
-            if not controlInterface.ClaimModel(cim, parameters)
-            then log.WriteLn('TSSMProject.handleClientMessage: could not claim model '+cim.ModelName, llError)
-            else break;
-          finally
-            parameters.Free;
-          end;
-        end
-        else log.WriteLn('TSSMProject.handleClientMessage: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
-      end;
-    end;
-  end;
-
 end;
 
 procedure TSSMScenario.HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
@@ -1304,6 +1284,7 @@ begin
     case action of
       actionNew:
         begin
+          //Log.WriteLn('New GTU statistic for: <' + statisticId + '> on: <' + timestamp.ToString + '>');
           TMonitor.Enter(fStatistics);
           try
           if not fStatistics.TryGetValue(statisticId, stat) then
@@ -1335,6 +1316,8 @@ begin
           stat.new(aPayload, (project as TSSMProject).sourceProjection);
           // create
 
+          if stat.charts.count = 0 then
+          begin
           chart := TChartLines.Create(Self, stat.domain, stat.ID+'-0', stat.refDomainId+' '+'Total vehicle kilometers', '', false, 'line',
             TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
             [TChartAxis.Create('km', 'lightBlue', 'Length', 'km')]);
@@ -1376,6 +1359,7 @@ begin
             [TChartAxis.Create('stops', 'lightBlue', 'Dimensionless', '-')]);
           stat.charts.Add(chart);
           AddChart(chart);
+          end;
 
           project.forEachClient(procedure(aClient: TClient)
             begin
@@ -1387,6 +1371,7 @@ begin
         end;
       actionChange:
         begin
+          //Log.WriteLn('Change GTU statistic for: <' + statisticId + '> on: <' + timestamp.ToString + '>');
           TMonitor.Enter(fStatistics);
           try
           if fStatistics.TryGetValue(statisticId, stat) then
@@ -1665,6 +1650,7 @@ var
   scenario: TSSMScenario;
   layer: TLayer;
   link: TScenarioLink;
+  chart: TChart;
 begin
   for cim in controlInterface.Models do
   begin
@@ -1679,7 +1665,9 @@ begin
     scenario.forEachClient(procedure (aClient: TClient)
     begin
       //todo: force scenario change?
+      //scenario.HandleClientUnsubscribe(aClient);
       aClient.currentScenario := scenarios['base'];
+      //aClient.addClient(aClient.currentScenario);
       aClient.signalString('{"type":"session","payload":{"simulationClose":0,"simulationSetup":1, "simulationControlEnabled":1}}');
     end
     );
@@ -1702,6 +1690,7 @@ begin
     end
     else
     begin
+      scenario.claimed := False;
       scenario.fRunning := False;
       scenario.fSpeed := 1.0;
       TMonitor.Enter(scenario.statistics);
@@ -1710,9 +1699,25 @@ begin
       finally
         TMonitor.Exit(scenario.statistics);
       end;
+      //TMonitor.Enter(scenario.charts);
+//      try
+//        begin
+//          scenario.charts.Clear();
+//          //for chart in scenario.Charts do
+//            //todo: clear charts!
+//        end
+//      finally
+//        TMonitor.Exit(scenario.charts);
+//      end;
       TMonitor.Enter(scenario.charts);
       try
-        scenario.charts.Clear();
+        begin
+          if Assigned (scenario.charts) then
+            for chart in scenario.charts.Values do
+              begin
+                chart.reset;
+              end;
+        end;
       finally
         TMonitor.Exit(scenario.charts);
       end;
@@ -1720,8 +1725,13 @@ begin
         begin
           layer.objects.Clear();
         end;
+      if scenario.Recording then
+      begin
+        //todo logic to make the recorded scenario available
+        scenario.useSimulationSetup := False;
+        scenario.recording := False;
+      end;
     end;
-
   end;
   scenario.HandleClientUnsubscribe(aClient);
   // todo: switch back to base scenario!
@@ -1896,7 +1906,7 @@ begin
         '', '', newScenarioName, '', 'new', scenario));
       // add
       aClient.currentScenario := scenario;
-      scenario.HandleClientSubscribe(aClient);
+      aClient.addClient(scenario);
 
       AddCommandToQueue(THandleSimulationTask.Create(aClient, scenario, _simParams), handleSetupSimulation); // todo: add jsonValue
       // remove ref to _simulationParameters: now owned by THandleSimulationTask, freed in handleSetupSimulation
@@ -2004,7 +2014,6 @@ var
   mpv: Variant;
   mpvs: string;
   index: Integer;
-  recording: Boolean;
 begin
   try
     //_client := aSender as TClient;
@@ -2129,6 +2138,7 @@ begin
         modelNames.Free;
       end;
     end;
+    _scenario.claimed := True;
     // enable simulation close control
     _client.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0}}');
     // update domains for all clients on this project

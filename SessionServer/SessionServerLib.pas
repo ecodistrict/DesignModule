@@ -173,9 +173,10 @@ type
     procedure SendMeasuresHistoryEnabled();
     procedure SendSimulationControlEnabled();
 
-    procedure addClient(aElement: TClientSubscribable);
-    procedure removeClient(aElement: TClientSubscribable);
+
   public
+    procedure removeClient(aElement: TClientSubscribable);
+    procedure addClient(aElement: TClientSubscribable);
     property sessionModel: TSessionModel read getSessionModel;
     property subscribedElements: TObjectList<TClientSubscribable> read fSubscribedElements; // ref, use TMonitor to lock
     property clientID: string read fClientID;
@@ -371,7 +372,6 @@ type
   private
     fObjects: TObjectDictionary<TWDID, TLayerObject>; // owns
     fGeometryType: string;
-    fObjectsLock: TOmniMREW;
     fBasicLayer: Boolean;
     fDependentDiffLayers: TObjectList<TDiffLayer>; // refs
     fDiffRange: Double;
@@ -388,6 +388,7 @@ type
 
     fExtraJSON2DAttributes: string;
   protected
+    fObjectsLock: TOmniMREW;
     fLegendJSON: string;
     fQuery: string;
     fTilerLayer: TTilerLayer;
@@ -544,6 +545,7 @@ type
     function getJSONData: string; virtual; abstract;
   public
     property chartType: string read fChartType;
+    procedure reset; virtual;
   end;
 
   TSpiderData = class;
@@ -634,6 +636,7 @@ type
     property xAxis: TChartAxis read fXAxis;
     property yAxes: TObjectList<TChartAxis> read fYAxes;
     property values: TChartValues read fValues;
+    procedure reset; override;
 
     procedure AddValue(aX: Double; const aY: TArray<Double>);
   end;
@@ -678,7 +681,7 @@ type
     property KPIs: TObjectDictionary<string, TKPI> read fKPIs;
     property Charts: TObjectDictionary<string, TChart> read fCharts;
     property addBasicLayers: Boolean read fAddBasicLayers;
-    property useSimulationSetup: Boolean read fUseSimulationSetup;
+    property useSimulationSetup: Boolean read fUseSimulationSetup write fUseSimulationSetup;
     procedure ReadBasicData(); virtual;
     procedure registerLayers;
   public
@@ -3383,6 +3386,11 @@ begin
   end;
 end;
 
+procedure TChartLines.reset;
+begin
+  values.Clear;
+end;
+
 { TScenario }
 
 function TScenario.AddChart(aChart: TChart): TChart;
@@ -4604,6 +4612,11 @@ begin
   Result := Result+
     '"type":"'+fChartType+'",'+
     '"data":['+getJSONData+']';
+end;
+
+procedure TChart.reset;
+begin
+  //default: do nothing;
 end;
 
 { TSpiderChart }

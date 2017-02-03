@@ -92,6 +92,7 @@ type
     function SQLQuery(const aTablePrefix:string; xMin: Integer=0; yMin: Integer=0; xMax: Integer=-1; yMax: Integer=-1): string;
     function SQLQueryNew(const aTablePrefix:string): string;
     function SQLQueryChange(const aTablePrefix:string): string;
+    function SQLQueryChangeMultiple(const aTablePrefix:string): string;
     function autoDiffRange: Double;
     function BuildLegendJSON(aLegendFormat: TLegendFormat): string;
     function CreateUSLayer(aScenario: TScenario; const aTablePrefix: string; const aConnectString: string;
@@ -189,7 +190,7 @@ type
     constructor Create(aScenario: TScenario; aLines: TDictionary<string, string>; aPrefix, aGroup, aTitle, aTableName: string);
     destructor Destroy; override;
   private
-    fType, fTitle, fGroup, fJSON: string;
+    fTitle, fGroup, fJSON: string;
     fSeries: TDictionary<string, TUSChartSeries>;
     fGroups: TDictionary<string, TList<string>>;
     fDoubleAxes, fChanged: Boolean;
@@ -211,9 +212,11 @@ type
   TUSLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
-    const aConnectString, aNewQuery, aChangeQuery: string; const aDataEvent: array of TIMBEventEntry;
+    const aConnectString, aNewQuery, aChangeQuery, aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry;
     aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; aBasicLayer: Boolean=False);
   destructor Destroy; override;
+  private
+    fChangeMultipleQuery: string;
   protected
     fConnectString: string;
     fOraSession: TOraSession;
@@ -234,6 +237,7 @@ type
     function UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
     procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
   public
+    property ChangeMultipleQuery: string read fChangeMultipleQuery;
     procedure ReadObjects(aSender: TObject);
     procedure RegisterLayer; override;
     procedure RegisterSlice; override;
@@ -704,6 +708,7 @@ begin
       aConnectString,
       SQLQueryNew(aTablePrefix),
       SQLQueryChange(aTablePrefix),
+      SQLQueryChangeMultiple(aTablePrefix),
       aDataEvent,
       aSourceProjection,
       CreatePaletteFromODB(LEGEND_DESC, odbList, True));
@@ -970,6 +975,70 @@ begin
   end;
 end;
 
+function TMetaLayerEntry.SQLQueryChangeMultiple(
+  const aTablePrefix: string): string;
+var
+  join: string;
+  ShapePrefix: string;
+begin
+  join := BuildJoin(aTablePrefix, ShapePrefix);
+  case LAYER_TYPE mod 100 of
+    2:
+      begin
+        Result := ''; // todo: can this work?
+      end;
+    4:
+      begin
+        Result :=
+          'SELECT '+ShapePrefix+'OBJECT_ID, '+
+            VALUE_EXPR+' AS VALUE, '+
+            ShapePrefix+'SHAPE '+
+          'FROM '+join+' '+
+          'WHERE ';
+        if JOINCONDITION<>''
+          then Result := Result+ JOINCONDITION +' AND ';
+        Result := Result +ShapePrefix+'OBJECT_ID in ';
+      end;
+    5, 9:
+      begin
+        Result :=
+          'SELECT '+ShapePrefix+'OBJECT_ID, '+
+            VALUE_EXPR+','+
+            TEXTURE_EXPR+','+
+            ShapePrefix+'SHAPE '+
+          'FROM '+join+' '+
+          'WHERE ';
+        if JOINCONDITION<>''
+          then Result := Result+ JOINCONDITION +' AND ';
+        Result := Result +ShapePrefix+'OBJECT_ID in ';
+      end;
+    21:
+      begin
+        Result :=
+          'SELECT '+ShapePrefix+'OBJECT_ID, '+
+            ShapePrefix+'shape.sdo_point.x, '+
+            ShapePrefix+'shape.sdo_point.y, '+
+            ShapePrefix+'poiType, '+
+            ShapePrefix+'category '+
+          'FROM '+join+' '+
+          'WHERE ';
+        if JOINCONDITION<>''
+          then Result := Result+ JOINCONDITION +' AND ';
+        Result := Result +ShapePrefix+'OBJECT_ID in ';
+      end;
+  else
+    Result :=
+      'SELECT '+ShapePrefix+'OBJECT_ID, '+
+        VALUE_EXPR+' AS VALUE, '+
+        ShapePrefix+'SHAPE '+
+      'FROM '+join+' '+
+      'WHERE ';
+    if JOINCONDITION<>''
+      then Result := Result+ JOINCONDITION +' AND ';
+    Result := Result +ShapePrefix+'OBJECT_ID in ';
+  end;
+end;
+
 function TMetaLayerEntry.SQLQueryNew(const aTablePrefix: string): string;
 var
   join: string;
@@ -1232,7 +1301,7 @@ end;
 
 constructor TUSLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
   const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
-  const aConnectString, aNewQuery, aChangeQuery: string; const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; aBasicLayer: Boolean);
+  const aConnectString, aNewQuery, aChangeQuery, aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; aBasicLayer: Boolean);
 var
   i: Integer;
 begin
@@ -1266,6 +1335,10 @@ begin
   end
   else  fChangeQuery := nil;
 
+  fChangeMultipleQuery := aChangeMultipleQuery;
+
+
+
   fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
   fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
   fUpdateThread := TThread.CreateAnonymousThread(UpdateQueuehandler);
@@ -1298,14 +1371,19 @@ begin
 end;
 
 procedure TUSLayer.handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string);
-var
-  wdid: TWDID;
-  o: TLayerObject;
 begin
   TMonitor.Enter(fUpdateQueueEvent);
   try
-    fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
-    fUpdateQueueEvent.SetEvent;
+    begin
+      try
+        fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
+        fUpdateQueueEvent.SetEvent;
+      except
+        begin
+          Log.WriteLn('Error TUSLayer.handleChangeObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString);
+        end
+      end;
+    end
   finally
     TMonitor.Exit(fUpdateQueueEvent);
   end;
@@ -1366,6 +1444,8 @@ var
   texture: Double;
   texture2: Double;
 begin
+  fObjectsLock.BeginWrite;
+  try
   Result := aObject;
   case fLayerType of
     1, 11:
@@ -1468,9 +1548,49 @@ begin
     end
     else (aObject as TGeometryLayerObject).value := value;
   end;
+  finally
+    fObjectsLock.EndWrite;
+  end
 end;
 
 procedure TUSLayer.UpdateQueuehandler;
+  procedure ReadMultipleObjects(const aIdString: string; const oraSession: TOraSession);
+  var
+   query: TOraQuery;
+   wdid: TWDID;
+   o: TLayerObject;
+  begin
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := oraSession;
+      query.SQL.Text := ChangeMultipleQuery + '(' + aIdString + ')';
+      query.UniDirectional := True;
+      query.Open;
+      query.First;
+      while (not query.Eof) do
+        begin
+          wdid := AnsiString((query.FieldByName('OBJECT_ID').AsInteger).ToString);
+          if FindObject(wdid, o) then
+            begin
+              UpdateObject(query, wdid, o);
+              signalObject(o);
+            end
+          else
+            begin
+              AddObject(UpdateObject(query, wdid, nil));
+            end;
+          query.Next;
+        end;
+    finally
+      query.Free;
+    end;
+  end;
+//  function FieldFloatValueOrNaN(aField: TField): Double;
+//    begin
+//      if aField.IsNull
+//      then Result := NaN
+//      else Result := aField.AsFloat;
+//    end;
 var
   localQueue: TList<TUSUpdateQueueEntry>;
   tempQueue: TList<TUSUpdateQueueEntry>;
@@ -1478,10 +1598,20 @@ var
   newCount: Integer;
   newIDs: string;
   ChangeCount: Integer;
-  ChangeIDs: string;
+  ChangeStack: TStack<string>;
+  ChangeString: string;
+  i: Integer;
+  wdid: TWDID;
+  o: TLayerObject;
+  query: TOraQuery;
+  oraSession: TOraSession;
 begin
   localQueue := TList<TUSUpdateQueueEntry>.Create;
+  oraSession := TOraSession.Create(nil);
+  ChangeStack := TStack<string>.Create;
   try
+    oraSession.connectString := fConnectString;
+    oraSession.open;
     while not TThread.CheckTerminated do
     begin
       if fUpdateQueueEvent.WaitFor=wrSignaled then
@@ -1493,44 +1623,90 @@ begin
           fUpdateQueue := localQueue;
           localQueue := tempQueue;
         finally
-          TMonitor.Enter(fUpdateQueueEvent);
+          TMonitor.Exit(fUpdateQueueEvent);
         end;
         if localQueue.Count>0 then
         begin
-          // updating objects, lock for the whole of the duration
-          // todo: implement
-          {
-          fObjectsLock.BeginWrite;
-          try
             newCount := 0;
             newIDs := '';
             ChangeCount := 0;
-            ChangeIDs := '';
-            for entry in localQueue do
-            begin
-              // process entries
-              if entry.action=actionDelete then
-              begin
 
-              end
-              else if entry.action=actionNew then
               begin
-
-              end
-              else if entry.action=actionChange then
-              begin
-
+              for entry in localQueue do
+              try
+                begin
+                  wdid := AnsiString(entry.objectID.ToString);
+                  // process entries
+                  if entry.action=actionDelete then
+                    begin
+                          begin
+                            if FindObject(wdid, o)
+                            then RemoveObject(o);
+                          end
+                    end
+                  else if entry.action=actionNew then
+                    begin
+                      newCount := newCount+1;
+                      if not FindObject(wdid, o) then
+                      begin
+                        ChangeStack.Push(entry.objectID.ToString);
+//                          fNewQuery.ParamByName('OBJECT_ID').AsInteger := entry.objectID;
+//                          fNewQuery.Execute;
+//                          if not fNewQuery.Eof
+//                          then AddObject(UpdateObject(fNewQuery, wdid, nil))
+//                          else Log.WriteLn('TUSLayer.handleChangeObject: no result on new object ('+entry.objectID.toString+') query '+fNewQuery.SQL.Text, llWarning);
+                      end;
+                    end
+                  else if entry.action=actionChange then
+                    begin
+                      changeCount := changeCount+1;
+//                      if ((changeCount mod 1000) = 0) then
+//                        Log.WriteLn('Calculating changes...' + changeCount.ToString);
+                      if FindObject(wdid, o) then
+                        begin
+//                          fChangeQuery.ParamByName('OBJECT_ID').AsInteger := entry.objectID;
+//                          fChangeQuery.Execute;
+//                          if not fChangeQuery.Eof then
+//                            begin
+//                              UpdateObject(fChangeQuery, wdid, o);
+//                              signalObject(o);
+//                            end
+                          ChangeStack.Push(entry.objectID.ToString);
+                        end
+                        else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+entry.objectID.toString+') query '+fChangeQuery.SQL.Text, llWarning);
+                    end;
+                end;
+              except
+                Log.WriteLn('Exception in handleChangeObject');
               end;
             end;
-          finally
-            fObjectsLock.EndWrite;
+          //Log.WriteLn('Objects in queue: ' + localQueue.Count.ToString);
+          //Log.WriteLn('New Objects: ' + newCount.ToString + ', changed objects: ' + ChangeCount.ToString);
+          if (ChangeStack.Count > 0) and (ChangeMultipleQuery <> '') then
+          begin
+            while (ChangeStack.Count > 1000) do
+            begin
+              changestring := ChangeStack.Pop;
+              for i:=2 to 1000 do
+                changestring := changestring + ', ' + ChangeStack.Pop;
+              ReadMultipleObjects(changestring, oraSession);
+            end;
+            if ChangeStack.Count > 0 then
+            begin
+              changestring := ChangeStack.Pop;
+              while (ChangeStack.Count > 0) do
+                changestring := changestring + ', ' + ChangeStack.Pop;
+              ReadMultipleObjects(changestring, oraSession);
+            end;
           end;
-          }
         end;
+        localQueue.Clear;
       end;
     end;
   finally
     localQueue.Free;
+    oraSession.Free; //todo can I use one try/finally for both of these?
+    ChangeStack.Free;
   end;
 end;
 
@@ -1575,10 +1751,12 @@ begin
       query.SQL.Text := fQuery; //.Replace('SELECT ', 'SELECT t1.OBJECT_ID,');
       query.Open;
       query.First;
-      while not query.Eof do
-      begin
-        oid := AnsiString(query.Fields[0].AsInteger.ToString);
-        objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
+      TMonitor.Enter(objects);
+      try
+        while not query.Eof do
+        begin
+          oid := AnsiString(query.Fields[0].AsInteger.ToString);
+          objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
         (*
         case fLayerType of
           1, 11:
@@ -1652,7 +1830,10 @@ begin
           objects.Add(oid, TGeometryLayerObject.Create(Self, oid, geometry, value));
         end;
         *)
-        query.Next;
+          query.Next;
+        end;
+      finally
+        TMonitor.Exit(objects);
       end;
     finally
       query.Free;
@@ -1754,6 +1935,7 @@ procedure TUSScenario.ReadBasicData;
        aConnectString,
        aNewQuery,
        aChangeQuery,
+       '',
        aDataEvents,
        aSourceProjection,
        TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicOutline)),
@@ -1763,7 +1945,8 @@ procedure TUSScenario.ReadBasicData;
     Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
     // schedule reading objects and send to tiler
     //todo: uncomment!
-    //AddCommandToQueue(aOraSession, layer.ReadObjects);
+    //todo: implement updatemultiplequery for basic layers?
+    AddCommandToQueue(aOraSession, layer.ReadObjects);
   end;
 
   function SubscribeDataEvents(const aUserName, aIMBEventClass: string): TIMBEventEntryArray;
@@ -1922,14 +2105,15 @@ begin
           else dom := standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0]);
           nam := layerInfoParts[1];
 
-          layer := mlp.Value.CreateUSLayer(self, fTablePrefix, connectString, SubscribeDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS), sourceProjection, dom, name);
+          //todo: check if fix from name to nam worked!?
+          layer := mlp.Value.CreateUSLayer(self, fTablePrefix, connectString, SubscribeDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS), sourceProjection, dom, nam);
           if Assigned(layer) then
           begin
             Layers.Add(layer.ID, layer);
             Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
             // schedule reading objects and send to tiler
             //todo: uncomment
-            //AddCommandToQueue(oraSession, layer.ReadObjects);
+            AddCommandToQueue(oraSession, layer.ReadObjects);
           end
           else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' '+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
         end;
@@ -1968,11 +2152,10 @@ procedure TUSScenario.ReadIndicator(aTableName: string; aOraSession: TOraSession
 var
   defQuery, datQuery, datTableName: string;
   defResult, datResult: TAllRowsResults;
-  rowResult: TSingleRowResult;
-  domain, iD, name, description, tab, gridPrefix, column: string;
+  tab, gridPrefix: string;
   dataCols: TStringList;
   lines: TDictionary<string, string>;
-  data, chartDef: TDictionary<string, TStringList>;
+  data: TDictionary<string, TStringList>;
   dataCol: TStringList;
   singleRowResult: TSingleRowResult;
   gridWidth, gridHeight, i, j: Integer;

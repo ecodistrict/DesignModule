@@ -92,8 +92,8 @@ begin
         // build sweco project
         // US: V?
         simParameters := TSSMSimulationParameterList.Create;
-        //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);gtu2fcd;KPI Model;Demo Model;VissimController');
-        simParameters.setParameter('models', 'DataStore;'{Traffic (SSM);Air (SSM <-> US)} + ';gtu2fcd;KPI Model;Demo Model;VissimController');
+        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);gtu2fcd;KPI Model;Demo Model;VissimController');
+        //simParameters.setParameter('models', 'DataStore;'{Traffic (SSM);Air (SSM <-> US)} + ';gtu2fcd;KPI Model;Demo Model;VissimController');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
 
         //simParameters.setParameter('Traffic (SSM)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
@@ -119,6 +119,7 @@ begin
 
         simParameters := TSSMSimulationParameterList.Create;
         simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;KPI Model;VissimController');
+        //simParameters.setParameter('models', 'DataStore;'{Traffic (SSM);Air (SSM <-> US);} + 'SSMAirModule;KPI Model;VissimController');
 
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
 
@@ -148,14 +149,14 @@ begin
               '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
             TMapView.Create(51.45485, 5.51492, 15), 0,
             'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde',
-            'V2');
+            'V4');
         sessionModel.Projects.Add(project);
 
 
         // build tud project
         simParameters := TSSMSimulationParameterList.Create;
-        simParameters.setParameter('models', 'DataStore;SSMAirModule;A58 model');
-        //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;A58 model');
+        //simParameters.setParameter('models', 'DataStore;SSMAirModule;A58 model');
+        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;A58 model');
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
         simParameters.setParameter('A58 model-penetration', '<penetration>');
 
@@ -214,6 +215,51 @@ begin
           end;
         end;
         }
+
+        simParameters := TSSMSimulationParameterList.Create;
+        //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;KPI Model;VissimController');
+        simParameters.setParameter('models', 'DataStore;'{Traffic (SSM);Air (SSM <-> US);} + 'SSMAirModule;KPI Model;VissimController');
+
+        simParameters.setParameter('DataStore-Description', '<scenarioName>');
+
+        simParameters.setParameter('VissimController-penetration', '<penetration>');
+        simParameters.setParameter('VissimController-compliance rate', '<compliance rate>');
+        simParameters.setParameter('VissimController-OD Matrix', '<OD Matrix>');
+        simParameters.setParameter('VissimController-JUNO case', True);
+        simParameters.setParameter('VissimController-Simulation Time Start(hh:mm:ss)', '00:00:00');
+        simParameters.setParameter('VissimController-Simulation Duration', 3600);
+        simParameters.setParameter('VissimController-Period', '<traffic period>');//todo
+
+
+
+        //simParameters.setParameter('Traffic (SSM)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
+        //simParameters.setParameter('Air (SSM <-> US)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
+
+
+        // US: V3
+        project := TSSMProject.Create(sessionModel, imbConnection,
+          'juno', 'Juno N470 use case',
+          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+          nil, 0, false, false, false, True, false,
+          simParameters,
+          '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
+          '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration rate","idName":"penetration","extraOptions":[1, "%"]},'+
+             '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"compliance rate","idName":"compliance rate","extraOptions":[1, "%"]},'+
+             '{"formElement":"select", "type":"string", "required":"y", '+
+              '"optionsArray":[["JUNO N470_3", "juno"], '+
+                              '["JUNO N470_1", "juno VA"], '+
+                              '["JUNO N470_0", "juno uncontrolled"]], '+
+              '"labelText":"Juno case", "idName":"OD Matrix", "extraOptions":false}, ' +
+              '{"formElement":"select", "type":"string", "required":"y", '+
+              '"optionsArray":[["Etmaal", "Basis"], '+
+                              '["avond", "Avond"], '+
+                              '["Middag", "Middag"]], '+
+              '"labelText":"Traffic Selection", "idName":"traffic period", "extraOptions":false}, ' +
+              '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
+          TMapView.Create(51.98805165731394, 4.3596839904785165, 15), 0,
+          'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde',
+          'V5');
+        sessionModel.Projects.Add(project);
 
         // inquire existing session and rebuild internal sessions..
         imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(
