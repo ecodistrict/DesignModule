@@ -602,6 +602,7 @@ begin
   if fNumberOfVehicles>0
   then fValue := fTotalSpeed/fNumberOfVehicles
   else fValue := double.NaN;
+  // todo: only signal value change
   layer.signalObject(Self);
 end;
 

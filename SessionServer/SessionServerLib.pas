@@ -370,6 +370,7 @@ type
     const aObjectTypes, aGeometryType, aLayerType: string; aShowInDomains: Boolean; aDiffRange: Double; aBasicLayer: Boolean=False);
   destructor Destroy; override;
   private
+    fObjectsLock: TOmniMREW;
     fObjects: TObjectDictionary<TWDID, TLayerObject>; // owns
     fGeometryType: string;
     fBasicLayer: Boolean;
@@ -388,7 +389,6 @@ type
 
     fExtraJSON2DAttributes: string;
   protected
-    fObjectsLock: TOmniMREW;
     fLegendJSON: string;
     fQuery: string;
     fTilerLayer: TTilerLayer;

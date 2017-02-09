@@ -32,6 +32,7 @@ uses
 
   GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
 
+  WinApi.Windows,
   System.SyncObjs,
   System.JSON,
   System.Math,
@@ -1444,116 +1445,117 @@ var
   texture: Double;
   texture2: Double;
 begin
-  fObjectsLock.BeginWrite;
-  try
   Result := aObject;
-  case fLayerType of
-    1, 11:
-      begin
-        value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
-        if not Assigned(aObject) then
+  objectsLock.BeginWrite;
+  try
+    case fLayerType of
+      1, 11:
         begin
-          geometryPoint := CreateWDGeometryPointFromSDOShape(aQuery, 'SHAPE');
-          projectGeometryPoint(geometryPoint, fSourceProjection);
-          Result := TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value);
-        end
-        else (aObject as TGeometryPointLayerObject).value := value;
-      end;
-    4: // road (VALUE_EXPR)
-      begin
-        // unidirectional, not left and right
-        value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
-        if not Assigned(aObject) then
-        begin
-          geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
-          projectGeometry(geometry, fSourceProjection);
-          Result := TGeometryLayerObject.Create(Self, oid, geometry, value);
-        end
-        else (aObject as TGeometryLayerObject).value := value;
-      end;
-    5,9: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
-      begin
-        // Left and right
-        if not Assigned(aObject) then
-        begin
-          value := FieldFloatValueOrNaN(aQuery.Fields[1]);
-          value2 := FieldFloatValueOrNaN(aQuery.Fields[2]);
-          texture := FieldFloatValueOrNaN(aQuery.Fields[3]);
-          texture2 := FieldFloatValueOrNaN(aQuery.Fields[4]);
-
-          geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
-          projectGeometry(geometry, fSourceProjection);
-          Result := TUSRoadICLR.Create(Self, oid, geometry, value, value2, texture, texture2);
-        end
-        else
-        begin
-          value := FieldFloatValueOrNaN(aQuery.Fields[0]);
-          value2 := FieldFloatValueOrNaN(aQuery.Fields[1]);
-          texture := FieldFloatValueOrNaN(aQuery.Fields[2]);
-          texture2 := FieldFloatValueOrNaN(aQuery.Fields[3]);
-
-          (aObject as TUSRoadICLR).value := value;
-          (aObject as TUSRoadICLR).value2 := value2;
-          (aObject as TUSRoadICLR).texture := texture;
-          (aObject as TUSRoadICLR).texture2 := texture2;
-        end;
-      end;
-    21: // POI
-      begin
-        //
-        (*
-        geometryPoint := TWDGeometryPoint.Create;
-        try
-          geometryPoint.x := aQuery.Fields[1].AsFloat;
-          geometryPoint.y := aQuery.Fields[2].AsFloat;
-          // no projection, is already in lat/lon
-          poiType := aQuery.Fields[3].AsString;
-          poiCat := aQuery.Fields[4].AsString;
-          if not fPoiCategories.TryGetValue(poicat+'_'+poiType, usPOI) then
+          value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
+          if not Assigned(aObject) then
           begin
-            usPOI := TUSPOI.Create(fNewPoiCatID, TPicture.Create);
-            fNewPoiCatID := fNewPoiCatID+1;
-            try
-              resourceFolder := ExtractFilePath(ParamStr(0));
-              usPOI.picture.Graphic.LoadFromFile(resourceFolder+poicat+'_'+poiType+'.png');
-            except
-              on e: Exception
-              do Log.WriteLn('Exception loading POI image '+resourceFolder+poicat+'_'+poiType+'.png', llError);
-            end;
-            // signal POI image to tiler
-            //ImageToBytes(usPOI);
-            //fTilerLayer.s
-            {
-            stream  := TBytesStream.Create;
-            try
-              usPOI.picture.Graphic.SaveToStream(stream);
-              fOutputEvent.signalEvent(TByteBuffer.bb_tag_tbytes(icehTilerPOIImage, stream.Bytes)); // todo: check correct number of bytes
-            finally
-              stream.Free;
-            end;
-            }
-          end;
-        finally
-          objects.Add(oid, TGeometryLayerPOIObject.Create(Self, oid, usPOI.ID, geometryPoint));
+            geometryPoint := CreateWDGeometryPointFromSDOShape(aQuery, 'SHAPE');
+            projectGeometryPoint(geometryPoint, fSourceProjection);
+            Result := TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value);
+          end
+          else (aObject as TGeometryPointLayerObject).value := value;
         end;
-        *)
+      4: // road (VALUE_EXPR)
+        begin
+          // unidirectional, not left and right
+          value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
+          if not Assigned(aObject) then
+          begin
+            geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
+            projectGeometry(geometry, fSourceProjection);
+            Result := TGeometryLayerObject.Create(Self, oid, geometry, value);
+          end
+          else (aObject as TGeometryLayerObject).value := value;
+        end;
+      5,9: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
+        begin
+          // Left and right
+          if not Assigned(aObject) then
+          begin
+            value := FieldFloatValueOrNaN(aQuery.Fields[1]);
+            value2 := FieldFloatValueOrNaN(aQuery.Fields[2]);
+            texture := FieldFloatValueOrNaN(aQuery.Fields[3]);
+            texture2 := FieldFloatValueOrNaN(aQuery.Fields[4]);
+
+            geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
+            projectGeometry(geometry, fSourceProjection);
+            Result := TUSRoadICLR.Create(Self, oid, geometry, value, value2, texture, texture2);
+          end
+          else
+          begin
+            value := FieldFloatValueOrNaN(aQuery.Fields[0]);
+            value2 := FieldFloatValueOrNaN(aQuery.Fields[1]);
+            texture := FieldFloatValueOrNaN(aQuery.Fields[2]);
+            texture2 := FieldFloatValueOrNaN(aQuery.Fields[3]);
+
+            (aObject as TUSRoadICLR).value := value;
+            (aObject as TUSRoadICLR).value2 := value2;
+            (aObject as TUSRoadICLR).texture := texture;
+            (aObject as TUSRoadICLR).texture2 := texture2;
+          end;
+        end;
+      21: // POI
+        begin
+          //
+          (*
+          geometryPoint := TWDGeometryPoint.Create;
+          try
+            geometryPoint.x := aQuery.Fields[1].AsFloat;
+            geometryPoint.y := aQuery.Fields[2].AsFloat;
+            // no projection, is already in lat/lon
+            poiType := aQuery.Fields[3].AsString;
+            poiCat := aQuery.Fields[4].AsString;
+            if not fPoiCategories.TryGetValue(poicat+'_'+poiType, usPOI) then
+            begin
+              usPOI := TUSPOI.Create(fNewPoiCatID, TPicture.Create);
+              fNewPoiCatID := fNewPoiCatID+1;
+              try
+                resourceFolder := ExtractFilePath(ParamStr(0));
+                usPOI.picture.Graphic.LoadFromFile(resourceFolder+poicat+'_'+poiType+'.png');
+              except
+                on e: Exception
+                do Log.WriteLn('Exception loading POI image '+resourceFolder+poicat+'_'+poiType+'.png', llError);
+              end;
+              // signal POI image to tiler
+              //ImageToBytes(usPOI);
+              //fTilerLayer.s
+              {
+              stream  := TBytesStream.Create;
+              try
+                usPOI.picture.Graphic.SaveToStream(stream);
+                fOutputEvent.signalEvent(TByteBuffer.bb_tag_tbytes(icehTilerPOIImage, stream.Bytes)); // todo: check correct number of bytes
+              finally
+                stream.Free;
+              end;
+              }
+            end;
+          finally
+            objects.Add(oid, TGeometryLayerPOIObject.Create(Self, oid, usPOI.ID, geometryPoint));
+          end;
+          *)
+        end
+    else
+      value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
+      if not Assigned(aObject) then
+      begin
+        geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
+        projectGeometry(geometry, fSourceProjection);
+        Result := TGeometryLayerObject.Create(Self, oid, geometry, value);
       end
-  else
-    value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
-    if not Assigned(aObject) then
-    begin
-      geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
-      projectGeometry(geometry, fSourceProjection);
-      Result := TGeometryLayerObject.Create(Self, oid, geometry, value);
-    end
-    else (aObject as TGeometryLayerObject).value := value;
-  end;
+      else (aObject as TGeometryLayerObject).value := value;
+    end;
   finally
-    fObjectsLock.EndWrite;
+    objectsLock.EndWrite;
   end
 end;
 
 procedure TUSLayer.UpdateQueuehandler;
+
   procedure ReadMultipleObjects(const aIdString: string; const oraSession: TOraSession);
   var
    query: TOraQuery;
@@ -1585,6 +1587,7 @@ procedure TUSLayer.UpdateQueuehandler;
       query.Free;
     end;
   end;
+
 //  function FieldFloatValueOrNaN(aField: TField): Double;
 //    begin
 //      if aField.IsNull
@@ -1603,7 +1606,6 @@ var
   i: Integer;
   wdid: TWDID;
   o: TLayerObject;
-  query: TOraQuery;
   oraSession: TOraSession;
 begin
   localQueue := TList<TUSUpdateQueueEntry>.Create;
@@ -1627,43 +1629,39 @@ begin
         end;
         if localQueue.Count>0 then
         begin
-            newCount := 0;
-            newIDs := '';
-            ChangeCount := 0;
-
+          newCount := 0;
+          newIDs := '';
+          ChangeCount := 0;
+          for entry in localQueue do
+          try
+            begin
+              wdid := AnsiString(entry.objectID.ToString);
+              // process entries
+              if entry.action=actionDelete then
               begin
-              for entry in localQueue do
-              try
+                if FindObject(wdid, o)
+                then RemoveObject(o);
+              end
+              else if entry.action=actionNew then
                 begin
-                  wdid := AnsiString(entry.objectID.ToString);
-                  // process entries
-                  if entry.action=actionDelete then
-                    begin
-                          begin
-                            if FindObject(wdid, o)
-                            then RemoveObject(o);
-                          end
-                    end
-                  else if entry.action=actionNew then
-                    begin
-                      newCount := newCount+1;
-                      if not FindObject(wdid, o) then
-                      begin
-                        ChangeStack.Push(entry.objectID.ToString);
+                  newCount := newCount+1;
+                  if not FindObject(wdid, o) then
+                  begin
+                    ChangeStack.Push(entry.objectID.ToString);
 //                          fNewQuery.ParamByName('OBJECT_ID').AsInteger := entry.objectID;
 //                          fNewQuery.Execute;
 //                          if not fNewQuery.Eof
 //                          then AddObject(UpdateObject(fNewQuery, wdid, nil))
 //                          else Log.WriteLn('TUSLayer.handleChangeObject: no result on new object ('+entry.objectID.toString+') query '+fNewQuery.SQL.Text, llWarning);
-                      end;
-                    end
-                  else if entry.action=actionChange then
-                    begin
-                      changeCount := changeCount+1;
+                  end;
+                end
+              else if entry.action=actionChange then
+                begin
+                  changeCount := changeCount+1;
 //                      if ((changeCount mod 1000) = 0) then
 //                        Log.WriteLn('Calculating changes...' + changeCount.ToString);
-                      if FindObject(wdid, o) then
-                        begin
+                  if FindObject(wdid, o) then
+                    begin
 //                          fChangeQuery.ParamByName('OBJECT_ID').AsInteger := entry.objectID;
 //                          fChangeQuery.Execute;
 //                          if not fChangeQuery.Eof then
@@ -1671,15 +1669,14 @@ begin
 //                              UpdateObject(fChangeQuery, wdid, o);
 //                              signalObject(o);
 //                            end
-                          ChangeStack.Push(entry.objectID.ToString);
-                        end
-                        else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+entry.objectID.toString+') query '+fChangeQuery.SQL.Text, llWarning);
-                    end;
+                      ChangeStack.Push(entry.objectID.ToString);
+                    end
+                    else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+entry.objectID.toString+') query '+fChangeQuery.SQL.Text, llWarning);
                 end;
-              except
-                Log.WriteLn('Exception in handleChangeObject');
-              end;
             end;
+          except
+            Log.WriteLn('Exception in handleChangeObject');
+          end;
           //Log.WriteLn('Objects in queue: ' + localQueue.Count.ToString);
           //Log.WriteLn('New Objects: ' + newCount.ToString + ', changed objects: ' + ChangeCount.ToString);
           if (ChangeStack.Count > 0) and (ChangeMultipleQuery <> '') then
@@ -1977,7 +1974,7 @@ var
   i: Integer;
   oraSession: TOraSession;
   metaLayer: TMetaLayer;
-  connectString: string;
+  _connectString: string;
   sourceProjection: TGIS_CSProjectedCoordinateSystem;
 
   layerInfoKey: string;
@@ -1989,7 +1986,7 @@ var
 begin
   oraSession := (project as TUSProject).OraSession;
   with oraSession
-  do connectString := userName+'/'+password+'@'+server;
+  do _connectString := userName+'/'+password+'@'+server;
   sourceProjection := (project as TUSProject).sourceProjection;
 
   // process basic layers
@@ -2007,7 +2004,8 @@ begin
         AddBasicLayer(
           'road', 'roads', 'roads', 'basic structures', 'road', 'LineString',
           'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-          4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_ROAD'), sourceProjection);
+          4,
+          _connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_ROAD'), sourceProjection);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_PIPELINES' then
       begin // check count
@@ -2015,21 +2013,21 @@ begin
         then AddBasicLayer(
                'pipeline', 'pipe lines', 'pipe lines', 'basic structures', 'pipe line', 'LineString',
                'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_PIPELINES'), sourceProjection);
+               4, _connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_PIPELINES'), sourceProjection);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_BUILDING' then
       begin // always
         AddBasicLayer(
           'building', 'buildings', 'buildings', 'basic structures', 'building', 'MultiPolygon',
           'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-          3, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_BUILDING'), sourceProjection);
+          3, _connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_BUILDING'), sourceProjection);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_SCREEN' then
       begin // always
         AddBasicLayer(
           'screen', 'screens', 'screens', 'basic structures', 'screen', 'LineString',
           'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-          4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_SCREEN'), sourceProjection);
+          4, _connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_SCREEN'), sourceProjection);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_TRAM' then
       begin // check count
@@ -2037,7 +2035,7 @@ begin
         then AddBasicLayer(
                'tramline', 'tram lines', 'tram lines', 'basic structures', 'tram line', 'LineString',
                'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_TRAM'), sourceProjection);
+               4, _connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_TRAM'), sourceProjection);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_BIKEPATH' then
       begin // check count
@@ -2045,7 +2043,7 @@ begin
         then AddBasicLayer(
                'bikepath', 'bike paths', 'bike paths', 'basic structures', 'bike path', 'LineString',
                'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_BIKEPATH'), sourceProjection);
+               4, _connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_BIKEPATH'), sourceProjection);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_RAIL' then
       begin // check count
@@ -2053,7 +2051,7 @@ begin
         then AddBasicLayer(
                'railline', 'rail lines', 'rail lines', 'basic structures', 'rail line', 'LineString',
                'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_RAIL'), sourceProjection);
+               4, _connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_RAIL'), sourceProjection);
       end
       else if tableName=fTablePrefix.ToUpper+'GENE_INDUSTRY_SRC' then
       begin // check count
@@ -2061,7 +2059,7 @@ begin
         then AddBasicLayer(
                'industrysource', 'industry sources', 'industry sources', 'basic structures', 'industry source', 'Point',
                'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-               11, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_INDUSTRY_SRC'), sourceProjection);
+               11, _connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_INDUSTRY_SRC'), sourceProjection);
       end;
       //GENE_NEIGHBORHOOD
       //GENE_RESIDENCE
@@ -2106,7 +2104,7 @@ begin
           nam := layerInfoParts[1];
 
           //todo: check if fix from name to nam worked!?
-          layer := mlp.Value.CreateUSLayer(self, fTablePrefix, connectString, SubscribeDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS), sourceProjection, dom, nam);
+          layer := mlp.Value.CreateUSLayer(self, fTablePrefix, _connectString, SubscribeDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS), sourceProjection, dom, nam);
           if Assigned(layer) then
           begin
             Layers.Add(layer.ID, layer);
