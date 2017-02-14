@@ -43,6 +43,10 @@ uses
   System.Generics.Collections;
 
 
+const
+  PUBLISHINGSERVER_TABLE_PREFIX = 'PBLS';
+  PROJECT_TABLE_NAME = PUBLISHINGSERVER_TABLE_PREFIX+'_PROJECT';
+
 type
   TUSLayer = class; // forward
 
@@ -332,7 +336,7 @@ function CreateWDGeometryFromSDOShape(aQuery: TOraQuery; const aFieldName: strin
 function CreateWDGeometryPointFromSDOShape(aQuery: TOraQuery; const aFieldName: string): TWDGeometryPoint;
 
 function ConnectStringFromSession(aOraSession: TOraSession): string;
-function ConnectToUSProject(const aConnectString, aProjectID: string; out aMapView: TMapView): TOraSession;
+//function ConnectToUSProject(const aConnectString, aProjectID: string; out aMapView: TMapView): TOraSession;
 
 implementation
 
@@ -427,6 +431,20 @@ var
   query: TOraQuery;
   metaLayerEntry: TMetaLayerEntry;
 begin
+  // check for auto upgrade
+  if TableExists(aSession, aTablePrefix+'META_LAYER') and not FieldExists(aSession, aTablePrefix+'META_LAYER', 'DOMAIN') then
+  begin
+    aSession.ExecSQL(
+      'ALTER TABLE '+aTableprefix+'META_LAYER '+
+      'ADD (DOMAIN VARCHAR2(50 BYTE),'+
+           'DESCRIPTION VARCHAR2(150 BYTE),'+
+           'DIFFRANGE NUMBER,'+
+           'OBJECTTYPE VARCHAR2(50 BYTE),'+
+           'GEOMETRYTYPE VARCHAR2(50 BYTE),'+
+           'PUBLISHED INTEGER)');
+    aSession.Commit;
+  end;
+
   query := TOraQuery.Create(nil);
   try
     query.Session := aSession;
@@ -2221,7 +2239,11 @@ begin
     for i := 1 to dataCols.Count - 1 do
       datQuery := datQuery + ', ' + dataCols[i];
     datQuery := datQuery + ' FROM ' + datTableName;
-    datResult := ReturnAllResults(aOraSession, datQuery);
+    try
+      datResult := ReturnAllResults(aOraSession, datQuery);
+    except
+      setLength(datResult, 0);
+    end;
     for i := 0 to dataCols.Count -1 do
       begin
         dataCol := TStringList.Create;
@@ -2512,13 +2534,38 @@ var
   m: Integer;
 begin
   // todo:
-  measures := ReturnAllResults(OraSession,
-    'SELECT OBJECT_ID, Category, Measure, Description, ObjectTypes, Action, Action_Parameters, Action_ID '+
-    'FROM META_MEASURES');
-  for m := 0 to length(measures)-1 do
+  if not TableExists(OraSession, 'META_MEASURES') then
   begin
-    //
+    // add table
+    OraSession.ExecSQL(
+      'CREATE TABLE META_MEASURES('+
+        'OBJECT_ID NUMBER,'+
+        'CATEGORY VARCHAR2(100 BYTE),'+
+        'MEASURE VARCHAR2(100 BYTE),'+
+        'DESCRIPTION VARCHAR2(255 BYTE),'+
+        'OBJECTTYPES VARCHAR2(50 BYTE),'+
+        'ACTION VARCHAR2(100 BYTE),'+
+        'ACTION_PARAMETERS VARCHAR2(255 BYTE),'+
+        'ACTION_ID INTEGER,'+
+        'CONSTRAINT META_MEASURES_PK PRIMARY KEY (OBJECT_ID))');
+    OraSession.Commit;
+  end;
+  try
+    measures := ReturnAllResults(OraSession,
+      'SELECT OBJECT_ID, Category, Measure, Description, ObjectTypes, Action, Action_Parameters, Action_ID '+
+      'FROM META_MEASURES');
+    if length(measures)>0 then
+    begin
+      for m := 0 to length(measures)-1 do
+      begin
+        // todo:
 
+      end;
+    end
+    else log.WriteLn('NO measures defined (no entries)', llWarning);
+  except
+    // no measures, prop. no META_MEASURES table defined
+    log.WriteLn('NO measures defined (no valid table)', llWarning);
   end;
   // todo:
   Self.measuresEnabled := length(measures)>0;
@@ -2554,6 +2601,15 @@ var
   isp: TPair<string, TUSDBScenario>;
 begin
   // read scenarios from project database
+  if TableExists(OraSession, 'META_SCENARIOS') and not FieldExists(OraSession, 'META_SCENARIOS', 'PUBLISHED') then
+  begin
+    // add field
+    OraSession.ExecSQL(
+      'ALTER TABLE META_SCENARIOS '+
+      'ADD (PUBLISHED INTEGER)');
+    OraSession.Commit;
+    Log.WriteLn('Added published field to META_SCENARIOS', llWarning);
+  end;
   try
     scenarios := ReturnAllResults(OraSession,
       'SELECT ID, Name, Federate, Parent_ID, Base_ID, Notes, SCENARIO_STATUS, PUBLISHED '+
@@ -2609,14 +2665,18 @@ begin
     table.Session := aOraSession;
     table.SQL.Text :=
       'SELECT Lat, Lon, Zoom '+
-      'FROM PUBL_PROJECT';
-    table.Execute;
+      'FROM '+PROJECT_TABLE_NAME;
     try
-      if table.FindFirst
-      then Result := TMapView.Create(table.Fields[0].AsFloat, table.Fields[1].AsFloat, table.Fields[2].AsInteger)
-      else Result := aDefault;
-    finally
-      table.Close;
+      table.Execute;
+      try
+        if table.FindFirst
+        then Result := TMapView.Create(table.Fields[0].AsFloat, table.Fields[1].AsFloat, table.Fields[2].AsInteger)
+        else Result := aDefault;
+      finally
+        table.Close;
+      end;
+    except
+      Result := aDefault;
     end;
   finally
     table.Free;
@@ -2627,62 +2687,84 @@ function getUSProjectID(aOraSession: TOraSession; const aDefault: string): strin
 var
   table: TOraTable;
 begin
-  // try to read project info from database
-  table := TOraTable.Create(nil);
-  try
-    table.Session := aOraSession;
-    table.SQL.Text :=
-      'SELECT ProjectID '+
-      'FROM PUBL_PROJECT';
-    table.Execute;
+  if TableExists(aOraSession, PROJECT_TABLE_NAME) then
+  begin
+    // try to read project info from database
+    table := TOraTable.Create(nil);
     try
-      if table.FindFirst then
-      begin
-        if not table.Fields[0].IsNull
-        then Result := table.Fields[0].AsString
-        else Result := aDefault;
-      end
-      else Result := aDefault;
+      table.Session := aOraSession;
+      table.SQL.Text :=
+        'SELECT ProjectID '+
+        'FROM '+PROJECT_TABLE_NAME;
+      try
+        table.Execute;
+        try
+          if table.FindFirst then
+          begin
+            if not table.Fields[0].IsNull
+            then Result := table.Fields[0].AsString
+            else Result := aDefault;
+          end
+          else Result := aDefault;
+        finally
+          table.Close;
+        end;
+      except
+        Result := aDefault;
+      end;
     finally
-      table.Close;
+      table.Free;
     end;
-  finally
-    table.Free;
-  end;
+  end
+  else Result := aDefault;
 end;
 
 procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon: Double; aZoomLevel: Integer);
 var
-  tryInsert: Boolean;
+  tryUpdate: Boolean;
 begin
-  // todo: update does not generate exception: how to check?
-  try
+  if not TableExists(aOraSession, PROJECT_TABLE_NAME) then
+  begin
     aOraSession.ExecSQL(
-      'UPDATE PUBL_PROJECT '+
-      'SET ProjectID='''+aProjectID+''', '+
-          'LAT='+aLat.ToString(dotFormat)+', '+
-          'LON='+aLon.ToString(dotFormat)+', '+
-          'ZOOM='+aZoomLevel.ToString);
-      aOraSession.Commit;
-      tryInsert := False;
+      'CREATE TABLE '+PROJECT_TABLE_NAME+'('+
+        'PROJECTID VARCHAR2(200 BYTE) NOT NULL ENABLE,'+
+        'LAT NUMBER,'+
+        'LON NUMBER,'+
+        'ZOOM INTEGER,'+
+        'STARTPUBLISHEDSCENARIOID INTEGER,'+
+        'CONSTRAINT PBLS_PROJECT_PK PRIMARY KEY (PROJECTID))');
+    aOraSession.Commit;
+    Log.WriteLn('Create table '+PROJECT_TABLE_NAME, llWarning);
+  end;
+  try
+    // try to insert if fails record exists so update existing
+    aOraSession.ExecSQL(
+        'INSERT INTO '+PROJECT_TABLE_NAME+' (PROJECTID, LAT, LON, ZOOM) '+
+        'VALUES ('''+aProjectID+''', '+aLat.ToString(dotFormat)+', '+aLon.ToString(dotFormat)+', '+aZoomLevel.ToString+')');
+    aOraSession.Commit;
+    tryUpdate := False;
   except
     on E: Exception do
     begin
-      Log.WriteLn('Could not update project id, try to insert..');
-      tryInsert := True;
+      Log.WriteLn('Could not insert project id, try to update existing..');
+      tryUpdate := True;
     end;
   end;
-  if tryInsert then
+  if tryUpdate then
   begin
     try
       aOraSession.ExecSQL(
-        'INSERT INTO PUBL_PROJECT (PROJECTID, LAT, LON, ZOOM) '+
-        'VALUES ('''+aProjectID+''', '+aLat.ToString(dotFormat)+', '+aLon.ToString(dotFormat)+', '+aZoomLevel.ToString+')');
+        'UPDATE '+PROJECT_TABLE_NAME+' '+
+        'SET '+ //ProjectID='''+aProjectID+''', '+
+          'LAT='+aLat.ToString(dotFormat)+', '+
+          'LON='+aLon.ToString(dotFormat)+', '+
+          'ZOOM='+aZoomLevel.ToString+' '+
+        'WHERE PROJECTID='''+aProjectID+'''');
       aOraSession.Commit;
     except
       on E: Exception do
       begin
-        Log.WriteLn('Could not insert project id: '+E.Message, llWarning);
+        Log.WriteLn('Could not update project id: '+E.Message, llWarning);
       end;
     end;
   end;
@@ -2698,7 +2780,7 @@ begin
     table.Session := aOraSession;
     table.SQL.Text :=
       'SELECT StartPublishedScenarioID '+
-      'FROM PUBL_PROJECT';
+      'FROM '+PROJECT_TABLE_NAME;
     table.Execute;
     try
       if table.FindFirst then

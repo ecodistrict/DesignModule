@@ -562,6 +562,7 @@ type
     function dateTimeRange: string;
     procedure signalTilerInfo;
     procedure storePersistencyInfo;
+    procedure removePersistencyInfo;
     function extent: TExtent;
     procedure Clear(aMaxEdgeLengthInMeters: Double; const aDescription: string; aPersistent: Boolean); virtual;
   public
@@ -923,7 +924,7 @@ begin
   YMax := aBuffer.bb_read_double(aCursor);
   if aCursor>aLimit
   then Exception.Create('TExtentHelper.Decode read over limit ('+aCursor.toString+', '+aLimit.toString);
-  aCursor := aLimit; // todo: correct? in case we have not read enough or just more was send
+  aCursor := aLimit;
 end;
 
 procedure TExtentHelper.Init;
@@ -1050,14 +1051,14 @@ end;
 
 function TExtentHelper.Intersects(const aExtent: TExtent): Boolean;
 begin
-  // todo:
-  if not (IsEmpty or aExtent.IsEmpty)
-  then Result :=
-         (Self.XMin <= aExtent.XMax) and
-         (Self.XMax >= aExtent.XMin) and
-         (Self.YMin <= aExtent.YMax) and
-         (Self.YMax >= aExtent.YMin)
-  else Result := False;
+  if not (IsEmpty or aExtent.IsEmpty) then
+    Result :=
+       (Self.XMin <= aExtent.XMax) and
+       (Self.XMax >= aExtent.XMin) and
+       (Self.YMin <= aExtent.YMax) and
+       (Self.YMax >= aExtent.YMin)
+  else
+    Result := False;
 end;
 
 function TExtentHelper.IsEmpty: Boolean;
@@ -1487,10 +1488,10 @@ begin
   begin
     fDataLock.BeginWrite;
     try
-      Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': triangulating '+fNet.Points.Count.ToString+' points');
       // use first point as reference for max edge length
       if fNet.Points.Count>0 then
       begin
+        Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': triangulating '+fNet.Points.Count.ToString+' points');
         // get distance in lat/lon (degrees) for x and y in middle of extent for disabling triangles
         distLatLon := TDistanceLatLon.Create(fMaxExtent.YMin, fMaxExtent.YMax);
         //Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': before fNet.Triangulate');
@@ -1503,7 +1504,7 @@ begin
       end
       else
       begin
-        Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': no points', llWarning);
+        Log.WriteLn('receptor layer '+fLayer.LayerID.ToString+': triangulating '+fNet.Points.Count.ToString+' points', llWarning);
         Result := False;
       end;
     finally
@@ -1596,7 +1597,7 @@ begin
         end
         else Log.WriteLn('TSliceReceptor layer '+fLayer.LayerID.ToString+': could not map bitmap', llWarning);
       end
-      else Result := gtsRestart;
+      else Result := gtsOk; // no data, nothing to do
     finally
       fDataLock.EndRead;
     end;
@@ -2157,7 +2158,7 @@ var
   part: TWDGeometryPart;
   point: TWDGeometryPoint;
   path: TPathData;
-  x, y, xPrev, yPrev, xn, yn: Double;
+  x, y, xPrev, yPrev, xn, yn, xd, yd: Double;
   l: Double;
   bufferExtent: TExtent;
   colors: TGeoColors;
@@ -2191,10 +2192,18 @@ begin
             end
             else
             begin
-              colors2 := fPalette.ValueToColors(isgop.Value.texture2);
-              if IsNaN(isgop.Value.texture)
-              then colors := colors2
-              else colors := fPalette.ValueToColors(isgop.Value.texture);
+              if IsNaN(isgop.Value.texture2) then
+              begin
+                colors := fPalette.ValueToColors(isgop.Value.texture);
+                colors2 := colors;
+              end
+              else
+              begin
+                colors2 := fPalette.ValueToColors(isgop.Value.texture2);
+                if IsNaN(isgop.Value.texture)
+                then colors := colors2
+                else colors := fPalette.ValueToColors(isgop.Value.texture);
+              end;
               setLength(polygon, 5);
               for part in isgop.Value.fGeometry.parts do
               begin
@@ -2212,52 +2221,26 @@ begin
                     yn := xPrev-x;
                     // normalize..
                     l := sqrt((xn*xn)+(yn*yn));
+                    polygon[0].X := xPrev;
+                    polygon[0].Y := yPrev;
+                    polygon[1].X := x;
+                    polygon[1].Y := y;
+                    polygon[4].X := xPrev;
+                    polygon[4].Y := yPrev;
 
-                    if not (IsNaN(isgop.Value.value) or IsNaN(isgop.Value.value2)) then
+                    // right = value2 and colors2
+                    if not IsNaN(isgop.Value.value2) then
                     begin
-                      // add polygon to the right for x,y x2,y2
-                      xn := {(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-                      yn := {(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+                      xd := {(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
+                      yd := {(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
 
-                      polygon[0].X := xPrev;
-                      polygon[0].Y := yPrev;
-                      polygon[1].X := x;
-                      polygon[1].Y := y;
-                      polygon[2].X := x+xn;
-                      polygon[2].Y := y+yn;
-                      polygon[3].X := xPrev+xn;
-                      polygon[3].Y := yPrev+yn;
-                      polygon[4].X := xPrev;
-                      polygon[4].Y := yPrev;
+                      polygon[2].X := x-xd;
+                      polygon[2].Y := y-yd;
+                      polygon[3].X := xPrev-xd;
+                      polygon[3].Y := yPrev-yd;
 
                       // draw
-                      if colors.fillColor<>0  then
-                      begin
-                        aBitmap.Canvas.Fill.Color := colors.fillColor;
-                        aBitmap.Canvas.FillPolygon(polygon, 1);
-                      end;
-                      if colors.outlineColor<>0 then
-                      begin
-                        aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-                        aBitmap.Canvas.DrawPolygon(polygon, 1);
-                      end;
-
-                      //left
-                      // add polygon to the left for x,y x2,y2
-                      xn := yPrev-y;
-                      yn := x-xPrev;
-                      // normalize..
-                      l := sqrt((xn*xn)+(yn*yn));
-                      xn := {(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-                      yn := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
-
-                      // todo: wrong rotation direction..
-                      polygon[2].X := x-xn;
-                      polygon[2].Y := y-yn;
-                      polygon[3].X := xPrev-xn;
-                      polygon[3].Y := yPrev-yn;
-                      // draw left
-                      if colors2.fillColor<>0 then
+                      if colors2.fillColor<>0  then
                       begin
                         aBitmap.Canvas.Fill.Color := colors2.fillColor;
                         aBitmap.Canvas.FillPolygon(polygon, 1);
@@ -2267,6 +2250,33 @@ begin
                         aBitmap.Canvas.Stroke.Color := colors2.outlineColor;
                         aBitmap.Canvas.DrawPolygon(polygon, 1);
                       end;
+                    end;
+
+                    //left (value and colors)
+                    if not IsNaN(isgop.Value.value) then
+                    begin
+                      xd := {(1+}isgop.Value.value*capacityFactor{)}*xn/l;
+                      yd := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
+
+                      // todo: wrong rotation direction..
+                      polygon[2].X := x+xd;
+                      polygon[2].Y := y+yd;
+                      polygon[3].X := xPrev+xd;
+                      polygon[3].Y := yPrev+yd;
+                      // draw left
+                      if colors.fillColor<>0 then
+                      begin
+                        aBitmap.Canvas.Fill.Color := colors.fillColor;
+                        aBitmap.Canvas.FillPolygon(polygon, 1);
+                      end;
+                      if colors.outlineColor<>0 then
+                      begin
+                        aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+                        aBitmap.Canvas.DrawPolygon(polygon, 1);
+                      end;
+                    end;
+                  end;
+                    (*
                     end
                     else
                     begin
@@ -2306,6 +2316,7 @@ begin
                       end;
                     end;
                   end;
+                  *)
                 end;
               end;
             end;
@@ -2488,7 +2499,8 @@ constructor TSlicePNG.Create(aLayer: TLayer; aTimeStamp: TDateTime; aExtent: TEx
 begin
   inherited Create(aLayer, nil, aTimeStamp);
   fExtent := aExtent;
-  fImage := aImage; // todo: copy image
+  fImage := FMX.Graphics.TBitmap.Create(0, 0); // aImage.Width, aImage.Height);
+  fImage.Assign(aImage);
   fDiscreteColorsOnStretch := aDiscreteColorsOnStretch;
 end;
 
@@ -2920,7 +2932,6 @@ end;
 
 procedure TDiffSlice.HandleDiffUpdate;
 begin
-  // todo: action?
   // recalc extent
   fMaxExtent := fCurrentSlice.fMaxExtent.Intersection(fRefSlice.fMaxExtent);
   fLayer.signalRefresh(timeStamp);
@@ -3133,13 +3144,12 @@ begin
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
       capacityFactor := 0.001/Abs(aExtent.YMax-aExtent.YMin);
       bufferExtent := aExtent.Inflate(1.3);
-      // todo: we are missing out on objects in ref but not in cur
       fCurrentSlice.fDataLock.BeginRead;
       fRefSlice.fDataLock.BeginRead;
       try
         for isgop in (fCurrentSlice as TSliceGeometryICLR).fGeometries do
         begin
-          // get reference gheometry object
+          // get reference geometry object
           if not (fRefSlice as TSliceGeometryICLR).fGeometries.TryGetValue(isgop.Key, refObj)
           then refObj := nil;
 
@@ -3287,6 +3297,7 @@ begin
             end;
           end;
         end;
+        // todo: process ref geometries not in current? or just skip..
       finally
         fCurrentSlice.fDataLock.EndRead;
         fRefSlice.fDataLock.EndRead;
@@ -3386,7 +3397,11 @@ begin
       fPersistent := true;
     end;
   end
-  else fPersistent := false; // todo: remove persistency information?
+  else
+  begin
+    removePersistencyInfo;
+    fPersistent := false;
+  end;
   fDescription := aDescription;
   fMaxEdgeLengthInMeters := aMaxEdgeLengthInMeters;
   // todo: clear slices? prob. not..
@@ -3569,7 +3584,6 @@ var
   _layerID: Integer;
   width: UInt32;
   res: Integer;
-//  bitmap: FMX.Graphics.TBitmap;
 begin
   try
     timeStamp := 0;
@@ -3698,9 +3712,9 @@ begin
                 end;
               (icehTilerPNGImage shl 3) or wtLengthDelimited:
                 begin
-                  // todo: pngImage
                   stream := TStringStream.Create(aBuffer.bb_read_rawbytestring(aCursor));
                   try
+                    pngImage.Free;
                     pngImage := FMX.Graphics.TBitmap.CreateFromStream(stream);
                   finally
                     stream.Free;
@@ -3731,12 +3745,14 @@ begin
               (icehDiscretePalette shl 3) or wtLengthDelimited:
                 begin
                   size := aBuffer.bb_read_uint64(aCursor);
-                  palette := TDiscretePalette.Create;
+                  palette.Free;
+                  palette := TDiscretePalette.Create();
                   palette.Decode(aBuffer, aCursor, aCursor+size);
                 end;
               (icehRampPalette shl 3) or wtLengthDelimited:
                 begin
                   size := aBuffer.bb_read_uint64(aCursor);
+                  palette.Free;
                   palette := TRampPalette.Create;
                   palette.Decode(aBuffer, aCursor, aCursor+size);
                 end;
@@ -3790,6 +3806,11 @@ begin
   else Result := NaN;
 end;
 
+procedure TLayer.removePersistencyInfo;
+begin
+  StandardIni.DeleteKey(PersistentLayersSection, fLayerID.ToString);
+end;
+
 procedure TLayer.Save(aStream: TStream; aSavedSlices: TList<TSlice>);
 var
   slice: TSlice;
@@ -3821,7 +3842,6 @@ end;
 
 procedure TLayer.storePersistencyInfo;
 begin
-  // store persistency info
   StandardIni.WriteString(
     PersistentLayersSection,
     fLayerID.ToString,
