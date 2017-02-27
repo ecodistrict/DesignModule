@@ -149,8 +149,7 @@
         {
             var maplayer = layer.maplayer;
             layer.showing.hideLayer();
-            switch(e.target)
-            {
+            switch (e.target) {
                 case crd.reference:
                     layer.showing = layer.ref;
                     layer.ref.showLayer(maplayer);

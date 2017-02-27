@@ -117,13 +117,11 @@
                     GraphManager.MakeGraph(domain.charts[cid]);
                 }
                 for (var lid in domain.layers) {
-                    if (!domain.layers[lid].basic)
-                    {
+                    if (!domain.layers[lid].basic) {
                         LayerManager.AddLayer(domain.layers[lid]);
-            }
-        }
-                for (var kid in domain.kpis)
-                {
+                    }
+                }
+                for (var kid in domain.kpis) {
                     //todo add to KPI Manager!
                 }
             }
@@ -151,7 +149,7 @@
         //            zoom: (11+i)
         //        });
         //    }
-            //LayerManager.AddLayer(switchLayer);
+        //LayerManager.AddLayer(switchLayer);
         //}
 
         // re-build details elements
@@ -166,8 +164,7 @@
         var activekpis = {};
         var domain;
         for (var domainName in domains) {
-            if (domains[domainName].enabled)
-            {
+            if (domains[domainName].enabled) {
                 domain = domains[domainName];
                 for (var cid in domain.charts)
                     activecharts[domain.charts[cid].id] = domain.charts[cid].id;
@@ -225,34 +222,28 @@
                         }
                     }
 
-                    if (typeof payload.legend != "undefined")
-                    {
+                    if (typeof payload.legend != "undefined") {
                         layer.legend = payload.legend;
-                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.id)
-                        {
+                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.id) {
                             legendControl.createLegend(layer.legend, layer.id);
                         }
                     }
                 }
-                if (layer.ref && payload.ref && layer.ref.id == payload.ref.id)
-                {
+                if (layer.ref && payload.ref && layer.ref.id == payload.ref.id) {
                     if (typeof payload.ref.tiles != "undefined") {
                         layer.ref.tiles = payload.ref.tiles;
                         if (layer.tileLayer && layer.tileLayer.idShowing == payload.ref.id) {
                             updateTilesLayerOnMap(layer.ref.id, layer.ref.tiles);
                         }
                     }
-                    if (typeof payload.ref.legend != "undefined")
-                    {
+                    if (typeof payload.ref.legend != "undefined") {
                         layer.ref.legend = payload.ref.legend;
-                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.ref.id)
-                        {
+                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.ref.id) {
                             legendControl.createLegend(layer.ref.legend, layer.ref.id);
                         }
                     }
                 }
-                if (layer.diff && payload.diff && layer.diff.id == payload.diff.id)
-                {
+                if (layer.diff && payload.diff && layer.diff.id == payload.diff.id) {
                     if (typeof payload.diff.tiles != "undefined") {
                         layer.diff.tiles = payload.diff.tiles;
                         if (layer.tileLayer && layer.tileLayer.idShowing == payload.diff.id) {
@@ -260,11 +251,9 @@
                         }
                     }
 
-                    if (typeof payload.diff.legend != "undefined")
-                    {
+                    if (typeof payload.diff.legend != "undefined") {
                         layer.diff.legend = payload.diff.legend;
-                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.diff.id)
-                        {
+                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.diff.id) {
                             legendControl.createLegend(layer.diff.legend, layer.diff.id);
                         }
                     }
@@ -285,7 +274,7 @@
 
         // determine elements per row
         var maxElementCount = Math.max(Object.keys(this._kpis).length, LayerManager.ActiveCount, GraphManager.ActiveCount);
-        var elementsPerRow = maxElementCount >0 ? Math.ceil(Math.sqrt(maxElementCount)) : 1;
+        var elementsPerRow = maxElementCount > 0 ? Math.ceil(Math.sqrt(maxElementCount)) : 1;
         this.kpis = document.createElement('div');
         this.kpis.className = 'detailskpis';
         this.kpis.style.width = (/*this.options.*/elementsPerRow * this.options.elementWidth) + 'px';
@@ -342,7 +331,7 @@
             hr2.style.display = 'None';
         return this;
     },
-    hasElements : function() {
+    hasElements: function () {
         for (var kpi in this._kpis)
             return true;
         for (var chart in this._charts)
@@ -355,7 +344,7 @@
     },
 
     _expand: function () {
-      L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
+        L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
         if (this.hasElements()) {
             L.DomUtil.addClass(this._container, 'leaflet-control-details-expanded');
             this._form.style.height = null;

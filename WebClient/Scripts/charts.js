@@ -43,7 +43,7 @@ function addChartVerticalBars(parent, definition, aWidth, aHeight, aWithAxes, aW
         .attr('class', 'chartDetailsMainGroup')
         .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
-    
+
     if (aWithRectangle) {
         // add rounded rectangle
         svg.append('rect')

@@ -764,38 +764,6 @@ LayerManager.ObjectLayer = function (layer, detailsLayer, crd) {
         this.maplayer = null;
     };
 
-
-    /*
-    payload :
-    { id: layerid,
-      data:
-        [{ **newobject/updateobject/removeobject are mutially exclusive, if more then one are defined only the first one will be handled!**
-        newobject: {
-            type: "circle"/and others
-            radius: ..., (for circle)
-            id: ...,
-            lat: ...,
-            lng: ...,
-            fillColor: ...,
-            color: ...,
-            opacity: ...,
-            fillOpacity: ...
-        },
-        updateobject: {
-            id: ...,
-            lat: ...,
-            lng: ...,
-            fillColor: ...,
-            color: ...,
-            opacity: ...,
-            fillOpacity: ...,
-        },
-        removeobject: {
-            id: ...
-        }
-    }]
-    }
-    */
     this.updateData = function (payload) {
         if (payload.legend) {
             this.legend = payload.legend;
@@ -888,50 +856,6 @@ LayerManager.GeoJSONLayer = function (layer, detailsLayer, crd) {
     };
 
     this.updateData = function (payload) {
-        //var elementID = payload.id;
-        //// online layer
-        //for (var mlid in map._layers) {
-        //    var layer = map._layers[mlid];
-        //    if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == elementID) {
-        //        if (typeof payload.newobjects !== "undefined") {
-        //            // dictionary of id: feature
-        //            for (var id in payload.newobjects) {
-        //                layer.addData(payload.newobjects[id]);
-        //            }
-        //        }
-        //        else if (payload.changedcolors) {
-        //            // dictionary of id: color
-        //            for (var lid in layer._layers) {
-        //                var fid = layer._layers[lid].feature.properties.id;
-        //                var newColor = payload.changedcolors[fid];
-        //                if (newColor)
-        //                    layer._layers[lid].feature.properties.color = newColor;
-        //            }
-        //            layer.setStyle(
-        //                function (feature) {
-        //                    // todo: test code for live trafic.. generalize..
-        //                    if (feature.properties.color == '#000000')
-        //                        return { color: '#000000', weight: 1 };
-        //                    else
-        //                        return { color: feature.properties.color }
-        //                });
-        //        }
-        //        else if (payload.removedobjects) {
-        //            // dictionary id: X
-        //            for (var lid in layer._layers) {
-        //                var fid = layer._layers[lid].feature.properties.id;
-        //                if (payload.removedobjects[fid])
-        //                    layer.removeLayer(layer._layers[lid]);
-        //            }
-        //        }
-        //        if (payload.timestamp) {
-        //            showLayerTimeStamp(payload.timestamp)
-
-        //        }
-        //    }
-        //}
-
-
         if (payload.objects) {
             this.geoJSON = payload.objects;
             if (this.maplayer)

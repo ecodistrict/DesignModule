@@ -38,7 +38,7 @@ DataManager = {
     },
 
     _addComplaint: function (complaint) {
-        
+
         var pos = L.latLng(complaint.latitude, complaint.longitude);
 
         let scale = 0.375;
@@ -65,8 +65,7 @@ DataManager = {
     },
 
     _getSensor: function (sensorid) {
-        for (var i = 0; i < DataManager.sensors.length; i++)
-        {
+        for (var i = 0; i < DataManager.sensors.length; i++) {
             if (DataManager.sensors[i].sensorid == sensorid)
                 return DataManager.sensors[i];
         }
@@ -76,8 +75,7 @@ DataManager = {
     },
 
     _getComplaint: function (complaintid) {
-        for (var i = 0; i < DataManager.complaints.length; i++)
-        {
+        for (var i = 0; i < DataManager.complaints.length; i++) {
             if (DataManager.complaints[i].complaintid == complaintid)
                 return DataManager.complaints[i];
         }
@@ -112,7 +110,7 @@ DataManager = {
             let orr = 128;
             let orrAnchor = { x: 52, y: 66 };
 
-            icon =  L.icon({
+            icon = L.icon({
                 iconUrl: "Content/images/sensor2.png",
                 shadowUrl: "Content/images/sensor.png",
 
@@ -176,15 +174,12 @@ DataManager = {
     },
 
     AddCar: function (aCar) {
-        if (DataManager.drawLayer == null)
-        {
+        if (DataManager.drawLayer == null) {
             DataManager.drawLayer = L.layerGroup().addTo(map);
         }
 
-        for (var i = 0; i < DataManager.cars.length; i++)
-        {
-            if (typeof DataManager.carshash[aCar.id] !== "undefined")
-            {
+        for (var i = 0; i < DataManager.cars.length; i++) {
+            if (typeof DataManager.carshash[aCar.id] !== "undefined") {
                 return;
             }
         }
@@ -219,43 +214,35 @@ DataManager = {
 
 
         var changed = false;
-        if (typeof aCarData.lat !== 'undefined')
-        {
+        if (typeof aCarData.lat !== 'undefined') {
             car.lat = aCarData.lat;
             changed = true;
         }
-        if (typeof aCarData.lng !== 'undefined')
-        {
+        if (typeof aCarData.lng !== 'undefined') {
             car.lng = aCarData.lng;
             changed = true;
         }
 
         var lightChange = false;
-        if (aCarData.tis)
-        {
+        if (aCarData.tis) {
             car.tis = aCarData.tis;
             lightChange = true;
         }
 
-        if (typeof aCarData.bl !== 'undefined')
-        {
+        if (typeof aCarData.bl !== 'undefined') {
             car.bl = aCarData.bl;
             lightChange = true;
         }
 
-        if (lightChange)
-        {
-            if (aCarData.bl)
-            {
+        if (lightChange) {
+            if (aCarData.bl) {
                 car.circle.setStyle({ color: "#ff0000", opacity: 1 })
             }
-            else if (aCarData.tis == "LEFT" || aCarData.tis == "RIGHT" || aCarData.tis == "HAZARD")
-            {
+            else if (aCarData.tis == "LEFT" || aCarData.tis == "RIGHT" || aCarData.tis == "HAZARD") {
                 car.circle.setStyle({ color: "#ffcc00", opacity: 1 })
             }
-            else
-            {
-                car.circle.setStyle( {color: car.fill, opacity: 1})
+            else {
+                car.circle.setStyle({ color: car.fill, opacity: 1 })
             }
         }
 
@@ -295,8 +282,7 @@ DataManager = {
     NewComplaint: function (aComplaint) {
         var complaint = DataManager._getComplaint(aComplaint.complaintid);
 
-        if (complaint == null)
-        {
+        if (complaint == null) {
             complaint = {
                 complaintid: aComplaint.complaintid,
                 time: aComplaint.time,
@@ -331,8 +317,7 @@ DataManager = {
     },
 
     RemoveComplaint: function (complaintid) {
-        for (var i = 0; i < DataManager.complaints.length; i++)
-        {
+        for (var i = 0; i < DataManager.complaints.length; i++) {
             if (DataManager.complaints[i].complaintid == complaintid) {
 
                 map.removeLayer(DataManager.complaints[i].marker);
@@ -342,8 +327,7 @@ DataManager = {
         }
     },
 
-    GetDisplayTime: function(aTime)
-    {
+    GetDisplayTime: function (aTime) {
         var time = DataManager.BreakdownTime(aTime);
 
         var systemTime = new Date();
@@ -351,7 +335,7 @@ DataManager = {
         var utcTime = DataManager.GetTimeObject(time);
 
         var builder = "";
-        
+
         //if (time.day != systemTime.getDate() || time.month != (systemTime.getMonth() + 1) || time.year != systemTime.getFullYear())
         //{
         //    builder += time.day + "/" + time.month;
@@ -365,9 +349,8 @@ DataManager = {
             builder += utcTime.getDay() + "/" + (utcTime.getMonth() + 1) + "/" + utcTime.getYear();
         }
         else if (utcTime.getDay() != systemTime.getDate() || utcTime.getMonth() != (systemTime.getMonth())) {
-            builder += time.day;    
-            switch (parseInt(utcTime.getMonth()) + 1)
-            {
+            builder += time.day;
+            switch (parseInt(utcTime.getMonth()) + 1) {
                 case 1: builder += " Jan.";
                     break;
                 case 2: builder += " Feb.";
@@ -394,18 +377,16 @@ DataManager = {
                     break;
             }
         }
-        else
-        {
+        else {
             builder += "Today";
         }
 
         builder += " " + utcTime.getHours() + ":" + utcTime.getMinutes();
 
-        if (utcTime.getSeconds() != 0)
-        {
+        if (utcTime.getSeconds() != 0) {
             builder += ":" + utcTime.getSeconds();
         }
-        
+
         return builder;
     },
 
@@ -512,8 +493,7 @@ DataManager = {
         //check if sensor already excists
         var sensor = DataManager._getSensor(aSensor.sensorid);
 
-        if (sensor == null)
-        {
+        if (sensor == null) {
             sensor = {
                 sensorid: aSensor.sensorid,
                 name: aSensor.name,
@@ -562,8 +542,7 @@ DataManager = {
         var marker = L.marker(L.latLng(52.08869341290, 5.16701026653), { icon: leakIcon }).addTo(map).on('click', function (e) { map.removeLayer(e.target); });
     },
 
-    StringyfyObject: function ()
-    {
+    StringyfyObject: function () {
         var object = {
             complaint: {
                 type: "Phone call",
@@ -579,8 +558,7 @@ DataManager = {
 
 }
 
-function AddComplaint(complaint)
-{
+function AddComplaint(complaint) {
     DataManager._addComplaint(complaint);
 }
 
@@ -589,8 +567,7 @@ function AddMultipleCars(amount) {
         DataManager.AddCar(CreateRandomCar());
 }
 
-function AddMultipleSensors(amount)
-{
+function AddMultipleSensors(amount) {
     for (var i = 0; i < amount; i++)
         AddSensor();
 }
@@ -616,8 +593,7 @@ function ChangeRandomCar() {
     DataManager.UpdateCar({ id: DataManager.cars[index].id, lat: newpos.lat, lng: newpos.lng });
 }
 
-function AddSensor()
-{
+function AddSensor() {
     var sensor = CreateRandomSensor();
 
     DataManager._addSensor(sensor);
@@ -690,8 +666,7 @@ function randomCarChangeLoop(maxDelay) {
 
     DataManager.fpsCounter++;
 
-    if (Date.now() >= DataManager.fpsMiliseconds + 1000)
-    {
+    if (Date.now() >= DataManager.fpsMiliseconds + 1000) {
         console.log("fps: " + DataManager.fpsCounter);
         DataManager.fpsCounter = 0;
         DataManager.fpsMiliseconds += 1000;

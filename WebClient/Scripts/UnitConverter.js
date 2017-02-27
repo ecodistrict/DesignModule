@@ -147,7 +147,7 @@
             qnt: 'Mass rate', si: "kg/s", units: [
                { unit: 'g/s', factor: 1000, offset: 0 },
                { unit: 'kg/h', factor: 3600, offset: 0 },
-               { unit: 'g/min', factor: 1000/60, offset: 0},
+               { unit: 'g/min', factor: 1000 / 60, offset: 0 },
                { unit: 'ton (metric)/h', factor: 3.6, offset: 0 },
                { unit: 'lb/s', factor: 2.20462262184878, offset: 0 },
                { unit: 'lb/h', factor: 7936.69690548188, offset: 0 }
@@ -424,7 +424,7 @@
         }
 
         this.Clear = function (aUnit) {
-             delete typeof this.conversionUnits[aUnit]
+            delete typeof this.conversionUnits[aUnit]
         }
 
         this.IsEmpty = function (aUnit) {
@@ -436,8 +436,7 @@
             date.setUTCMinutes(date.getUTCMinutes() - date.getTimezoneOffset()); //sets the localtime as it was
             return date;
             if (this.CanConvert(aUnit)) {
-                switch(aUnit.toLowerCase())
-                {
+                switch (aUnit.toLowerCase()) {
                     case "utc": return aValue;
                         break;
                     case "gmt":

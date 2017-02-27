@@ -48,7 +48,7 @@ var map = L.map('map', {
 });
 
 function showCoordinates(e) {
-    alert(e.latlng+" (zoom:"+map._zoom+")"); // todo: change to nicer view? or remove
+    alert(e.latlng + " (zoom:" + map._zoom + ")"); // todo: change to nicer view? or remove
 }
 
 function deselectObjects(e) {

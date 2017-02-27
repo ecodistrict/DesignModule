@@ -19,7 +19,7 @@
         .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
         .call(makeKPI);
     */
-    
+
     var svg = d3.select(parent).append('svg').data([data])
         .attr('class', 'bullet')
         .attr('width', width + margin.left + margin.right)
@@ -27,7 +27,7 @@
         .append('g')
         .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
         .call(makeKPI);
-    
+
 
     var title = svg.append('g')
         .style('text-anchor', 'end')

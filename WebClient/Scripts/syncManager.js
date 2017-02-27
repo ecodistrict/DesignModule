@@ -23,20 +23,16 @@
             y: 60,
         }
     },
-    handleCCVMessage: function(message) {
-        if (typeof message.move !== "undefined")
-        {
+    handleCCVMessage: function (message) {
+        if (typeof message.move !== "undefined") {
             SyncManager.sessionData.center = message.move.center;
             SyncManager.sessionData.zoom = message.move.zoom;
-            if (SyncManager.syncs.move)
-            {
+            if (SyncManager.syncs.move) {
                 map.flyTo(message.move.center, message.move.zoom);
             }
         }
-        if (typeof message.scenario !== "undefined")
-        {
-            if (DataManager.sessionInfo.referenceScenario != message.scenario)
-            {
+        if (typeof message.scenario !== "undefined") {
+            if (DataManager.sessionInfo.referenceScenario != message.scenario) {
                 wsSend({
                     selectScenario: {
                         currentScenario: options.activeScenario,
@@ -45,28 +41,22 @@
                 });
             }
         }
-        if (typeof message.playback !== "undefined")
-        {
-            if (message.playback.play)
-            {
+        if (typeof message.playback !== "undefined") {
+            if (message.playback.play) {
                 DataManager.startControl.SyncStartCommand();
             }
-            else if (message.playback.stop)
-            {
+            else if (message.playback.stop) {
                 DataManager.startControl.SyncStopCommand();
             }
 
-            if (message.playback.speed)
-            {
+            if (message.playback.speed) {
                 DataManager.startControl.SyncSpeedCommand(message.playback.speed);
             }
         }
     },
-    handleCCPMessage: function(message) {
-        if (typeof message.initRequest !== "undefined")
-        {
-            if (SyncManager.presenter)
-            {
+    handleCCPMessage: function (message) {
+        if (typeof message.initRequest !== "undefined") {
+            if (SyncManager.presenter) {
                 SyncManager.sendMoveMessage();
             }
         }
@@ -83,15 +73,13 @@
                     SyncManager.setViewer();
                 }
 
-                if (SyncManager.viewerPresenterDialogInfo)
-                {
+                if (SyncManager.viewerPresenterDialogInfo) {
                     SyncManager.viewerPresenterDialogInfo = null;
                     modalDialogClose();
                 }
             }
             else {
-                if (SyncManager.viewerPresenterDialogInfo)
-                {
+                if (SyncManager.viewerPresenterDialogInfo) {
                     if (message.result == "groupalreadyexists")
                         SyncManager.viewerPresenterDialogInfo.errorDiv.innerHTML = "Can't create, session name already in use<p>";
                     else if (message.result == "groupdoesnotexist")
@@ -101,16 +89,14 @@
                 }
             }
         }
-        else if (message.command == "groupclose" && message.group == SyncManager.group)
-        {
+        else if (message.command == "groupclose" && message.group == SyncManager.group) {
             if (SyncManager.presenter)
                 SyncManager.removePresenter();
             else if (SyncManager.viewer)
                 SyncManager.removeViewer();
         }
     },
-    requestPresenter: function (groupid)
-    {
+    requestPresenter: function (groupid) {
         var obj = {
             type: "groupcontrol",
             payload: {
@@ -120,8 +106,7 @@
         }
         wsSend(obj);
     },
-    requestViewer: function (groupid)
-    {
+    requestViewer: function (groupid) {
         var obj = {
             type: "groupcontrol",
             payload: {
@@ -131,8 +116,7 @@
         }
         wsSend(obj);
     },
-    setPresenter: function()
-    {
+    setPresenter: function () {
         //todo: remove for real implementation
         //if (DataManager.sessionInfo.session.toLowerCase() != "ssm")
         //    return;
@@ -146,8 +130,7 @@
         SyncManager.updateSessionData();
         map.on("move", SyncManager.handleMove);
     },
-    removePresenter: function()
-    {
+    removePresenter: function () {
         if (!SyncManager.presenter)
             return;
         map.off("move", SyncManager.handleMove);
@@ -163,8 +146,7 @@
 
         SyncManager.group = "";
     },
-    setViewer: function()
-    {
+    setViewer: function () {
         //todo: remove for real implementation
         //if (DataManager.sessionInfo.session.toLowerCase() != "ssm2")
         //    return;
@@ -181,8 +163,7 @@
         SyncManager._addViewerControl();
         SyncManager.sendInitRequest();
     },
-    removeViewer: function()
-    {
+    removeViewer: function () {
         if (!SyncManager.viewer)
             return;
 
@@ -202,7 +183,7 @@
 
         SyncManager.group = "";
     },
-    speedChange: function(speed) {
+    speedChange: function (speed) {
         if (!SyncManager.presenter)
             return;
 
@@ -215,7 +196,7 @@
         };
         wsSend(obj);
     },
-    startPress: function() {
+    startPress: function () {
         if (!SyncManager.presenter)
             return;
 
@@ -223,12 +204,12 @@
             type: "ccv",
             group: SyncManager.group,
             payload: {
-                playback: {play: true}
+                playback: { play: true }
             }
         };
         wsSend(obj);
     },
-    stopPress: function() {
+    stopPress: function () {
         if (!SyncManager.presenter)
             return;
 
@@ -240,8 +221,7 @@
             }
         };
     },
-    newActiveScenario: function(scenario)
-    {
+    newActiveScenario: function (scenario) {
         if (!SyncManager.presenter)
             return;
 
@@ -280,8 +260,7 @@
         SyncManager.syncs.time = true;
         startControl.disable();
     },
-    updateSessionData: function()
-    {
+    updateSessionData: function () {
         SyncManager.sessionData = {
             center: map.getCenter(),
             zoom: map.getZoom(),
@@ -292,10 +271,8 @@
         SyncManager.updateSessionData();
         SyncManager.sendMoveMessage();
     },
-    _addViewerControl: function()
-    {
-        if (SyncManager.viewerControl == null)
-        {
+    _addViewerControl: function () {
+        if (SyncManager.viewerControl == null) {
             //initialization!
             var container = document.body.appendChild(document.createElement("div"));
             SyncManager.viewerControl = container;
@@ -312,27 +289,23 @@
             var moveButton = buttonContainer.appendChild(document.createElement("div"));
             moveButton.className = "viewerControlMoveButton viewerControlButton";
             moveButton.addEventListener("click", SyncManager.toggleMove);
-            if (!SyncManager.syncs.move)
-            {
+            if (!SyncManager.syncs.move) {
                 moveButton.style.opacity = "0.6";
             }
 
             var timeButton = buttonContainer.appendChild(document.createElement("div"));
             timeButton.className = "viewerControlTimeButton viewerControlButton";
             timeButton.addEventListener("click", SyncManager.toggleTime);
-            if (!SyncManager.syncs.time)
-            {
+            if (!SyncManager.syncs.time) {
                 timeButton.style.opacity = "0.6";
             }
         }
-        else
-        {
+        else {
             SyncManager.viewerControl.style.visibility = "visible";
         }
     },
 
-    _addViewerPresenterControl: function()
-    {
+    _addViewerPresenterControl: function () {
 
     },
 
@@ -342,11 +315,9 @@
     },
     toggleMove: function (e) {
         SyncManager.syncs.move = !SyncManager.syncs.move;
-        if (SyncManager.syncs.move)
-        {
+        if (SyncManager.syncs.move) {
             SyncManager.disableMove();
-            if (SyncManager.sessionData.center)
-            {
+            if (SyncManager.sessionData.center) {
                 if (SyncManager.sessionData.zoom)
                     map.flyTo(SyncManager.sessionData.center, SyncManager.sessionData.zoom);
                 else
@@ -354,13 +325,12 @@
             }
             e.currentTarget.style.opacity = "1";
         }
-        else
-        {
+        else {
             SyncManager.enableMove();
             e.currentTarget.style.opacity = "0.6";
         }
     },
-    toggleTime: function(e) {
+    toggleTime: function (e) {
 
         SyncManager.syncs.time = !SyncManager.syncs.time;
         if (SyncManager.syncs.time) {
@@ -517,8 +487,7 @@ L.Control.PresenterViewer = L.Control.extend({
         });
         modelDialogAddButton(mddb, 'Connect', function () {
 
-            if (SyncManager.viewerPresenterDialogInfo)
-            {
+            if (SyncManager.viewerPresenterDialogInfo) {
                 if (SyncManager.viewerPresenterDialogInfo.groupInput.value == "") {
                     SyncManager.viewerPresenterDialogInfo.errorDiv.innerHTML = "Please provide a session name<p>";
                 }
@@ -529,7 +498,7 @@ L.Control.PresenterViewer = L.Control.extend({
                         SyncManager.requestPresenter(SyncManager.viewerPresenterDialogInfo.groupInput.value);
                 }
             }
-            
+
         });
 
 

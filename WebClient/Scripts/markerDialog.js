@@ -84,7 +84,7 @@ showSensorDialog = function (e) {
         graphTextLI.innerHTML = "<BR>Dynamic graph of concentration history: ";
 
         var graphLI = L.DomUtil.create("li", "informationLI", dataList);
-        
+
         var graphImage = L.DomUtil.create("img", "graphImage", graphLI);
         graphImage.src = "Content/images/graph-mockup.jpg";
         graphImage.width = 500;

@@ -1,8 +1,8 @@
 ﻿function addLayer(parent, data, aWidth, aHeight) {
 
     var mainDiv = document.createElement('div');
-    mainDiv.style.width = (aWidth-6)+'px';
-    mainDiv.style.height = aHeight+'px';
+    mainDiv.style.width = (aWidth - 6) + 'px';
+    mainDiv.style.height = aHeight + 'px';
     mainDiv.className = 'layerDetails';
     mainDiv.title = data.description;
     parent.appendChild(mainDiv);
@@ -39,7 +39,7 @@
                 removeDomainLayer(layer);
                 layer.leaflet_id = null;
                 var s = element.getElementsByClassName('layerDetailsSelected');
-                for(var i=0; i<s.length; i++)
+                for (var i = 0; i < s.length; i++)
                     s[i].className = 'layerDetailsSelected layerDetailsSelectedHidden';
 
                 // check if this layer shows legend -> remove and check if we need to show another legend
@@ -82,10 +82,8 @@
                 // check if this layer has the crd -> remove and check if we need to show another crd
                 if (typeof crd.crdLayer != "undefined" && layer.id == crd.crdLayer) {
                     var crdlayer = null;
-                    for (maplayer in map._layers)
-                    {
-                        if (typeof map._layers[maplayer].domainLayer != "undefined")
-                        {
+                    for (maplayer in map._layers) {
+                        if (typeof map._layers[maplayer].domainLayer != "undefined") {
                             if (crdlayer == null)
                                 crdlayer = map._layers[maplayer];
                             else if (crdlayer._leaflet_id < map._layers[maplayer]._leaflet_id)
@@ -94,17 +92,14 @@
                     }
 
                     if (crdlayer != null) {
-                        
-                        if (typeof crdlayer.domainLayer.ref != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.ref.id)
-                        {
+
+                        if (typeof crdlayer.domainLayer.ref != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.ref.id) {
                             crd.reset(crdlayer.domainLayer != undefined, crdlayer.domainLayer.ref != undefined, crdlayer.domainLayer.diff != undefined, crdlayer.domainLayer, crd.reference);
                         }
-                        else if (typeof crdlayer.domainLayer.diff != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.diff.id)
-                        {
+                        else if (typeof crdlayer.domainLayer.diff != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.diff.id) {
                             crd.reset(crdlayer.domainLayer != undefined, crdlayer.domainLayer.ref != undefined, crdlayer.domainLayer.diff != undefined, crdlayer.domainLayer, crd.difference);
                         }
-                        else
-                        {
+                        else {
                             crd.reset(crdlayer.domainLayer != undefined, crdlayer.domainLayer.ref != undefined, crdlayer.domainLayer.diff != undefined, crdlayer.domainLayer);
                         }
                     }
@@ -175,7 +170,7 @@
                 else if (legendControl.legendLayer == null)
                     legendControl.legendLayer = layer.id;
             }
-            
+
         }
     };
 }
@@ -229,7 +224,7 @@ function addLayerToMap(layer, opacity) {
             style: function (feature) {
                 if (typeof feature.properties.fillOpacity !== 'undefined')
                     return { color: feature.properties.color };//, fillOpacity: feature.properties.fillOpacity, opacity: feature.properties.fillOpacity };
-                // test code for live trafic..
+                    // test code for live trafic..
                 else if (feature.properties.color == '#000000')
                     return { color: '#000000', weight: 1 };
                 else
@@ -254,7 +249,7 @@ function updateTilesLayerOnMap(aElementID, aTilesURL) {
 
         if (layer.domainLayer && layer.idShowing && layer.idShowing == aElementID) {
             layer.setUrl(aTilesURL);
-           // var domainLayer = layer.domainLayer;
+            // var domainLayer = layer.domainLayer;
             //if (domainLayer.tiles != aTilesURL || !layer.redraw) {
             //    // update tiles url
             //    domainLayer.tiles = aTilesURL;
@@ -318,7 +313,7 @@ function addBasicLayer(layer) {
     var thisLayer = null;
     if (layer.objects)
         thisLayer = L.geoJson(layer.objects.features);
-    else if (layer.tiles) 
+    else if (layer.tiles)
         thisLayer = L.tileLayer(layer.tiles, { id: layer.name });
     // else.. add other types of layers
     if (thisLayer != null) {

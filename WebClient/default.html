@@ -142,23 +142,23 @@
         wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
         // determine parameters and config
         var wsBaseURL = wsp + '://vps17642.public.cloudvps.com';
-         //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
-         var session = getParameterByName('session', '');
-         if (session == '') {
-            // session = '6B84B11553BC4AA6B2B6A0759F6EB278'; //us_demo
-            // session = '1234$undefined$57b4281041e330e716b22a74'; // default test session
-            // session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
-            // session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
-            // session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
-            // session = 'ensel';
-            // session = 'ensel2';
-            // session = 'ssm';
-            // session = 'ssm2';
-            // session = 'sweco';
-            // session = "tud";
-            // session = 'dtv';
-             // session = '80BD7A788D6B40A4B3608AA95C26E68F'; //us_utrecht2017
-             session = "sesmi${d6e56676-077c-48b1-aea2-3bb8f34d7dde}$testuser";
+        //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
+        var session = getParameterByName('session', '');
+        if (session == '') {
+            //session = '6B84B11553BC4AA6B2B6A0759F6EB278'; //us_demo
+            //session = '1234$undefined$57b4281041e330e716b22a74'; // default test session
+            //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
+            //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
+            //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
+            //session = 'ensel';
+            //session = 'ensel2';
+            //session = 'ssm';
+            //session = 'ssm2';
+            //session = 'sweco';
+            //session = "tud";
+            //session = 'dtv';
+            //session = '80BD7A788D6B40A4B3608AA95C26E68F'; //us_utrecht2017
+            //session = "sesmi${d6e56676-077c-48b1-aea2-3bb8f34d7dde}$testuser";
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
@@ -228,16 +228,17 @@
         //simulation
         var simulationControl = L.control.simulation(); // todo (NK): why pass baseLayers as options?
         map.addControl(simulationControl);
-        //map.removeControl(simulationControl);
+        map.removeControl(simulationControl);
         DataManager.simulationControl = simulationControl;
 
         DataManager.simCloseControl = L.control.SimulationClose();
         //map.addControl(DataManager.simCloseControl);
-        
+
 
         //presenter/viewer
         var presenterViewerControl = L.control.PresenterViewer();
-        //map.addControl(presenterViewerControl);
+        map.addControl(presenterViewerControl);
+        map.removeControl(presenterViewerControl);
         DataManager.presenterViewerControl = presenterViewerControl;
 
 
@@ -262,16 +263,18 @@
         map.addControl(timesliderControl);
         timesliderControl._collapse();
         InfoTextControl['leaflet-control-timeslider'] = { active: false };
-        //map.removeControl(timesliderControl);
+        map.removeControl(timesliderControl);
 
         DataManager.modelControl = L.control.ModelControl();
-        //map.addControl(DataManager.modelControl);
+        map.addControl(DataManager.modelControl);
+        map.removeControl(DataManager.modelControl);
 
 
         //start-stop
         var startControl = L.control.startstop();
         DataManager.startControl = startControl;
-        //map.addControl(startControl);
+        map.addControl(startControl);
+        map.removeControl(startControl);
         //startControl.setPosition("bottomright");
 
         // current-reference-difference control

@@ -45,21 +45,18 @@
     },
 
     showModelControl: function () {
-        if (this._modelControl.Div == null)
-        {
+        if (this._modelControl.Div == null) {
             var modelDiv = this._modelControl.Div = document.body.appendChild(document.createElement("div"));
             modelDiv.className = 'modelControlDiv';
             modelDiv.style.display = 'block';
             modelDiv.style.right = this.rightMargin;
             modelDiv.style.bottom = this.bottomMargin;
         }
-        else
-        {
+        else {
             if (this._modelControl.Div.style.display == 'none') {
                 this._modelControl.Div.style.display = "block";
             }
-            else
-            {
+            else {
                 this._modelControl.Div.style.display = 'none';
                 //reset positioning
                 this._modelControl.Div.style.right = this.rightMargin;
@@ -74,7 +71,7 @@
     },
 
 
-    GetTableRow: function(name, status, progress, id) {
+    GetTableRow: function (name, status, progress, id) {
         var tr = document.createElement('tr');
         tr.className = 'modelControlTR';
         tr.id = 'mcTR' + id;
@@ -110,14 +107,12 @@
         //header.id = 'mcTableHeader';
 
         var empty = true;
-        for (var v in this._models)
-        {
+        for (var v in this._models) {
             empty = false;
             this.DisplayModel(this._models[v]);
         }
 
-        if (empty)
-        {
+        if (empty) {
             var textDiv = modelDiv.appendChild(document.createElement('div'))
             var text = textDiv.appendChild(document.createTextNode('-No models found-'));
             textDiv.style.textAlign = 'center';
@@ -126,33 +121,29 @@
 
     },
 
-    AddTableCell: function (row, type, text)
-    {
+    AddTableCell: function (row, type, text) {
         var cell = row.appendChild(document.createElement('td'));
         cell.className = 'modelControlTD modelControlTD' + type;
-        
+
         cell.appendChild(document.createTextNode(text));
     },
 
-    ClickCloseCross: function(e) {
+    ClickCloseCross: function (e) {
         this._modelControl.Div.style.display = 'none';
     },
 
     AddModel: function (model) {
-        if (typeof this._models[model.id] !== "undefined")
-        {
+        if (typeof this._models[model.id] !== "undefined") {
             this.UpdateModel(model);
         }
-        else
-        {
+        else {
             this._models[model.id] = model;
             this.FillModelControl();
         }
     },
 
-    DisplayModel: function(model) {
-        if (this._modelControl && this._modelControl.Table)
-        {
+    DisplayModel: function (model) {
+        if (this._modelControl && this._modelControl.Table) {
             model.htmlRow = this.GetTableRow(model.name, model.status, model.progress, model.id);
             this._modelControl.Table.appendChild(model.htmlRow);
         }
@@ -167,8 +158,7 @@
         this.FillModelControl();
     },
 
-    HandleMessages: function (payload)
-    {
+    HandleMessages: function (payload) {
         if (typeof payload.status !== "undefined") {
             for (var i = 0; i < payload.status.length; i++) {
                 if (typeof payload.status[i].new !== "undefined")
@@ -182,21 +172,17 @@
     },
 
     UpdateModel: function (payload) {
-        if (typeof this._models[payload.id] !== 'undefined')
-        {
+        if (typeof this._models[payload.id] !== 'undefined') {
             var model = this._models[payload.id];
 
-            if (typeof payload.name !== 'undefined')
-            {
+            if (typeof payload.name !== 'undefined') {
                 model.name = payload.name;
-                if (model.htmlRow)
-                {
+                if (model.htmlRow) {
                     model.htmlRow.children[0].innerText = model.name;
                 }
             }
 
-            if (typeof payload.status !== "undefined")
-            {
+            if (typeof payload.status !== "undefined") {
                 model.status = payload.status;
                 if (model.htmlRow)
                     model.htmlRow.children[1].innerText = model.status;
@@ -210,7 +196,7 @@
         }
     },
 
-    ClearModelControl: function() {
+    ClearModelControl: function () {
 
     },
 
@@ -248,13 +234,11 @@
         e.stopPropagation();
         var deltaX, deltaY;
 
-        if (typeof e.clientX === 'undefined')
-        {
+        if (typeof e.clientX === 'undefined') {
             deltaX = e.changedTouches[0].clientX - this.dragInfo.mouseX;
             deltaY = e.changedTouches[0].clientY - this.dragInfo.mouseY;
         }
-        else
-        {
+        else {
             deltaX = e.clientX - this.dragInfo.mouseX;
             deltaY = e.clientY - this.dragInfo.mouseY;
         }
