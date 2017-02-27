@@ -129,7 +129,10 @@ var GraphManager = {
         minHeight: 200, //Minumum resize height for a graph
         clickable: clickOptions.none,
         xOffset: 25, //x offset when aligning graphs on top of each other
-        yOffset: 25 //y offset when aligning graphs on top of each other
+        yOffset: 25, //y offset when aligning graphs on top of each other
+        margins: { top: 40, right: 20, bottom: 30, left: 40 },
+        showLabels: false,
+        showLegends: false
     },
 
     Initialize: function () {
@@ -197,27 +200,30 @@ var GraphManager = {
     MakeGraph: function (graphObject) {
 
         //todo remove code block when testing is not needed anymore
-        if (typeof graphObject == 'undefined') {
-            graphObject = { id: GraphManager.idcounter };
-            GraphManager.idcounter++;
-        }
+        //if (typeof graphObject == 'undefined') {
+        //    graphObject = { id: GraphManager.idcounter };
+        //    GraphManager.idcounter++;
+        //}
 
 
         var g = GraphManager._getGraph(graphObject.id);
-        if (g != null)
+        if (g != null || graphObject.type == "spider")
             return;
 
-        var graphDiv = GraphManager.container.appendChild(document.createElement("div"));
+        //var graphDiv = GraphManager.container.appendChild(document.createElement("div"));
+        graphDiv = document.createElement("div");
+        if (graphObject.type == "line" || typeof graphObject.type == "undefined")
+            GraphManager.container.appendChild(graphDiv);
         graphDiv.className = "graphDiv";
         if (graphObject.divWidth) {
-          graphDiv.style.width = graphObject.divWidth + "px";
+            graphDiv.style.width = graphObject.divWidth + "px";
         } else {
-          graphDiv.style.width = GraphManager.defaultValues.width + "px";
+            graphDiv.style.width = GraphManager.defaultValues.width + "px";
         }
         if (graphObject.divHeight) {
-          graphDiv.style.height = graphObject.divHeight + "px";
+            graphDiv.style.height = graphObject.divHeight + "px";
         } else {
-          graphDiv.style.height = GraphManager.defaultValues.height + "px";
+            graphDiv.style.height = GraphManager.defaultValues.height + "px";
         }
         GraphManager.zIndexManager.newGraph(graphDiv);
         //graphDiv.style.position = "absolute";
@@ -250,12 +256,15 @@ var GraphManager = {
         //var infoDiv = graphDiv.appendChild(document.createElement("div"));
         //infoDiv.className = "graph-info";
         //infoDiv.graphID = graphDiv.graphID;
-
         //if (is_touch_device()) {
         //    infoDiv.addEventListener("touchstart", GraphManager._showGraphInfo);
         //} else {
         //    infoDiv.addEventListener("click", GraphManager._showGraphInfo);
         //}
+
+        var div = graphDiv.appendChild(document.createElement("div"));
+        div.className = "graph-title";
+        div.graphID = graphDiv.graphID;
 
         var resizeDiv = graphDiv.appendChild(document.createElement("div"));
         resizeDiv.className = "graph-resize";
@@ -279,9 +288,12 @@ var GraphManager = {
 
 
         //if (graphObject.id == "b1919ec3-4b69-42c3-9847-1cd6b42c6fff-KPI07")
-        //detailsControl._update();
+        detailsControl._update();
 
         GraphManager.hiddenGraphs.push(graphDiv);
+
+        if (!(graphObject.type == "line" || typeof graphObject.type == "undefined"))
+            GraphManager.container.appendChild(graphDiv);
 
         //graphDiv.graph.GetPreview(GraphManager.container, 134, 100);
         // graphDiv.style.visibility = "hidden";
@@ -304,8 +316,9 @@ var GraphManager = {
         graphObject.xAxisOrient = (typeof graphObject.xAxisOrient === 'undefined') ? GraphManager.defaultValues.xAxisOrient : graphObject.xAxisOrient;
         graphObject.yAxisOrient = (typeof graphObject.yAxisOrient === 'undefined') ? GraphManager.defaultValues.yAxisOrient : graphObject.yAxisOrient;
         graphObject.holdminmax = (typeof graphObject.holdminmax === 'undefined') ? GraphManager.defaultValues.holdminmax : graphObject.holdminmax;
-        graphObject.clickable = (typeof graphObject.clickable === 'undefined') ? GraphManager.defaultValues.clickable : graphObject.clickable;
         graphObject.margins = (typeof graphObject.margins === 'undefined') ? GraphManager.defaultValues.margins : graphObject.margins;
+        graphObject.showLabels = (typeof graphObject.showLabels === 'undefined') ? GraphManager.defaultValues.showLabels : graphObject.showLabels;
+        graphObject.showLegends = (typeof graphObject.showLegends === 'undefined') ? GraphManager.defaultValues.showLegends : graphObject.showLegends;
         return graphObject;
     },
 
@@ -351,7 +364,7 @@ var GraphManager = {
 
                 // NEW
             case 'line':
-                graph = new Chart(graphObject);
+                graph = new LineBottomLeft(graphObject);
                 break;
             case 'bar':
                 // graph = new BarChart(graphObject);
@@ -536,6 +549,8 @@ var GraphManager = {
         if (graphDiv != null) {
             GraphManager.hiddenGraphs.push(graphDiv);
             graphDiv.style.visibility = "hidden";
+            graphDiv.style.left = "-10000px"; //todo: look for more elegant fix!
+            graphDiv.style.top = "-10000px";
             GraphManager.RepositionGraphs();
         }
     },
@@ -649,6 +664,9 @@ var GraphManager = {
         if (!GraphManager.defaultValues.resizable)
             return;
 
+        if (!GraphManager.dragObject || GraphManager.dragObject.resizing)
+            return
+
         e.preventDefault();
         e.stopPropagation();
 
@@ -674,7 +692,7 @@ var GraphManager = {
             window.addEventListener("mousemove", GraphManager._resizeGraphMove);
             window.addEventListener("mouseup", GraphManager._endGraphResize);
         }
-
+        GraphManager.dragObject.resizing = true;
     },
 
     _resizeGraphMove: function (e) {
@@ -729,11 +747,13 @@ var GraphManager = {
 
         GraphManager.resizeObject.resizeDiv.style.opacity = "1";
         GraphManager.resizeObject.resizeDiv.graph.Update();
+        GraphManager.dragObject.resizing = false;
     },
 
     _startDrag: function (e) {
 
-
+        if(!GraphManager.dragObject || GraphManager.dragObject.dragging)
+            return
 
         GraphManager.zIndexManager.focus(e.currentTarget.graphID);
 
@@ -805,6 +825,7 @@ var GraphManager = {
             window.addEventListener("mouseup", GraphManager._endDrag);
         }
 
+        GraphManager.dragObject.dragging = true;
     },
 
     _dragMove: function (e) {
@@ -857,6 +878,7 @@ var GraphManager = {
     },
 
     _endDrag: function (e) {
+        GraphManager.dragObject.dragging = false;
         e.preventDefault();
         e.stopPropagation();
         if (is_touch_device()) {

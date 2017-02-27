@@ -31,7 +31,7 @@ var map = L.map('map', {
     zoom: getParameterByName('zoom', 11),
     maxZoom: 18,
     minZoom: 2,
-    layers: [baseMapLayerGrayScale],
+    layers: [baseMapLayerStreets],
     contextmenu: true,
     contextmenuWidth: 140,
     contextmenuItems: [

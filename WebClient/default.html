@@ -32,6 +32,7 @@
     <link rel="stylesheet" href="Content/graphmanager.css" />
     <link rel="stylesheet" href="Content/syncmanager.css" />
     <link rel="stylesheet" href="Content/ModelControl.css" />
+    <link rel="stylesheet" href="Content/c3.css" />
 
     <link rel="stylesheet" href="Content/default.css" />
     <link rel="stylesheet" href="Content/control.css" />
@@ -125,9 +126,10 @@
     <script src="Scripts/Graphs/BarChart.js"></script>
     <!-- local scripts -->
     <script>
+        wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
         // determine parameters and config
-         var wsBaseURL = 'ws://vps17642.public.cloudvps.com:8080';
-        // var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
+        //var wsBaseURL = wsp + '://vps17642.public.cloudvps.com';
+         var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
          var session = getParameterByName('session', '');
          if (session == '') {
             // session = '6B84B11553BC4AA6B2B6A0759F6EB278'; //us_demo
@@ -142,6 +144,8 @@
             // session = 'sweco';
             // session = "tud";
             // session = 'dtv';
+             // session = '80BD7A788D6B40A4B3608AA95C26E68F'; //us_utrecht2017
+             session = "sesmi${d6e56676-077c-48b1-aea2-3bb8f34d7dde}$testuser";
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
