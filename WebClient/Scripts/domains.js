@@ -132,7 +132,7 @@
         var domain = this._domains[e.target.domainName];
         domain.enabled = !domain.enabled;
         this._updateDomainNode(domain.enabled, e.target);
-        detailsControl.resetDomains(this._domains);
+        detailsControl.updateDomains(this._domains);
         this._handlingClick = false;
         this._refocusOnMap();
     },

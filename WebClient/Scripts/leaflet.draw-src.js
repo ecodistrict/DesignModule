@@ -808,7 +808,7 @@ L.Draw.SimpleShape = L.Draw.Feature.extend({
 	},
 
 	_onMouseUp: function (e) {
-		if (this._shape) {
+	    if (this._shape) {
       DataManager.event = e; // added 7-11-201 for firefox by Jasper Huting *changed 8-11 by Niek Knoop
 			this._fireCreatedEvent();
 		}

@@ -1,6 +1,11 @@
 function openSimulationDialog(e) {
-  document.activeElement.blur();
+
+    //if (typeof DataManager.simulationSetupData === "undefined" || DataManager.simulationSetupData == null)
+    //    return;
+
   // todo: build dialog based on measuresControl.options.selectCategories
+
+    e.target.blur();
 
   var div = modalDialogCreate('Setup your simulation');
 
@@ -26,44 +31,60 @@ function openSimulationDialog(e) {
   errorLog.innerHTML = '';
 
 // formElement [string], type [string], required [y/n], optionsArray [false/array], labelText [string], idName [string], extraOptions [false/array-2_Elems] ['steps [int]','postfix' [string]]);
-  var data = [
-    {
-      "formElement":"input",
-      "type":"string",
-      "required":"y",
-      "optionsArray":false,
-      "labelText":"Scenario name",
-      "idName":"scenarioName",
-      "extraOptions":false
-    },
-    {
-      "formElement":"slider",
-      "type":"int",
-      "required":"y",
-      "optionsArray":['0', '100'],
-      "labelText":"Penetration rate",
-      "idName":"PenetrationRateSelect",
-      "extraOptions":[1, '%']
-    },
-    {
-      "formElement":"slider",
-      "type":"int",
-      "required":"y",
-      "optionsArray":['0', '100'],
-      "labelText":"Compliance",
-      "idName":"compliance",
-      "extraOptions":[1, '%']
-    },
-    {
-      "formElement":"select",
-      "type":"int",
-      "required":"y",
-      "optionsArray":[['A', 'OD Basis'], ['B', 'OD variant 1'], ['C', 'OD variant 2']],
-      "labelText":"Origin Destination matrix",
-      "idName":"MatrixChoice",
-      "extraOptions":false
-    }
-  ];
+    var data = DataManager.simulationSetupData;
+    //var data = [{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},
+    //{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration","idName":"penetration","extraOptions":[1, "%"]},
+    //{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]
+    //var data = [
+    //{
+    //  "formElement":"input",
+    //  "type":"string",
+    //  "required":"y",
+    //  "optionsArray":false,
+    //  "labelText":"Scenario name",
+    //  "idName":"scenarioName",
+    //  "extraOptions":false
+    //},
+    //{
+    //  "formElement":"slider",
+    //  "type":"int",
+    //  "required":"y",
+    //  "optionsArray":['0', '100'],
+    //  "labelText":"Penetration rate",
+    //  "idName":"PenetrationRateSelect",
+    //  "extraOptions":[1, '%']
+    //},
+    //{
+    //  "formElement":"slider",
+    //  "type":"int",
+    //  "required":"y",
+    //  "optionsArray":['0', '100'],
+    //  "labelText":"Follow-on behavior",
+    //  "idName":"followOn",
+    //  "extraOptions":[1, '%']
+    //},
+    //{
+    //  "formElement":"select",
+    //  "type":"int",
+    //  "required":"y",
+    //  "optionsArray":[['A', 'OD Basis'], ['B', 'OD variant 1'], ['C', 'OD variant 2']],
+    //  "labelText":"Origin Destination matrix",
+    //  "idName":"MatrixChoice",
+    //  "extraOptions":false
+    //   },
+    //{
+    //    "formElement": "radio",
+    //    "type": "string",
+    //    "required": "y",
+    //    "optionsArray": ['Yes','No'],
+    //    "labelText": "Record Simulation",
+    //    "idName": "Record",
+    //    extraOptions: {checked: 'No'}
+    //}
+    // ];
+
+    if (typeof data === "undefined")
+        return;
 
   for (var i = 0; i < data.length; i++) {
     fillOptions(data[i]);
@@ -73,13 +94,13 @@ function openSimulationDialog(e) {
 
   // function fillOptions(formElement, type, required, optionsArray, labelText, idName, extraOptions) {
   function fillOptions(arrayItem) {
-    formElement = arrayItem.formElement;
-    type = arrayItem.type;
-    required = arrayItem.required;
-    optionsArray = arrayItem.optionsArray;
-    labelText = arrayItem.labelText;
-    idName = arrayItem.idName;
-    extraOptions = arrayItem.extraOptions;
+        var formElement = arrayItem.formElement;
+        var type = arrayItem.type;
+        var required = arrayItem.required;
+        var optionsArray = arrayItem.optionsArray;
+        var labelText = arrayItem.labelText;
+        var idName = arrayItem.idName;
+        var extraOptions = arrayItem.extraOptions;
 
 
     // input, select
@@ -146,6 +167,7 @@ function openSimulationDialog(e) {
         button.innerText = option;
         button.value = option;
         button.name = idName;
+                button.type = "button";
         button.addEventListener("click", function (e) {
           e.preventDefault();
           for (var k = 0; k < document.simulationForm[idName].length; k++) {
@@ -173,7 +195,12 @@ function openSimulationDialog(e) {
         optionWrapper.className = idName;
         container.appendChild(opt);
         optionWrapper.appendChild(button);
+                if (extraOptions && extraOptions.checked && extraOptions.checked == option) {
+                    opt.checked = true;
+                    opt.value = option;
+                    button.className = 'selected';
       }
+            }
       f.appendChild(optionWrapper);
     } else if (formElement === 'select') {
 
@@ -208,6 +235,7 @@ function openSimulationDialog(e) {
         opt.dataset.type = type;
         button.innerText = option;
         button.value = option;
+                button.type = "button";
         button.addEventListener("click", function (e) {
           e.preventDefault();
           for (var k = 0; k < document.simulationForm[idName].length; k++) {
@@ -249,10 +277,13 @@ function openSimulationDialog(e) {
       sliderInput.type = 'text';
       sliderInput.className = 'form-control';
       sliderInput.placeholder = labelText;
+            //sliderInput.value = parseInt(optionsArray[0]);
       sliderInput.name = idName;
       sliderInput.id = 'input_' + idName;
       sliderInput.dataset.required = required;
       sliderInput.dataset.type = type;
+            sliderInput.dataset.formElement = formElement;
+            sliderInput.dataset.optionsArray = optionsArray;
       sliderInput.style.width = '100%';
       sliderInput.style.boxSizing = 'border-box';
 
@@ -281,7 +312,7 @@ function openSimulationDialog(e) {
 
             if (range.noUiSlider) {
               if (range.noUiSlider.options.extraOption.length > 0) {
-                return Math.round(value.replace(range.noUiSlider.options.extraOption, ''));
+                return Math.round(value.repace(range.noUiSlider.options.extraOption, ''));
               } else {
                 return Math.round(value);
               }
@@ -315,9 +346,6 @@ function openSimulationDialog(e) {
         range.noUiSlider.set(this.value);
       });
 
-
-
-      // sliderInput.style.display = 'none';
 
       container.appendChild(range);
       container.appendChild(sliderInput);
@@ -365,14 +393,28 @@ function simulationDialogApply() {
           if (elem.dataset.type === 'int') {
             formResult.push({ name: elem.name, value: 0, type: elem.dataset.type });
             elem.classList.remove('empty');
-          } else {
+                    }
+                    else if (elem.dataset.formElement === 'slider') {
+                        formResult.push({ name: elem.name, value: elem.dataset.optionsArray[0], type: elem.dataset.type });
+                        elem.classList.remove('empty');
+                    }
+                    else {
             errors = true;
             elem.classList.add('empty');
             errorLog.style.display = 'block';
             errorLog.innerHTML = errorLog.innerHTML + '<span>' + elem.placeholder + ' is not correct!' + '</span>';
           }
         } else {
-          formResult.push({ name: elem.name, value: elem.value, type: elem.dataset.type });
+                    var result;
+                    switch (elem.dataset.type) {
+                        case "int": result = parseInt(elem.value);
+                            break;
+                        case "float": result = parseFloat(elem.value);
+                            break;
+                        default: result = elem.value;
+                            break;
+                    }
+                    formResult.push({ name: elem.name, value: result, type: elem.dataset.type });
           elem.classList.remove('empty');
         }
       }
@@ -403,7 +445,6 @@ function simulationDialogApply() {
 
       if (elem.dataset.required === 'y') {
         if (elem.checked) {
-          errors = false;
           formResult.push({ name: elem.name, value: elem.value, type: elem.dataset.type });
         }
         if (document.getElementById('simulationForm')[elem.name].value === '') {
@@ -466,13 +507,13 @@ function simulationDialogApply() {
   //   }
   // }
   if (!errors) {
-    console.log(formResult);
+        console.log({ formResult: formResult });
     var sessionRequest = {
       setupSimulation: {
         parameters: formResult
       }
     }
-    //wsSend(sessionRequest);
+        wsSend(sessionRequest);
     modalDialogClose();
   }
 

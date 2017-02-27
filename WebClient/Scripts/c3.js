@@ -109,11 +109,13 @@
         $$.clipId = "c3-" + (+new Date()) + '-clip',
         $$.clipIdForXAxis = $$.clipId + '-xaxis',
         $$.clipIdForYAxis = $$.clipId + '-yaxis',
+        $$.clipIdForYAxis2 = $$.clipId + '-yaxis2',
         $$.clipIdForGrid = $$.clipId + '-grid',
         $$.clipIdForSubchart = $$.clipId + '-subchart',
         $$.clipPath = $$.getClipPath($$.clipId),
         $$.clipPathForXAxis = $$.getClipPath($$.clipIdForXAxis),
         $$.clipPathForYAxis = $$.getClipPath($$.clipIdForYAxis);
+        $$.clipPathForYAxis2 = $$.getClipPath($$.clipIdForYAxis2);
         $$.clipPathForGrid = $$.getClipPath($$.clipIdForGrid),
         $$.clipPathForSubchart = $$.getClipPath($$.clipIdForSubchart),
 
@@ -1188,7 +1190,7 @@
             axis_y_label: {},
             axis_y_tick_format: undefined,
             axis_y_tick_outer: true,
-            axis_y_tick_values: null,
+            axis_y_tick_values: null,        
             axis_y_tick_rotate: 0,
             axis_y_tick_count: undefined,
             axis_y_tick_time_value: undefined,
@@ -2694,7 +2696,7 @@
     c3_chart_internal_fn.getCurrentHeight = function () {
         var $$ = this, config = $$.config,
             h = config.size_height ? config.size_height : $$.getParentHeight();
-        return h > 0 ? h : 320 / ($$.hasType('gauge') && !config.gauge_fullCircle ? 2 : 1);
+        return h > 0 ? h : 320 / ($$.hasType('gauge') && !config.gauge_fullCircle ? 2 : 1); 
     };
     c3_chart_internal_fn.getCurrentPaddingTop = function () {
         var $$ = this,
@@ -2784,8 +2786,8 @@
         var $$ = this, config = $$.config, h = 30;
         if (axisId === 'x' && !config.axis_x_show) { return 8; }
         if (axisId === 'x' && config.axis_x_height) { return config.axis_x_height; }
-        if (axisId === 'y' && !config.axis_y_show) {
-            return config.legend_show && !$$.isLegendRight && !$$.isLegendInset ? 10 : 1;
+        if (axisId === 'y' && !config.axis_y_show) { 
+            return config.legend_show && !$$.isLegendRight && !$$.isLegendInset ? 10 : 1; 
         }
         if (axisId === 'y2' && !config.axis_y2_show) { return $$.rotated_padding_top; }
         // Calculate x axis height when tick rotated
@@ -3860,8 +3862,11 @@
         var $$ = this, config = $$.config, i;
         $$.tooltip = $$.selectChart
             .style("position", "relative")
-            .append("div")
+          .append("div")
             .attr('class', CLASS.tooltipContainer);
+            //.style("position", "absolute")
+            //.style("pointer-events", "none")
+        //.style("display", "none");
 
         // Show tooltip if needed
         if (config.tooltip_init_show) {
@@ -4391,7 +4396,7 @@
 
         $$.axes.y2 = main.append("g")
             .attr("class", CLASS.axis + ' ' + CLASS.axisY2)
-            // clip-path?
+            .attr("clip-path", config.axis_y_inner ? "" : $$.clipPathForYAxis)
             .attr("transform", $$.getTranslate('y2'))
             .style("visibility", config.axis_y2_show ? 'visible' : 'hidden');
         $$.axes.y2.append("text")

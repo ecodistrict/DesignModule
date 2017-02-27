@@ -19,6 +19,8 @@
 
         this._map = map;
 
+        CloseSimulation = this.SendSimClose;
+
         return this._container;
     },
 
@@ -35,6 +37,7 @@
 
         container.appendChild(startstopButton);
         container.playing = false;
+        container.style.boxShadow = 'none';
 
         // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
         container.setAttribute('aria-haspopup', true);
@@ -44,8 +47,16 @@
             L.DomEvent.disableScrollPropagation(container);
         }
 
-        container.addEventListener("click", this._clickControl);
-        container.addEventListener("contextmenu", this._rightClick);
+
+        if (!this.options.disabled) {
+            container.addEventListener("click", this._clickControl);
+            container.addEventListener("contextmenu", this._rightClick);
+        }
+        else
+        {
+            container.style.opacity = 0.7;
+            container.style.cursor = "not-allowed";
+        }
 
         //var form = this._form = L.DomUtil.create('form', className + '-list');
 
@@ -65,6 +76,8 @@
         if (this.options.disabled)
             return;
         this.options.disabled = true;
+        if (!this.container)
+            return;
         this.container.style.opacity = 0.7;
         this.container.removeEventListener("click", this._clickControl);
         this.container.removeEventListener("contextmenu", this._rightClick);
@@ -117,7 +130,7 @@
         }
 
         selection.onchange = function (e) {
-            wsSend({ "simulationControl": { "speed": e.target.value } });
+            DataManager.startControl.SendSimSpeed(e.target.value);
         };
 
     },
@@ -127,12 +140,14 @@
         if (!container.playing)
         {
             wsSend({ simulationControl: { start: true } });
-            //container.playing = true; //todo wait for server to tell I'm not playing!
+            SyncManager.startPress();
+            DataManager.startControl.SimulationStarted();
         }
         else
         {
             wsSend({ simulationControl: { stop: true } });
-            //container.playing = false;
+            SyncManager.stopPress();
+            DataManager.startControl.SimulationStopped();
         }
     },
 
@@ -144,6 +159,10 @@
     SyncStopCommand: function() {
         this.SimulationStopped();
         this.SendSimStop();
+    },
+    SyncSpeedCommand: function(speed)
+    {
+        this.SendSimSpeed(speed);
     },
 
     SimulationStarted: function() {
@@ -168,12 +187,25 @@
         this.SendSimStop();
     },
 
+    _closeSimulation: function () {
+        this.SendSimClose();
+    },
+
+    SendSimClose: function() {
+        wsSend({ closeSimulation: true });
+    },
+
     SendSimStart: function() {
         wsSend({ simulationControl: { start: true } });
     },
 
     SendSimStop: function() {
         wsSend({ simulationControl: { stop: true } });
+    },
+
+    SendSimSpeed: function (speed) {
+        wsSend({ "simulationControl": { "speed": speed } });
+        SyncManager.speedChange(speed);
     },
 
     _expand: function () {

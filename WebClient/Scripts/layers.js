@@ -41,7 +41,7 @@
                 var s = element.getElementsByClassName('layerDetailsSelected');
                 for(var i=0; i<s.length; i++)
                     s[i].className = 'layerDetailsSelected layerDetailsSelectedHidden';
-  
+
                 // check if this layer shows legend -> remove and check if we need to show another legend
                 if (typeof legendControl.legendLayer != "undefined" && (legendControl.legendLayer == layer.id)) {
                     //legendControl.clearLegend(true);
@@ -94,7 +94,7 @@
                     }
 
                     if (crdlayer != null) {
-
+                        
                         if (typeof crdlayer.domainLayer.ref != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.ref.id)
                         {
                             crd.reset(crdlayer.domainLayer != undefined, crdlayer.domainLayer.ref != undefined, crdlayer.domainLayer.diff != undefined, crdlayer.domainLayer, crd.reference);
@@ -175,7 +175,7 @@
                 else if (legendControl.legendLayer == null)
                     legendControl.legendLayer = layer.id;
             }
-
+            
         }
     };
 }
@@ -209,7 +209,7 @@ function addLayerToMap(layer, opacity) {
     if (!layer.objects)
         layer.showingTiles = true;
 
-    if (typeof layer.tiles !== "undefined" && !layer.objects) { //layer.tiles != '' &&
+    if (typeof layer.tiles !== "undefined" && !layer.objects) { //layer.tiles != '' && 
         var tileLayer;
         tileLayer = L.tileLayer(layer.tiles, {
             opacity: opacity,
@@ -228,8 +228,8 @@ function addLayerToMap(layer, opacity) {
             opacity: opacity,
             style: function (feature) {
                 if (typeof feature.properties.fillOpacity !== 'undefined')
-                    return { color: feature.properties.color, weight: 0.5, fillOpacity: feature.properties.fillOpacity*0.8, opacity: feature.properties.fillOpacity };
-                    // test code for live trafic..
+                    return { color: feature.properties.color };//, fillOpacity: feature.properties.fillOpacity, opacity: feature.properties.fillOpacity };
+                // test code for live trafic..
                 else if (feature.properties.color == '#000000')
                     return { color: '#000000', weight: 1 };
                 else
@@ -318,7 +318,7 @@ function addBasicLayer(layer) {
     var thisLayer = null;
     if (layer.objects)
         thisLayer = L.geoJson(layer.objects.features);
-    else if (layer.tiles)
+    else if (layer.tiles) 
         thisLayer = L.tileLayer(layer.tiles, { id: layer.name });
     // else.. add other types of layers
     if (thisLayer != null) {

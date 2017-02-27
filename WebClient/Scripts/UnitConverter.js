@@ -129,7 +129,7 @@
         {
             qnt: 'Velocity', si: "m/s", units: [
                { unit: 'cm/s', factor: 100, offset: 0 },
-               { unit: 'km/h', factor: 3.6, offset: 0 }, //cu ft?
+               { unit: 'km/h', factor: 3.6, offset: 0 },
                { unit: 'ft/s', factor: 3.28083989501312, offset: 0 },
                { unit: 'mph', factor: 2.2369362920544, offset: 0 },
                { unit: 'mph (nautical)', factor: 1.94384617178935, offset: 0 }
@@ -138,7 +138,7 @@
         {
             qnt: 'Acceleration', si: "m/s2", units: [
                { unit: 'ft/s2', factor: 3.28083989501312, offset: 0 },
-               { unit: 'km/s2', factor: 0.001, offset: 0 }, //cu ft?
+               { unit: 'km/s2', factor: 0.001, offset: 0 },
                { unit: 'mph/s', factor: 2.2369362920544, offset: 0 },
                { unit: 'mps2', factor: 0.00062137119224, offset: 0 }
             ]
@@ -146,7 +146,8 @@
         {
             qnt: 'Mass rate', si: "kg/s", units: [
                { unit: 'g/s', factor: 1000, offset: 0 },
-               { unit: 'kg/h', factor: 3600, offset: 0 }, //cu ft?
+               { unit: 'kg/h', factor: 3600, offset: 0 },
+               { unit: 'g/min', factor: 1000/60, offset: 0},
                { unit: 'ton (metric)/h', factor: 3.6, offset: 0 },
                { unit: 'lb/s', factor: 2.20462262184878, offset: 0 },
                { unit: 'lb/h', factor: 7936.69690548188, offset: 0 }
@@ -155,7 +156,7 @@
         {
             qnt: 'Volume rate', si: "m3/s", units: [
                { unit: 'l/h', factor: 3600000, offset: 0 },
-               { unit: 'l/min', factor: 60000, offset: 0 }, //cu ft?
+               { unit: 'l/min', factor: 60000, offset: 0 },
                { unit: 'l/s', factor: 1000, offset: 0 },
                { unit: 'm3/h', factor: 3600, offset: 0 },
                { unit: 'm3/min', factor: 60, offset: 0 },
@@ -166,7 +167,7 @@
         {
             qnt: 'Density', si: "kg/m3", units: [
                { unit: 'g/m3', factor: 1000, offset: 0 },
-               { unit: 'mg/m3', factor: 1000000, offset: 0 }, //cu ft?
+               { unit: 'mg/m3', factor: 1000000, offset: 0 },
                { unit: 'g/l', factor: 1, offset: 0 },
                { unit: 'g/cm3', factor: 1 / 1000, offset: 0 },
                { unit: 'lb/ft3', factor: 0.0624279620335609, offset: 0 },
@@ -245,7 +246,7 @@
                { unit: '/minute', factor: 60, offset: 0 },
                { unit: '/hour', factor: 3600, offset: 0 },
                { unit: '/day', factor: 86400, offset: 0 },
-               { unit: '/year', factor: 365 * 86400, offset: 0 } //todo: Hans Boot conversies praten
+               { unit: '/year', factor: 365 * 86400, offset: 0 }
             ]
         },
         {
@@ -268,7 +269,7 @@
                { unit: 'hours/day', factor: 24, offset: 0 },
                { unit: 'hours/week', factor: 168, offset: 0 },
                { unit: 'days/week', factor: 7, offset: 0 },
-               { unit: 'days/year', factor: 365, offset: 0 } //todo: Hans Boot conversies praten
+               { unit: 'days/year', factor: 365, offset: 0 }
             ]
         },
         'No units',
@@ -277,7 +278,7 @@
             qnt: 'Risk frequency', si: "/year", units: [
                { unit: '/km.year', factor: 1, offset: 0 },
                { unit: '/m.year', factor: 1 / 1000, offset: 0 },
-               { unit: '/mile.year', factor: 1 / 0.621371192237334, offset: 0 }, //todo: Hans Boot conversies praten
+               { unit: '/mile.year', factor: 1 / 0.621371192237334, offset: 0 },
                { unit: '/nautical mile.year', factor: 1.852, offset: 0 }
             ]
         },
@@ -386,6 +387,91 @@
         }
 
 
+    },
+
+    DateConverter: function () {
+        this.qnt = "Date";
+        this.si = "utc";
+        this.conversionUnits = {};
+        this.units = [];
+
+        this.AddConversionUnit = function (aUnit, aFactor, aOffset) { //todo implement for Date types
+            this.conversionUnits[aUnit] = { unit: aUnit, factor: aFactor, offset: aOffset };
+            this.units.push(aUnit);
+        }
+
+        this.AddConversionUnit(this.si, 1, 0);
+
+        this.RemoveConversionUnit = function (aUnit) {
+            if (typeof this.conversionUnits[aUnit] !== "undefined") {
+                delete this.conversionUnits[aUnit];
+                for (var i = 0; i < units.length; i++)
+                    if (this.units[i].unit == aUnit) {
+                        this.units.splice(i, 1);
+                    }
+            }
+        }
+
+        this.CanConvertMultiple = function (aUnits) {
+            for (var i = 0; i < aUnits.length; i++)
+                if (!this.CanConvert(aUnits[i]))
+                    return false;
+            return true;
+        }
+
+        this.CanConvert = function (aUnit) {
+            return typeof this.conversionUnits[aUnit] !== "undefined";
+        }
+
+        this.Clear = function (aUnit) {
+             delete typeof this.conversionUnits[aUnit]
+        }
+
+        this.IsEmpty = function (aUnit) {
+            return typeof this.conversionUnits[aUnit] === "undefined"
+        }
+
+        this.ConvertSItoUnit = function (aUnit, aValue) {
+            var date = new Date(aValue); //creates in local timezone:-(
+            date.setUTCMinutes(date.getUTCMinutes() - date.getTimezoneOffset()); //sets the localtime as it was
+            return date;
+            if (this.CanConvert(aUnit)) {
+                switch(aUnit.toLowerCase())
+                {
+                    case "utc": return aValue;
+                        break;
+                    case "gmt":
+                        break;
+                    case "cst":
+                        break;
+                    case "est":
+                        break;
+                }
+            }
+            else
+                throw "Can't convert unit!";
+        }
+
+        this.ConvertUnitToSI = function (aUnit, aValue) {
+            if (aUnit == "utc")
+                return aValue;
+            var date = new Date(aValue); //creates in local timezone:-(
+            date.setUTCMinutes(date.getUTCMinutes() + date.getTimezoneOffset()); //sets the localtime as it was
+            return date;
+            if (this.CanConvert(aUnit)) {
+                //todo implement unit dependant Date conversion
+            }
+            else
+                throw "Can't convert unit!";
+        }
+
+        this.ConvertUnitToUnit = function (aSourceUnit, aTargetUnit, aValue) {
+            if (this.CanConvertMultiple([aSourceUnit, aTargetUnit])) {
+                //todo implement unit dependant Date conversion
+            }
+            else
+                throw "Can't convert unit!";
+        }
     }
 }
 
@@ -518,4 +604,5 @@ UnitConverter.ConvNum.prototype = {
 
 for (var i = 0; i < UnitConverter.ENTRIES.length; i++) {
     UnitConverter.Converters[UnitConverter.ENTRIES[i].qnt] = new UnitConverter.Converter(UnitConverter.ENTRIES[i]);
+    UnitConverter.Converters["Date"] = new UnitConverter.DateConverter();
 }
