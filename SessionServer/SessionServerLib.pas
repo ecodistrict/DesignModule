@@ -817,7 +817,7 @@ type
     procedure handleTypedClientMessage(const aMessageType: string; var aJSONObject: TJSONObject); virtual;
     procedure handleNewClient(aClient: TClient); virtual;
   public
-    function addClient(const aClientID: string): TClient;
+    function addClient(const aClientID: string): TClient; virtual;
     function addOrGetClient(const aClientID: string): TClient;
     procedure ReadBasicData(); virtual; abstract;
   public
