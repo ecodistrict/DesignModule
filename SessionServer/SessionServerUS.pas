@@ -1380,7 +1380,7 @@ begin
         fUpdateQueueEvent.SetEvent;
       except
         begin
-          Log.WriteLn('Error TUSLayer.handleChangeObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString);
+          Log.WriteLn('TUSLayer.handleChangeObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString, llError);
         end
       end;
     end
@@ -1585,6 +1585,60 @@ procedure TUSLayer.UpdateQueuehandler;
       query.Free;
     end;
   end;
+//  procedure ReadMultipleObjects(const idStack: TStack<string>; oraSession: TOraSession);
+//  var
+//   query: TOraQuery;
+//   wdid: TWDID;
+//   o: TLayerObject;
+//   queryString, selector: string;
+//   i: Integer;
+//  begin
+//    if idStack.Count = 0 then
+//      exit;
+//    query := TOraQuery.Create(nil);
+//    try
+//      i := 1;
+//      selector := 'OBJECT_ID';
+//      if ChangeMultipleQuery.Contains('.OBJECT_ID') then
+//        selector := 't1.OBJECT_ID';{$message Hint 'No dynamic prefixing in building the ChangeMultipleQuery'}
+//      queryString := ChangeMultipleQuery + '(' + selector +  ' IN (' + idStack.Pop;
+//      while idStack.Count > 0 do
+//      begin
+//        inc(i);
+//        if i = 1000 then
+//        begin
+//          i := 1;
+//          queryString := queryString + ') OR ' + selector + ' IN (' + idStack.Pop;
+//        end
+//        else
+//        begin
+//          queryString := queryString + ', ' + idStack.Pop;
+//        end;
+//      end;
+//      queryString := queryString + '))';
+//      query.Session := oraSession;
+//      query.SQL.Text := queryString;
+//      query.UniDirectional := True;
+//      query.Open;
+//      query.First;
+//      while (not query.Eof) do
+//        begin
+//          wdid := AnsiString((query.FieldByName('OBJECT_ID').AsInteger).ToString);
+//          if FindObject(wdid, o) then
+//            begin
+//              UpdateObject(query, wdid, o);
+//              signalObject(o);
+//            end
+//          else
+//            begin
+//              AddObject(UpdateObject(query, wdid, nil));
+//            end;
+//          query.Next;
+//        end;
+//    finally
+//      query.Free;
+//    end;
+//  end;
 //  function FieldFloatValueOrNaN(aField: TField): Double;
 //    begin
 //      if aField.IsNull
@@ -1603,7 +1657,6 @@ var
   i: Integer;
   wdid: TWDID;
   o: TLayerObject;
-  query: TOraQuery;
   oraSession: TOraSession;
 begin
   localQueue := TList<TUSUpdateQueueEntry>.Create;
@@ -1630,7 +1683,6 @@ begin
             newCount := 0;
             newIDs := '';
             ChangeCount := 0;
-
               begin
               for entry in localQueue do
               try
@@ -1682,6 +1734,7 @@ begin
             end;
           //Log.WriteLn('Objects in queue: ' + localQueue.Count.ToString);
           //Log.WriteLn('New Objects: ' + newCount.ToString + ', changed objects: ' + ChangeCount.ToString);
+          //ReadMultipleObjects(ChangeStack, oraSession);
           if (ChangeStack.Count > 0) and (ChangeMultipleQuery <> '') then
           begin
             while (ChangeStack.Count > 1000) do
@@ -1699,13 +1752,14 @@ begin
               ReadMultipleObjects(changestring, oraSession);
             end;
           end;
+          //Todo: look into cached updates/batching!
         end;
         localQueue.Clear;
       end;
     end;
   finally
     localQueue.Free;
-    oraSession.Free; //todo can I use one try/finally for both of these?
+    oraSession.Free; //todo can I use one try/finally for all of these?
     ChangeStack.Free;
   end;
 end;
@@ -1751,90 +1805,12 @@ begin
       query.SQL.Text := fQuery; //.Replace('SELECT ', 'SELECT t1.OBJECT_ID,');
       query.Open;
       query.First;
-      TMonitor.Enter(objects);
-      try
         while not query.Eof do
         begin
           oid := AnsiString(query.Fields[0].AsInteger.ToString);
           objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
-        (*
-        case fLayerType of
-          1, 11:
-            begin
-              value := FieldFloatValueOrNaN(query.FieldByName('VALUE'));
-              geometryPoint := CreateWDGeometryPointFromSDOShape(query, 'SHAPE');
-              projectGeometryPoint(geometryPoint, fSourceProjection);
-              objects.Add(oid, TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value));
-            end;
-          4: // road (VALUE_EXPR)
-            begin
-              // unidirectional, not left and right
-              value := FieldFloatValueOrNaN(query.Fields[1]);
-              geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
-              projectGeometry(geometry, fSourceProjection);
-              objects.Add(oid, TGeometryLayerObject.Create(Self, oid, geometry, value));
-            end;
-          5,9: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
-            begin
-              // Left and right
-              value := FieldFloatValueOrNaN(query.Fields[1]);
-              value2 := FieldFloatValueOrNaN(query.Fields[2]);
-              texture := FieldFloatValueOrNaN(query.Fields[3]);
-              texture2 := FieldFloatValueOrNaN(query.Fields[4]);
-              geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
-              projectGeometry(geometry, fSourceProjection);
-              objects.Add(oid, TUSRoadICLR.Create(Self, oid, geometry, value, value2, texture, texture2));
-            end;
-          21: // POI
-            begin
-              //
-              geometryPoint := TWDGeometryPoint.Create;
-              try
-                geometryPoint.x := query.Fields[1].AsFloat;
-                geometryPoint.y := query.Fields[2].AsFloat;
-                // no projection, is already in lat/lon
-                poiType := query.Fields[3].AsString;
-                poiCat := query.Fields[4].AsString;
-                if not fPoiCategories.TryGetValue(poicat+'_'+poiType, usPOI) then
-                begin
-                  usPOI := TUSPOI.Create(fNewPoiCatID, TPicture.Create);
-                  fNewPoiCatID := fNewPoiCatID+1;
-                  try
-                    resourceFolder := ExtractFilePath(ParamStr(0));
-                    usPOI.picture.Graphic.LoadFromFile(resourceFolder+poicat+'_'+poiType+'.png');
-                  except
-                    on e: Exception
-                    do Log.WriteLn('Exception loading POI image '+resourceFolder+poicat+'_'+poiType+'.png', llError);
-                  end;
-                  // signal POI image to tiler
-                  //ImageToBytes(usPOI);
-                  //fTilerLayer.s
-                  {
-                  stream  := TBytesStream.Create;
-                  try
-                    usPOI.picture.Graphic.SaveToStream(stream);
-                    fOutputEvent.signalEvent(TByteBuffer.bb_tag_tbytes(icehTilerPOIImage, stream.Bytes)); // todo: check correct number of bytes
-                  finally
-                    stream.Free;
-                  end;
-                  }
-                end;
-              finally
-                objects.Add(oid, TGeometryLayerPOIObject.Create(Self, oid, usPOI.ID, geometryPoint));
-              end;
-            end
-        else
-          value := FieldFloatValueOrNaN(query.FieldByName('VALUE'));
-          geometry := CreateWDGeometryFromSDOShape(query, 'SHAPE');
-          projectGeometry(geometry, fSourceProjection);
-          objects.Add(oid, TGeometryLayerObject.Create(Self, oid, geometry, value));
-        end;
-        *)
           query.Next;
         end;
-      finally
-        TMonitor.Exit(objects);
-      end;
     finally
       query.Free;
     end;
@@ -1988,8 +1964,7 @@ var
   nam: string;
 begin
   oraSession := (project as TUSProject).OraSession;
-  with oraSession
-  do connectString := userName+'/'+password+'@'+server;
+  connectString := oraSession.userName+'/'+oraSession.password+'@'+oraSession.server;
   sourceProjection := (project as TUSProject).sourceProjection;
 
   // process basic layers

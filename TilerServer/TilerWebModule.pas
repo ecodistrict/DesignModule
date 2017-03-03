@@ -1479,7 +1479,6 @@ end;
 
 // returns true if the net is triangulated
 function TSliceReceptor.GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean;
-var
   distLatLon: TDistanceLatLon;
 begin
   // check if triangles need to be calculated

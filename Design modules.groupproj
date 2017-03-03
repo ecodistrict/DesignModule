@@ -42,6 +42,9 @@
         <Projects Include="Publish\PublishSSMCmd.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="SessionServer\PublishingServerSesmi.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -167,14 +170,23 @@
     <Target Name="PublishSSMCmd:Make">
         <MSBuild Projects="Publish\PublishSSMCmd.dproj" Targets="Make"/>
     </Target>
+    <Target Name="PublishingServerSesmi">
+        <MSBuild Projects="SessionServer\PublishingServerSesmi.dproj"/>
+    </Target>
+    <Target Name="PublishingServerSesmi:Clean">
+        <MSBuild Projects="SessionServer\PublishingServerSesmi.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="PublishingServerSesmi:Make">
+        <MSBuild Projects="SessionServer\PublishingServerSesmi.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;PublishingServerEnsel;TestEnselSource;EcoRefresh;PublishGetData;PublishSSMCmd"/>
+        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;PublishingServerEnsel;TestEnselSource;EcoRefresh;PublishGetData;PublishSSMCmd;PublishingServerSesmi"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;PublishingServerEnsel:Clean;TestEnselSource:Clean;EcoRefresh:Clean;PublishGetData:Clean;PublishSSMCmd:Clean"/>
+        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;PublishingServerEnsel:Clean;TestEnselSource:Clean;EcoRefresh:Clean;PublishGetData:Clean;PublishSSMCmd:Clean;PublishingServerSesmi:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;PublishingServerEnsel:Make;TestEnselSource:Make;EcoRefresh:Make;PublishGetData:Make;PublishSSMCmd:Make"/>
+        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;PublishingServerEnsel:Make;TestEnselSource:Make;EcoRefresh:Make;PublishGetData:Make;PublishSSMCmd:Make;PublishingServerSesmi:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

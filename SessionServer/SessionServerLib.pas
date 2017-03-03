@@ -148,8 +148,6 @@ type
   destructor Destroy; override;
   private
     fSubscribedElements: TObjectList<TClientSubscribable>; // ref, use TMonitor to lock
-    fProject: TProject; // ref
-    fCurrentScenario: TScenario; // ref
     fRefScenario: TScenario; // ref
     fClientID: string;
     fClientEvent: TEventEntry;
@@ -162,6 +160,8 @@ type
     procedure setCurrentScenario(const aValue: TScenario);
     procedure setRefScenario(const aValue: TScenario);
   protected
+    fCurrentScenario: TScenario; // ref
+    fProject: TProject; // ref
     procedure SendErrorMessage(const aMessage: string);
     procedure SendMeasures();
     procedure SendSession();
@@ -172,7 +172,7 @@ type
     procedure SendMeasuresEnabled();
     procedure SendMeasuresHistoryEnabled();
     procedure SendSimulationControlEnabled();
-
+    procedure Login(aJSONObject: TJSONObject); virtual;
 
   public
     procedure removeClient(aElement: TClientSubscribable);
@@ -816,7 +816,7 @@ type
     procedure handleTypedClientMessage(const aMessageType: string; var aJSONObject: TJSONObject); virtual;
     procedure handleNewClient(aClient: TClient); virtual;
   public
-    function AddClient(const aClientID: string): TClient;
+    function AddClient(const aClientID: string): TClient; virtual;
     procedure ReadBasicData(); virtual; abstract;
   public
     property Connection: TConnection read fConnection;
@@ -1542,33 +1542,32 @@ begin
   Result := fProject.fSessionModel;
 end;
 
-procedure TClient.HandleClientCommand(const aJSONString: string);
-
-  procedure login(aJSONObject: TJSONObject);
-  var
-    scenarioID: string;
-    userid: string;
-    scenario: TScenario;
+procedure TClient.Login(aJSONObject: TJSONObject);
+var
+  scenarioID: string;
+  userid: string;
+  scenario: TScenario;
+begin
+  scenarioID := aJSONObject.GetValue<string>('scenario');
+  if scenarioID<>'' then
   begin
-    scenarioID := aJSONObject.GetValue<string>('scenario');
-    if scenarioID<>'' then
+    userid := aJSONObject.GetValue<string>('userid');
+    if fProject.scenarios.TryGetValue(scenarioID, scenario) then
     begin
-      userid := aJSONObject.GetValue<string>('userid');
-      if fProject.scenarios.TryGetValue(scenarioID, scenario) then
-      begin
-        removeClient(fCurrentScenario);
-        fCurrentScenario := scenario;
-        addClient(fCurrentScenario);
-        Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
-        // retry
-        SendSession();
-        //SendMeasures(); // todo:?
-        fProject.SendDomains(self, 'domains');
-      end
-      else Log.WriteLn('could not connect to scenario '+scenarioID+' user '+userid, llError);
-    end;
+      removeClient(fCurrentScenario);
+      fCurrentScenario := scenario;
+      addClient(fCurrentScenario);
+      Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
+      // retry
+      SendSession();
+      //SendMeasures(); // todo:?
+      fProject.SendDomains(self, 'domains');
+    end
+    else Log.WriteLn('could not connect to scenario '+scenarioID+' user '+userid, llError);
   end;
+end;
 
+procedure TClient.HandleClientCommand(const aJSONString: string);
   procedure selectScenario(aJSONObject: TJSONObject);
   var
     scenarioID: string;
@@ -1935,7 +1934,7 @@ begin
         else if isObject(jsonObject, 'selectObjects', jsonPair)
         then selectObjects(jsonPair.JsonValue)
         else if isObject(jsonObject, 'login', jsonPair)
-        then login(jsonPair.JsonValue as TJSONObject)
+        then Login(jsonPair.JsonValue as TJSONObject)
         else if isObject(jsonObject, 'selectScenario', jsonPair)
         then selectScenario(jsonPair.JsonValue as TJSONObject)
         else if isObject(jsonObject, 'selectObjectsProperties', jsonPair)
@@ -2962,7 +2961,7 @@ var
   timeStamp: TDateTime;
 begin
   timeStamp := 0; // todo:
-  fTilerLayer.signalData(aObject.encode, timeStamp);
+  if Assigned(fTilerLayer) then fTilerLayer.signalData(aObject.encode, timeStamp);
 end;
 
 procedure TLayer.signalObjects(aSender: TObject);
