@@ -268,7 +268,7 @@ var
   i: Integer;
   tcurrent: TDLTriangle;
 begin
-  i := 0;
+i := 0;
   tcurrent := T2;
   if Side(T1.FVertex1, T1.FVertex3, tcurrent.FVertex1) = sideLeft
   then inc(i);

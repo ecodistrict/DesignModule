@@ -159,40 +159,40 @@ type
   end;
 
   TUSChartValue = class
-  constructor Create(aValue: string);
-  protected
-    fStringValue: string;
-    fNumValue: Double;
-    fNumber: Boolean;
-  public
-    function GetJSON: string;
+    constructor Create(aValue: string);
+    protected
+      fStringValue: string;
+      fNumValue: Double;
+      fNumber: Boolean;
+    public
+      function GetJSON: string;
   end;
 
   TUSChartSeries = class
-  constructor Create(aLines: TDictionary<string, string>; const aPrefix: string; const aID: Integer; const aSeriesID: string);
-  destructor Destroy; override;
+    constructor Create(aLines: TDictionary<string, string>; const aPrefix: string; const aID: Integer; const aSeriesID: string);
+    destructor Destroy; override;
   private
     function GetColumnJSON: string;
-  protected
-    fTitle, fXCol, fYCol, fType, fMultiBar, fStackGroup, fVertAxis: string;
-    fID: Integer;
-    fActive: Boolean;
-    fYValues: TList<TUSChartValue>;
-    procedure AddXValues(aValues: array of string);
-  public
-    property XCol: string read fXCol;
-    property YCol: string read fYCol;
-    property MultiBar: string read fMultiBar;
-    property StackGroup: string read fStackGroup;
-    property VertAxis: string read fVertAxis;
-    property Active: Boolean read fActive;
-    property Title: string read fTitle;
-    procedure FillData(aData: TDictionary<string, TStringList>);
+    protected
+      fTitle, fXCol, fYCol, fType, fMultiBar, fStackGroup, fVertAxis: string;
+      fID: Integer;
+      fActive: Boolean;
+      fYValues: TList<TUSChartValue>;
+      procedure AddXValues(aValues: array of string);
+    public
+      property XCol: string read fXCol;
+      property YCol: string read fYCol;
+      property MultiBar: string read fMultiBar;
+      property StackGroup: string read fStackGroup;
+      property VertAxis: string read fVertAxis;
+      property Active: Boolean read fActive;
+      property Title: string read fTitle;
+      procedure FillData(aData: TDictionary<string, TStringList>);
   end;
 
   TUSChart = class(TChart)
-  constructor Create(aScenario: TScenario; aLines: TDictionary<string, string>; aPrefix, aGroup, aTitle, aTableName: string);
-  destructor Destroy; override;
+    constructor Create(aScenario: TScenario; aLines: TDictionary<string, string>; aPrefix, aGroup, aTitle, aTableName: string);
+    destructor Destroy; override;
   private
     fTitle, fGroup, fJSON: string;
     fSeries: TDictionary<string, TUSChartSeries>;
@@ -1460,101 +1460,101 @@ begin
   Result := aObject;
   objectsLock.BeginWrite;
   try
-    case fLayerType of
-      1, 11:
+  case fLayerType of
+    1, 11:
+      begin
+        value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
+        if not Assigned(aObject) then
         begin
-          value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
-          if not Assigned(aObject) then
-          begin
-            geometryPoint := CreateWDGeometryPointFromSDOShape(aQuery, 'SHAPE');
-            projectGeometryPoint(geometryPoint, fSourceProjection);
-            Result := TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value);
-          end
-          else (aObject as TGeometryPointLayerObject).value := value;
-        end;
-      4: // road (VALUE_EXPR)
+          geometryPoint := CreateWDGeometryPointFromSDOShape(aQuery, 'SHAPE');
+          projectGeometryPoint(geometryPoint, fSourceProjection);
+          Result := TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value);
+        end
+        else (aObject as TGeometryPointLayerObject).value := value;
+      end;
+    4: // road (VALUE_EXPR)
+      begin
+        // unidirectional, not left and right
+        value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
+        if not Assigned(aObject) then
         begin
-          // unidirectional, not left and right
-          value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
-          if not Assigned(aObject) then
-          begin
-            geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
-            projectGeometry(geometry, fSourceProjection);
-            Result := TGeometryLayerObject.Create(Self, oid, geometry, value);
-          end
-          else (aObject as TGeometryLayerObject).value := value;
-        end;
-      5,9: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
-        begin
-          // Left and right
+          geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
+          projectGeometry(geometry, fSourceProjection);
+          Result := TGeometryLayerObject.Create(Self, oid, geometry, value);
+        end
+        else (aObject as TGeometryLayerObject).value := value;
+      end;
+    5,9: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
+      begin
+        // Left and right
           value := FieldFloatValueOrNaN(aQuery.Fields[1]);
           value2 := FieldFloatValueOrNaN(aQuery.Fields[2]);
           texture := FieldFloatValueOrNaN(aQuery.Fields[3]);
           texture2 := FieldFloatValueOrNaN(aQuery.Fields[4]);
           if not Assigned(aObject) then
           begin
-            geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
-            projectGeometry(geometry, fSourceProjection);
-            Result := TUSRoadICLR.Create(Self, oid, geometry, value, value2, texture, texture2);
-          end
-          else
-          begin
-            (aObject as TUSRoadICLR).value := value;
-            (aObject as TUSRoadICLR).value2 := value2;
-            (aObject as TUSRoadICLR).texture := texture;
-            (aObject as TUSRoadICLR).texture2 := texture2;
-          end;
-        end;
-      21: // POI
-        begin
-          //
-          (*
-          geometryPoint := TWDGeometryPoint.Create;
-          try
-            geometryPoint.x := aQuery.Fields[1].AsFloat;
-            geometryPoint.y := aQuery.Fields[2].AsFloat;
-            // no projection, is already in lat/lon
-            poiType := aQuery.Fields[3].AsString;
-            poiCat := aQuery.Fields[4].AsString;
-            if not fPoiCategories.TryGetValue(poicat+'_'+poiType, usPOI) then
-            begin
-              usPOI := TUSPOI.Create(fNewPoiCatID, TPicture.Create);
-              fNewPoiCatID := fNewPoiCatID+1;
-              try
-                resourceFolder := ExtractFilePath(ParamStr(0));
-                usPOI.picture.Graphic.LoadFromFile(resourceFolder+poicat+'_'+poiType+'.png');
-              except
-                on e: Exception
-                do Log.WriteLn('Exception loading POI image '+resourceFolder+poicat+'_'+poiType+'.png', llError);
-              end;
-              // signal POI image to tiler
-              //ImageToBytes(usPOI);
-              //fTilerLayer.s
-              {
-              stream  := TBytesStream.Create;
-              try
-                usPOI.picture.Graphic.SaveToStream(stream);
-                fOutputEvent.signalEvent(TByteBuffer.bb_tag_tbytes(icehTilerPOIImage, stream.Bytes)); // todo: check correct number of bytes
-              finally
-                stream.Free;
-              end;
-              }
-            end;
-          finally
-            objects.Add(oid, TGeometryLayerPOIObject.Create(Self, oid, usPOI.ID, geometryPoint));
-          end;
-          *)
+          geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
+          projectGeometry(geometry, fSourceProjection);
+          Result := TUSRoadICLR.Create(Self, oid, geometry, value, value2, texture, texture2);
         end
-    else
-      value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
-      if not Assigned(aObject) then
+        else
+        begin
+          (aObject as TUSRoadICLR).value := value;
+          (aObject as TUSRoadICLR).value2 := value2;
+          (aObject as TUSRoadICLR).texture := texture;
+          (aObject as TUSRoadICLR).texture2 := texture2;
+        end;
+      end;
+    21: // POI
       begin
-        geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
-        projectGeometry(geometry, fSourceProjection);
-        Result := TGeometryLayerObject.Create(Self, oid, geometry, value);
+        //
+        (*
+        geometryPoint := TWDGeometryPoint.Create;
+        try
+          geometryPoint.x := aQuery.Fields[1].AsFloat;
+          geometryPoint.y := aQuery.Fields[2].AsFloat;
+          // no projection, is already in lat/lon
+          poiType := aQuery.Fields[3].AsString;
+          poiCat := aQuery.Fields[4].AsString;
+          if not fPoiCategories.TryGetValue(poicat+'_'+poiType, usPOI) then
+          begin
+            usPOI := TUSPOI.Create(fNewPoiCatID, TPicture.Create);
+            fNewPoiCatID := fNewPoiCatID+1;
+            try
+              resourceFolder := ExtractFilePath(ParamStr(0));
+              usPOI.picture.Graphic.LoadFromFile(resourceFolder+poicat+'_'+poiType+'.png');
+            except
+              on e: Exception
+              do Log.WriteLn('Exception loading POI image '+resourceFolder+poicat+'_'+poiType+'.png', llError);
+            end;
+            // signal POI image to tiler
+            //ImageToBytes(usPOI);
+            //fTilerLayer.s
+            {
+            stream  := TBytesStream.Create;
+            try
+              usPOI.picture.Graphic.SaveToStream(stream);
+              fOutputEvent.signalEvent(TByteBuffer.bb_tag_tbytes(icehTilerPOIImage, stream.Bytes)); // todo: check correct number of bytes
+            finally
+              stream.Free;
+            end;
+            }
+          end;
+        finally
+          objects.Add(oid, TGeometryLayerPOIObject.Create(Self, oid, usPOI.ID, geometryPoint));
+        end;
+        *)
       end
-      else (aObject as TGeometryLayerObject).value := value;
-    end;
+  else
+    value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
+    if not Assigned(aObject) then
+    begin
+      geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
+      projectGeometry(geometry, fSourceProjection);
+      Result := TGeometryLayerObject.Create(Self, oid, geometry, value);
+    end
+    else (aObject as TGeometryLayerObject).value := value;
+  end;
   finally
     objectsLock.EndWrite;
   end
@@ -1579,14 +1579,14 @@ procedure TUSLayer.UpdateQueuehandler;
         begin
           wdid := AnsiString((query.FieldByName('OBJECT_ID').AsInteger).ToString);
           if FindObject(wdid, o) then
-          begin
-            UpdateObject(query, wdid, o);
-            signalObject(o);
-          end
+            begin
+              UpdateObject(query, wdid, o);
+              signalObject(o);
+            end
           else
-          begin
-            AddObject(UpdateObject(query, wdid, nil));
-          end;
+            begin
+              AddObject(UpdateObject(query, wdid, nil));
+            end;
           query.Next;
         end;
     finally
@@ -1629,39 +1629,39 @@ begin
         end;
         if localQueue.Count>0 then
         begin
-          newCount := 0;
-          newIDs := '';
-          ChangeCount := 0;
-          for entry in localQueue do
-          try
-            begin
-              wdid := AnsiString(entry.objectID.ToString);
-              // process entries
-              if entry.action=actionDelete then
-              begin
-                if FindObject(wdid, o)
-                then RemoveObject(o);
-              end
-              else if entry.action=actionNew then
-              begin
-                newCount := newCount+1;
-                if not FindObject(wdid, o) then
+            newCount := 0;
+            newIDs := '';
+            ChangeCount := 0;
+              for entry in localQueue do
+              try
                 begin
-                  ChangeStack.Push(entry.objectID.ToString);
+                  wdid := AnsiString(entry.objectID.ToString);
+                  // process entries
+                  if entry.action=actionDelete then
+                    begin
+                            if FindObject(wdid, o)
+                            then RemoveObject(o);
+                          end
+                  else if entry.action=actionNew then
+                    begin
+                      newCount := newCount+1;
+                      if not FindObject(wdid, o) then
+                      begin
+                        ChangeStack.Push(entry.objectID.ToString);
 //                          fNewQuery.ParamByName('OBJECT_ID').AsInteger := entry.objectID;
 //                          fNewQuery.Execute;
 //                          if not fNewQuery.Eof
 //                          then AddObject(UpdateObject(fNewQuery, wdid, nil))
 //                          else Log.WriteLn('TUSLayer.handleChangeObject: no result on new object ('+entry.objectID.toString+') query '+fNewQuery.SQL.Text, llWarning);
-                end;
-              end
-              else if entry.action=actionChange then
-              begin
-                changeCount := changeCount+1;
+                      end;
+                    end
+                  else if entry.action=actionChange then
+                    begin
+                      changeCount := changeCount+1;
 //                      if ((changeCount mod 1000) = 0) then
 //                        Log.WriteLn('Calculating changes...' + changeCount.ToString);
-                if FindObject(wdid, o) then
-                begin
+                      if FindObject(wdid, o) then
+                        begin
 //                          fChangeQuery.ParamByName('OBJECT_ID').AsInteger := entry.objectID;
 //                          fChangeQuery.Execute;
 //                          if not fChangeQuery.Eof then
@@ -1669,17 +1669,18 @@ begin
 //                              UpdateObject(fChangeQuery, wdid, o);
 //                              signalObject(o);
 //                            end
-                  ChangeStack.Push(entry.objectID.ToString);
-                end
+                          ChangeStack.Push(entry.objectID.ToString);
+                        end
                 else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+entry.objectID.toString+') query', llWarning);
-              end;
-            end;
-          except
+                    end;
+                end;
+              except
             on e: Exception
             do Log.WriteLn('Exception in handleChangeObject: '+e.Message, llError);
-          end;
+              end;
           //Log.WriteLn('Objects in queue: ' + localQueue.Count.ToString);
           //Log.WriteLn('New Objects: ' + newCount.ToString + ', changed objects: ' + ChangeCount.ToString);
+          //ReadMultipleObjects(ChangeStack, oraSession);
           if (ChangeStack.Count > 0) and (ChangeMultipleQuery <> '') then
           begin
             while (ChangeStack.Count > 1000) do
@@ -1697,13 +1698,14 @@ begin
               ReadMultipleObjects(changestring, oraSession);
             end;
           end;
+          //Todo: look into cached updates/batching!
         end;
         localQueue.Clear;
       end;
     end;
   finally
     localQueue.Free;
-    oraSession.Free; //todo can I use one try/finally for both of these?
+    oraSession.Free; //todo can I use one try/finally for all of these?
     ChangeStack.Free;
   end;
 end;
@@ -1738,17 +1740,12 @@ begin
       query.SQL.Text := fQuery; //.Replace('SELECT ', 'SELECT t1.OBJECT_ID,');
       query.Open;
       query.First;
-      TMonitor.Enter(objects);
-      try
         while not query.Eof do
         begin
           oid := AnsiString(query.Fields[0].AsInteger.ToString);
           objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
           query.Next;
         end;
-      finally
-        TMonitor.Exit(objects);
-      end;
     finally
       query.Free;
     end;
@@ -2114,15 +2111,15 @@ begin
       end;
 
   for i := 0 to uscharts.Count - 1 do
-  begin
-    for chartSeries in uscharts[i].Series.Values do
     begin
-      if dataCols.IndexOf(chartSeries.XCol) = -1 then
-        dataCols.Add(chartSeries.XCol);
-      if dataCols.IndexOf(chartSeries.YCol) = -1 then
-        dataCols.Add(chartSeries.YCol);
+      for chartSeries in uscharts[i].Series.Values do
+        begin
+          if dataCols.IndexOf(chartSeries.XCol) = -1 then
+            dataCols.Add(chartSeries.XCol);
+          if dataCols.IndexOf(chartSeries.YCol) = -1 then
+            dataCols.Add(chartSeries.YCol);
+        end;
     end;
-  end;
   data := TDictionary<string, TStringList>.Create;
   if dataCols.Count > 0 then
   begin
@@ -2132,18 +2129,18 @@ begin
       datQuery := datQuery + ', ' + dataCols[i];
     datQuery := datQuery + ' FROM ' + datTableName;
     try
-      datResult := ReturnAllResults(aOraSession, datQuery);
+    datResult := ReturnAllResults(aOraSession, datQuery);
     except
       setLength(datResult, 0);
     end;
     for i := 0 to dataCols.Count -1 do
-    begin
-      dataCol := TStringList.Create;
-      for j := 0 to length(datResult) - 1 do
-          dataCol.Add(datResult[j,i]);
+      begin
+        dataCol := TStringList.Create;
+        for j := 0 to length(datResult) - 1 do
+            dataCol.Add(datResult[j,i]);
 
-      data.Add(dataCols[i], dataCol);
-    end;
+        data.Add(dataCols[i], dataCol);
+      end;
   end;
 
   for i := 0 to uscharts.Count - 1 do
@@ -2439,16 +2436,16 @@ begin
     OraSession.Commit;
   end;
   try
-    measures := ReturnAllResults(OraSession,
-      'SELECT OBJECT_ID, Category, Measure, Description, ObjectTypes, Action, Action_Parameters, Action_ID '+
-      'FROM META_MEASURES');
+  measures := ReturnAllResults(OraSession,
+    'SELECT OBJECT_ID, Category, Measure, Description, ObjectTypes, Action, Action_Parameters, Action_ID '+
+    'FROM META_MEASURES');
     if length(measures)>0 then
     begin
-      for m := 0 to length(measures)-1 do
-      begin
+  for m := 0 to length(measures)-1 do
+  begin
         // todo:
 
-      end;
+  end;
     end
     else log.WriteLn('NO measures defined (no entries)', llWarning);
   except
@@ -2555,14 +2552,14 @@ begin
       'SELECT Lat, Lon, Zoom '+
       'FROM '+PROJECT_TABLE_NAME;
     try
-      table.Execute;
-      try
-        if table.FindFirst
-        then Result := TMapView.Create(table.Fields[0].AsFloat, table.Fields[1].AsFloat, table.Fields[2].AsInteger)
-        else Result := aDefault;
-      finally
-        table.Close;
-      end;
+    table.Execute;
+    try
+      if table.FindFirst
+      then Result := TMapView.Create(table.Fields[0].AsFloat, table.Fields[1].AsFloat, table.Fields[2].AsInteger)
+      else Result := aDefault;
+    finally
+      table.Close;
+    end;
     except
       Result := aDefault;
     end;
@@ -2577,32 +2574,32 @@ var
 begin
   if TableExists(aOraSession, PROJECT_TABLE_NAME) then
   begin
-    // try to read project info from database
-    table := TOraTable.Create(nil);
-    try
-      table.Session := aOraSession;
-      table.SQL.Text :=
-        'SELECT ProjectID '+
+  // try to read project info from database
+  table := TOraTable.Create(nil);
+  try
+    table.Session := aOraSession;
+    table.SQL.Text :=
+      'SELECT ProjectID '+
         'FROM '+PROJECT_TABLE_NAME;
       try
-        table.Execute;
-        try
-          if table.FindFirst then
-          begin
-            if not table.Fields[0].IsNull
-            then Result := table.Fields[0].AsString
-            else Result := aDefault;
-          end
-          else Result := aDefault;
-        finally
-          table.Close;
-        end;
+    table.Execute;
+    try
+      if table.FindFirst then
+      begin
+        if not table.Fields[0].IsNull
+        then Result := table.Fields[0].AsString
+        else Result := aDefault;
+      end
+      else Result := aDefault;
+    finally
+      table.Close;
+    end;
       except
         Result := aDefault;
       end;
-    finally
-      table.Free;
-    end;
+  finally
+    table.Free;
+  end;
   end
   else Result := aDefault;
 end;
@@ -2639,7 +2636,7 @@ begin
         'WHERE PROJECTID='''+aProjectID+'''';
       query.Execute;
       if query.RowsAffected=0 then
-      begin
+    begin
         query.SQL.Text :=
           'INSERT INTO '+PROJECT_TABLE_NAME+' (PROJECTID, LAT, LON, ZOOM) '+
           'VALUES ('''+aProjectID+''', '+aLat.ToString(dotFormat)+', '+aLon.ToString(dotFormat)+', '+aZoomLevel.ToString+')';
@@ -2649,18 +2646,18 @@ begin
       else
       begin
         query.Close;
-      end;
+    end;
       aOraSession.Commit;
     finally
       query.Free;
-    end;
-  except
-    on E: Exception do
-    begin
+  end;
+    except
+      on E: Exception do
+      begin
       Log.WriteLn('Exception processing project id: '+e.Message, llError);
+      end;
     end;
   end;
-end;
 
 function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer): Integer;
 var
@@ -2844,26 +2841,26 @@ var
 begin
   Result := '';
   for key in fXValues.Keys do
-  begin
-    if Result <> '' then
-      Result := Result + ',';
-    Result := Result + '[';
-    columnString := '"' + key + '"';
-    dataList := fXValues[key];
-    for index := 0 to dataList.Count - 1 do
-    begin
-      columnString := columnString + ',' + dataList[index].GetJSON;
-    end;
-    Result := Result + columnString + ']';
-  end;
-  for serie in fSeries.Values do
-  begin
-    if serie.Active then
     begin
       if Result <> '' then
         Result := Result + ',';
-      Result := Result + '[' + serie.GetColumnJSON + ']';
+      Result := Result + '[';
+      columnString := '"' + key + '"';
+      dataList := fXValues[key];
+      for index := 0 to dataList.Count - 1 do
+        begin
+          columnString := columnString + ',' + dataList[index].GetJSON;
+        end;
+        Result := Result + columnString + ']';
     end;
+  for serie in fSeries.Values do
+  begin
+    if serie.Active then
+      begin
+        if Result <> '' then
+          Result := Result + ',';
+        Result := Result + '[' + serie.GetColumnJSON + ']';
+      end;
   end;
 end;
 
@@ -2893,12 +2890,12 @@ begin
       Result := Result + ',';
     groupstring := '';
     for group in groupList do
-    begin
-      if groupstring <> '' then
-        groupstring := groupstring + ',';
-      groupstring := groupstring + '"' + group + '"';
-    end;
-    Result := Result + '[' + groupstring + ']';
+      begin
+        if groupstring <> '' then
+          groupstring := groupstring + ',';
+        groupstring := groupstring + '"' + group + '"';
+      end;
+      Result := Result + '[' + groupstring + ']';
   end;
 end;
 
@@ -2954,12 +2951,12 @@ begin
   fYCol := aLines[aPrefix + sPrefixLong + 'Data'].Split([','])[0];
 
   for key in aLines.Keys do
-  begin
-    if (key.StartsWith(aPrefix + 'TChart$Series' + aSeriesID + ':')) and key.Contains('$$') then
     begin
-      seriesLines.AddOrSetValue(key.Split(['$$'])[1], aLines[key]);
+      if (key.StartsWith(aPrefix + 'TChart$Series' + aSeriesID + ':')) and key.Contains('$$') then
+      begin
+        seriesLines.AddOrSetValue(key.Split(['$$'])[1], aLines[key]);
+      end;
     end;
-  end;
 
   if aLines.ContainsKey(aPrefix + sPrefixLong + 'Caption ') then
     fTitle := aLines[aPrefix + sPrefixLong + 'Caption ']

@@ -1088,10 +1088,10 @@ function TExtentHelper.Intersects(const aExtent: TExtent): Boolean;
 begin
   if not (IsEmpty or aExtent.IsEmpty) then
     Result :=
-       (Self.XMin <= aExtent.XMax) and
-       (Self.XMax >= aExtent.XMin) and
-       (Self.YMin <= aExtent.YMax) and
-       (Self.YMax >= aExtent.YMin)
+         (Self.XMin <= aExtent.XMax) and
+         (Self.XMax >= aExtent.XMin) and
+         (Self.YMin <= aExtent.YMax) and
+         (Self.YMax >= aExtent.YMin)
   else
     Result := False;
 end;
@@ -1515,7 +1515,6 @@ end;
 
 // returns true if the net is triangulated
 function TSliceReceptor.GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean;
-var
   distLatLon: TDistanceLatLon;
 begin
   // check if triangles need to be calculated
@@ -1872,42 +1871,42 @@ begin
         (icehObjectID shl 3) or wtLengthDelimited:
           begin
             id := aBuffer.bb_read_rawbytestring(aCursor);
-            if fGeometries.TryGetValue(id, sgo) then
-            begin
-              if Assigned(geometry) then
-              begin
-              // Assume that geometry is modified if we received geometry in the payload.
-              // We remove the geometry from fLocations. The list will free the geometry.
-                fGeometries.Remove(id);
-                sgo := TSliceGeometryObject.Create(geometry, value);
-                if fMaxExtent.IsEmpty
-                then fMaxExtent := sgo.extent
-                else fMaxExtent.Expand(sgo.extent);
-                fGeometries.Add(id, sgo);
-                value := NaN;
-                geometry := nil; // transfer ownership
-              end
-              else
-              begin
-                if not IsNaN(value) then
-                begin
-                  sgo.value := value;
-                end;
-              end;
-            end
-            else
-            begin
-              if Assigned(geometry) then
-              begin
-                sgo := TSliceGeometryObject.Create(geometry, value);
-                if fMaxExtent.IsEmpty
-                then fMaxExtent := sgo.extent
-                else fMaxExtent.Expand(sgo.extent);
-                fGeometries.Add(id, sgo);
-                geometry := nil; // transfer ownership
-                value := NaN;
-              end;
-            end;
+    if fGeometries.TryGetValue(id, sgo) then
+    begin
+      if Assigned(geometry) then
+      begin
+      // Assume that geometry is modified if we received geometry in the payload.
+      // We remove the geometry from fLocations. The list will free the geometry.
+        fGeometries.Remove(id);
+        sgo := TSliceGeometryObject.Create(geometry, value);
+        if fMaxExtent.IsEmpty
+        then fMaxExtent := sgo.extent
+        else fMaxExtent.Expand(sgo.extent);
+        fGeometries.Add(id, sgo);
+        value := NaN;
+        geometry := nil; // transfer ownership
+      end
+      else
+      begin
+        if not IsNaN(value) then
+        begin
+          sgo.value := value;
+        end;
+      end;
+    end
+    else
+    begin
+      if Assigned(geometry) then
+      begin
+        sgo := TSliceGeometryObject.Create(geometry, value);
+        if fMaxExtent.IsEmpty
+        then fMaxExtent := sgo.extent
+        else fMaxExtent.Expand(sgo.extent);
+        fGeometries.Add(id, sgo);
+        geometry := nil; // transfer ownership
+        value := NaN;
+      end;
+    end;
           end;
         (icehTilerValue shl 3) or wt64Bit:
           begin
@@ -2096,43 +2095,43 @@ begin
         (icehObjectID shl 3) or wtLengthDelimited:
           begin
             id := aBuffer.bb_read_rawbytestring(aCursor);
-            if fGeometries.TryGetValue(id, sgo) then
-            begin
-              if Assigned(geometry) then
-              begin
-              // Assume that geometry is modified if we received geometry in the payload.
-              // We remove the geometry from fLocations. The list will free the geometry.
-                fGeometries.Remove(id);
-                sgo := TSliceGeometryICObject.Create(geometry, value, texture);
-                if fMaxExtent.IsEmpty
-                then fMaxExtent := sgo.extent
-                else fMaxExtent.Expand(sgo.extent);
-                fGeometries.Add(id, sgo);
-                geometry := nil;
-              end
-              else
-              begin
-                if not IsNaN(value) then
-                begin
-                  sgo.value := value;
-                end;
-                if not IsNaN(texture) then
-                begin
-                  sgo.texture := texture;
-                end;
-              end;
-            end
-            else
-            begin
-              sgo := TSliceGeometryICObject.Create(geometry, value, texture);
-              if fMaxExtent.IsEmpty
-              then fMaxExtent := sgo.extent
-              else fMaxExtent.Expand(sgo.extent);
-              fGeometries.Add(id, sgo);
-              geometry := nil;
-              value := NaN;
-              texture := NaN;
-            end;
+    if fGeometries.TryGetValue(id, sgo) then
+    begin
+      if Assigned(geometry) then
+      begin
+      // Assume that geometry is modified if we received geometry in the payload.
+      // We remove the geometry from fLocations. The list will free the geometry.
+        fGeometries.Remove(id);
+        sgo := TSliceGeometryICObject.Create(geometry, value, texture);
+        if fMaxExtent.IsEmpty
+        then fMaxExtent := sgo.extent
+        else fMaxExtent.Expand(sgo.extent);
+        fGeometries.Add(id, sgo);
+        geometry := nil;
+      end
+      else
+      begin
+        if not IsNaN(value) then
+        begin
+          sgo.value := value;
+        end;
+        if not IsNaN(texture) then
+        begin
+          sgo.texture := texture;
+        end;
+      end;
+    end
+    else
+    begin
+      sgo := TSliceGeometryICObject.Create(geometry, value, texture);
+      if fMaxExtent.IsEmpty
+      then fMaxExtent := sgo.extent
+      else fMaxExtent.Expand(sgo.extent);
+      fGeometries.Add(id, sgo);
+      geometry := nil;
+      value := NaN;
+      texture := NaN;
+    end;
           end;
         (icehTilerValue shl 3) or wt64Bit:
           begin
@@ -2234,10 +2233,10 @@ begin
               end
               else
               begin
-                colors2 := fPalette.ValueToColors(isgop.Value.texture2);
-                if IsNaN(isgop.Value.texture)
-                then colors := colors2
-                else colors := fPalette.ValueToColors(isgop.Value.texture);
+              colors2 := fPalette.ValueToColors(isgop.Value.texture2);
+              if IsNaN(isgop.Value.texture)
+              then colors := colors2
+              else colors := fPalette.ValueToColors(isgop.Value.texture);
               end;
               setLength(polygon, 5);
               for part in isgop.Value.fGeometry.parts do
@@ -2256,12 +2255,12 @@ begin
                     yn := xPrev-x;
                     // normalize..
                     l := sqrt((xn*xn)+(yn*yn));
-                    polygon[0].X := xPrev;
-                    polygon[0].Y := yPrev;
-                    polygon[1].X := x;
-                    polygon[1].Y := y;
-                    polygon[4].X := xPrev;
-                    polygon[4].Y := yPrev;
+                      polygon[0].X := xPrev;
+                      polygon[0].Y := yPrev;
+                      polygon[1].X := x;
+                      polygon[1].Y := y;
+                      polygon[4].X := xPrev;
+                      polygon[4].Y := yPrev;
 
                     // right = value2 and colors2
                     if not IsNaN(isgop.Value.value2) then
@@ -2401,53 +2400,53 @@ begin
         (icehObjectID shl 3) or wtLengthDelimited:
           begin
             id := aBuffer.bb_read_rawbytestring(aCursor);
-            if fGeometries.TryGetValue(id, sgo) then
-            begin
-              if Assigned(geometry) then
-              begin
-                // Assume that geometry is modified if we received geometry in the payload.
-                // We remove the geometry from fLocations. The list will free the geometry.
-                fGeometries.Remove(id);
-                sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
-                if fMaxExtent.IsEmpty
-                then fMaxExtent := sgo.extent
-                else fMaxExtent.Expand(sgo.extent);
-                fGeometries.Add(id, sgo);
-                geometry := nil; // do not free. Object is owned by fLocations
-              end
-              else
-              begin
-                if not IsNaN(value) then
-                begin
-                  sgo.value := value;
-                end;
-                if not IsNaN(value2) then
-                begin
-                  sgo.value2 := value2;
-                end;
-                if not IsNaN(texture) then
-                begin
-                  sgo.texture := texture;
-                end;
-                if not IsNaN(texture2) then
-                begin
-                  sgo.texture2 := texture2;
-                end;
-              end;
-            end
-            else
-            begin
-              if Assigned(geometry) then
-              begin
-                sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
-                if fMaxExtent.IsEmpty
-                then fMaxExtent := sgo.extent
-                else fMaxExtent.Expand(sgo.extent);
-                fGeometries.Add(id, sgo);
-                geometry := nil;
-                value := NaN;
-              end;
-            end;
+    if fGeometries.TryGetValue(id, sgo) then
+    begin
+      if Assigned(geometry) then
+      begin
+      // Assume that geometry is modified if we received geometry in the payload.
+      // We remove the geometry from fLocations. The list will free the geometry.
+        fGeometries.Remove(id);
+        sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
+        if fMaxExtent.IsEmpty
+        then fMaxExtent := sgo.extent
+        else fMaxExtent.Expand(sgo.extent);
+        fGeometries.Add(id, sgo);
+        geometry := nil; // do not free. Object is owned by fLocations
+      end
+      else
+      begin
+        if not IsNaN(value) then
+        begin
+          sgo.value := value;
+        end;
+        if not IsNaN(value2) then
+        begin
+          sgo.value2 := value2;
+        end;
+        if not IsNaN(texture) then
+        begin
+          sgo.texture := texture;
+        end;
+        if not IsNaN(texture2) then
+        begin
+          sgo.texture2 := texture2;
+        end;
+      end;
+    end
+    else
+    begin
+      if Assigned(geometry) then
+      begin
+        sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
+        if fMaxExtent.IsEmpty
+        then fMaxExtent := sgo.extent
+        else fMaxExtent.Expand(sgo.extent);
+        fGeometries.Add(id, sgo);
+        geometry := nil;
+        value := NaN;
+      end;
+    end;
           end;
         (icehTilerValue shl 3) or wt64Bit:
           begin
@@ -2722,47 +2721,47 @@ begin
         (icehObjectID shl 3) or wtLengthDelimited:
           begin
             id := aBuffer.bb_read_rawbytestring(aCursor);
-            if fLocations.TryGetValue(id, sgo) then
-            begin
-              if Assigned(geometry) then
-              begin
-                // Assume that geometry is modified if we received geometry in the payload.
-                // We remove the geometry from fLocations. The list will free the geometry.
-                fLocations.Remove(id);
-                sgo := TSliceLocationObject.Create(geometry, value, radius);
-                if fMaxExtent.IsEmpty
-                then fMaxExtent := sgo.extent
-                else fMaxExtent.Expand(sgo.extent);
-                fLocations.Add(id, sgo);
-                geometry := nil; // do not free. Object is owned by fLocations
-              end
-              else
-              begin
-                if not IsNaN(value) then
-                begin
-                  sgo.value := value;
-                end;
-                if not IsNaN(radius) then
-                begin
-                  sgo.radius := radius;
-                end;
-              end;
-            end
-            else
-            begin
-              if Assigned(geometry) then
-              begin
-                sgo := TSliceLocationObject.Create(geometry, value, radius);
+    if fLocations.TryGetValue(id, sgo) then
+    begin
+      if Assigned(geometry) then
+      begin
+      // Assume that geometry is modified if we received geometry in the payload.
+      // We remove the geometry from fLocations. The list will free the geometry.
+        fLocations.Remove(id);
+        sgo := TSliceLocationObject.Create(geometry, value, radius);
+        if fMaxExtent.IsEmpty
+        then fMaxExtent := sgo.extent
+        else fMaxExtent.Expand(sgo.extent);
+        fLocations.Add(id, sgo);
+        geometry := nil; // do not free. Object is owned by fLocations
+      end
+      else
+      begin
+        if not IsNaN(value) then
+        begin
+          sgo.value := value;
+        end;
+        if not IsNaN(radius) then
+        begin
+          sgo.radius := radius;
+        end;
+      end;
+    end
+    else
+    begin
+      if Assigned(geometry) then
+      begin
+        sgo := TSliceLocationObject.Create(geometry, value, radius);
                 if fMaxExtent.IsEmpty then
                   fMaxExtent := sgo.extent
                 else
                   fMaxExtent.Expand(sgo.extent);
-                fLocations.Add(id, sgo);
-                geometry := nil;
-                value := NaN;
-              end;
-            end;
-          end;
+        fLocations.Add(id, sgo);
+        geometry := nil;
+        value := NaN;
+      end;
+    end;
+  end;
         (icehTilerValue shl 3) or wt64Bit:
           begin
             value := aBuffer.bb_read_double(aCursor);
@@ -2943,7 +2942,7 @@ begin
     fRefSlice.fDataLock.BeginRead;
     try
       Result := fCurrentSlice.getDataValueAtPoint(aLat, aLon, cur);
-      if Result=gtsOk then
+      if Result=gtsOk then 
       begin
         Result := fRefSlice.getDataValueAtPoint(aLat, aLon, ref);
         if Result=gtsOk then
@@ -4108,7 +4107,7 @@ begin
                     fLayers.Add(newLayer.fLayerID, newLayer);
                     if persistent
                     then newLayer.storePersistencyInfo;
-                    // signal layer id etc. to trigger sending data
+                      // signal layer id etc. to trigger sending data
                     newLayer.signalTilerInfo;
                     Log.WriteLn('added new layer '+description+' ('+newLayer.LayerID.ToString+') for '+eventName);
                   end;
