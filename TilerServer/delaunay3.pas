@@ -1,5 +1,7 @@
 unit delaunay3;
 
+// https://www.cs.cmu.edu/~quake/tripaper/triangle3.html
+
 interface
 
 {.$DEFINE PERFORMANCELOG}
@@ -70,7 +72,6 @@ type
     x: TDLCoordinate;
     y: TDLCoordinate;
     value: TDLValue;
-//    ID: Integer;
     function IsSame(ax, ay: TDLCoordinate): Boolean;
     function contains(aValue: TDLValue): Boolean;
     function ToString: string; override;
@@ -88,9 +89,7 @@ type
     procedure SortXY(aThreadPool: TMyThreadPool=nil; aParam: Integer=0);
     procedure SortYX(aThreadPool: TMyThreadPool=nil; aParam: Integer=0);
     procedure Resort(aThreadPool: TMyThreadPool=nil; aParam: Integer=0);
-//    function RemoveDuplicatesXY: Boolean;
     procedure GetMinMax(expandborderwith: Integer; out minx, miny, maxx, maxy: TDLCoordinate);
-//    function IndexOf(ax, ay: TDLCoordinate): Integer; overload;
     procedure ExtendExtent(var aExtent: TDLExtent);
   end;
 
@@ -104,15 +103,7 @@ type
     FNB1: TDLTriangle; // side oposite to Vertex1
     FNB2: TDLTriangle; // side oposite to Vertex2
     FNB3: TDLTriangle; // side oposite to Vertex3
-    // normal vector
-    FNx: TDLCoordinate;
-    FNy: TDLCoordinate;
-    FNz: TDLCoordinate;
-    FNCalculated: Boolean;
     FDisabled: Boolean;
-//    procedure Assign(aTriangle: TDLTriangle);
-//    function GetPOE(aTriangle: TDLTriangle): Integer;
-//    function GetNB(aVertexA, aVertexB: TDLPoint): TDLTriangle;
   public
     property Vertex1: TDLPoint read FVertex1;
     property Vertex2: TDLPoint read FVertex2;
@@ -122,33 +113,12 @@ type
     property NB3: TDLTriangle read FNB3;
   private
     procedure ShiftNil;
-//    function ContainsValue(aValue: TDLValue): Boolean;
-//    function ContainsPoint(aPoint: TDLPoint): Boolean; overload;
     function ContainsPoint(x, y: TDLCoordinate): Boolean; overload;
-//    function ContainsVertex(aVertex: TDLPoint): Boolean;
-//    function PointOnEdge(aPoint: TDLPoint): Integer;
     function IsGhost: Boolean;
-//    function IsOnHull: Boolean;
-//    function IsUnlinked: Boolean; // not linked to any other triangle
     procedure Unlink;
     procedure UnlinkTo(aTriangle: TDLTriangle);
-//    procedure Relink(aSrcTriangle, aDstTriangle: TDLTriangle);
-    function LinkTo(aTriangle: TDLTriangle; aVertexA, aVertexB: TDLPoint): Integer;
-//    function ContainsEdge(p1, p2: TDLPoint): Boolean;
-//    function ContainsEdgeInOrder(p1, p2: TDLPoint): Boolean;
-//    function ValueOnPoint(aPoint: TDLPoint): TDLValue; overload;
     function ValueOnPoint(x, y: TDLCoordinate): TDLValue; overload;
-    property NCalculated: Boolean read FNCalculated write FNCalculated;
     property Disabled: Boolean read FDisabled write FDisabled;
-    function NextLeftTriangle(aCenter: TDLPoint): TDLTriangle;
-    function NextRightTriangle(aCenter: TDLPoint): TDLTriangle;
-//    function LastLeftTriangle(aCenter: TDLPoint): TDLTriangle;
-//    function LastRightTriangle(aCenter: TDLPoint): TDLTriangle;
-//    function NextHullEdge(var poe: Integer): TDLTriangle;
-//    function PrevHullEdge(var poe: Integer): TDLTriangle;
-//    function poeToVertexCW(poe: Integer): TDLPoint;
-//    function poeToVertexCCW(poe: Integer): TDLPoint;
-//    function LengthOfLongestEdge: TDLCoordinate;
     function CheckEdgeLengths(aMaxEdgeLengthX, aMaxEdgeLengthY: TDLCoordinate): Boolean;
     function HasNoData(aNoData: TDLValue=NaN): Boolean;
   end;
@@ -162,19 +132,8 @@ type
     procedure Notify(Ptr: Pointer; Action: TListNotification); override;
   private
     procedure QuickDelete(aIndex: Integer);
-//    function QuickRemove(aItem: Pointer): Integer; inline;
     property Triangles[aIndex: Integer]: TDLTriangle read GetTriangle; default;
-//    function PointToTriangle(aPoint: TDLPoint): TDLTriangle;
-//    function PointToValue(aPoint: TDLPoint; aNoValue: TDLValue): TDLValue; overload;
-//    procedure MarkAsUncalculated(aPoint: TDLPoint; aAffectedTriangles: TList = nil);
-//    procedure FindTriangles(aVertex: TDLPoint; aTriangles: TList);
-//    function FindFirstTriangle(aVertex: TDLPoint): TDLTriangle;
-//    function FindFirstHullTriangle: TDLTriangle;
-//    function ContainsVertex(aVertex: TDLPoint): Boolean;
-//    function ContainsGhostTriangle: Boolean;
     procedure RemoveGhostTriangles;
-//    function CheckConsistency: Boolean;
-//    function CheckUnlinked(aExceptions: TDLTriangleList = nil): Boolean;
     function DisableTooLongEdgesAndNoData(aMaxEdgeLengthX, aMaxEdgeLengthY: TDLCoordinate; aNodata: TDLValue=NaN): Boolean;
   public
     function PointToValue(x, y: TDLCoordinate; aNoValue: TDLValue): TDLValue; // overload;
@@ -207,30 +166,18 @@ type
   private
     FPoints: TObjectDictionary<TDLID, TDLPoint>;
     FTriangles: TDLTriangleList; // owned triangles
-//    FOrphanes: Integer;
     function RemoveDuplicates: Boolean;
   public
     property Points: TObjectDictionary<TDLID, TDLPoint> read FPoints;
     property Triangles: TDLTriangleList read FTriangles;
-//    procedure setPoints(aPoints: TDLPointList);
     // action
     procedure Clear;
     procedure Triangulate(
       aMaxEdgeLengthX, aMaxEdgeLengthY: TDLCoordinate; aNodata: TDLValue=NaN;
       aThreadPool: TMyThreadPool=nil; aCheckForDuplicates: Boolean=True; aParam: Integer=0);
     // inquire
-//    function PointToTriangle(aPoint: TDLPoint): TDLTriangle;
-//    function PointToValue(aPoint: TDLPoint; aNoValue: TDLValue): TDLValue;
     function PointsToExtent: TDLExtent;
     // diff
-//    procedure AddPoint(aPoint: TDLPoint; aMaxEdgeLengthX, aMaxEdgeLengthY: TDLCoordinate; aNoData: TDLValue=NaN); overload;
-//    function RemovePoint(aID: Integer): Boolean; overload;
-//    function ChangePoint(aID: Integer; aValue: TDLValue): Boolean; overload;
-
-//    procedure AddPoint(aPoint: TDLPoint; aMaxEdgeLengthX, aMaxEdgeLengthY: TDLCoordinate; var aExtent: TDLExtent; aNoData: TDLValue=NaN); overload;
-//    function RemovePoint(aID: Integer; var aExtent: TDLExtent): Boolean; overload;
-//    function ChangePoint(aID: Integer; aValue: TDLValue; var aExtent: TDLExtent): Boolean; overload;
-
     procedure SaveToFile(const aFileName: string);
     function ValueAtPoint(var aCursor: TDLTriangle; x, y: TDLCoordinate; aNoValue: TDLValue): TDLValue;
   end;
@@ -238,13 +185,6 @@ type
 
 
 implementation
-
-//function Distance(p, q: TDLPoint): TDLCoordinate;
-//function Side(p, q, r: TDLPoint): Integer; inline; overload;
-//function Side(p, q: TDLPoint; rx, ry: TDLCoordinate): Integer; inline; overload;
-//function EdgeContainsValue(p, q: TDLPoint; aValue: TDLValue): Boolean;
-//function CompareXY(p1, p2: TDLPoint): Integer; inline;
-//function CompareYX(p1, p2: TDLPoint): Integer; inline;
 
 function InCircle(p1, p2, p3, p4: TDLPoint): Boolean; inline;
 begin
@@ -970,27 +910,6 @@ begin
   FSortOrder := soYX; // 1;
 end;
 
-{
-function TDLPointList.RemoveDuplicatesXY: Boolean;
-var
-  i: Integer;
-begin
-  SortXY;
-  // step 2: remove duplicates
-  i := 0;
-  Result := False;
-  while i < Count - 2 do
-  begin
-    if IsEqualXY(Items[i], Items[i + 1]) then
-    begin
-      Delete(i + 1); // do not use quickdelete because we have to retain order
-      Result := True;
-    end
-    else inc(i);
-  end;
-end;
-}
-
 procedure TDLPointList.Resort(aThreadPool: TMyThreadPool; aParam: Integer);
 begin
   if SortOrder=soXY
@@ -1035,13 +954,6 @@ begin
   end;
 end;
 
-//function TDLPointList.IndexOf(aID: Integer): Integer;
-//begin
-//  Result := Count - 1;
-//  while (Result >= 0) and (Points[Result].ID <> aID)
-//  do Result := Result - 1;
-//end;
-
 procedure TDLPointList.QuickDelete(aIndex: Integer);
 begin
   // move item to last position so delete does not need to move that much memory
@@ -1051,31 +963,7 @@ begin
   FSortOrder := soUnsorted;
 end;
 
-//function TDLPointList.IndexOf(ax, ay: TDLCoordinate): Integer;
-//begin
-//  Result := Count - 1;
-//  while (Result >= 0) and not Points[Result].IsSame(ax, ay)
-//  do Result := Result - 1;
-//end;
-
 { TDLTriangle }
-
-{
-procedure TDLTriangle.Assign(aTriangle: TDLTriangle);
-begin
-  FVertex1 := aTriangle.FVertex1;
-  FVertex2 := aTriangle.FVertex2;
-  FVertex3 := aTriangle.FVertex3;
-  FNB1 := aTriangle.FNB1;
-  FNB2 := aTriangle.FNB2;
-  FNB3 := aTriangle.FNB3;
-  FNx := aTriangle.FNx;
-  FNy := aTriangle.FNy;
-  FNz := aTriangle.FNz;
-  NCalculated := aTriangle.NCalculated;
-  FDisabled := aTriangle.FDisabled;
-end;
-}
 
 function TDLTriangle.CheckEdgeLengths(aMaxEdgeLengthX, aMaxEdgeLengthY: TDLCoordinate): Boolean;
 // true when edge is to long!
@@ -1088,19 +976,7 @@ begin
     // 3-1
     (Abs(Vertex3.x-Vertex1.x)>aMaxEdgeLengthX) or (Abs(Vertex3.y-Vertex1.y)>aMaxEdgeLengthY);
 end;
-{
-function TDLTriangle.ContainsEdge(p1, p2: TDLPoint): Boolean;
-begin
-  Result := ((Vertex1 = p1) and (Vertex2 = p2)) or ((Vertex1 = p2) and (Vertex2 = p1)) or
-    ((Vertex1 = p1) and (Vertex3 = p2)) or ((Vertex1 = p2) and (Vertex3 = p1)) or ((Vertex2 = p1) and (Vertex3 = p2))
-    or ((Vertex2 = p2) and (Vertex3 = p1));
-end;
 
-function TDLTriangle.ContainsEdgeInOrder(p1, p2: TDLPoint): Boolean;
-begin
-  Result := ((Vertex1 = p1) and (Vertex2 = p2)) or ((Vertex2 = p1) and (Vertex3 = p2)) or ((Vertex3 = p1) and (Vertex1 = p2));
-end;
-}
 function TDLTriangle.ContainsPoint(x, y: TDLCoordinate): Boolean;
 begin
   if Side(FVertex1, FVertex2, x, y) = sideLeft
@@ -1117,90 +993,7 @@ begin
     end;
   end;
 end;
-{
-function TDLTriangle.ContainsPoint(aPoint: TDLPoint): Boolean;
-begin
-  if Side(FVertex1, FVertex2, aPoint) = sideLeft then
-    Result := False
-  else
-  begin
-    if Side(FVertex2, FVertex3, aPoint) = sideLeft
-    then Result := False
-    else
-    begin
-      if Side(FVertex3, FVertex1, aPoint) = sideLeft
-      then Result := False
-      else Result := True;
-    end;
-  end;
-end;
 
-function TDLTriangle.ContainsValue(aValue: TDLValue): Boolean;
-begin
-  Result := False; // sentinel
-  // check if one of the vertices contains the given value
-  if Assigned(FVertex2) then
-  begin
-    if not Result
-    then Result := EdgeContainsValue(FVertex1, FVertex2, aValue);
-    if not Result
-    then Result := EdgeContainsValue(FVertex2, FVertex3, aValue);
-  end;
-  if not Result
-  then Result := EdgeContainsValue(FVertex1, FVertex3, aValue);
-end;
-
-function TDLTriangle.ContainsVertex(aVertex: TDLPoint): Boolean;
-begin
-  Result := (FVertex1 = aVertex) or (FVertex2 = aVertex) or (FVertex3 = aVertex);
-end;
-
-function TDLTriangle.GetNB(aVertexA, aVertexB: TDLPoint): TDLTriangle;
-begin
-  if Vertex1 = aVertexA then
-  begin
-    if Vertex2 = aVertexB
-    then Result := NB3
-    else Result := nil;
-  end
-  else
-  begin
-    if Vertex2 = aVertexA then
-    begin
-      if Vertex3 = aVertexB
-      then Result := NB1
-      else Result := nil;
-    end
-    else
-    begin
-      if Vertex3 = aVertexA then
-      begin
-        if Vertex1 = aVertexB
-        then Result := NB2
-        else Result := nil;
-      end
-      else Result := nil;
-    end;
-  end;
-end;
-
-function TDLTriangle.GetPOE(aTriangle: TDLTriangle): Integer;
-begin
-  if FNB1 = aTriangle
-  then Result := poeEdge23
-  else
-  begin
-    if FNB2 = aTriangle
-    then Result := poeEdge31
-    else
-    begin
-      if FNB3 = aTriangle
-      then Result := poeEdge12
-      else Result := poeNoEdge;
-    end;
-  end;
-end;
-}
 function TDLTriangle.HasNoData(aNoData: TDLValue): Boolean;
 begin
   if IsNaN(FVertex1.Value) or IsNaN(FVertex2.Value) or IsNaN(FVertex3.Value)
@@ -1217,299 +1010,7 @@ function TDLTriangle.IsGhost: Boolean;
 begin
   Result := not(Assigned(FVertex1) and Assigned(FVertex2) and Assigned(FVertex3));
 end;
-{
-function TDLTriangle.IsOnHull: Boolean;
-begin
-  Result := not(Assigned(FNB1) and Assigned(FNB2) and Assigned(FNB3));
-end;
 
-function TDLTriangle.IsUnlinked: Boolean;
-begin
-  Result := not(Assigned(FNB1) or Assigned(FNB2) or Assigned(FNB3));
-end;
-
-function TDLTriangle.LastLeftTriangle(aCenter: TDLPoint): TDLTriangle;
-var
-  n: TDLTriangle;
-begin
-  Result := Self;
-  n := Result.NextLeftTriangle(aCenter);
-  while Assigned(n) and (n <> Self) do
-  begin
-    Result := n;
-    n := Result.NextLeftTriangle(aCenter);
-  end;
-end;
-
-function TDLTriangle.LastRightTriangle(aCenter: TDLPoint): TDLTriangle;
-var
-  n: TDLTriangle;
-begin
-  Result := Self;
-  n := Result.NextRightTriangle(aCenter);
-  while Assigned(n) and (n <> Self) do
-  begin
-    Result := n;
-    n := Result.NextRightTriangle(aCenter);
-  end;
-end;
-
-function TDLTriangle.LengthOfLongestEdge: TDLCoordinate;
-var
-  d12: TDLCoordinate;
-  d23: TDLCoordinate;
-  d31: TDLCoordinate;
-begin
-  d12 := Distance(Vertex1, Vertex2);
-  d23 := Distance(Vertex2, Vertex3);
-  d31 := Distance(Vertex3, Vertex1);
-  Result := Max(d12, Max(d23, d31));
-end;
-}
-function TDLTriangle.LinkTo(aTriangle: TDLTriangle; aVertexA, aVertexB: TDLPoint): Integer;
-begin
-  if (Vertex2 = aVertexA) and (Vertex3 = aVertexB) then
-  begin
-    FNB1 := aTriangle;
-    Result := poeEdge23;
-  end
-  else
-  begin
-    if (Vertex3 = aVertexA) and (Vertex1 = aVertexB) then
-    begin
-      FNB2 := aTriangle;
-      Result := poeEdge31;
-    end
-    else
-    begin
-      if (Vertex1 = aVertexA) and (Vertex2 = aVertexB) then
-      begin
-        FNB3 := aTriangle;
-        Result := poeEdge12;
-      end
-      else Result := poeNoEdge;
-    end;
-  end;
-end;
-{
-function TDLTriangle.NextHullEdge(var poe: Integer): TDLTriangle;
-begin
-  Result := Self; // sentinel: we stay within this triangle
-  case poe of
-    poeEdge12:
-      if Assigned(NB1) then
-      begin // find next hull triangle, rotating CCW around Vertex2
-        Result := NB1.LastLeftTriangle(Vertex2);
-        // find poe on hull starting with this vertex of this triangle
-        if Result.Vertex1 = Vertex2
-        then poe := poeEdge12
-        else
-        begin
-          if Result.Vertex2 = Vertex2
-          then poe := poeEdge23
-          else poe := poeEdge31;
-        end;
-      end
-      else
-        poe := poeEdge23;
-    poeEdge23:
-      if Assigned(NB2) then
-      begin // find next hull triangle, rotating CCW around Vertex3
-        Result := NB2.LastLeftTriangle(Vertex3);
-        // find poe on hull starting with this vertex of this triangle
-        if Result.Vertex1 = Vertex3
-        then poe := poeEdge12
-        else
-        begin
-          if Result.Vertex2 = Vertex3
-          then poe := poeEdge23
-          else poe := poeEdge31;
-        end;
-      end
-      else
-        poe := poeEdge31;
-    poeEdge31:
-      if Assigned(NB3) then
-      begin // find next hull triangle, rotating CCW around Vertex1
-        Result := NB3.LastLeftTriangle(Vertex1);
-        // find poe on hull starting with this vertex of this triangle
-        if Result.Vertex1 = Vertex1
-        then poe := poeEdge12
-        else
-        begin
-          if Result.Vertex2 = Vertex1
-          then poe := poeEdge23
-          else poe := poeEdge31;
-        end;
-      end
-      else
-        poe := poeEdge12;
-  else // poeNoEdge: find first edge
-    if Assigned(NB1) then
-    begin
-      if Assigned(NB2) then
-      begin
-        if Assigned(NB3) then
-        begin
-          poe := poeNoEdge;
-          Result := nil;
-        end
-        else poe := poeEdge12;
-      end
-      else poe := poeEdge31;
-    end
-    else poe := poeEdge23;
-  end;
-end;
-}
-function TDLTriangle.NextLeftTriangle(aCenter: TDLPoint): TDLTriangle;
-begin
-  if aCenter = FVertex1
-  then Result := FNB3
-  else
-  begin
-    if aCenter = FVertex2
-    then Result := FNB1
-    else Result := FNB2;
-  end;
-end;
-
-function TDLTriangle.NextRightTriangle(aCenter: TDLPoint): TDLTriangle;
-begin
-  if aCenter = FVertex1
-  then Result := FNB2
-  else
-  begin
-    if aCenter = FVertex2
-    then Result := FNB3
-    else Result := FNB1;
-  end;
-end;
-{
-function TDLTriangle.poeToVertexCCW(poe: Integer): TDLPoint;
-begin
-  case poe of
-    poeEdge12:
-      Result := Vertex1;
-    poeEdge23:
-      Result := Vertex2;
-    poeEdge31:
-      Result := Vertex3;
-  else
-      Result := nil;
-  end;
-end;
-
-function TDLTriangle.poeToVertexCW(poe: Integer): TDLPoint;
-begin
-  case poe of
-    poeEdge12:
-      Result := Vertex2;
-    poeEdge23:
-      Result := Vertex3;
-    poeEdge31:
-      Result := Vertex1;
-  else
-      Result := nil;
-  end;
-end;
-
-function TDLTriangle.PointOnEdge(aPoint: TDLPoint): Integer;
-begin
-//   asume point is within triangle, now check if on edge
-  if Side(FVertex1, FVertex2, aPoint) = sideColineair
-  then Result := poeEdge12
-  else
-  begin
-    if Side(FVertex2, FVertex3, aPoint) = sideColineair
-    then Result := poeEdge23
-    else
-    begin
-      if Side(FVertex3, FVertex1, aPoint) = sideColineair
-      then Result := poeEdge31
-      else Result := poeNoEdge;
-    end;
-  end;
-end;
-
-function TDLTriangle.PrevHullEdge(var poe: Integer): TDLTriangle;
-begin
-  Result := Self; // sentinel: we stay within this triangle
-  case poe of
-    poeEdge12:
-      if Assigned(NB2) then
-      begin // find next hull triangle, rotating CW around Vertex2
-        Result := NB2.LastRightTriangle(Vertex1);
-        // find poe on hull starting with this vertex of this triangle
-        if Result.Vertex1 = Vertex1
-        then poe := poeEdge31
-        else
-        begin
-          if Result.Vertex2 = Vertex1
-          then poe := poeEdge12
-          else poe := poeEdge23;
-        end;
-      end
-      else poe := poeEdge31;
-    poeEdge23:
-      if Assigned(NB3) then
-      begin // find next hull triangle, rotating CW around Vertex3
-        Result := NB3.LastRightTriangle(Vertex2);
-        // find poe on hull starting with this vertex of this triangle
-        if Result.Vertex1 = Vertex2
-        then poe := poeEdge31
-        else
-        begin
-          if Result.Vertex2 = Vertex2
-          then poe := poeEdge12
-          else poe := poeEdge23;
-        end;
-      end
-      else
-        poe := poeEdge12;
-    poeEdge31:
-      if Assigned(NB1) then
-      begin // find next hull triangle, rotating CW around Vertex1
-        Result := NB1.LastRightTriangle(Vertex3);
-        // find poe on hull starting with this vertex of this triangle
-        if Result.Vertex1 = Vertex3
-        then poe := poeEdge31
-        else
-        begin
-          if Result.Vertex2 = Vertex3
-          then poe := poeEdge12
-          else poe := poeEdge23;
-        end;
-      end
-      else poe := poeEdge23;
-  else // poeNoEdge: find first edge
-    if Assigned(NB1) then
-    begin
-      if Assigned(NB2) then
-      begin
-        if Assigned(NB3) then
-        begin
-          poe := poeNoEdge;
-          Result := nil;
-        end
-        else poe := poeEdge12;
-      end
-      else poe := poeEdge31;
-    end
-    else poe := poeEdge23;
-  end;
-end;
-
-procedure TDLTriangle.Relink(aSrcTriangle, aDstTriangle: TDLTriangle);
-begin
-  if FNB1 = aSrcTriangle
-  then FNB1 := aDstTriangle;
-  if FNB2 = aSrcTriangle
-  then FNB2 := aDstTriangle;
-  if FNB3 = aSrcTriangle
-  then FNB3 := aDstTriangle;
-end;
-}
 procedure TDLTriangle.ShiftNil;
 var
   tnb1: TDLTriangle;
@@ -1568,114 +1069,21 @@ begin
   if FNB3 = aTriangle
   then FNB3 := nil;
 end;
-{
-function TDLTriangle.ValueOnPoint(aPoint: TDLPoint): TDLValue;
-begin
-  if not NCalculated then
-  begin
-    // N := (Vertex3-Vertex1)x(Vertex2-Vertex1)
-    // N.x = b.y*c.z - b.z*c.y
-    // N.y = b.z*c.x - b.x*c.z
-    // N.z = b.x*c.y - b.y*c.x
-    FNx := (Vertex3.y - Vertex1.y) * (Vertex2.Value - Vertex1.Value) - (Vertex3.Value - Vertex1.Value) * (Vertex2.y - Vertex1.y);
-    FNy := (Vertex3.Value - Vertex1.Value) * (Vertex2.x - Vertex1.x) - (Vertex3.x - Vertex1.x) * (Vertex2.Value - Vertex1.Value);
-    FNz := (Vertex3.x - Vertex1.x) * (Vertex2.y - Vertex1.y) - (Vertex3.y - Vertex1.y) * (Vertex2.x - Vertex1.x);
-    NCalculated := True;
-  end;
-  Result := (FNx*(aPoint.X-Vertex1.X)+FNy*(aPoint.Y-Vertex1.Y))/-FNz+Vertex1.Value;
-end;
-}
+
 function TDLTriangle.ValueOnPoint(x, y: TDLCoordinate): TDLValue;
+var
+  Nx: Double;
+  Ny: Double;
+  Nz: Double;
 begin
-  if not NCalculated then
-  begin
-    // N := (Vertex3-Vertex1)x(Vertex2-Vertex1)
-    // N.x = b.y*c.z - b.z*c.y
-    // N.y = b.z*c.x - b.x*c.z
-    // N.z = b.x*c.y - b.y*c.x
-    FNx := (Vertex3.y - Vertex1.y) * (Vertex2.Value - Vertex1.Value) - (Vertex3.Value - Vertex1.Value) * (Vertex2.y - Vertex1.y);
-    FNy := (Vertex3.Value - Vertex1.Value) * (Vertex2.x - Vertex1.x) - (Vertex3.x - Vertex1.x) * (Vertex2.Value - Vertex1.Value);
-    FNz := (Vertex3.x - Vertex1.x) * (Vertex2.y - Vertex1.y) - (Vertex3.y - Vertex1.y) * (Vertex2.x - Vertex1.x);
-    NCalculated := True;
-  end;
-  Result := (FNx*(X-Vertex1.X)+FNy*(Y-Vertex1.Y))/-FNz+Vertex1.Value;
+  Nx := (Vertex3.y - Vertex1.y) * (Vertex2.Value - Vertex1.Value) - (Vertex3.Value - Vertex1.Value) * (Vertex2.y - Vertex1.y);
+  Ny := (Vertex3.Value - Vertex1.Value) * (Vertex2.x - Vertex1.x) - (Vertex3.x - Vertex1.x) * (Vertex2.Value - Vertex1.Value);
+  Nz := (Vertex3.x - Vertex1.x) * (Vertex2.y - Vertex1.y) - (Vertex3.y - Vertex1.y) * (Vertex2.x - Vertex1.x);
+  Result := (Nx*(X-Vertex1.X)+Ny*(Y-Vertex1.Y))/-Nz+Vertex1.Value;
 end;
 
 { TDLTriangulation }
 
-{
-function TDLTriangleList.CheckConsistency: Boolean;
-var
-  t: Integer;
-begin
-  // all triangles must have a valid nb1, nb2 and nb3 (registered triangle)
-  // no triangle is allowed to be a ghost
-  // all assigned triangle neighbour links should link back to referencing triangle
-  Result := True;
-  for t := 0 to Count - 1 do
-  begin
-    if Triangles[t].IsGhost
-    then Result := False;
-    if (Count > 1) and Triangles[t].IsUnlinked
-    then Result := False;
-    if Assigned(Triangles[t].NB1) then
-    begin
-      if IndexOf(Triangles[t].NB1) < 0
-      then Result := False;
-      if Triangles[t].NB1.GetNB(Triangles[t].Vertex3, Triangles[t].Vertex2) <> Triangles[t]
-      then Result := False;
-    end;
-    if Assigned(Triangles[t].NB2) then
-    begin
-      if IndexOf(Triangles[t].NB2) < 0
-      then Result := False;
-      if Triangles[t].NB2.GetNB(Triangles[t].Vertex1, Triangles[t].Vertex3) <> Triangles[t]
-      then Result := False;
-    end;
-    if Assigned(Triangles[t].NB3) then
-    begin
-      if IndexOf(Triangles[t].NB3) < 0
-      then Result := False;
-      if Triangles[t].NB3.GetNB(Triangles[t].Vertex2, Triangles[t].Vertex1) <> Triangles[t]
-      then Result := False;
-    end;
-  end;
-end;
-
-function TDLTriangleList.CheckUnlinked(aExceptions: TDLTriangleList): Boolean;
-var
-  t: Integer;
-begin
-  // no triangle is allowed to be unlinked (1 mesh)
-  Result := True;
-  for t := 0 to Count - 1 do
-  begin
-    if Triangles[t].IsUnlinked and ((not Assigned(aExceptions)) or (aExceptions.IndexOf(Triangles[t]) < 0))
-    then Result := False;
-  end;
-end;
-
-function TDLTriangleList.ContainsGhostTriangle: Boolean;
-var
-  t: Integer;
-begin
-  t := Count - 1;
-  while (t >= 0) and not Triangles[t].IsGhost
-  do t := t - 1;
-  Result := t >= 0;
-end;
-
-function TDLTriangleList.ContainsVertex(aVertex: TDLPoint): Boolean;
-var
-  t: Integer;
-begin
-  // find all triangles that contain (as vertex) given point
-  t := Count - 1;
-  while (t >= 0) and not Triangles[t].ContainsVertex(aVertex)
-  do t := t - 1;
-  Result := t >= 0;
-end;
-}
 constructor TDLTriangleList.Create(aOwnsTriangles: Boolean);
 begin
   FOwnsTriangles := aOwnsTriangles;
@@ -1698,94 +1106,18 @@ begin
     end;
   end;
 end;
-{
-function TDLTriangleList.FindFirstHullTriangle: TDLTriangle;
-var
-  t: Integer;
-begin
-  t := 0;
-  while (t < Count) and not Triangles[t].IsOnHull
-  do t := t + 1;
-  if t < Count
-  then Result := Triangles[t]
-  else Result := nil;
-end;
 
-function TDLTriangleList.FindFirstTriangle(aVertex: TDLPoint): TDLTriangle;
-var
-  t: Integer;
-begin
-  t := 0;
-  while (t < Count) and not Triangles[t].ContainsVertex(aVertex)
-  do t := t + 1;
-  if t < Count
-  then Result := Triangles[t]
-  else Result := nil;
-end;
-
-procedure TDLTriangleList.FindTriangles(aVertex: TDLPoint; aTriangles: TList);
-var
-  t: Integer;
-begin
-  // find all triangles that contain (as vertex) given point
-  for t := 0 to Count - 1 do
-  begin
-    if Triangles[t].ContainsVertex(aVertex)
-    then aTriangles.add(Triangles[t]);
-  end;
-end;
-}
 function TDLTriangleList.GetTriangle(aIndex: Integer): TDLTriangle;
 begin
   Result := TDLTriangle(Items[aIndex]);
 end;
-{
-procedure TDLTriangleList.MarkAsUncalculated(aPoint: TDLPoint; aAffectedTriangles: TList);
-var
-  t: Integer;
-begin
-  // find all triangles that contain (as vertex) given point
-  for t := 0 to Count - 1 do
-  begin
-    if Triangles[t].ContainsVertex(aPoint) then
-    begin
-      Triangles[t].NCalculated := False;
-      if Assigned(aAffectedTriangles)
-      then aAffectedTriangles.add(Triangles[t]);
-    end;
-  end;
-end;
-}
+
 procedure TDLTriangleList.Notify(Ptr: Pointer; Action: TListNotification);
 begin
   if (Action = lnDeleted) and FOwnsTriangles
   then TDLTriangle(Ptr).Free;
 end;
-{
-function TDLTriangleList.PointToTriangle(aPoint: TDLPoint): TDLTriangle;
-var
-  t: Integer;
-begin
-  t := Count - 1;
-  while (t >= 0) and not Triangles[t].ContainsPoint(aPoint)
-  do t := t - 1;
-  if t >= 0
-  then Result := Triangles[t]
-  else Result := nil;
-end;
 
-function TDLTriangleList.PointToValue(aPoint: TDLPoint; aNoValue: TDLValue): TDLValue;
-var
-  t: Integer;
-begin
-  t := Count - 1;
-  while (t >= 0) and not Triangles[t].ContainsPoint(aPoint)
-  do t := t - 1;
-  if t >= 0
-  then Result := Triangles[t].ValueOnPoint(aPoint)
-  else Result := aNoValue;
-end;
-}
 function TDLTriangleList.PointToValue(x, y: TDLCoordinate; aNoValue: TDLValue): TDLValue;
 var
   t: Integer;
@@ -1805,14 +1137,7 @@ begin
   then Exchange(aIndex, Count - 1);
   Delete(Count - 1);
 end;
-{
-function TDLTriangleList.QuickRemove(aItem: Pointer): Integer;
-begin
-  Result := IndexOf(aItem);
-  if Result >= 0
-  then QuickDelete(Result);
-end;
-}
+
 procedure TDLTriangleList.RemoveGhostTriangles;
 var
   t: Integer;
@@ -2195,610 +1520,8 @@ begin
   end;
 end;
 
-function CanFormCWTriangle(aTriangle: TDLTriangle; poe: Integer; aPoint: TDLPoint): Boolean;
-begin
-  // poe is edge that should be used in reverse as base for new triangle
-  case poe of
-    poeEdge12:
-      Result := Side(aTriangle.Vertex2, aTriangle.Vertex1, aPoint) = sideRight;
-    poeEdge23:
-      Result := Side(aTriangle.Vertex3, aTriangle.Vertex2, aPoint) = sideRight;
-    poeEdge31:
-      Result := Side(aTriangle.Vertex1, aTriangle.Vertex3, aPoint) = sideRight;
-  else
-    Result := False;
-  end;
-end;
-
-function CreateCWTriangle(aTriangle: TDLTriangle; poe: Integer; aPoint: TDLPoint): TDLTriangle;
-begin
-  // poe is edge that should be used in reverse as base for new triangle
-  case poe of
-    poeEdge12:
-      begin
-        Result := TDLTriangle.Create;
-        Result.FVertex1 := aTriangle.Vertex1;
-        Result.FVertex2 := aPoint;
-        Result.FVertex3 := aTriangle.Vertex2;
-        Result.FNB2 := aTriangle;
-        aTriangle.FNB3 := Result;
-      end;
-    poeEdge23:
-      begin
-        Result := TDLTriangle.Create;
-        Result.FVertex1 := aTriangle.Vertex2;
-        Result.FVertex2 := aPoint;
-        Result.FVertex3 := aTriangle.Vertex3;
-        Result.FNB2 := aTriangle;
-        aTriangle.FNB1 := Result;
-      end;
-    poeEdge31:
-      begin
-        Result := TDLTriangle.Create;
-        Result.FVertex1 := aTriangle.Vertex3;
-        Result.FVertex2 := aPoint;
-        Result.FVertex3 := aTriangle.Vertex1;
-        Result.FNB2 := aTriangle;
-        aTriangle.FNB2 := Result;
-      end;
-  else
-    Result := nil;
-  end;
-end;
-{
-function CheckHull(aTriangleList: TDLTriangleList): Boolean;
-var
-  S, t: TDLTriangle;
-  poeS, poeT: Integer;
-begin
-  S := aTriangleList.FindFirstHullTriangle;
-  if Assigned(S) then
-  begin
-    poeS := poeNoEdge;
-    S := S.NextHullEdge(poeS);
-    if Assigned(S) and (poeS <> poeNoEdge) then
-    begin
-      poeT := poeS;
-      t := S.NextHullEdge(poeT);
-      if (t <> S) or (poeS <> poeT) then
-      begin
-        while (t <> S) or (poeS <> poeT)
-        do t := t.NextHullEdge(poeT);
-        Result := (t = S) and (poeS = poeT);
-      end
-      else Result := False;
-    end
-    else Result := False;
-  end
-  else Result := False;
-end;
-}
 { TDelaunyNet }
-{
-procedure TDLNet.AbortTriangulation();
-begin
-  FTriangles.Clear;
-end;
 
-procedure TDLNet.AddPoint(aPoint: TDLPoint; aMaxEdgeLengthX, aMaxEdgeLengthY: TDLCoordinate; aNoData: TDLValue);
-
-  function SplitTriangle(aTriangle: TDLTriangle; aPoint: TDLPoint; poe: Integer; out aNB: TDLTriangle): TDLTriangle;
-  begin
-    case poe of
-      // split triangles with edges that contains this point and add 2 triangles for each
-      poeEdge12:
-        begin
-          // create copy of triangle
-          Result := TDLTriangle.Create;
-          Result.Assign(aTriangle);
-          // put point in both triangles on correct position
-          aTriangle.FVertex2 := aPoint;
-          Result.FVertex1 := aPoint;
-          // fix neighbours
-          if Assigned(aTriangle.FNB1)
-          then aTriangle.FNB1.Relink(aTriangle, Result);
-          aTriangle.FNB1 := Result;
-          Result.FNB2 := aTriangle;
-          // mark as not calculated
-          aTriangle.NCalculated := False;
-          Result.NCalculated := False;
-          // add Result to all lists
-          Triangles.add(Result);
-          aNB := aTriangle.NB3;
-        end;
-      poeEdge23:
-        begin
-          Result := TDLTriangle.Create;
-          Result.Assign(aTriangle);
-          aTriangle.FVertex3 := aPoint;
-          Result.FVertex2 := aPoint;
-          if Assigned(aTriangle.FNB2)
-          then aTriangle.FNB2.Relink(aTriangle, Result);
-          aTriangle.FNB2 := Result;
-          Result.FNB3 := aTriangle;
-          aTriangle.NCalculated := False;
-          Result.NCalculated := False;
-          // add Result to all lists
-          Triangles.add(Result);
-          aNB := aTriangle.NB1;
-        end;
-      poeEdge31:
-        begin
-          Result := TDLTriangle.Create;
-          Result.Assign(aTriangle);
-          aTriangle.FVertex1 := aPoint;
-          Result.FVertex3 := aPoint;
-          if Assigned(aTriangle.FNB3)
-          then aTriangle.FNB3.Relink(aTriangle, Result);
-          aTriangle.FNB3 := Result;
-          Result.FNB1 := aTriangle;
-          aTriangle.NCalculated := False;
-          Result.NCalculated := False;
-          // add Result to all lists
-          Triangles.add(Result);
-          aNB := aTriangle.NB2;
-        end;
-    else
-      Result := nil;
-      aNB := nil;
-    end;
-  end;
-
-var
-  Triangle: TDLTriangle;
-  poe: Integer;
-  NB: TDLTriangle;
-  i: Integer;
-  AffectedTriangles: TDLTriangleList;
-  NewTriangle: TDLTriangle;
-  NextTriangle: TDLTriangle;
-  FirstTriangle: TDLTriangle;
-  SecondTriangle: TDLTriangle;
-  ThirdTriangle: TDLTriangle;
-  NB2: TDLTriangle;
-  PrevTriangle: TDLTriangle;
-  poePrev: Integer;
-  LastTriangle: TDLTriangle;
-  poeNext: Integer;
-begin
-  i := Points.IndexOf(aPoint.x, aPoint.y); // todo: take sorting into account
-  if i < 0 then
-  begin
-    // add point to owned points list
-    Points.add(aPoint); // todo: take sorting into account
-    if Assigned(Triangles) then
-    begin
-      if Triangles.Count > 0 then
-      begin
-        Triangle := Triangles.PointToTriangle(aPoint);
-        if Assigned(Triangle) then
-        begin
-          // check if on a edge
-          poe := Triangle.PointOnEdge(aPoint);
-          if poe = poeNoEdge then
-          begin
-            // triangulate within triangle
-            // create 3 new triangles that have new point as vertex2, NB2 points to edges of old triangle
-            // edge12 of Triangle
-            FirstTriangle := TDLTriangle.Create;
-            FirstTriangle.FVertex1 := Triangle.Vertex2;
-            FirstTriangle.FVertex2 := aPoint;
-            FirstTriangle.FVertex3 := Triangle.Vertex1;
-            // edge23 of Triangle
-            SecondTriangle := TDLTriangle.Create;
-            SecondTriangle.FVertex1 := Triangle.Vertex3;
-            SecondTriangle.FVertex2 := aPoint;
-            SecondTriangle.FVertex3 := Triangle.Vertex2;
-            // edge31 of Triangle
-            ThirdTriangle := TDLTriangle.Create;
-            ThirdTriangle.FVertex1 := Triangle.Vertex1;
-            ThirdTriangle.FVertex2 := aPoint;
-            ThirdTriangle.FVertex3 := Triangle.Vertex3;
-            // link missed NBs
-            FirstTriangle.FNB1 := ThirdTriangle;
-            FirstTriangle.FNB2 := Triangle.NB3;
-            if Assigned(FirstTriangle.FNB2)
-            then FirstTriangle.FNB2.Relink(Triangle, FirstTriangle);
-            FirstTriangle.FNB3 := SecondTriangle;
-            SecondTriangle.FNB1 := FirstTriangle;
-            SecondTriangle.FNB2 := Triangle.NB1;
-            if Assigned(SecondTriangle.FNB2)
-            then SecondTriangle.FNB2.Relink(Triangle, SecondTriangle);
-            SecondTriangle.FNB3 := ThirdTriangle;
-            ThirdTriangle.FNB1 := SecondTriangle;
-            ThirdTriangle.FNB2 := Triangle.NB2;
-            if Assigned(ThirdTriangle.FNB2) then
-              ThirdTriangle.FNB2.Relink(Triangle, ThirdTriangle);
-            ThirdTriangle.FNB3 := FirstTriangle;
-            // add new triangles to global list
-            Triangles.add(FirstTriangle);
-            Triangles.add(SecondTriangle);
-            Triangles.add(ThirdTriangle);
-            // all is linked now, remove old triangle
-            Triangle.FNB1 := nil;
-            Triangle.FNB2 := nil;
-            Triangle.FNB3 := nil;
-            Triangles.QuickRemove(Triangle);
-          end
-          else
-          begin
-            // todo: update aIntermetiateGrid!
-            // split triangles with edges that contains this point and add 2 triangles for each
-            SecondTriangle := SplitTriangle(Triangle, aPoint, poe, NB);
-            // check for oposite triangle on edge where point is
-            if Assigned(NB) then
-            begin
-              // handle other triangle on other size of edge
-              ThirdTriangle := SplitTriangle(NB, aPoint, NB.GetPOE(Triangle), NB2);
-              // fix linking
-              Triangle.Relink(NB, ThirdTriangle);
-              NB.Relink(Triangle, SecondTriangle);
-            end;
-          end;
-        end
-        else
-        begin // point is not in any triangle, so must be outside hull
-          // find any starting point on hull
-          Triangle := Triangles.FindFirstHullTriangle;
-          // find any edge of triangle on hull
-          poe := poeNoEdge;
-          Triangle := Triangle.NextHullEdge(poe);
-          // go CW to find first edge that can form triangle with point
-          while not CanFormCWTriangle(Triangle, poe, aPoint)
-          do Triangle := Triangle.NextHullEdge(poe);
-          // form triangles prev
-          PrevTriangle := Triangle;
-          poePrev := poe;
-          LastTriangle := nil;
-          FirstTriangle := nil;
-          repeat
-            NewTriangle := CreateCWTriangle(PrevTriangle, poePrev, aPoint);
-            if Assigned(LastTriangle) then
-            begin
-              NewTriangle.FNB1 := LastTriangle;
-              LastTriangle.FNB3 := NewTriangle;
-            end
-            else FirstTriangle := NewTriangle;
-            Triangles.add(NewTriangle);
-            LastTriangle := NewTriangle;
-            PrevTriangle := PrevTriangle.PrevHullEdge(poePrev);
-          until (not Assigned(PrevTriangle)) or (not CanFormCWTriangle(PrevTriangle, poePrev, aPoint));
-          // form triangles next
-          NextTriangle := Triangle;
-          poeNext := poe;
-          LastTriangle := FirstTriangle;
-          // first is already created so step to next
-          NextTriangle := NextTriangle.NextHullEdge(poeNext);
-          while Assigned(NextTriangle) and CanFormCWTriangle(NextTriangle, poeNext, aPoint) do
-          begin
-            NewTriangle := CreateCWTriangle(NextTriangle, poeNext, aPoint);
-            NewTriangle.FNB3 := LastTriangle;
-            LastTriangle.FNB1 := NewTriangle;
-            Triangles.add(NewTriangle);
-            LastTriangle := NewTriangle;
-            NextTriangle := NextTriangle.NextHullEdge(poeNext);
-          end;
-        end;
-      end
-      else
-      begin
-        // no triangles so do completely new triangulation
-        if not IsNaN(aMaxEdgeLengthX)
-        then Triangulate(aMaxEdgeLengthX, aMaxEdgeLengthY, aNoData); // todo:
-        // add triangles to intermediate grid (if exists)
-      end;
-    end;
-  end
-  else
-  begin
-    // point already in list -> ignore as new point but set new value and ID
-    Points[i].ID := aPoint.ID;
-    if not SameValue(Points[i].Value, aPoint.Value) then
-    begin
-      Points[i].Value := aPoint.Value;
-      if Assigned(Triangles) then
-      begin
-        // mark connected triangles as NOT calculated
-        AffectedTriangles := TDLTriangleList.Create;
-        try
-          Triangles.MarkAsUncalculated(Points[i], AffectedTriangles);
-        finally
-          AffectedTriangles.Free;
-        end;
-      end;
-    end;
-    aPoint.Free;
-  end;
-end;
-
-function TDLNet.ChangePoint(aID: Integer; aValue: TDLValue): Boolean;
-var
-  i: Integer;
-begin
-  i := Points.IndexOf(aID);
-  if i >= 0 then
-  begin
-    Points[i].Value := aValue;
-    if Assigned(Triangles) then
-    begin
-      // mark connected triangles as NOT calculated
-      Triangles.MarkAsUncalculated(Points[i]);
-    end;
-    Result := True;
-  end
-  else Result := False;
-end;
-
-procedure TDLNet.AddPoint(aPoint: TDLPoint; aMaxEdgeLengthX, aMaxEdgeLengthY: TDLCoordinate; var aExtent: TDLExtent; aNoData: TDLValue);
-
-  function SplitTriangle(aTriangle: TDLTriangle; aPoint: TDLPoint; poe: Integer; out aNB: TDLTriangle): TDLTriangle;
-  begin
-    case poe of
-      // split triangles with edges that contains this point and add 2 triangles for each
-      poeEdge12:
-        begin
-          // create copy of triangle
-          Result := TDLTriangle.Create;
-          Result.Assign(aTriangle);
-          // put point in both triangles on correct position
-          aTriangle.FVertex2 := aPoint;
-          Result.FVertex1 := aPoint;
-          // fix neighbours
-          if Assigned(aTriangle.FNB1)
-          then aTriangle.FNB1.Relink(aTriangle, Result);
-          aTriangle.FNB1 := Result;
-          Result.FNB2 := aTriangle;
-          // mark as not calculated
-          aTriangle.NCalculated := False;
-          Result.NCalculated := False;
-          // add Result to all lists
-          Triangles.add(Result);
-          aExtent.ExtendExtent(Result);
-          aNB := aTriangle.NB3;
-        end;
-      poeEdge23:
-        begin
-          Result := TDLTriangle.Create;
-          Result.Assign(aTriangle);
-          aTriangle.FVertex3 := aPoint;
-          Result.FVertex2 := aPoint;
-          if Assigned(aTriangle.FNB2)
-          then aTriangle.FNB2.Relink(aTriangle, Result);
-          aTriangle.FNB2 := Result;
-          Result.FNB3 := aTriangle;
-          aTriangle.NCalculated := False;
-          Result.NCalculated := False;
-          // add Result to all lists
-          Triangles.add(Result);
-          aExtent.ExtendExtent(Result);
-          aNB := aTriangle.NB1;
-        end;
-      poeEdge31:
-        begin
-          Result := TDLTriangle.Create;
-          Result.Assign(aTriangle);
-          aTriangle.FVertex1 := aPoint;
-          Result.FVertex3 := aPoint;
-          if Assigned(aTriangle.FNB3)
-          then aTriangle.FNB3.Relink(aTriangle, Result);
-          aTriangle.FNB3 := Result;
-          Result.FNB1 := aTriangle;
-          aTriangle.NCalculated := False;
-          Result.NCalculated := False;
-          // add Result to all lists
-          Triangles.add(Result);
-          aExtent.ExtendExtent(Result);
-          aNB := aTriangle.NB2;
-        end;
-    else
-      Result := nil;
-      aNB := nil;
-    end;
-  end;
-
-var
-  Triangle: TDLTriangle;
-  nt: Integer;
-  poe: Integer;
-  NB: TDLTriangle;
-  i: Integer;
-  AffectedTriangles: TDLTriangleList;
-  NewTriangle: TDLTriangle;
-  NextTriangle: TDLTriangle;
-  FirstTriangle: TDLTriangle;
-  SecondTriangle: TDLTriangle;
-  ThirdTriangle: TDLTriangle;
-  NB2: TDLTriangle;
-  PrevTriangle: TDLTriangle;
-  poePrev: Integer;
-  LastTriangle: TDLTriangle;
-  poeNext: Integer;
-begin
-  i := Points.IndexOf(aPoint.x, aPoint.y);
-  if i < 0 then
-  begin
-    // add point to owned points list
-    Points.add(aPoint);
-    if Assigned(Triangles) then
-    begin
-      if Triangles.Count > 0 then
-      begin
-        // todo: use cursor to search through triangles
-        Triangle := Triangles.PointToTriangle(aPoint);
-        if Assigned(Triangle) then
-        begin
-          // check if on a edge
-          poe := Triangle.PointOnEdge(aPoint);
-          if poe = poeNoEdge then
-          begin
-            // triangulate within triangle
-            // create 3 new triangles that have new point as vertex2, NB2 points to edges of old triangle
-            // edge12 of Triangle
-            FirstTriangle := TDLTriangle.Create;
-            FirstTriangle.FVertex1 := Triangle.Vertex2;
-            FirstTriangle.FVertex2 := aPoint;
-            FirstTriangle.FVertex3 := Triangle.Vertex1;
-            // edge23 of Triangle
-            SecondTriangle := TDLTriangle.Create;
-            SecondTriangle.FVertex1 := Triangle.Vertex3;
-            SecondTriangle.FVertex2 := aPoint;
-            SecondTriangle.FVertex3 := Triangle.Vertex2;
-            // edge31 of Triangle
-            ThirdTriangle := TDLTriangle.Create;
-            ThirdTriangle.FVertex1 := Triangle.Vertex1;
-            ThirdTriangle.FVertex2 := aPoint;
-            ThirdTriangle.FVertex3 := Triangle.Vertex3;
-            // link missed NBs
-            FirstTriangle.FNB1 := ThirdTriangle;
-            FirstTriangle.FNB2 := Triangle.NB3;
-            if Assigned(FirstTriangle.FNB2)
-            then FirstTriangle.FNB2.Relink(Triangle, FirstTriangle);
-            FirstTriangle.FNB3 := SecondTriangle;
-            SecondTriangle.FNB1 := FirstTriangle;
-            SecondTriangle.FNB2 := Triangle.NB1;
-            if Assigned(SecondTriangle.FNB2)
-            then SecondTriangle.FNB2.Relink(Triangle, SecondTriangle);
-            SecondTriangle.FNB3 := ThirdTriangle;
-            ThirdTriangle.FNB1 := SecondTriangle;
-            ThirdTriangle.FNB2 := Triangle.NB2;
-            if Assigned(ThirdTriangle.FNB2) then
-              ThirdTriangle.FNB2.Relink(Triangle, ThirdTriangle);
-            ThirdTriangle.FNB3 := FirstTriangle;
-            // add new triangles to global list
-            Triangles.add(FirstTriangle);
-            Triangles.add(SecondTriangle);
-            Triangles.add(ThirdTriangle);
-            // all is linked now, remove old triangle
-            Triangle.FNB1 := nil;
-            Triangle.FNB2 := nil;
-            Triangle.FNB3 := nil;
-            aExtent.ExtendExtent(Triangle);
-            Triangles.QuickRemove(Triangle);
-          end
-          else
-          begin
-            aExtent.ExtendExtent(Triangle);
-            // split triangles with edges that contains this point and add 2 triangles for each
-            SecondTriangle := SplitTriangle(Triangle, aPoint, poe, NB);
-            // check for oposite triangle on edge where point is
-            if Assigned(NB) then
-            begin
-              aExtent.ExtendExtent(NB);
-              // handle other triangle on other size of edge
-              ThirdTriangle := SplitTriangle(NB, aPoint, NB.GetPOE(Triangle), NB2);
-              // fix linking
-              Triangle.Relink(NB, ThirdTriangle);
-              NB.Relink(Triangle, SecondTriangle);
-            end;
-          end;
-        end
-        else
-        begin // point is not in any triangle, so must be outside hull
-          // find any starting point on hull
-          Triangle := Triangles.FindFirstHullTriangle;
-          // find any edge of triangle on hull
-          poe := poeNoEdge;
-          Triangle := Triangle.NextHullEdge(poe);
-          // go CW to find first edge that can form triangle with point
-          while not CanFormCWTriangle(Triangle, poe, aPoint)
-          do Triangle := Triangle.NextHullEdge(poe);
-          // form triangles prev
-          PrevTriangle := Triangle;
-          poePrev := poe;
-          LastTriangle := nil;
-          FirstTriangle := nil;
-          repeat
-            NewTriangle := CreateCWTriangle(PrevTriangle, poePrev, aPoint);
-            if Assigned(LastTriangle) then
-            begin
-              NewTriangle.FNB1 := LastTriangle;
-              LastTriangle.FNB3 := NewTriangle;
-            end
-            else FirstTriangle := NewTriangle;
-            Triangles.add(NewTriangle);
-            aExtent.ExtendExtent(NewTriangle);
-            LastTriangle := NewTriangle;
-            PrevTriangle := PrevTriangle.PrevHullEdge(poePrev);
-          until (not Assigned(PrevTriangle)) or (not CanFormCWTriangle(PrevTriangle, poePrev, aPoint));
-          // form triangles next
-          NextTriangle := Triangle;
-          poeNext := poe;
-          LastTriangle := FirstTriangle;
-          // first is already created so step to next
-          NextTriangle := NextTriangle.NextHullEdge(poeNext);
-          while Assigned(NextTriangle) and CanFormCWTriangle(NextTriangle, poeNext, aPoint) do
-          begin
-            NewTriangle := CreateCWTriangle(NextTriangle, poeNext, aPoint);
-            NewTriangle.FNB3 := LastTriangle;
-            LastTriangle.FNB1 := NewTriangle;
-            Triangles.add(NewTriangle);
-            aExtent.ExtendExtent(NewTriangle);
-            LastTriangle := NewTriangle;
-            NextTriangle := NextTriangle.NextHullEdge(poeNext);
-          end;
-        end;
-      end
-      else
-      begin
-        // no triangles so do completely new triangulation
-        if not IsNaN(aMaxEdgeLengthX)
-        then Triangulate(aMaxEdgeLengthX, aMaxEdgeLengthY, aNoData); // todo:
-        // return whole extent (over all points)
-        aExtent := PointsToExtent;
-      end;
-    end;
-  end
-  else
-  begin
-    // point already in list -> ignore as new point but set new value and ID
-    Points[i].ID := aPoint.ID;
-    if not SameValue(Points[i].Value, aPoint.Value) then
-    begin
-      Points[i].Value := aPoint.Value;
-      if Assigned(Triangles) then
-      begin
-        // mark connected triangles as NOT calculated
-        AffectedTriangles := TDLTriangleList.Create;
-        try
-          Triangles.MarkAsUncalculated(Points[i], AffectedTriangles);
-          for nt := 0 to AffectedTriangles.Count - 1
-          do aExtent.ExtendExtent(AffectedTriangles[nt]);
-        finally
-          AffectedTriangles.Free;
-        end;
-      end;
-    end;
-    aPoint.Free;
-  end;
-end;
-
-function TDLNet.ChangePoint(aID: Integer; aValue: TDLValue; var aExtent: TDLExtent): Boolean;
-var
-  i: Integer;
-  AffectedTriangles: TDLTriangleList;
-  t: Integer;
-begin
-  i := Points.IndexOf(aID);
-  if i >= 0 then
-  begin
-    Points[i].Value := aValue;
-    if Assigned(Triangles) then
-    begin
-      // mark connected triangles as NOT calculated
-      AffectedTriangles := TDLTriangleList.Create;
-      try
-        Triangles.MarkAsUncalculated(Points[i], AffectedTriangles);
-        for t := 0 to AffectedTriangles.Count - 1
-        do aExtent.ExtendExtent(AffectedTriangles[t]);
-      finally
-        AffectedTriangles.Free;
-      end;
-    end;
-    Result := True;
-  end
-  else Result := False;
-end;
-}
 procedure TDLNet.Clear;
 begin
   FTriangles.Clear;
@@ -2827,472 +1550,7 @@ begin
   for ipp in points
   do Result.ExtendExtent(ipp.Value);
 end;
-{
-function TDLNet.PointToTriangle(aPoint: TDLPoint): TDLTriangle;
-begin
-  Result := Triangles.PointToTriangle(aPoint);
-end;
 
-function TDLNet.PointToValue(aPoint: TDLPoint; aNoValue: TDLValue): TDLValue;
-begin
-  Result := Triangles.PointToValue(aPoint, aNoValue);
-end;
-}
-procedure BuildHullGhostTriangles(aCenter: TDLPoint; aStartingTriangle: TDLTriangle;
-  aHullTriangles, aInnerTriangles: TDLTriangleList; out aClosedHull: Boolean);
-var
-  CurrentTriangle: TDLTriangle;
-  HullGhostTriangle: TDLTriangle;
-begin
-  CurrentTriangle := nil; // sentinel
-  aClosedHull := True;
-  while (aStartingTriangle <> CurrentTriangle) and aClosedHull do
-  begin
-    if not Assigned(CurrentTriangle) then
-      CurrentTriangle := aStartingTriangle;
-    // hull triangles are made of ghost triangles to be removed later
-    // build ghost for current triangle: vertex2 is outside (and nil), nb2 points to outside triangle
-    HullGhostTriangle := TDLTriangle.Create;
-    if aCenter = CurrentTriangle.Vertex1 then
-    begin
-      HullGhostTriangle.FVertex1 := CurrentTriangle.Vertex2;
-      HullGhostTriangle.FVertex3 := CurrentTriangle.Vertex3;
-      HullGhostTriangle.FNB2 := CurrentTriangle.NB1;
-    end
-    else
-    begin
-      if aCenter = CurrentTriangle.Vertex2 then
-      begin
-        HullGhostTriangle.FVertex1 := CurrentTriangle.Vertex3;
-        HullGhostTriangle.FVertex3 := CurrentTriangle.Vertex1;
-        HullGhostTriangle.FNB2 := CurrentTriangle.NB2;
-      end
-      else
-      begin
-        HullGhostTriangle.FVertex1 := CurrentTriangle.Vertex1;
-        HullGhostTriangle.FVertex3 := CurrentTriangle.Vertex2;
-        HullGhostTriangle.FNB2 := CurrentTriangle.NB3;
-      end;
-    end;
-    aHullTriangles.add(HullGhostTriangle);
-    aInnerTriangles.add(CurrentTriangle);
-    CurrentTriangle := CurrentTriangle.NextLeftTriangle(aCenter);
-    if not Assigned(CurrentTriangle) then
-    begin
-      // hull around center is not closed, aCenter must be on overall hull
-      // we are at the end at this direction
-      // now find end in other direction and insert hull triangles before start
-      CurrentTriangle := aStartingTriangle.NextRightTriangle(aCenter);
-      while Assigned(CurrentTriangle) do
-      begin
-        HullGhostTriangle := TDLTriangle.Create;
-        if aCenter = CurrentTriangle.Vertex1 then
-        begin
-          HullGhostTriangle.FVertex1 := CurrentTriangle.Vertex2;
-          HullGhostTriangle.FVertex3 := CurrentTriangle.Vertex3;
-          HullGhostTriangle.FNB2 := CurrentTriangle.NB1;
-        end
-        else
-        begin
-          if aCenter = CurrentTriangle.Vertex2 then
-          begin
-            HullGhostTriangle.FVertex1 := CurrentTriangle.Vertex3;
-            HullGhostTriangle.FVertex3 := CurrentTriangle.Vertex1;
-            HullGhostTriangle.FNB2 := CurrentTriangle.NB2;
-          end
-          else
-          begin
-            HullGhostTriangle.FVertex1 := CurrentTriangle.Vertex1;
-            HullGhostTriangle.FVertex3 := CurrentTriangle.Vertex2;
-            HullGhostTriangle.FNB2 := CurrentTriangle.NB3;
-          end;
-        end;
-        aHullTriangles.Insert(0, HullGhostTriangle);
-        aInnerTriangles.add(CurrentTriangle);
-        CurrentTriangle := CurrentTriangle.NextRightTriangle(aCenter);
-      end;
-      aClosedHull := False;
-    end;
-  end;
-end;
-
-function CreateTriangleOnLocalHull(aHullTriangleA, aHullTriangleB: TDLTriangle;
-  aHullTrianglesToCheck: TDLTriangleList): TDLTriangle;
-var
-  AllPointsOutside: Boolean;
-  t: Integer;
-begin
-  if Side(aHullTriangleA.Vertex1, aHullTriangleA.Vertex3, aHullTriangleB.Vertex1) = sideRight then
-  begin
-    AllPointsOutside := True;
-    if Assigned(aHullTrianglesToCheck) then
-    begin
-      for t := 0 to aHullTrianglesToCheck.Count - 1 do
-      begin
-        if (aHullTrianglesToCheck[t] <> aHullTriangleA) and (aHullTrianglesToCheck[t] <> aHullTriangleB) and
-          (aHullTrianglesToCheck[t].Vertex1 <> aHullTriangleA.Vertex3) and (Side(aHullTriangleA.Vertex3,
-            aHullTriangleB.Vertex1, aHullTrianglesToCheck[t].Vertex1) <> sideLeft) and
-          (Side(aHullTriangleB.Vertex1, aHullTriangleB.Vertex3, aHullTrianglesToCheck[t].Vertex1) <> sideLeft) and
-          (Side(aHullTriangleA.Vertex1, aHullTriangleA.Vertex3, aHullTrianglesToCheck[t].Vertex1) <> sideLeft) then
-        begin
-          AllPointsOutside := False;
-          Break;
-        end;
-      end;
-    end;
-    if AllPointsOutside then
-    begin
-      Result := TDLTriangle.Create;
-      Result.FVertex1 := aHullTriangleB.Vertex1;
-      Result.FVertex2 := aHullTriangleA.Vertex1;
-      Result.FVertex3 := aHullTriangleA.Vertex3;
-      if aHullTriangleA.IsGhost then
-      begin
-        Result.FNB1 := aHullTriangleA.NB2;
-        aHullTriangleA.Free;
-      end
-      else Result.FNB1 := aHullTriangleA;
-      if Assigned(Result.FNB1)
-      then Result.FNB1.LinkTo(Result, Result.Vertex3, Result.Vertex2);
-      if aHullTriangleB.IsGhost then
-      begin
-        Result.FNB3 := aHullTriangleB.NB2;
-        aHullTriangleB.Free;
-      end
-      else
-        Result.FNB3 := aHullTriangleB;
-      if Assigned(Result.FNB3)
-      then Result.FNB3.LinkTo(Result, Result.Vertex2, Result.Vertex1);
-    end
-    else Result := nil;
-  end
-  else Result := nil;
-end;
-
-procedure TriangulateClosedHull(aHullTriangles, aTrianglesOwner: TDLTriangleList); overload;
-var
-  NewTriangle: TDLTriangle;
-  t: Integer;
-  T2: Integer;
-begin
-  // fill hull with triangles by going around the hull and filling the inside like a spider
-  t := 0;
-  while aHullTriangles.Count > 3 do
-  begin
-    if t >= aHullTriangles.Count
-    then t := 0;
-    T2 := t + 1;
-    if T2 >= aHullTriangles.Count
-    then T2 := 0;
-    NewTriangle := CreateTriangleOnLocalHull(aHullTriangles[t], aHullTriangles[T2], aHullTriangles);
-    if Assigned(NewTriangle) then
-    begin
-      // put new triangle in place t and delete t2
-      aHullTriangles.Items[t] := NewTriangle;
-      aHullTriangles.Delete(T2);
-      aTrianglesOwner.add(NewTriangle);
-      // do not use same position because of fanning triangles (so use next)
-    end;
-    t := T2;
-  end;
-  // do the last 3 hull triangles and fill with exactly 1 triangle; remove ghosts if they exist
-  NewTriangle := TDLTriangle.Create;
-  NewTriangle.FVertex1 := aHullTriangles[1].Vertex1;
-  NewTriangle.FVertex2 := aHullTriangles[0].Vertex1;
-  NewTriangle.FVertex3 := aHullTriangles[2].Vertex1;
-  if aHullTriangles[0].IsGhost then
-  begin
-    NewTriangle.FNB1 := aHullTriangles[0].NB2;
-    aHullTriangles[0].Free;
-  end
-  else NewTriangle.FNB1 := aHullTriangles[0];
-  if Assigned(NewTriangle.FNB1)
-  then NewTriangle.FNB1.LinkTo(NewTriangle, NewTriangle.Vertex3, NewTriangle.Vertex2);
-  if aHullTriangles[1].IsGhost then
-  begin
-    NewTriangle.FNB3 := aHullTriangles[1].NB2;
-    aHullTriangles[1].Free;
-  end
-  else NewTriangle.FNB3 := aHullTriangles[1];
-  if Assigned(NewTriangle.FNB3)
-  then NewTriangle.FNB3.LinkTo(NewTriangle, NewTriangle.Vertex2, NewTriangle.Vertex1);
-  if aHullTriangles[2].IsGhost then
-  begin
-    NewTriangle.FNB2 := aHullTriangles[2].NB2;
-    aHullTriangles[2].Free;
-  end
-  else NewTriangle.FNB2 := aHullTriangles[2];
-  if Assigned(NewTriangle.FNB2)
-  then NewTriangle.FNB2.LinkTo(NewTriangle, NewTriangle.Vertex1, NewTriangle.Vertex3);
-  aTrianglesOwner.add(NewTriangle);
-  // all ghosts are freed, rest is already in aTrianglesOwner
-end;
-
-procedure TriangulateClosedHull(aHullTriangles, aTrianglesOwner: TDLTriangleList; var aExtent: TDLExtent); overload;
-var
-  NewTriangle: TDLTriangle;
-  t: Integer;
-  T2: Integer;
-begin
-  // fill hull with triangles by going around the hull and filling the inside like a spider
-  t := 0;
-  while aHullTriangles.Count > 3 do
-  begin
-    if t >= aHullTriangles.Count
-    then t := 0;
-    T2 := t + 1;
-    if T2 >= aHullTriangles.Count
-    then T2 := 0;
-    NewTriangle := CreateTriangleOnLocalHull(aHullTriangles[t], aHullTriangles[T2], aHullTriangles);
-    if Assigned(NewTriangle) then
-    begin
-      // put new triangle in place t and delete t2
-      aHullTriangles.Items[t] := NewTriangle;
-      aHullTriangles.Delete(T2);
-      aTrianglesOwner.add(NewTriangle);
-      aExtent.ExtendExtent(NewTriangle);
-      // do not use same position because of fanning triangles (so use next)
-    end;
-    t := T2;
-  end;
-  // do the last 3 hull triangles and fill with exactly 1 triangle; remove ghosts if they exist
-  NewTriangle := TDLTriangle.Create;
-  NewTriangle.FVertex1 := aHullTriangles[1].Vertex1;
-  NewTriangle.FVertex2 := aHullTriangles[0].Vertex1;
-  NewTriangle.FVertex3 := aHullTriangles[2].Vertex1;
-  if aHullTriangles[0].IsGhost then
-  begin
-    NewTriangle.FNB1 := aHullTriangles[0].NB2;
-    aHullTriangles[0].Free;
-  end
-  else NewTriangle.FNB1 := aHullTriangles[0];
-  if Assigned(NewTriangle.FNB1)
-  then NewTriangle.FNB1.LinkTo(NewTriangle, NewTriangle.Vertex3, NewTriangle.Vertex2);
-  if aHullTriangles[1].IsGhost then
-  begin
-    NewTriangle.FNB3 := aHullTriangles[1].NB2;
-    aHullTriangles[1].Free;
-  end
-  else NewTriangle.FNB3 := aHullTriangles[1];
-  if Assigned(NewTriangle.FNB3)
-  then NewTriangle.FNB3.LinkTo(NewTriangle, NewTriangle.Vertex2, NewTriangle.Vertex1);
-  if aHullTriangles[2].IsGhost then
-  begin
-    NewTriangle.FNB2 := aHullTriangles[2].NB2;
-    aHullTriangles[2].Free;
-  end
-  else NewTriangle.FNB2 := aHullTriangles[2];
-  if Assigned(NewTriangle.FNB2)
-  then NewTriangle.FNB2.LinkTo(NewTriangle, NewTriangle.Vertex1, NewTriangle.Vertex3);
-  aTrianglesOwner.add(NewTriangle);
-  aExtent.ExtendExtent(NewTriangle);
-  // all ghosts are freed, rest is already in aTrianglesOwner
-end;
-
-procedure TriangulateOpenHull(aHullTriangles, aTrianglesOwner: TDLTriangleList); overload;
-var
-  t: Integer;
-  TriangleProcessed: Boolean;
-  NewTriangle: TDLTriangle;
-begin
-  TriangleProcessed := True; // sentinel
-  while (aHullTriangles.Count > 1) and TriangleProcessed do
-  begin
-    TriangleProcessed := False;
-    // find max hull from starting point by checking order
-    t := 0;
-    while t < aHullTriangles.Count - 1 do
-    begin
-      NewTriangle := CreateTriangleOnLocalHull(aHullTriangles[t], aHullTriangles[t + 1], aHullTriangles);
-      if Assigned(NewTriangle) then
-      begin
-        aHullTriangles.Items[t] := NewTriangle;
-        aHullTriangles.Delete(t + 1);
-        aTrianglesOwner.add(NewTriangle);
-        // do not use same position because of fanning triangles (so use next)
-        TriangleProcessed := True;
-      end;
-      t := t + 1;
-    end;
-  end;
-  // remove ghosts that are left in hull
-  // these are not linked to any real triangles inside the new local hull
-  // but can reference a triangle outside this local hull that is now on the hull itself (nb is already nil)
-  for t := aHullTriangles.Count - 1 downto 0 do
-  begin
-    if aHullTriangles[t].IsGhost
-    then aHullTriangles[t].Free;
-  end;
-end;
-
-procedure TriangulateOpenHull(aHullTriangles, aTrianglesOwner: TDLTriangleList; var aExtent: TDLExtent); overload;
-var
-  t: Integer;
-  TriangleProcessed: Boolean;
-  NewTriangle: TDLTriangle;
-begin
-  TriangleProcessed := True; // sentinel
-  while (aHullTriangles.Count > 1) and TriangleProcessed do
-  begin
-    TriangleProcessed := False;
-    // find max hull from starting point by checking order
-    t := 0;
-    while t < aHullTriangles.Count - 1 do
-    begin
-      NewTriangle := CreateTriangleOnLocalHull(aHullTriangles[t], aHullTriangles[t + 1], aHullTriangles);
-      if Assigned(NewTriangle) then
-      begin
-        aHullTriangles.Items[t] := NewTriangle;
-        aHullTriangles.Delete(t + 1);
-        aTrianglesOwner.add(NewTriangle);
-        aExtent.ExtendExtent(NewTriangle);
-        // do not use same position because of fanning triangles (so use next)
-        TriangleProcessed := True;
-      end;
-      t := t + 1;
-    end;
-  end;
-  // remove ghosts that are left in hull
-  // these are not linked to any real triangles inside the new local hull
-  // but can reference a triangle outside this local hull that is now on the hull itself (nb is already nil)
-  for t := aHullTriangles.Count - 1 downto 0 do
-  begin
-    if aHullTriangles[t].IsGhost
-    then aHullTriangles[t].Free;
-  end;
-end;
-
-{
-function TDLNet.RemovePoint(aID: Integer): Boolean;
-var
-  p: Integer;
-  InnerTriangles: TDLTriangleList;
-  Point: TDLPoint;
-  t: Integer;
-  HullTriangles: TDLTriangleList;
-  ClosedHull: Boolean;
-begin
-  // remove point (and connected triangles) and triangulate new empty space
-  p := Points.IndexOf(aID);
-  if p >= 0 then
-  begin
-    if Assigned(Triangles) then
-    begin
-      // check if there are any triangles
-      if Triangles.Count > 0 then
-      begin
-        if Points.Count > 3 then
-        begin
-          Point := Points[p];
-          Triangles.FindFirstTriangle(Point);
-          HullTriangles := TDLTriangleList.Create;
-          InnerTriangles := TDLTriangleList.Create;
-          try
-            BuildHullGhostTriangles(Point, Triangles.FindFirstTriangle(Point), HullTriangles, InnerTriangles, ClosedHull);
-            for t := 0 to InnerTriangles.Count - 1 do
-            begin
-              InnerTriangles[t].Unlink;
-              Triangles.QuickRemove(InnerTriangles[t]);
-            end;
-            Points.QuickDelete(p);
-            if ClosedHull
-            then TriangulateClosedHull(HullTriangles, Triangles)
-            else TriangulateOpenHull(HullTriangles, Triangles);
-          finally
-            HullTriangles.Free;
-            InnerTriangles.Free;
-            FOrphanes := aID;
-          end;
-        end
-        else
-        begin // less then 3 points, no triangles possible
-          Triangles.Clear;
-          Points.Delete(p); // short list, no need for quickdelete
-        end;
-      end
-      else
-      begin
-        // no triangles so just remove seperate points
-        Points.QuickDelete(p);
-      end;
-    end
-    else
-    begin
-      // no triangles so just remove seperate points
-      Points.QuickDelete(p);
-    end;
-    Result := True;
-  end
-  else Result := False;
-end;
-
-function TDLNet.RemovePoint(aID: Integer; var aExtent: TDLExtent): Boolean;
-var
-  p: Integer;
-  InnerTriangles: TDLTriangleList;
-  Point: TDLPoint;
-  t: Integer;
-  HullTriangles: TDLTriangleList;
-  ClosedHull: Boolean;
-begin
-  // remove point (and connected triangles) and triangulate new empty space
-  p := Points.IndexOf(aID);
-  if p >= 0 then
-  begin
-    if Assigned(Triangles) then
-    begin
-      // check if there are any triangles
-      if Triangles.Count > 0 then
-      begin
-        if Points.Count > 3 then
-        begin
-          Point := Points[p];
-          Triangles.FindFirstTriangle(Point);
-          HullTriangles := TDLTriangleList.Create;
-          InnerTriangles := TDLTriangleList.Create;
-          try
-            BuildHullGhostTriangles(Point, Triangles.FindFirstTriangle(Point), HullTriangles, InnerTriangles, ClosedHull);
-            for t := 0 to InnerTriangles.Count - 1 do
-            begin
-              InnerTriangles[t].Unlink;
-              aExtent.ExtendExtent(InnerTriangles[t]);
-              Triangles.QuickRemove(InnerTriangles[t]);
-            end;
-            Points.QuickDelete(p);
-            if ClosedHull
-            then TriangulateClosedHull(HullTriangles, Triangles, aExtent)
-            else TriangulateOpenHull(HullTriangles, Triangles, aExtent);
-          finally
-            HullTriangles.Free;
-            InnerTriangles.Free;
-            FOrphanes := aID;
-          end;
-        end
-        else
-        begin // less then 3 points, no triangles possible
-          aExtent.ExtendExtent(Points[p]);
-          Triangles.Clear;
-          Points.Delete(p); // short list, no need for quickdelete
-        end;
-      end
-      else
-      begin
-        // no triangles so just remove seperate points
-        aExtent.ExtendExtent(Points[p]);
-        Points.QuickDelete(p);
-      end;
-    end
-    else
-    begin
-      // no triangles so just remove seperate points
-      aExtent.ExtendExtent(Points[p]);
-      Points.QuickDelete(p);
-    end;
-    Result := True;
-  end
-  else Result := False;
-end;
-}
 function TDLNet.RemoveDuplicates: Boolean;
 var
   _points: TDLPointList;
@@ -3354,14 +1612,7 @@ begin
     CloseFile(F);
   end;
 end;
-(*
-procedure TDLNet.setPoints(aPoints: TDLPointList);
-begin
-  FreeAndNil(FTriangles);
-  FPoints.Free;
-  FPoints := aPoints;
-end;
-*)
+
 procedure TDLNet.Triangulate(aMaxEdgeLengthX, aMaxEdgeLengthY: TDLCoordinate; aNodata: TDLValue; aThreadPool: TMyThreadPool;
   aCheckForDuplicates: Boolean; aParam: Integer);
 var
@@ -3388,7 +1639,7 @@ begin
       for ipp in points
       do TopNode.Points.Add(ipp.value);
       //TopNode.Points.FSortOrder := FPoints.SortOrder;
-      //TopNode.Points.SortXY(aThreadPool);
+      TopNode.Points.SortXY(aThreadPool);
       {$IFDEF PERFORMANCELOG}
       Log.WriteLn('Assign:                '+HighResTickDurationStr(StartTime), llNormal, 2);
       StartTime := HighResTick;

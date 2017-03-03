@@ -85,23 +85,98 @@
         this._kpis = {};
         this._charts = {};
         this._layers = {};
+        LayerManager.Reset();
+        //todo: GraphManager.Reset();
+        //var firstLayer = null;
+        //var lastLayer = null;
+        //var switchLayers = [];
         // merge enabled domains (kpis, charts, layers)
+        //for (var domainName in domains) {
+        //    var domain = domains[domainName];
+        //    if (domain.enabled) {
+        //        for (var kpiid in domain.kpis)
+        //            this._kpis[domain.kpis[kpiid].name] = domain.kpis[kpiid];
+        //        for (var chartid in domain.charts) {
+        //            //this._charts[domain.charts[chartid].name] = domain.charts[chartid];
+        //            GraphManager.MakeGraph(domain.charts[chartid]);
+        //        }
+        //        for (var layerid in domain.layers) {
+        //            var layer = domain.layers[layerid];
+        //            // all except basic layers (they are handled by the layers control)
+        //            if (!layer.basic) {
+        //                //this._layers[layer.name] = layer;
+        //                LayerManager.AddLayer(layer);
+        //            }
+        //        }
+        //    }
+        //}
         for (var domainName in domains) {
             var domain = domains[domainName];
-            if (domain.enabled) {
-                for (var kpiid in domain.kpis)
-                    this._kpis[domain.kpis[kpiid].name] = domain.kpis[kpiid];
-                for (var chartid in domain.charts)
-                    this._charts[domain.charts[chartid].name] = domain.charts[chartid];
-                for (var layerid in domain.layers) {
-                    var layer = domain.layers[layerid];
-                    // all except basic layers (they are handled by the layers control)
-                    if (!layer.basic)
-                        this._layers[layer.name] = layer;
+            {
+                for (var cid in domain.charts) {
+                    GraphManager.MakeGraph(domain.charts[cid]);
+                }
+                for (var lid in domain.layers) {
+                    if (!domain.layers[lid].basic) {
+                        LayerManager.AddLayer(domain.layers[lid]);
+                    }
+                }
+                for (var kid in domain.kpis) {
+                    //todo add to KPI Manager!
                 }
             }
         }
+        //switchlayer testing;
+        //if (firstLayer && lastLayer) {
+        //    var switchLayer = firstLayer;
+        //    switchLayer.name = "Switch Test";
+        //    switchLayer.id = "tester1";
+        //    switchLayer.active = { type: "switch", id: "_tester1", layers: 
+        //        [{ zoom: 0, layer: { type: "tile", tiles: firstLayer.tiles, preview: firstLayer.preview, legend: firstLayer.legend, id: "testL1" } },
+        //        { zoom: 16, layer: { type: "tile", tiles: lastLayer.tiles, objects: lastLayer.objects, preview: lastLayer.preview, id: "testL2" , legend: lastLayer.legend} }]
+        //    }
+        //    switchLayer.active.layers = [];
+        //    switchLayer.active.layers.push({ layer: {type: "empty"}, zoom: 0})
+        //    for (var i = 0; i < switchLayers.length && i < 7; i++)
+        //    {
+        //        switchLayer.active.layers.push({
+        //            layer: {
+        //                type: "tile",
+        //                tiles: switchLayers[i].tiles,
+        //                legend: switchLayers[i].legend,
+        //                id: "testertje" + i
+        //            },
+        //            zoom: (11+i)
+        //        });
+        //    }
+        //LayerManager.AddLayer(switchLayer);
+        //}
+
         // re-build details elements
+        this.updateDomains(domains);
+        this._update();
+        LayerManager.ReactivateVisibleLayers();
+    },
+
+    updateDomains: function (domains) {
+        var activecharts = {};
+        var activelayers = {};
+        var activekpis = {};
+        var domain;
+        for (var domainName in domains) {
+            if (domains[domainName].enabled) {
+                domain = domains[domainName];
+                for (var cid in domain.charts)
+                    activecharts[domain.charts[cid].id] = domain.charts[cid].id;
+                for (var lid in domain.layers)
+                    activelayers[domain.layers[lid].id] = domain.layers[lid].id;
+                for (var kid in domain.kpis)
+                    activekpis[domain.kpis[kid].id] = domain.kpis[kid].id;
+            }
+        }
+        GraphManager.updateDomains(activecharts);
+        LayerManager.updateDomains(activelayers);
+        //todo: KPI manager.updateDomains(activekpis);
         this._update();
     },
 
@@ -147,34 +222,28 @@
                         }
                     }
 
-                    if (typeof payload.legend != "undefined")
-                    {
+                    if (typeof payload.legend != "undefined") {
                         layer.legend = payload.legend;
-                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.id)
-                        {
+                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.id) {
                             legendControl.createLegend(layer.legend, layer.id);
                         }
                     }
                 }
-                if (layer.ref && payload.ref && layer.ref.id == payload.ref.id)
-                {
+                if (layer.ref && payload.ref && layer.ref.id == payload.ref.id) {
                     if (typeof payload.ref.tiles != "undefined") {
                         layer.ref.tiles = payload.ref.tiles;
                         if (layer.tileLayer && layer.tileLayer.idShowing == payload.ref.id) {
                             updateTilesLayerOnMap(layer.ref.id, layer.ref.tiles);
                         }
                     }
-                    if (typeof payload.ref.legend != "undefined")
-                    {
+                    if (typeof payload.ref.legend != "undefined") {
                         layer.ref.legend = payload.ref.legend;
-                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.ref.id)
-                        {
+                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.ref.id) {
                             legendControl.createLegend(layer.ref.legend, layer.ref.id);
                         }
                     }
                 }
-                if (layer.diff && payload.diff && layer.diff.id == payload.diff.id)
-                {
+                if (layer.diff && payload.diff && layer.diff.id == payload.diff.id) {
                     if (typeof payload.diff.tiles != "undefined") {
                         layer.diff.tiles = payload.diff.tiles;
                         if (layer.tileLayer && layer.tileLayer.idShowing == payload.diff.id) {
@@ -182,11 +251,9 @@
                         }
                     }
 
-                    if (typeof payload.diff.legend != "undefined")
-                    {
+                    if (typeof payload.diff.legend != "undefined") {
                         layer.diff.legend = payload.diff.legend;
-                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.diff.id)
-                        {
+                        if (legendControl.legendLayer == layer.id && layer.tileLayer && layer.tileLayer.idShowing == payload.diff.id) {
                             legendControl.createLegend(layer.diff.legend, layer.diff.id);
                         }
                     }
@@ -206,8 +273,8 @@
         container.appendChild(h);
 
         // determine elements per row
-        var maxElementCount = Math.max(Object.keys(this._kpis).length, Object.keys(this._charts).length, Object.keys(this._layers).length, GraphManager.graphs.length);
-        var elementsPerRow = maxElementCount >0 ? Math.ceil(Math.sqrt(maxElementCount)) : 1;
+        var maxElementCount = Math.max(Object.keys(this._kpis).length, LayerManager.ActiveCount, GraphManager.ActiveCount);
+        var elementsPerRow = maxElementCount > 0 ? Math.ceil(Math.sqrt(maxElementCount)) : 1;
         this.kpis = document.createElement('div');
         this.kpis.className = 'detailskpis';
         this.kpis.style.width = (/*this.options.*/elementsPerRow * this.options.elementWidth) + 'px';
@@ -234,24 +301,29 @@
             kpiCount++;
         }
 
-        var chartCount = 0;
+        //var chartCount = 0;
         //for (var chartid in this._charts) {
         //    //addChart(this.charts, this._charts[chartid], this.options.chartWidth, this.options.chartHeight, false, false, true);
         //    chartCount++;
 
         //}
 
-        for (var i = 0, len = GraphManager.graphs.length; i < len; i++)
-        {
-            GraphManager.graphs[i].graph.GetPreview(this.charts);
-            chartCount++;
-        }
 
-        var layerCount = 0;
-        for (var layerid in this._layers) {
-            addLayer(this.layers, this._layers[layerid], this.options.layerWidth, this.options.layerHeight);
-            layerCount++;
-        }
+
+        var chartCount = GraphManager.SetPreviews(this.charts);
+
+        var layerCount = LayerManager.SetPreviews(this.layers);
+        //for (var layerid in this._layers) {
+        //    addLayer(this.layers, this._layers[layerid], this.options.layerWidth, this.options.layerHeight);
+        //    layerCount++;
+        //}
+
+        //var layers = LayerManager.GetLayers();
+        //for (var l in layers)
+        //{
+        //    layers[l].GetPreview(this.layers, this.options.layerWidth, this.options.layerHeight);
+        //    layerCount++;
+        //}
 
         if (kpiCount == 0 || (chartCount == 0 && layerCount == 0))
             hr1.style.display = 'None';
@@ -259,20 +331,20 @@
             hr2.style.display = 'None';
         return this;
     },
-    hasElements : function() {
+    hasElements: function () {
         for (var kpi in this._kpis)
             return true;
         for (var chart in this._charts)
             return true;
-        for (var layer in this._layers)
+        if (LayerManager.ActiveCount > 0)
             return true;
-        for (var graph in GraphManager.graphs)
+        if (GraphManager.ActiveCount > 0)
             return true;
         return false;
     },
 
     _expand: function () {
-      L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
+        L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
         if (this.hasElements()) {
             L.DomUtil.addClass(this._container, 'leaflet-control-details-expanded');
             this._form.style.height = null;

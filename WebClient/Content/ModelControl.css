@@ -1,0 +1,65 @@
+﻿/*todo: get icon rights from thenounproject.com*/
+
+.leaflet-control-model {
+  background: #fff;
+  border-radius: 5px;
+}
+
+.leaflet-right .leaflet-control-model {
+    box-shadow: none;
+}
+
+.leaflet-control-model-toggle {
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  display: block;
+  background-image: url('images/modelcontrol.png');
+  width: 36px;
+  height: 36px;
+}
+.leaflet-retina .leaflet-control-model-toggle {
+  background-image: url('images/modelcontrol-2x.png');
+  background-size: 26px 26px;
+}
+.leaflet-touch .leaflet-control-model-toggle {
+  width: 44px;
+  height: 44px;
+}
+.leaflet-control-model .leaflet-control-model-list,
+.leaflet-control-model-expanded .leaflet-control-model-toggle {  display: none }
+.leaflet-control-model-expanded .leaflet-control-model-list {
+  display: block;
+  position: relative;
+}
+
+.mcTitleDiv {
+    margin: 5px;
+}
+
+.modelControlDiv {
+    position: absolute;
+    /*right: 75px;
+    bottom: 75px;*/
+    background-color: white;
+    z-index: 500;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    border-radius: 5px;
+    padding: 5px;
+}
+
+.modelControlTable {
+    margin-top: 5px;
+    margin-left: 5px;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    border-collapse: collapse;
+    padding: 5px;
+}
+
+.modelControlTD {
+    padding: 3px;
+}
+
+.modelControlTR:nth-child(odd) {background-color: #f2f2f2}
+
+.modelControlTR:first-child {background-color: lightblue !important}

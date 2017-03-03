@@ -86,7 +86,7 @@
 
         for (var domainName in this._domains) {
             var domain = this._domains[domainName];
-            if ((domain.kpis && domain.kpis.length>0) || (domain.charts && domain.charts.length>0))
+            if ((domain.kpis && domain.kpis.length > 0) || (domain.charts && domain.charts.length > 0))
                 this._addItem(domainName, domain.enabled);
             else {
                 if (domain.layers) {
@@ -132,13 +132,13 @@
         var domain = this._domains[e.target.domainName];
         domain.enabled = !domain.enabled;
         this._updateDomainNode(domain.enabled, e.target);
-        detailsControl.resetDomains(this._domains);
+        detailsControl.updateDomains(this._domains);
         this._handlingClick = false;
         this._refocusOnMap();
     },
 
     hasElements: function () {
-        return (this._domainList) && this._domainList.childNodes.length>1;
+        return (this._domainList) && this._domainList.childNodes.length > 1;
     },
 
     _expand: function () {

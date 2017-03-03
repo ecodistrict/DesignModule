@@ -11,11 +11,19 @@ function LineBottomLeft(graphObject) {
     var marginLeft = GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.axisMargin.y;
     var marginTop = GraphManager.defaultValues.graphPadding.top;
 
+        //var svgHolder = container.appendChild(document.createElement('div'));
+
     var svg = d3.select(container).append("svg")
     .attr("width", width)
     .attr("height", height);
+        //.on(click, this.onsvgclick);
 
     svg.className = "graph-svg";
+
+        if (this.graphObject.clickable != clickOptions.none) {
+            //svgHolder.addEventListener("click", this.onsvgclick);
+            svg.on("click", this.onsvgclick);
+        }
 
     var lineG = svg.append("g");
 
@@ -58,12 +66,19 @@ function LineBottomLeft(graphObject) {
 
     this.graphObject.container = container;
     this.graphObject.svg = svg;
+
+        var data = graphObject.data;
     this.graphObject.data = [];
     this.graphObject.displayData = [];
-    for (var i = 0; i < graphObject.y.length; i++) {
-      this.graphObject.data[i] = [];
-      this.graphObject.displayData[i] = [];
+        for (var i = 0; i < this.graphObject.y.length; i++) {
+            this.graphObject.data.push([]);
+            this.graphObject.displayData.push([]);
     }
+
+
+        if (data) {
+            GraphManager.AddGraphData(this.graphObject, data);
+        }
     this.graphObject.lineG = lineG;
     this.graphObject.text = text;
 
@@ -71,6 +86,51 @@ function LineBottomLeft(graphObject) {
     container.graph = this;
     this.Update();
   }
+
+    this.onsvgclick = function (e) {
+        var xScale = this.graphObject.Scales.x;
+        var yScale = this.graphObject.Scales.y;
+
+        //var relativePos = {
+        //    x: e.offsetX - (padding.left + axisMargin.y),
+        //    y: e.offsetY - (padding.top + axisMargin.x)
+        //}
+        var relativePos = d3.mouse(this.graphObject.svg[0][0]);
+
+        if (relativePos[0] < xScale.range()[0] || relativePos[0] > xScale.range()[1])
+            return;
+
+        if (relativePos[1] < yScale.range()[1] || relativePos[1] > yScale.range()[0])
+            return;
+        //if (e.offsetX < this.graphObject.Scales.x.range()[0] || e.offsetX > this.graphObject.Scales.x.range()[1])
+        //    return;
+
+        //if (e.offsetY < this.graphObject.Scales.y.range()[1] || e.offsetY > this.graphObject.Scales.y.range()[0])
+        //    return;
+
+
+
+        if (this.graphObject.data.length > 0 && this.graphObject.data[0].length > 0) {
+            var closest = null;
+            var distance = Number.MAX_VALUE;
+            for (var i = 0; i < this.graphObject.data.length; i++)
+                for (var j = 0; j < this.graphObject.data[i].length; j++) {
+                    if (Math.abs(xScale(graphObject.data[i][j].x.GetDisplayValue()) - relativePos[0]) < distance) {
+                        closest = graphObject.data[i][j];
+                        distance = Math.abs(xScale(graphObject.data[i][j].x.GetDisplayValue()) - relativePos[0]);
+                    }
+                }
+            if (closest != null) {
+                var siX = closest.x.value;
+                var siY = closest.y.value;
+                console.log(JSON.stringify({ wsSend: { query: { x: siX, y: siY } } }));
+            }
+
+        }
+
+    },
+
+    this.onsvgclick = this.onsvgclick.bind(this);
 
   this._UpdatePreview = function () {
 
@@ -111,6 +171,8 @@ function LineBottomLeft(graphObject) {
       break;
       case "log": xScale = d3.scale.log().domain([minX, maxX]).range([DataManager.detailsInfo.graphMargin, width - DataManager.detailsInfo.graphMargin]);
       break;
+            case "time": xScale = d3.time.scale().domain([minX, maxX]).range([DataManager.detailsInfo.graphMargin, width - DataManager.detailsInfo.graphMargin]);
+                break;
     }
 
     switch (graph.yScale) {
@@ -122,13 +184,16 @@ function LineBottomLeft(graphObject) {
       break;
       case "log": yScale = d3.scale.log().domain([minY, maxY]).range([height - DataManager.detailsInfo.graphMargin, DataManager.detailsInfo.graphMargin]);
       break;
+            case "time": yScale = d3.time.scale().domain([minY, maxY]).range([height - DataManager.detailsInfo.graphMargin, DataManager.detailsInfo.graphMargin]);
+                break;
     }
 
     graph.preview.lineG.selectAll("path").remove();
 
     var lineFunction = d3.svg.line()
-    .x(function (d) { return xScale(d.x); })
-    .y(function (d) { return yScale(d.y); })
+            .defined(function (d) { return d; })
+            .x(function (d) { return xScale(d.x.GetDisplayValue()); }) //d.x.GetDisplayValue()
+            .y(function (d) { return yScale(d.y.GetDisplayValue()); }) //d.y.GetDisplayValue()
     .interpolate(graph.interpolation);
 
     for (var i = 0; i < graph.y.length; i++) {
@@ -142,10 +207,9 @@ function LineBottomLeft(graphObject) {
     }
   }
 
-  this.GetPreview = function(container)
-  {
+    this.GetPreview = function (container) {
 
-    if (this.previewDiv != null)
+        if (this.previewDiv != null)
     return container.appendChild(this.previewDiv);
 
 
@@ -187,8 +251,7 @@ function LineBottomLeft(graphObject) {
     this._UpdatePreview();
 
   }
-  this.Update = function (data)
-  {
+    this.Update = function (data) {
     var graph = this.graphObject;
 
 
@@ -247,10 +310,36 @@ function LineBottomLeft(graphObject) {
     //graph.displayData = displayData;
 
     //sets min/max values
-    var minX = (typeof graph.minX === "undefined") ? d3.min(displayData, function (d) { return d3.min(d, function (p) { return p.x; }) }) : graph.minX;
-    var maxX = (typeof graph.maxX === "undefined") ? d3.max(displayData, function (d) { return d3.max(d, function (p) { return p.x; }) }) : graph.maxX;
-    var minY = (typeof graph.minY === "undefined") ? d3.min(displayData, function (d) { return d3.min(d, function (p) { return p.y; }) }) : graph.minY;
-    var maxY = (typeof graph.maxY === "undefined") ? d3.max(displayData, function (d) { return d3.max(d, function (p) { return p.y; }) }) : graph.maxY;
+        var minX = (typeof graph.minX === "undefined") ? d3.min(displayData, function (d) {
+            return d3.min(d, function (p) {
+                if (p)
+                    return p.x.GetDisplayValue();
+                return null;
+            })
+        }) : graph.minX;
+        var maxX = (typeof graph.maxX === "undefined") ? d3.max(displayData, function (d) {
+            return d3.max(d, function (p) {
+                if (p)
+                    return p.x.GetDisplayValue();
+                return null;
+            })
+        }) : graph.maxX;
+        var minY = (typeof graph.minY === "undefined") ? d3.min(displayData, function (d) {
+            return d3.min(d, function (p) {
+                if (p)
+                    return p.y.GetDisplayValue();
+                return null;
+            })
+        }) : graph.minY;
+        var maxY = (typeof graph.maxY === "undefined") ? d3.max(displayData, function (d) {
+            return d3.max(d, function (p) {
+                if (p)
+                    return p.y.GetDisplayValue();
+                return null;
+            })
+        }) : graph.maxY;
+
+
     if (graph.holdminmax) {
       if (typeof graph.holdvalues === "undefined") //todo fix possible missed values when new data.length > maxPoints
       graph.holdvalues = {
@@ -286,14 +375,16 @@ function LineBottomLeft(graphObject) {
     //var height = graph.container.clientHeight;
 
     switch (graph.xScale) {
-      case "linear": xScale = d3.scale.linear().domain([minX, maxX]).range([marginLeft, width - marginRight]);
+            case "linear": xScale = d3.scale.linear().domain([minX, maxX]).range([marginLeft, width - marginRight]).nice();
       break;
-      case "ordinal": xScale = d3.scale.ordinal().domain([minX, maxX]).range([marginLeft, width - marginRight]);
+            case "ordinal": xScale = d3.scale.ordinal().domain([minX, maxX]).range([marginLeft, width - marginRight]).nice();
       break;
-      case "power": xScale = d3.scale.power().domain([minX, maxX]).range([marginLeft, width - marginRight]);
+            case "power": xScale = d3.scale.power().domain([minX, maxX]).range([marginLeft, width - marginRight]).nice();
       break;
-      case "log": xScale = d3.scale.log().domain([minX, maxX]).range([marginLeft, width - marginRight]);
+            case "log": xScale = d3.scale.log().domain([minX, maxX]).range([marginLeft, width - marginRight]).nice();
       break;
+            case "time": xScale = d3.time.scale().domain([minX, maxX]).range([marginLeft, width - marginRight]).nice();
+                break;
     }
 
     switch (graph.yScale) {
@@ -305,7 +396,11 @@ function LineBottomLeft(graphObject) {
       break;
       case "log": yScale = d3.scale.log().domain([minY, maxY]).range([height - marginBottom, marginTop]);
       break;
+            case "time": yScale = d3.time.scale().domain([minY, maxY]).range([height - marginBottom, marginTop]);
+                break;
     }
+
+        graph.Scales = { x: xScale, y: yScale };
 
     var xAxis = d3.svg.axis().scale(xScale).orient(graph.xAxisOrient).ticks(5);
     graph.axisX.call(xAxis);
@@ -322,11 +417,12 @@ function LineBottomLeft(graphObject) {
     });
 
     var lineFunction = d3.svg.line()
+            .defined(function (d) { return d; })
     .x(function (d) {
-      return xScale(d.x);
+                return xScale(d.x.GetDisplayValue()); //d.x.GetDisplayValue()
     })
     .y(function (d) {
-      return yScale(d.y);
+                return yScale(d.y.GetDisplayValue()); //d.y.GetDisplayValue()
     })
     .interpolate(graph.interpolation);
 
@@ -384,15 +480,21 @@ function LineBottomLeft(graphObject) {
   this._clickEvent = function (e) {
     var graph = e.currentTarget.graph;
 
-    if (graph.visible)
-    {
+        if (graph.visible) {
       graph._closeGraph();
     }
-    else
-    {
+        else {
       graph._openGraph();
     }
   }
+
+    this.ShowGraph = function () {
+        this._openGraph();
+    }
+
+    this.HideGraph = function () {
+        this._closeGraph();
+    }
 
   this._closeGraph = function () {
     this.visible = false;

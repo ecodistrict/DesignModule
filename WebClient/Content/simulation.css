@@ -48,3 +48,33 @@ div[id*="-option-row"] > button {
 div[id*="-option-row"] {
   display:flex;
 }
+
+/* .leaflet-control-history derived from .leaflet--control-layers (leaflet.css) */
+.leaflet-control-simclose-toggle {
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  display: block;
+}
+/* history control */
+.leaflet-control-simclose-toggle {
+  background-image: url('images/simClose.png');
+  width: 36px;
+  height: 36px;
+}
+.leaflet-retina .leaflet-control-simclose-toggle {
+  background-image: url('images/simClose-2x.png');
+  background-size: 26px 26px;
+}
+.leaflet-touch .leaflet-control-simclose-toggle {
+  width: 44px;
+  height: 44px;
+}
+
+.leaflet-touch .leaflet-control-simclose 
+{
+    box-shadow: none;
+}
+
+#simulationCloseDialog {
+    width: 300px;
+}

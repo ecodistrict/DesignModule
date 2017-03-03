@@ -31,7 +31,7 @@ var map = L.map('map', {
     zoom: getParameterByName('zoom', 11),
     maxZoom: 18,
     minZoom: 2,
-    layers: [baseMapLayerGrayScale],
+    layers: [baseMapLayerStreets],
     contextmenu: true,
     contextmenuWidth: 140,
     contextmenuItems: [
@@ -48,7 +48,7 @@ var map = L.map('map', {
 });
 
 function showCoordinates(e) {
-    alert(e.latlng+" (zoom:"+map._zoom+")"); // todo: change to nicer view? or remove
+    alert(e.latlng + " (zoom:" + map._zoom + ")"); // todo: change to nicer view? or remove
 }
 
 function deselectObjects(e) {

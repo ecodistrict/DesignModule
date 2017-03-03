@@ -1,8 +1,8 @@
 ﻿function addLayer(parent, data, aWidth, aHeight) {
 
     var mainDiv = document.createElement('div');
-    mainDiv.style.width = (aWidth-6)+'px';
-    mainDiv.style.height = aHeight+'px';
+    mainDiv.style.width = (aWidth - 6) + 'px';
+    mainDiv.style.height = aHeight + 'px';
     mainDiv.className = 'layerDetails';
     mainDiv.title = data.description;
     parent.appendChild(mainDiv);
@@ -39,9 +39,9 @@
                 removeDomainLayer(layer);
                 layer.leaflet_id = null;
                 var s = element.getElementsByClassName('layerDetailsSelected');
-                for(var i=0; i<s.length; i++)
+                for (var i = 0; i < s.length; i++)
                     s[i].className = 'layerDetailsSelected layerDetailsSelectedHidden';
-  
+
                 // check if this layer shows legend -> remove and check if we need to show another legend
                 if (typeof legendControl.legendLayer != "undefined" && (legendControl.legendLayer == layer.id)) {
                     //legendControl.clearLegend(true);
@@ -82,10 +82,8 @@
                 // check if this layer has the crd -> remove and check if we need to show another crd
                 if (typeof crd.crdLayer != "undefined" && layer.id == crd.crdLayer) {
                     var crdlayer = null;
-                    for (maplayer in map._layers)
-                    {
-                        if (typeof map._layers[maplayer].domainLayer != "undefined")
-                        {
+                    for (maplayer in map._layers) {
+                        if (typeof map._layers[maplayer].domainLayer != "undefined") {
                             if (crdlayer == null)
                                 crdlayer = map._layers[maplayer];
                             else if (crdlayer._leaflet_id < map._layers[maplayer]._leaflet_id)
@@ -95,16 +93,13 @@
 
                     if (crdlayer != null) {
 
-                        if (typeof crdlayer.domainLayer.ref != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.ref.id)
-                        {
+                        if (typeof crdlayer.domainLayer.ref != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.ref.id) {
                             crd.reset(crdlayer.domainLayer != undefined, crdlayer.domainLayer.ref != undefined, crdlayer.domainLayer.diff != undefined, crdlayer.domainLayer, crd.reference);
                         }
-                        else if (typeof crdlayer.domainLayer.diff != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.diff.id)
-                        {
+                        else if (typeof crdlayer.domainLayer.diff != "undefined" && crdlayer.idShowing == crdlayer.domainLayer.diff.id) {
                             crd.reset(crdlayer.domainLayer != undefined, crdlayer.domainLayer.ref != undefined, crdlayer.domainLayer.diff != undefined, crdlayer.domainLayer, crd.difference);
                         }
-                        else
-                        {
+                        else {
                             crd.reset(crdlayer.domainLayer != undefined, crdlayer.domainLayer.ref != undefined, crdlayer.domainLayer.diff != undefined, crdlayer.domainLayer);
                         }
                     }
@@ -209,7 +204,7 @@ function addLayerToMap(layer, opacity) {
     if (!layer.objects)
         layer.showingTiles = true;
 
-    if (typeof layer.tiles !== "undefined" && !layer.objects) { //layer.tiles != '' &&
+    if (typeof layer.tiles !== "undefined" && !layer.objects) { //layer.tiles != '' && 
         var tileLayer;
         tileLayer = L.tileLayer(layer.tiles, {
             opacity: opacity,
@@ -228,7 +223,7 @@ function addLayerToMap(layer, opacity) {
             opacity: opacity,
             style: function (feature) {
                 if (typeof feature.properties.fillOpacity !== 'undefined')
-                    return { color: feature.properties.color, weight: 0.5, fillOpacity: feature.properties.fillOpacity*0.8, opacity: feature.properties.fillOpacity };
+                    return { color: feature.properties.color };//, fillOpacity: feature.properties.fillOpacity, opacity: feature.properties.fillOpacity };
                     // test code for live trafic..
                 else if (feature.properties.color == '#000000')
                     return { color: '#000000', weight: 1 };
@@ -254,7 +249,7 @@ function updateTilesLayerOnMap(aElementID, aTilesURL) {
 
         if (layer.domainLayer && layer.idShowing && layer.idShowing == aElementID) {
             layer.setUrl(aTilesURL);
-           // var domainLayer = layer.domainLayer;
+            // var domainLayer = layer.domainLayer;
             //if (domainLayer.tiles != aTilesURL || !layer.redraw) {
             //    // update tiles url
             //    domainLayer.tiles = aTilesURL;

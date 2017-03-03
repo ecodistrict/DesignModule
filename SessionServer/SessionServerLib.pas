@@ -370,6 +370,7 @@ type
     const aObjectTypes, aGeometryType, aLayerType: string; aShowInDomains: Boolean; aDiffRange: Double; aBasicLayer: Boolean=False);
   destructor Destroy; override;
   private
+    fObjectsLock: TOmniMREW;
     fObjects: TObjectDictionary<TWDID, TLayerObject>; // owns
     fGeometryType: string;
     fBasicLayer: Boolean;
@@ -388,7 +389,6 @@ type
 
     fExtraJSON2DAttributes: string;
   protected
-    fObjectsLock: TOmniMREW;
     fLegendJSON: string;
     fQuery: string;
     fTilerLayer: TTilerLayer;
@@ -1228,6 +1228,13 @@ begin
   fCurrentLayer := aCurrentLayer;
   fReferenceLayer := aReferenceLayer;
   fTilerLayer := TTilerLayer.Create(aCurrentLayer.scenario.project.Connection, aElementID, -aCurrentLayer.SliceType);
+  // link to original layers
+  fCurrentLayer.addDiffLayer(Self);
+  fReferenceLayer.addDiffLayer(Self);
+  // add event handlers
+  fTilerLayer.onTilerInfo := handleTilerInfo;
+  fTilerLayer.onRefresh := handleTilerRefresh;
+  fTilerLayer.onPreview := handleTilerPreview;
   // create timers
   fPreviewRequestTimer := aCurrentLayer.scenario.project.Timers.SetTimer(
     procedure(aTimer: TTImer)
@@ -1237,12 +1244,6 @@ begin
     end);
   fSendRefreshTimer := aCurrentLayer.scenario.project.Timers.CreateInactiveTimer;
   fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*20);
-  // add event handlers
-  fTilerLayer.onTilerInfo := handleTilerInfo;
-  fTilerLayer.onRefresh := handleTilerRefresh;
-  fTilerLayer.onPreview := handleTilerPreview;
-  fCurrentLayer.addDiffLayer(Self);
-  fReferenceLayer.addDiffLayer(Self);
   handleSubLayerInfo(nil); // if both layers are known on tiler we can start registering now
 end;
 
@@ -2953,7 +2954,8 @@ var
   timeStamp: TDateTime;
 begin
   timeStamp := 0; // todo:
-  fTilerLayer.signalData(aObject.EncodeRemove, timeStamp);
+  if Assigned(fTilerLayer)
+  then fTilerLayer.signalData(aObject.EncodeRemove, timeStamp);
 end;
 
 procedure TLayer.signalObject(aObject: TLayerObject);
@@ -2961,7 +2963,8 @@ var
   timeStamp: TDateTime;
 begin
   timeStamp := 0; // todo:
-  if Assigned(fTilerLayer) then fTilerLayer.signalData(aObject.encode, timeStamp);
+  if Assigned(fTilerLayer)
+  then fTilerLayer.signalData(aObject.encode, timeStamp);
 end;
 
 procedure TLayer.signalObjects(aSender: TObject);
@@ -3156,7 +3159,7 @@ begin
     procedure(aClient: TClient)
     begin
       aClient.SendRefresh(elementID, timeStampStr, tiles);
-      Log.WriteLn('TLayer.handleRefreshTrigger for '+elementID+', current layer subscribed client: '+aClient.fClientID, llNormal, 1);
+      Log.WriteLn('TLayer.handleRefreshTrigger for '+elementID+', current scenario subscribed client: '+aClient.fClientID, llNormal, 1);
     end);
 end;
 

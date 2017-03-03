@@ -64,7 +64,7 @@ function showSensorWarning(sensor, data) {
 
         modalDialogClose();
 
-        setTimeout(function(){ DataManager.warningGiven = false; }, 180000);
+        setTimeout(function () { DataManager.warningGiven = false; }, 180000);
     });
     modelDialogAddButton(div, 'Close', modalDialogClose);
 }

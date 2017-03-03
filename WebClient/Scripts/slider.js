@@ -6,7 +6,7 @@ var margin = {
     right: 50,
     bottom: 50,
     left: 50
-  },
+},
   width = 960 - margin.left - margin.right,
   height = 300 - margin.bottom - margin.top;
 
@@ -45,16 +45,16 @@ svg.append("g")
 .call(d3.svg.axis()
   .scale(timeScale)
   .orient("bottom")
-  .tickFormat(function(d) {
-    return formatDate(d);
+  .tickFormat(function (d) {
+      return formatDate(d);
   })
   .tickSize(0)
   .tickPadding(12)
   .tickValues([timeScale.domain()[0], timeScale.domain()[1]]))
   .select(".domain")
-  .select(function() {
-    console.log(this);
-    return this.parentNode.appendChild(this.cloneNode(true));
+  .select(function () {
+      console.log(this);
+      return this.parentNode.appendChild(this.cloneNode(true));
   })
   .attr("class", "halo");
 
@@ -83,13 +83,13 @@ slider
   .call(brush.event)
 
 function brushed() {
-  var value = brush.extent()[0];
+    var value = brush.extent()[0];
 
-  if (d3.event.sourceEvent) { // not a programmatic event
-    value = timeScale.invert(d3.mouse(this)[0]);
-    brush.extent([value, value]);
-  }
+    if (d3.event.sourceEvent) { // not a programmatic event
+        value = timeScale.invert(d3.mouse(this)[0]);
+        brush.extent([value, value]);
+    }
 
-  handle.attr("transform", "translate(" + timeScale(value) + ",0)");
-  handle.select('text').text(formatDate(value));
+    handle.attr("transform", "translate(" + timeScale(value) + ",0)");
+    handle.select('text').text(formatDate(value));
 }
