@@ -33,6 +33,11 @@ using IMB;
 // http://www.codemag.com/article/1210051
 // https://msdn.microsoft.com/en-us/library/aa751792(v=vs.110).aspx
 
+
+// root event: service
+//   session event: project
+//     channel event: individual client ie web socket
+
 namespace WS2IMBSvc
 {
     public partial class WS2IMBService : ServiceBase
@@ -154,7 +159,7 @@ namespace WS2IMBSvc
                     try
                     {
                         foreach (var ctep in channelToEvent)
-                            returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName);
+                            returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName); // answer inquire on root with all event names of channels ie clients
                     }
                     finally
                     {
@@ -185,6 +190,15 @@ namespace WS2IMBSvc
                 Debug.WriteLine("## Exception in RootEvent_onIntString ("+aInt.ToString()+", "+aString+"): " + e.Message);
             }
         }
+
+        public static bool checkForLastChannel(string aSessionEventNamePrefix)
+        {
+            foreach (var ctep in channelToEvent)
+                // check if channel belongs to session
+                if (ctep.Value.eventName.StartsWith(aSessionEventNamePrefix))
+                    return false;
+            return true;
+        }
     }
 
     public class ClientTrackerChannelInitializer : IChannelInitializer
@@ -204,13 +218,22 @@ namespace WS2IMBSvc
             TEventEntry channelEvent;
             if (Lookups.channelToEvent.TryGetValue(sender, out channelEvent))
             {
+                // decode session part of event name
+                var sessionEventName = channelEvent.eventName.Substring(0, channelEvent.eventName.LastIndexOf('.'));
                 // signal client is removed
-                channelEvent.signalIntString(TEventEntry.actionDelete, ((IClientChannel)sender).SessionId);
+                channelEvent.signalIntString(TEventEntry.actionDelete, ((IClientChannel)sender).SessionId); // channel, action delete (optional session id)
                 // remove link between channel and event
                 channelEvent.unPublish();
                 channelEvent.unSubscribe();
                 channelEvent.Tag = null;
                 Lookups.channelToEvent.Remove(sender);
+                // check if last channel on session then session can be discarded
+                if (Lookups.checkForLastChannel(sessionEventName + "."))
+                {
+                    channelEvent.connection.unsubscribe(sessionEventName, false);
+                    channelEvent.connection.unpublish(sessionEventName, false);
+                    Debug.WriteLine("   Last client on session " + sessionEventName);
+                }
             }
         }
     }
@@ -260,7 +283,7 @@ namespace WS2IMBSvc
                 Debug.WriteLine("Start of client " + repmp.Address + ":" + repmp.Port.ToString() + " on session: " + sessionName + " (" + channel.SessionId.ToString() + ")");
 
                 // signal start of client on session
-                TEventEntry sessionEvent = Lookups.connection.publish(Lookups.RootEventName + "." + sessionName, false);
+                TEventEntry sessionEvent = Lookups.connection.subscribe(Lookups.RootEventName + "." + sessionName, false);
                 channelEvent = Lookups.connection.subscribe(sessionEvent.eventName + "." + channel.SessionId, false);
                 Lookups.channelToEvent[channel] = channelEvent;
                 channelEvent.Tag = callback;
@@ -268,7 +291,8 @@ namespace WS2IMBSvc
                 channelEvent.onStreamCreate += ChannelEvent_onStreamCreate;
                 channelEvent.onStreamEnd += ChannelEvent_onStreamEnd;
                 channelEvent.onIntString += ChannelEvent_onIntString;
-                sessionEvent.signalIntString(TEventEntry.actionNew, channelEvent.eventName);
+                sessionEvent.signalIntString(TEventEntry.actionNew, channelEvent.eventName); // new channel with event name on session event
+                sessionEvent.onIntString += SessionEvent_onIntString;
                 // make client list queryable by session module
                 Lookups.HookupRoot();
             }
@@ -279,6 +303,29 @@ namespace WS2IMBSvc
                     channelEvent.signalStream("string", new MemoryStream(returnMessage));
                 else
                     channelEvent.signalString(returnMessage);
+            }
+        }
+
+        private void SessionEvent_onIntString(TEventEntry aEventEntry, int aInt, string aString)
+        {
+            if (aInt == TEventEntry.actionInquire)
+            {
+                Debug.WriteLine("received inquire on " + aEventEntry.eventName + " (" + aString + ")");
+                // return all clients on session
+                var returnEvent = aString != "" ? aEventEntry.connection.publish(aString, false) : aEventEntry;
+                try
+                {
+                    var eventNameFilter = aEventEntry.eventName + ".";
+                    foreach (var ctep in Lookups.channelToEvent)
+                        // check if channel belongs to session
+                        if (ctep.Value.eventName.StartsWith(eventNameFilter))
+                            returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName); // event names of clients on session
+                }
+                finally
+                {
+                    if (aString != "")
+                        aEventEntry.unPublish();
+                }
             }
         }
 

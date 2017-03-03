@@ -1097,17 +1097,17 @@ begin
   mapView := aMapView;
   //fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   fSourceProjection := nil;
+  // add ensel scenario
+  //scenario := TEnselScenario.Create(Self, '1', '1', '1', false, Self.mapView);
+  //scenarios.Add(scenario.id, scenario);
+  fWindData := TEnselWindData.Create(Self);
+  //fComplaints := TEnselComplaints.Create(Self);
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
     aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled,
     aSimulationControlEnabled, aAddBasicLayers, '',
     aMaxNearestObjectDistanceInMeters);
   fTiler.onTilerStatus := handleTilerStatus;
-  // add ensel scenario
-  //scenario := TEnselScenario.Create(Self, '1', '1', '1', false, Self.mapView);
-  //scenarios.Add(scenario.id, scenario);
-  fWindData := TEnselWindData.Create(Self);
-  //fComplaints := TEnselComplaints.Create(Self);
 end;
 
 destructor TEnselProject.Destroy;

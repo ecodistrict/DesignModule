@@ -1415,16 +1415,16 @@ constructor TEcodistrictProject.Create(aSessionModel: TSessionModel; aConnection
 begin
   fKpiList := TObjectDictionary<string, TEcodistrictKPI>.Create;
   UpdateKPIList(aKPIList);
-  inherited Create(
-    aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
-    aDBConnection, aTimeSlider, aSelectionEnabled, aMeasuresEnabled,
-    aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers, '',
-    aMaxNearestObjectDistanceInMeters);
   fDIObjectProperties := nil; // TObjectList<TDIObjectProperty>.Create;
   fDMQueries := nil;
   fDIQueries := nil;
   fDIMeasuresHistory := nil;
   fDIMeasures := nil;
+  inherited Create(
+    aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
+    aDBConnection, aTimeSlider, aSelectionEnabled, aMeasuresEnabled,
+    aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers, '',
+    aMaxNearestObjectDistanceInMeters);
   fTiler.onTilerStatus := handleTilerStatus;
 end;
 

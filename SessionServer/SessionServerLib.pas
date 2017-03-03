@@ -191,6 +191,7 @@ type
     procedure SendRefreshRef(const aElementID, aTimeStamp, aRef: string);
     procedure SendRefreshDiff(const aElementID, aTimeStamp, aDiff: string);
     procedure SendPreview(const aElementID, aPreviewBASE64: string);
+    procedure SendLegend(const aElementID, aTimeStamp, aLegendJSON: string);
 
     procedure HandleElementRemove(aElement: TClientSubscribable);
     procedure HandleScenarioRemove(aScenario: TScenario);
@@ -816,7 +817,8 @@ type
     procedure handleTypedClientMessage(const aMessageType: string; var aJSONObject: TJSONObject); virtual;
     procedure handleNewClient(aClient: TClient); virtual;
   public
-    function AddClient(const aClientID: string): TClient;
+    function addClient(const aClientID: string): TClient;
+    function addOrGetClient(const aClientID: string): TClient;
     procedure ReadBasicData(); virtual; abstract;
   public
     property Connection: TConnection read fConnection;
@@ -1227,14 +1229,17 @@ begin
   fLegendJSON := '';
   fCurrentLayer := aCurrentLayer;
   fReferenceLayer := aReferenceLayer;
-  fTilerLayer := TTilerLayer.Create(aCurrentLayer.scenario.project.Connection, aElementID, -aCurrentLayer.SliceType);
   // link to original layers
   fCurrentLayer.addDiffLayer(Self);
   fReferenceLayer.addDiffLayer(Self);
+  fTilerLayer := TTilerLayer.Create(
+    aCurrentLayer.scenario.project.Connection, aElementID, -aCurrentLayer.SliceType,
+    handleTilerInfo, handleTilerRefresh, handleTilerPreview);
   // add event handlers
-  fTilerLayer.onTilerInfo := handleTilerInfo;
-  fTilerLayer.onRefresh := handleTilerRefresh;
-  fTilerLayer.onPreview := handleTilerPreview;
+  //fTilerLayer.onTilerInfo := handleTilerInfo;
+  //fTilerLayer.onRefresh := handleTilerRefresh;
+  //fTilerLayer.onPreview := handleTilerPreview;
+
   // create timers
   fPreviewRequestTimer := aCurrentLayer.scenario.project.Timers.SetTimer(
     procedure(aTimer: TTImer)
@@ -1265,6 +1270,8 @@ end;
 function TDiffLayer.getRefJSON: string;
 begin
   Result := '"id":"'+getElementID+'","tiles":"'+fTilerLayer.URLTimeStamped+'"';
+  if Assigned(fCurrentLayer) and (fCurrentLayer.layerType<>'')
+  then Result := Result+',"type":"'+fCurrentLayer.layerType+'"';
   if legendJSON<>''
   then Result := Result+',"legend":{'+legendJSON+'}';
 end;
@@ -1286,9 +1293,10 @@ begin
     procedure(aClient: TClient)
     begin
       aClient.SendRefresh(elementID, timeStampStr, tiles);
+      aClient.SendLegend(elementID, timeStampStr, Self.legendJSON);
       Log.WriteLn('TDiffLayer.handleRefreshTrigger for '+elementID+', direct subscribed client: '+aClient.fClientID, llNormal, 1);
     end);
-  // signal current layer of diff layer refresh
+  // todo: old system: signal current layer of diff layer refresh
   if Assigned(fCurrentLayer) then
   begin
     fCurrentLayer.scenario.forEachClient(
@@ -1298,6 +1306,7 @@ begin
         Log.WriteLn('TDiffLayer.handleRefreshTrigger for '+elementID+', current layer subscribed client: '+aClient.fClientID, llNormal, 1);
       end);
   end;
+
 end;
 
 procedure TDiffLayer.handleSubLayerInfo(aLayer: TLayer);
@@ -2011,6 +2020,11 @@ end;
 procedure TClient.SendErrorMessage(const aMessage: string);
 begin
   signalString('{"connection":{"message":"'+aMessage+'"}}');
+end;
+
+procedure TClient.SendLegend(const aElementID, aTimeStamp, aLegendJSON: string);
+begin
+  signalString('{"type":"refresh","payload":{"id":"'+aElementID+'","timestamp":"'+aTimeStamp+'","legend":{'+aLegendJSON+'}}}');
 end;
 
 procedure TClient.SendMeasures;
@@ -2850,14 +2864,19 @@ procedure TLayer.RegisterOnTiler(aPersistent: Boolean; aSliceType: Integer; cons
 begin
   fTilerLayer.Free;
   // recreate tiler layer definition
-  fTilerLayer := TTilerLayer.Create(scenario.project.Connection, elementID, aSliceType, aPalette);//, -1, '' .addLayer(elementID, aSliceType, aPalette);
+  fTilerLayer := TTilerLayer.Create(
+    scenario.project.Connection, elementID, aSliceType,
+    handleTilerInfo, handleTilerRefresh, handleTilerPreview,
+    aPalette);//, -1, '' .addLayer(elementID, aSliceType, aPalette);
   // add handlers
-  fTilerLayer.onTilerInfo := handleTilerInfo;
-  fTilerLayer.onRefresh := handleTilerRefresh;
-  fTilerLayer.onPreview := handleTilerPreview;
+//  fTilerLayer.onTilerInfo := handleTilerInfo;
+//  fTilerLayer.onRefresh := handleTilerRefresh;
+//  fTilerLayer.onPreview := handleTilerPreview;
   // trigger registration
   fTilerLayer.signalRegisterLayer(scenario.project.tiler, aDescription, aPersistent, aEdgeLengthInMeters);
   // todo: handle diff layer?
+
+
 
 end;
 
@@ -3040,6 +3059,10 @@ end;
 function TLayer.getRefJSON: string;
 begin
   Result := '"id":"'+getElementID+'","tiles":"'+uniqueObjectsTilesLink+'"';
+  if layerType<>''
+  then Result := Result+',"type":"'+layerType+'"';
+  if legendJSON<>''
+  then Result := Result+',"legend":{'+legendJSON+'}';
   if (objects.Count<=MaxDirectSendObjectCount) and (fGeometryType<>'Point')
   then Result := Result+',"objects": '+objectsJSON;
 end;
@@ -3791,7 +3814,7 @@ end;
 
 { TProject }
 
-function TProject.AddClient(const aClientID: string): TClient;
+function TProject.addClient(const aClientID: string): TClient;
 begin
   Result := TClient.Create(Self, fProjectCurrentScenario, fProjectRefScenario, aClientID);
   TMonitor.Enter(clients);
@@ -3842,6 +3865,23 @@ begin
   end;
 end;
 
+function TProject.addOrGetClient(const aClientID: string): TClient;
+begin
+  TMonitor.Enter(clients);
+  try
+    for Result in clients do
+    begin
+      if Result.clientID=aClientID
+      then exit;
+    end;
+    // if we come to this point id is not found so create new client
+    Result := TClient.Create(Self, fProjectCurrentScenario, fProjectRefScenario, aClientID);
+    clients.Add(Result);
+  finally
+    TMonitor.Exit(clients);
+  end;
+end;
+
 constructor TProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
   aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
@@ -3887,7 +3927,8 @@ begin
         if aInt=actionNew then
         begin
           Log.WriteLn(aProjectId+': link to '+aString);
-          AddClient(aString);
+          // add client if not already known
+          addOrGetClient(aString);
         end;
       except
         on E: Exception
@@ -3901,6 +3942,9 @@ begin
     timers.SetTimer(timerTilerStatusAsHeartbeat, hrtNow+DateTimeDelta2HRT(dtOneHour), DateTimeDelta2HRT(dtOneHour));
     log.WriteLn('Set status timer: '+aTilerStatusURL);
   end;
+
+  // link unlinked clients by inquiring existing sessions
+  fProjectEvent.signalIntString(actionInquire, '');
 end;
 
 destructor TProject.Destroy;

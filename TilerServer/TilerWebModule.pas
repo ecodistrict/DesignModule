@@ -31,6 +31,41 @@
   -> fix: changed FMX.Canvas.D2D unit, delphi
 }
 
+{
+  communication protocol client to tiler and back
+
+  register new layer:                        client -> tiler
+      icehTilerEventName (string, event name to register layer control and data on)
+      [icehTilerEdgeLength (double)]
+      [icehTilerPersistent (bool)]
+      [icehTilerLayerDescription (string)]
+    icehTilerRequestNewLayer (varint, int32, slice type)
+
+  response on icehTilerEventName             tiler -> client
+      icehTilerID (varint, int32)
+    icehTilerURL (string)
+
+  icehTilerURL -> client.OnTilerInfo
+    RegisterSlice
+      signalAddSlice                         client -> tiler
+          [palette]
+        icehTilerSliceID (double, timestamp)
+
+        TLayer.handleDataEvent               tiler -> client
+          create slice
+          icehTilerRefresh (double, timestamp)
+
+        client.OnRefresh                     client -> tiler
+
+        request preview
+          icehTilerRequestPreviewImage (varint, uint32, PreviewImageWidth)
+
+
+    signalObjects
+
+
+}
+
 interface
 
 uses
@@ -116,7 +151,7 @@ const
   rpLat = 'lat';
   rpLon = 'lon';
   rpTime = 'time'; // yyyymmddhhmmss
-  rpNewURL = 'url';
+  //rpNewURL = 'url';
 
   SliceTimeIDFormat = 'yyyymmdd.hhnn';
 
@@ -4275,7 +4310,6 @@ end;
 
 procedure TTilerWebModule.WebModuleDefaultHandlerAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
 var
-  //requestURL: string;
   html: string;
   ilp: TPair<integer, TLayer>;
   extent: TExtent;
@@ -4284,12 +4318,6 @@ var
   tzoom: Integer;
   exampleURL: string;
 begin
-  // todo: try to detect https or http:
-  // Winapi.Isapi2, Web.Win.IsapiHTTP, Web.Win.ISAPIApp, Web.WebFileDispatcher, Web.HTTPApp
-
-  // todo: seems not work correctly, depends on iis isapi config; shows extra slash on end?
-  //requestURL := string(Request.Host)+':'+Request.ServerPort.toString+string(Request.URL);
-
   html :=
     '<html>' +
     '<head><title>Tiler</title></head>' +
@@ -4298,9 +4326,6 @@ begin
    '<div>FQDN: '+GetFQDN+'</div>'+
    '<div>tiler event: '+model.TilerEvent.eventName+'</div>'+
    '<br/><br/>';
-//  html := html+
-//    '<div>registerd url: '+requestURL+'</div>'+
-//    '<br/><br/>';
   // handle request on model
   globalModelAndLayersLock.BeginRead;
   try

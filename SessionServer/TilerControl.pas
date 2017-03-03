@@ -49,7 +49,9 @@ type
   TTiler = class; // forward
 
   TTilerLayer = class
-  constructor Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette=nil; aID: Integer=-1; const aURL: string='');
+  constructor Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer;
+    aOnTilerInfo: TOnTilerInfo; aOnRefresh: TOnRefresh; aOnPreview: TOnPreview;
+    aPalette: TWDPalette=nil; aID: Integer=-1; const aURL: string='');
   destructor Destroy; override;
   private
     //fTiler: TTiler;
@@ -83,9 +85,9 @@ type
     //property preview: TPngImage read fPreview;
     function previewAsBASE64: string;
     // events
-    property onTilerInfo: TOnTilerInfo read fOnTilerInfo write fOnTilerInfo;
-    property onRefresh: TOnRefresh read fOnRefresh write fOnRefresh;
-    property onPreview: TOnPreview read fOnPreview write fOnPreview;
+    //property onTilerInfo: TOnTilerInfo read fOnTilerInfo write fOnTilerInfo;
+    //property onRefresh: TOnRefresh read fOnRefresh write fOnRefresh;
+    //property onPreview: TOnPreview read fOnPreview write fOnPreview;
     // signal layer info
     procedure signalRegisterLayer(aTiler: TTiler; const aDescription: string; aPersistent: Boolean=False; aEdgeLengthInMeters: Double=NaN);
     // add slice with specific data for slice types
@@ -272,7 +274,9 @@ end;
 
 { TTilerLayer }
 
-constructor TTilerLayer.Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer; aPalette: TWDPalette; aID: Integer; const aURL: string);
+constructor TTilerLayer.Create(aConnection: TConnection; const aElementID: string; aSliceType: Integer;
+  aOnTilerInfo: TOnTilerInfo; aOnRefresh: TOnRefresh; aOnPreview: TOnPreview;
+  aPalette: TWDPalette; aID: Integer; const aURL: string);
 begin
   inherited Create;
   fElementID := aElementID;
@@ -281,9 +285,9 @@ begin
   fID := aID;
   fURL := aURL;
   fPreview := nil;
-  fOnTilerInfo := nil;
-  fOnRefresh := nil;
-  fOnPreview := nil;
+  fOnTilerInfo := aOnTilerInfo;
+  fOnRefresh := aOnRefresh;
+  fOnPreview := aOnPreview;
   fHandleLayerEventRef := handleLayerEvent;
   LoadPreviewFromCache();
   // define layer event name and make active

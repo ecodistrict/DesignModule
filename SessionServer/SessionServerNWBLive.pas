@@ -672,16 +672,16 @@ constructor TNWBLiveFeedProject.Create(aSessionModel: TSessionModel; aConnection
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
   aLiveFeedConnection: TIMBConnection; aPalette: TWDPalette; const aShapeFilename: string; aMaxNearestObjectDistanceInMeters: Integer);
 begin
+  fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, nil, 0, False, False, False, False, False, aMaxNearestObjectDistanceInMeters);
   {if aSourceEPSG>0
   then fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(aSourceEPSG)
   else }
-  fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
-  fCurrentScenario := TNWBLiveFeedScenario.Create(Self, 'Live', aLiveFeedConnection, aPalette, aShapeFileName, addBasicLayers);
+  fProjectCurrentScenario := TNWBLiveFeedScenario.Create(Self, 'Live', aLiveFeedConnection, aPalette, aShapeFileName, addBasicLayers);
 
   TMonitor.Enter(fScenarios);
   try
-    fScenarios.Add(fCurrentScenario.ID, fCurrentScenario);
+    fScenarios.Add(fProjectCurrentScenario.ID, fProjectCurrentScenario);
   finally
     TMonitor.Exit(fScenarios);
   end;
