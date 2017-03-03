@@ -1036,10 +1036,7 @@ end;
 
 procedure TSesmiScenario.handleQueryEvent(aEventEntry: TEventEntry;
   const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-var
-test: Integer;
 begin
-  test := 10;
 end;
 
 procedure TSesmiScenario.InquireDB;
@@ -1061,8 +1058,8 @@ begin
   fQuerySubscribed := True;
 
   buffer := TByteBuffer.bb_tag_guid(icehObjectID, fGUID);
-  buffer := TByteBuffer.bb_tag_string(icehWorldReturnEventName, returnString);
-  buffer := buffer + TByteBuffer.bb_tag_string(icehWorldObjectsInquire, ''); //todo: send an inquire string?
+  buffer := TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, returnString);
+  buffer := buffer + TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, ''); //todo: send an inquire string?
   fPubEvent.signalEvent(buffer);
 end;
 
