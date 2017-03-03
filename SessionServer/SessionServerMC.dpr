@@ -317,7 +317,7 @@ begin
     end;
   end
   else }
-  if CommandLine.TestSwitch(ControllerSwitch) then
+  if not CommandLine.TestSwitch(ControllerSwitch) then
   begin
     Log.WriteLn('Started in manual mode', llOk);
     Parameters := TModelParameters.Create;
