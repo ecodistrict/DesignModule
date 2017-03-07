@@ -33,9 +33,15 @@ L.Control.simulation = L.Control.extend({
         var link = this._layersLink = L.DomUtil.create('a', className + '-toggle', container);
         link.href = '#';
         link.title = 'Create Simulation';
-        link.onclick = openSimulationDialog;
+        link.onclick = this._clickControl;
         L.DomEvent.disableClickPropagation(link);
 
+    },
+
+    _clickControl: function (e) {
+        e.target.blur();
+        DataManager.formDialogID = "createSimulation";
+        openFormDialog("Create Simulation", DataManager.simulationSetupData);
     },
 
     _update: function () {
