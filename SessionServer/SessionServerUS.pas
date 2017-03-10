@@ -2368,7 +2368,7 @@ begin
   inherited Create(aSessionModel, aConnection, aProjectID, aProjectName,
     aTilerFQDN, aTilerStatusURL,
     aDBConnection,
-    0, False, False, False, False, addBasicLayers, '',
+    0, False, False, False, False, addBasicLayers, '', '',
     aMaxNearestObjectDistanceInMeters);
 end;
 
