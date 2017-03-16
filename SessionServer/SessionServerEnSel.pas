@@ -1106,7 +1106,7 @@ begin
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
     aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled,
     aSimulationControlEnabled, aAddBasicLayers, '', '',
-    aMaxNearestObjectDistanceInMeters);
+    aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentProject
   fTiler.onTilerStatus := handleTilerStatus;
 end;
 

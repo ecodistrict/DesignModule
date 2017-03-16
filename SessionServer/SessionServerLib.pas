@@ -59,6 +59,11 @@ const
   ltSwitch = 'switch';
   ltEmpty  = '';
 
+  // time slider options
+  ts_Off = 0;
+  ts_collapsed = 1;
+  ts_expanded = 2;
+
 type
   TDistanceLatLon = record
     m_per_deg_lat: Double;
@@ -762,7 +767,8 @@ type
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
     aDBConnection: TCustomConnection;
     aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
-    const aSimulationSetup, aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer);
+    const aSimulationSetup, aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView;
+    aProjectCurrentScenario, aProjectRefScenario: TScenario);
   destructor Destroy; override;
   private
     fMapView: TMapView;
@@ -779,7 +785,6 @@ type
     fProjectDescription: string;
     fMaxNearestObjectDistanceInMeters: Integer;
     fTiler: TTiler;
-    //fTilerEvent: TEventEntry;
     fDBConnection: TCustomConnection; // owns
     fProjectEvent: TEventEntry;
     fClients: TGroup; // owns, lock with TMonitor
@@ -830,7 +835,6 @@ type
     property ProjectDescription: string read fProjectDescription write setProjectDescription;
     property ProjectEvent: TEventEntry read fProjectEvent;
     property maxNearestObjectDistanceInMeters: Integer read fMaxNearestObjectDistanceInMeters;
-    //property TilerEvent: TEventEntry read fTilerEvent;
     property tiler: TTiler read fTiler;
     property Timers: TTimerPool read fTimers;
     property scenarios: TObjectDictionary<string, TScenario> read fScenarios; // owns, lock with TMonitor
@@ -3897,9 +3901,11 @@ end;
 constructor TProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
   aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
-  const aSimulationSetup, aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer);
+  const aSimulationSetup, aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView;
+  aProjectCurrentScenario, aProjectRefScenario: TScenario);
 begin
   inherited  Create;
+  fMapView := aMapView;
   fGroups := TObjectDictionary<string, TGroup>.Create([doOwnsValues]);
   fTimeSlider := aTimeSlider;
   fSelectionEnabled := aSelectionEnabled;
@@ -3922,10 +3928,16 @@ begin
   fMaxNearestObjectDistanceInMeters := aMaxNearestObjectDistanceInMeters;
   fTiler := TTiler.Create(aConnection, aTilerFQDN, aTilerStatusURL);
   fTiler.onTilerStartup := handleTilerStartup;
-//  fTilerEvent := aConnection.publish(aTilerEventName, False);
   fDBConnection := aDBConnection;
-  fProjectCurrentScenario := nil;
-  fProjectRefScenario := nil;
+
+  fProjectCurrentScenario := aProjectCurrentScenario;
+  if Assigned(aProjectCurrentScenario)
+  then fScenarios.Add(aProjectCurrentScenario.ID, aProjectCurrentScenario);
+
+  fProjectRefScenario := aProjectRefScenario;
+  if Assigned(aProjectRefScenario)
+  then fScenarios.Add(aProjectRefScenario.ID, aProjectRefScenario);
+
   fMeasures := TObjectDictionary<string, TMeasure>.Create([doOwnsValues]);
   // projection
   // imb init
@@ -3962,6 +3974,11 @@ end;
 
 destructor TProject.Destroy;
 begin
+  if Assigned(fProjectEvent) then
+  begin
+    fProjectEvent.unPublish;
+    fProjectEvent.unSubscribe;
+  end;
   FreeAndNil(fDiffLayers);
   FreeAndNil(fTimers);
   FreeAndNil(fClients);
@@ -3969,11 +3986,6 @@ begin
   FreeAndNil(fScenarios);
   FreeAndNil(fMeasures);
   inherited;
-//  if Assigned(fTilerEvent) then
-//  begin
-//    fTilerEvent.unPublish;
-//    fTilerEvent := nil;
-//  end;
   FreeAndNil(fDBConnection);
 end;
 

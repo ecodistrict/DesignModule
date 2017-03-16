@@ -1872,42 +1872,42 @@ begin
         (icehObjectID shl 3) or wtLengthDelimited:
           begin
             id := aBuffer.bb_read_rawbytestring(aCursor);
-    if fGeometries.TryGetValue(id, sgo) then
-    begin
-      if Assigned(geometry) then
-      begin
-      // Assume that geometry is modified if we received geometry in the payload.
-      // We remove the geometry from fLocations. The list will free the geometry.
-        fGeometries.Remove(id);
-        sgo := TSliceGeometryObject.Create(geometry, value);
-        if fMaxExtent.IsEmpty
-        then fMaxExtent := sgo.extent
-        else fMaxExtent.Expand(sgo.extent);
-        fGeometries.Add(id, sgo);
-        value := NaN;
-        geometry := nil; // transfer ownership
-      end
-      else
-      begin
-        if not IsNaN(value) then
-        begin
-          sgo.value := value;
-        end;
-      end;
-    end
-    else
-    begin
-      if Assigned(geometry) then
-      begin
-        sgo := TSliceGeometryObject.Create(geometry, value);
-        if fMaxExtent.IsEmpty
-        then fMaxExtent := sgo.extent
-        else fMaxExtent.Expand(sgo.extent);
-        fGeometries.Add(id, sgo);
-        geometry := nil; // transfer ownership
-        value := NaN;
-      end;
-    end;
+            if fGeometries.TryGetValue(id, sgo) then
+            begin
+              if Assigned(geometry) then
+              begin
+              // Assume that geometry is modified if we received geometry in the payload.
+              // We remove the geometry from fLocations. The list will free the geometry.
+                fGeometries.Remove(id);
+                sgo := TSliceGeometryObject.Create(geometry, value);
+                if fMaxExtent.IsEmpty
+                then fMaxExtent := sgo.extent
+                else fMaxExtent.Expand(sgo.extent);
+                fGeometries.Add(id, sgo);
+                value := NaN;
+                geometry := nil; // transfer ownership
+              end
+              else
+              begin
+                if not IsNaN(value) then
+                begin
+                  sgo.value := value;
+                end;
+              end;
+            end
+            else
+            begin
+              if Assigned(geometry) then
+              begin
+                sgo := TSliceGeometryObject.Create(geometry, value);
+                if fMaxExtent.IsEmpty
+                then fMaxExtent := sgo.extent
+                else fMaxExtent.Expand(sgo.extent);
+                fGeometries.Add(id, sgo);
+                geometry := nil; // transfer ownership
+                value := NaN;
+              end;
+            end;
           end;
         (icehTilerValue shl 3) or wt64Bit:
           begin

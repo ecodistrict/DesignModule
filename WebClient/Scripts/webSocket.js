@@ -20,8 +20,8 @@ var wsLookup = {
         // add basic layers from domains
         for (var domainName in payload) {
             var domain = payload[domainName];
-            for (var id in domain.layers) {
-                var layer = domain.layers[id];
+            for (var id2 in domain.layers) {
+                var layer = domain.layers[id2];
                 if (layer.basic)
                     addBasicLayer(layer);
             }
@@ -43,8 +43,8 @@ var wsLookup = {
         // add basic layers from domains
         for (var domainName in payload) {
             var domain = payload[domainName];
-            for (var id in domain.layers) {
-                var layer = domain.layers[id];
+            for (var id2 in domain.layers) {
+                var layer = domain.layers[id2];
                 if (layer.basic)
                     addBasicLayer(layer);
             }
@@ -97,15 +97,13 @@ var wsLookup = {
             projectDescription.update();
 
             if (typeof payload.activeScenario !== "undefined") {
-                if (DataManager.sessionInfo.scenario != payload.activeScenario)
-                {
+                if (DataManager.sessionInfo.scenario != payload.activeScenario) {
                     SyncManager.newActiveScenario(payload.activeScenario);
                 }
                 DataManager.sessionInfo.scenario = payload.activeScenario;
                 projectDescription.options.activeScenario = payload.activeScenario;
             }
-            else
-            {
+            else {
                 DataManager.sessionInfo.scenario = null;
                 projectDescription.options.activeScenario = payload.activeScenario;
             }
@@ -155,7 +153,7 @@ var wsLookup = {
         }
 
         if (typeof payload.simulationSettingsEnabled !== 'undefined') {
-
+            // todo: ?
         }
 
         if (typeof payload.measuresEnabled !== 'undefined') {
@@ -180,14 +178,14 @@ var wsLookup = {
         if (typeof payload.simulationControlEnabled !== 'undefined') {
             if (payload.simulationControlEnabled) {
                 map.addControl(startControl);
-                map.addControl(presenterViewerControl)
+                map.addControl(presenterViewerControl);
                 map.addControl(DataManager.modelControl);
-                InfoTextControl['leaflet-control-model'] = { description: 'View model control info', active: true, iconPosition: 'left' }
+                InfoTextControl['leaflet-control-model'] = { description: 'View model control info', active: true, iconPosition: 'left' };
                 InfoTextControl['leaflet-control-pv'] = { description: 'Set-up a presenter session or join a session as viewer', active: true, iconPosition: 'left' };
                 InfoTextControl['leaflet-control-startstop-stopped'] = { description: 'Play/pause simulation', active: true, iconPosition: 'left' };
             } else {
                 map.removeControl(startControl);
-                map.removeControl(presenterViewerControl)
+                map.removeControl(presenterViewerControl);
                 InfoTextControl['leaflet-control-model'] = { active: false };
                 InfoTextControl['leaflet-control-pv'] = { active: false };
                 InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
@@ -235,14 +233,13 @@ var wsLookup = {
                 InfoTextControl['leaflet-control-simclose'] = { active: false };
             }
         }
-        
+
         if (typeof payload.startstopControlEnabled !== "undefined") {
             if (payload.startstopControlEnabled) {
                 map.addControl(startControl);
                 InfoTextControl['leaflet-control-startstop-stopped'] = { description: 'Play/pause simulation', active: true, iconPosition: 'left' };
             }
-            else
-            {
+            else {
                 map.removeControl(startControl);
                 InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
             }
@@ -273,7 +270,7 @@ var wsLookup = {
     connection: function (payload) {
         // connection specific, from ws2imb
         if (payload.message)
-          AddErrorMessage(payload.message, payload.messageType);
+            AddErrorMessage(payload.message, payload.messageType);
 
     },
     sensor: function (payload) {
@@ -298,7 +295,7 @@ var wsLookup = {
         historyControl.addHistoryItems(payload);
     },
     removehistorymeasures: function (payload) {
-        historyControl.removeHistoryItems(payload)
+        historyControl.removeHistoryItems(payload);
     },
     addcars: function (payload) {
         DataManager.AddCars(payload);
@@ -353,9 +350,9 @@ var wsLookup = {
         DataManager.queryDialogData = payload; // only storage is needed no further action required
     },
     modelcontrol: function (payload) {
-        DataManager.modelControl.HandleMessages(payload)
+        DataManager.modelControl.HandleMessages(payload);
     }
-}
+};
 
 function wsConnect() {
     ws = new WebSocket(wsBaseURL + '/sessions?session=' + session);
@@ -553,7 +550,7 @@ function wsConnect() {
         else if (evt.code && evt.code != 1000)
             AddErrorMessage("disconnected (close " + evt.code + ", " + evt.reason + ")", 'error');
     };
-};
+}
 
 function wsSend(obj) {
     if (ws) {
@@ -561,7 +558,7 @@ function wsSend(obj) {
     }
     else
         return -2;
-};
+}
 
 function wsClose() {
     ws.close();
