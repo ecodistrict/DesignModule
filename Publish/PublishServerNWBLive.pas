@@ -1,4 +1,4 @@
-unit SessionServerNWBLive;
+unit PublishServerNWBLive;
 
 interface
 

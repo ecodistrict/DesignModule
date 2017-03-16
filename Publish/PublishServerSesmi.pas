@@ -1,4 +1,4 @@
-unit SessionServerSesmi;
+unit PublishServerSesmi;
 
 interface
 
@@ -15,8 +15,8 @@ uses
 
   TilerControl,
 
-  SessionServerLib,
-  SessionServerGIS,
+  PublishServerLib,
+  PublishServerGIS,
 
   GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
 

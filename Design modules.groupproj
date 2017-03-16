@@ -3,13 +3,13 @@
         <ProjectGuid>{EA6C13A6-379D-41EC-852F-54755E1881A3}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
-        <Projects Include="SessionServer\SessionServerCmd.dproj">
+        <Projects Include="Publish\PublishServerCmd.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="SessionServer\SessionServerMC.dproj">
+        <Projects Include="Publish\PublishServerMC.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="SessionServer\SessionServerSvc.dproj">
+        <Projects Include="Publish\PublishServerSvc.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="TilerServer\TilerWebService.dproj">
@@ -27,10 +27,10 @@
         <Projects Include="EcoRestApi\EcoRestApi.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="SessionServer\PublishingServerEnsel.dproj">
+        <Projects Include="Publish\PublishingServerEnsel.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="SessionServer\TestEnselSource.dproj">
+        <Projects Include="Publish\TestEnselSource.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="EcoRefresh\EcoRefresh.dproj">
@@ -42,7 +42,7 @@
         <Projects Include="Publish\PublishSSMCmd.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="SessionServer\PublishingServerSesmi.dproj">
+        <Projects Include="Publish\PublishingServerSesmi.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -53,32 +53,32 @@
             <Default.Personality/>
         </BorlandProject>
     </ProjectExtensions>
-    <Target Name="SessionServerCmd">
-        <MSBuild Projects="SessionServer\SessionServerCmd.dproj"/>
+    <Target Name="PublishServerCmd">
+        <MSBuild Projects="Publish\PublishServerCmd.dproj"/>
     </Target>
-    <Target Name="SessionServerCmd:Clean">
-        <MSBuild Projects="SessionServer\SessionServerCmd.dproj" Targets="Clean"/>
+    <Target Name="PublishServerCmd:Clean">
+        <MSBuild Projects="Publish\PublishServerCmd.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="SessionServerCmd:Make">
-        <MSBuild Projects="SessionServer\SessionServerCmd.dproj" Targets="Make"/>
+    <Target Name="PublishServerCmd:Make">
+        <MSBuild Projects="Publish\PublishServerCmd.dproj" Targets="Make"/>
     </Target>
-    <Target Name="SessionServerMC">
-        <MSBuild Projects="SessionServer\SessionServerMC.dproj"/>
+    <Target Name="PublishServerMC">
+        <MSBuild Projects="Publish\PublishServerMC.dproj"/>
     </Target>
-    <Target Name="SessionServerMC:Clean">
-        <MSBuild Projects="SessionServer\SessionServerMC.dproj" Targets="Clean"/>
+    <Target Name="PublishServerMC:Clean">
+        <MSBuild Projects="Publish\PublishServerMC.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="SessionServerMC:Make">
-        <MSBuild Projects="SessionServer\SessionServerMC.dproj" Targets="Make"/>
+    <Target Name="PublishServerMC:Make">
+        <MSBuild Projects="Publish\PublishServerMC.dproj" Targets="Make"/>
     </Target>
-    <Target Name="SessionServerSvc">
-        <MSBuild Projects="SessionServer\SessionServerSvc.dproj"/>
+    <Target Name="PublishServerSvc">
+        <MSBuild Projects="Publish\PublishServerSvc.dproj"/>
     </Target>
-    <Target Name="SessionServerSvc:Clean">
-        <MSBuild Projects="SessionServer\SessionServerSvc.dproj" Targets="Clean"/>
+    <Target Name="PublishServerSvc:Clean">
+        <MSBuild Projects="Publish\PublishServerSvc.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="SessionServerSvc:Make">
-        <MSBuild Projects="SessionServer\SessionServerSvc.dproj" Targets="Make"/>
+    <Target Name="PublishServerSvc:Make">
+        <MSBuild Projects="Publish\PublishServerSvc.dproj" Targets="Make"/>
     </Target>
     <Target Name="TilerWebService">
         <MSBuild Projects="TilerServer\TilerWebService.dproj"/>
@@ -126,22 +126,22 @@
         <MSBuild Projects="EcoRestApi\EcoRestApi.dproj" Targets="Make"/>
     </Target>
     <Target Name="PublishingServerEnsel">
-        <MSBuild Projects="SessionServer\PublishingServerEnsel.dproj"/>
+        <MSBuild Projects="Publish\PublishingServerEnsel.dproj"/>
     </Target>
     <Target Name="PublishingServerEnsel:Clean">
-        <MSBuild Projects="SessionServer\PublishingServerEnsel.dproj" Targets="Clean"/>
+        <MSBuild Projects="Publish\PublishingServerEnsel.dproj" Targets="Clean"/>
     </Target>
     <Target Name="PublishingServerEnsel:Make">
-        <MSBuild Projects="SessionServer\PublishingServerEnsel.dproj" Targets="Make"/>
+        <MSBuild Projects="Publish\PublishingServerEnsel.dproj" Targets="Make"/>
     </Target>
     <Target Name="TestEnselSource">
-        <MSBuild Projects="SessionServer\TestEnselSource.dproj"/>
+        <MSBuild Projects="Publish\TestEnselSource.dproj"/>
     </Target>
     <Target Name="TestEnselSource:Clean">
-        <MSBuild Projects="SessionServer\TestEnselSource.dproj" Targets="Clean"/>
+        <MSBuild Projects="Publish\TestEnselSource.dproj" Targets="Clean"/>
     </Target>
     <Target Name="TestEnselSource:Make">
-        <MSBuild Projects="SessionServer\TestEnselSource.dproj" Targets="Make"/>
+        <MSBuild Projects="Publish\TestEnselSource.dproj" Targets="Make"/>
     </Target>
     <Target Name="EcoRefresh">
         <MSBuild Projects="EcoRefresh\EcoRefresh.dproj"/>
@@ -171,22 +171,22 @@
         <MSBuild Projects="Publish\PublishSSMCmd.dproj" Targets="Make"/>
     </Target>
     <Target Name="PublishingServerSesmi">
-        <MSBuild Projects="SessionServer\PublishingServerSesmi.dproj"/>
+        <MSBuild Projects="Publish\PublishingServerSesmi.dproj"/>
     </Target>
     <Target Name="PublishingServerSesmi:Clean">
-        <MSBuild Projects="SessionServer\PublishingServerSesmi.dproj" Targets="Clean"/>
+        <MSBuild Projects="Publish\PublishingServerSesmi.dproj" Targets="Clean"/>
     </Target>
     <Target Name="PublishingServerSesmi:Make">
-        <MSBuild Projects="SessionServer\PublishingServerSesmi.dproj" Targets="Make"/>
+        <MSBuild Projects="Publish\PublishingServerSesmi.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="SessionServerCmd;SessionServerMC;SessionServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;PublishingServerEnsel;TestEnselSource;EcoRefresh;PublishGetData;PublishSSMCmd;PublishingServerSesmi"/>
+        <CallTarget Targets="PublishServerCmd;PublishServerMC;PublishServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;PublishingServerEnsel;TestEnselSource;EcoRefresh;PublishGetData;PublishSSMCmd;PublishingServerSesmi"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SessionServerCmd:Clean;SessionServerMC:Clean;SessionServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;PublishingServerEnsel:Clean;TestEnselSource:Clean;EcoRefresh:Clean;PublishGetData:Clean;PublishSSMCmd:Clean;PublishingServerSesmi:Clean"/>
+        <CallTarget Targets="PublishServerCmd:Clean;PublishServerMC:Clean;PublishServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;PublishingServerEnsel:Clean;TestEnselSource:Clean;EcoRefresh:Clean;PublishGetData:Clean;PublishSSMCmd:Clean;PublishingServerSesmi:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SessionServerCmd:Make;SessionServerMC:Make;SessionServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;PublishingServerEnsel:Make;TestEnselSource:Make;EcoRefresh:Make;PublishGetData:Make;PublishSSMCmd:Make;PublishingServerSesmi:Make"/>
+        <CallTarget Targets="PublishServerCmd:Make;PublishServerMC:Make;PublishServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;PublishingServerEnsel:Make;TestEnselSource:Make;EcoRefresh:Make;PublishGetData:Make;PublishSSMCmd:Make;PublishingServerSesmi:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

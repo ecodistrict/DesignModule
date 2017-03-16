@@ -14,9 +14,9 @@ uses
   CommandQueue,
   TilerControl,
 
-  SessionServerLib,
-  SessionServerGIS,
-  SessionServerSSM,
+  PublishServerLib,
+  PublishServerGIS,
+  PublishServerSSM,
 
   System.SysUtils;
 

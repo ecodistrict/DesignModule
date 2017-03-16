@@ -3,7 +3,7 @@
         <ProjectGuid>{440FB02F-9E17-4C74-9FB3-288262ADAAD8}</ProjectGuid>
         <ProjectVersion>18.2</ProjectVersion>
         <FrameworkType>None</FrameworkType>
-        <MainSource>SessionServerCmd.dpr</MainSource>
+        <MainSource>PublishServerCmd.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
@@ -55,9 +55,9 @@
         <DCC_Define>NONET;GIS_NODB;$(DCC_Define)</DCC_Define>
         <VerInfo_Locale>1043</VerInfo_Locale>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
-        <SanitizedProjectName>SessionServerCmd</SanitizedProjectName>
+        <SanitizedProjectName>PublishServerCmd</SanitizedProjectName>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
-        <DCC_UnitSearchPath>imb;logger;odac;avl;delaunay;oracleTools;tatukGIS;tatukGIS\Lib;us;world;imb3;mc;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>imb;logger;odac;avl;delaunay;oracleTools;tatukGIS;tatukGIS\Lib;us;world;imb3;mc;publisher-core;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
         <DCC_E>false</DCC_E>
@@ -128,7 +128,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">SessionServerCmd.dpr</Source>
+                    <Source Name="MainSource">PublishServerCmd.dpr</Source>
                 </Source>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k240.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
@@ -138,6 +138,12 @@
             <Deployment Version="3">
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="OSX32">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win64\Debug\PublishServerCmd.rsm" Configuration="Debug" Class="DebugSymbols">
+                    <Platform Name="Win64">
+                        <RemoteName>PublishServerCmd.rsm</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -151,21 +157,9 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Win32\Debug\SessionServerCmd.exe" Configuration="Debug" Class="ProjectOutput">
-                    <Platform Name="Win32">
-                        <RemoteName>SessionServerCmd.exe</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Win64\Debug\SessionServerCmd.rsm" Configuration="Debug" Class="DebugSymbols">
+                <DeployFile LocalName="Win64\Debug\PublishServerCmd.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win64">
-                        <RemoteName>SessionServerCmd.rsm</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Win64\Debug\SessionServerCmd.exe" Configuration="Debug" Class="ProjectOutput">
-                    <Platform Name="Win64">
-                        <RemoteName>SessionServerCmd.exe</RemoteName>
+                        <RemoteName>PublishServerCmd.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -174,27 +168,18 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployClass Name="DependencyModule">
+                <DeployFile LocalName="Win32\Debug\PublishServerCmd.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <Operation>0</Operation>
-                        <Extensions>.dll;.bpl</Extensions>
+                        <RemoteName>PublishServerCmd.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
                     </Platform>
+                </DeployFile>
+                <DeployClass Name="ProjectiOSDeviceResourceRules">
                     <Platform Name="iOSDevice64">
                         <Operation>1</Operation>
-                        <Extensions>.dylib</Extensions>
-                    </Platform>
-                    <Platform Name="OSX32">
-                        <RemoteDir>Contents\MacOS</RemoteDir>
-                        <Operation>1</Operation>
-                        <Extensions>.dylib</Extensions>
                     </Platform>
                     <Platform Name="iOSDevice32">
                         <Operation>1</Operation>
-                        <Extensions>.dylib</Extensions>
-                    </Platform>
-                    <Platform Name="iOSSimulator">
-                        <Operation>1</Operation>
-                        <Extensions>.dylib</Extensions>
                     </Platform>
                 </DeployClass>
                 <DeployClass Name="ProjectOSXResource">
@@ -574,12 +559,27 @@
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
-                <DeployClass Name="ProjectiOSDeviceResourceRules">
+                <DeployClass Name="DependencyModule">
+                    <Platform Name="Win32">
+                        <Operation>0</Operation>
+                        <Extensions>.dll;.bpl</Extensions>
+                    </Platform>
                     <Platform Name="iOSDevice64">
                         <Operation>1</Operation>
+                        <Extensions>.dylib</Extensions>
+                    </Platform>
+                    <Platform Name="OSX32">
+                        <RemoteDir>Contents\MacOS</RemoteDir>
+                        <Operation>1</Operation>
+                        <Extensions>.dylib</Extensions>
                     </Platform>
                     <Platform Name="iOSDevice32">
                         <Operation>1</Operation>
+                        <Extensions>.dylib</Extensions>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <Operation>1</Operation>
+                        <Extensions>.dylib</Extensions>
                     </Platform>
                 </DeployClass>
                 <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app"/>

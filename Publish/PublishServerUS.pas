@@ -1,4 +1,4 @@
-unit SessionServerUS;
+unit PublishServerUS;
 
 interface
 
@@ -25,8 +25,8 @@ uses
   CommandQueue,
   TimerPool,
 
-  SessionServerLib,
-  SessionServerGIS,
+  PublishServerLib,
+  PublishServerGIS,
 
   Vcl.graphics, // TPicture
 

@@ -1,4 +1,4 @@
-program SessionServerCmd;
+program PublishServerCmd;
 
 {$APPTYPE CONSOLE}
 
@@ -17,14 +17,14 @@ uses
   CommandQueue,
   TilerControl,
 
-  SessionServerLib,
-  SessionServerDB,
-  SessionServerGIS,
-  SessionServerUS,
-  //SessionServerEnSel,
-  //SessionServerNWBLive,
-  SessionServerEcodistrict,
-  SessionServerSSM,
+  PublishServerLib,
+  PublishServerDB,
+  PublishServerGIS,
+  PublishServerUS,
+  //PublishServerEnSel,
+  //PublishServerNWBLive,
+  PublishServerEcodistrict,
+  PublishServerSSM,
   System.SysUtils;
 
 {

@@ -3,7 +3,7 @@
         <ProjectGuid>{A76D74A7-E606-499D-A469-EBF892B8A72B}</ProjectGuid>
         <ProjectVersion>18.2</ProjectVersion>
         <FrameworkType>None</FrameworkType>
-        <MainSource>SessionServerMC.dpr</MainSource>
+        <MainSource>PublishServerMC.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
@@ -58,12 +58,12 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
-        <DCC_UnitSearchPath>imb;logger;odac;avl;delaunay;oracleTools;tatukGIS;tatukGIS\Lib;us;..\TilerServer;world;imb3;mc;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>imb;logger;odac;avl;delaunay;oracleTools;tatukGIS;tatukGIS\Lib;us;..\TilerServer;world;imb3;mc;publisher-core;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Locale>1043</VerInfo_Locale>
         <DCC_Define>NONET;GIS_NODB;$(DCC_Define)</DCC_Define>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
-        <SanitizedProjectName>SessionServerMC</SanitizedProjectName>
+        <SanitizedProjectName>PublishServerMC</SanitizedProjectName>
         <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
         <DCC_E>false</DCC_E>
@@ -138,63 +138,28 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">SessionServerMC.dpr</Source>
+                    <Source Name="MainSource">PublishServerMC.dpr</Source>
                 </Source>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\DataExplorerFireDACPlugin240.bpl">FireDAC Data Explorer Integration</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\DataExplorerService240.bpl">Data Explorer Reusable Services</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclBindCompFireDAC240.bpl">LiveBinding Expression Components FireDac</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclbindcomp240.bpl">Embarcadero LiveBindings Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\ExpertsUI240.bpl">Embarcadero Experts UI Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcl31w240.bpl">Delphi 1.0 Compatibility Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclsmp240.bpl">Embarcadero Sample Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclsmpedit240.bpl">Embarcadero Editor Script Enhancements</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclbindcompvcl240.bpl">Embarcadero LiveBindings Components VCL</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclnetwiz240.bpl">Embarcadero Internet Server Wizards</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclnet240.bpl">Embarcadero Internet Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\ExpertsCreators240.bpl">Embarcadero Experts Creators Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclmid240.bpl">Embarcadero MyBase DataAccess Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclnetdb240.bpl">Embarcadero Internet DB Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclbindcompdbx240.bpl">LiveBindings Expression Components DbExpress</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcldbx240.bpl">Embarcadero dbExpress Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclsoapmidas240.bpl">Embarcadero SOAP Midas Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclsoap240.bpl">Embarcadero SOAP Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclsoapserver240.bpl">Embarcadero SOAP Server Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclmcn240.bpl">Embarcadero DataSnap Connection Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\DUnitXIDEExpert240.bpl">Embarcadero Unit Testing IDE Package</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\gitide240.bpl">Embarcadero Git Integration</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\hgide240.bpl">Embarcadero Mercurial Integration</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\svnide240.bpl">Embarcadero Subversion Integration</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclbindcompfmx240.bpl">Embarcadero LiveBindings Components FireMonkey</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclemacsedit240.bpl">Embarcadero Editor Emacs Enhancements</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\samplevisualizers240.bpl">Embarcadero Sample Debugger Visualizers</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcldbxcds240.bpl">Embarcadero SimpleDataset Component (DBX)</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclCloudService240.bpl">Embarcadero Cloud management components</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k240.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dclofficexp240.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">
+                <DeployFile LocalName="Win64\Debug\PublishServerMC.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win64">
+                        <RemoteName>PublishServerMC.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="OSX32">
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Win32\Debug\SessionServerMC.exe" Configuration="Debug" Class="ProjectOutput">
-                    <Platform Name="Win32">
-                        <RemoteName>SessionServerMC.exe</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Win64\Debug\SessionServerMC.exe" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="Win64\Debug\PublishServerMC.rsm" Configuration="Debug" Class="DebugSymbols">
                     <Platform Name="Win64">
-                        <RemoteName>SessionServerMC.exe</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Win64\Debug\SessionServerMC.rsm" Configuration="Debug" Class="DebugSymbols">
-                    <Platform Name="Win64">
-                        <RemoteName>SessionServerMC.rsm</RemoteName>
+                        <RemoteName>PublishServerMC.rsm</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -208,32 +173,23 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
+                <DeployFile LocalName="Win32\Debug\PublishServerMC.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>PublishServerMC.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgsqlite3.dylib" Class="DependencyModule">
                     <Platform Name="OSX32">
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployClass Name="DependencyModule">
-                    <Platform Name="Win32">
-                        <Operation>0</Operation>
-                        <Extensions>.dll;.bpl</Extensions>
-                    </Platform>
+                <DeployClass Name="ProjectiOSDeviceResourceRules">
                     <Platform Name="iOSDevice64">
                         <Operation>1</Operation>
-                        <Extensions>.dylib</Extensions>
-                    </Platform>
-                    <Platform Name="OSX32">
-                        <RemoteDir>Contents\MacOS</RemoteDir>
-                        <Operation>1</Operation>
-                        <Extensions>.dylib</Extensions>
                     </Platform>
                     <Platform Name="iOSDevice32">
                         <Operation>1</Operation>
-                        <Extensions>.dylib</Extensions>
-                    </Platform>
-                    <Platform Name="iOSSimulator">
-                        <Operation>1</Operation>
-                        <Extensions>.dylib</Extensions>
                     </Platform>
                 </DeployClass>
                 <DeployClass Name="ProjectOSXResource">
@@ -613,12 +569,27 @@
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
-                <DeployClass Name="ProjectiOSDeviceResourceRules">
+                <DeployClass Name="DependencyModule">
+                    <Platform Name="Win32">
+                        <Operation>0</Operation>
+                        <Extensions>.dll;.bpl</Extensions>
+                    </Platform>
                     <Platform Name="iOSDevice64">
                         <Operation>1</Operation>
+                        <Extensions>.dylib</Extensions>
+                    </Platform>
+                    <Platform Name="OSX32">
+                        <RemoteDir>Contents\MacOS</RemoteDir>
+                        <Operation>1</Operation>
+                        <Extensions>.dylib</Extensions>
                     </Platform>
                     <Platform Name="iOSDevice32">
                         <Operation>1</Operation>
+                        <Extensions>.dylib</Extensions>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <Operation>1</Operation>
+                        <Extensions>.dylib</Extensions>
                     </Platform>
                 </DeployClass>
                 <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app"/>

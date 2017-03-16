@@ -10,8 +10,9 @@ uses
   imb4,
   CommandQueue,
   TilerControl,
-  SessionServerLib, SessionServerDB,
-  SessionServerSesmi,
+  PublishServerLib,
+  PublishServerDB,
+  PublishServerSesmi,
   System.SysUtils;
 
 const

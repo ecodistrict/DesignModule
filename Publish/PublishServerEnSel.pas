@@ -1,4 +1,4 @@
-unit SessionServerEnSel;
+unit PublishServerEnSel;
 
 interface
 
@@ -13,8 +13,8 @@ uses
 
   TilerControl,
 
-  SessionServerLib,
-  SessionServerGIS,
+  PublishServerLib,
+  PublishServerGIS,
 
   GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
 

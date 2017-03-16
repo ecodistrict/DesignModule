@@ -1,4 +1,4 @@
-unit SessionServerSSM;
+unit PublishServerSSM;
 
 interface
 
@@ -12,12 +12,12 @@ uses
 
   GisDefs, GisCsSystems,
   TimerPool,
-  SessionServerLib,
+  PublishServerLib,
   ModelControllerLib,
   CommandQueue,
 
   // US
-  SessionServerUS,
+  PublishServerUS,
   Ora,
   MyOraLib,
 

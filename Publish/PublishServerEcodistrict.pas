@@ -1,4 +1,4 @@
-unit SessionServerEcodistrict;
+unit PublishServerEcodistrict;
 
 {
   todo:
@@ -23,8 +23,8 @@ uses
 
   TilerControl,
 
-  SessionServerDB,
-  SessionServerLib,
+  PublishServerDB,
+  PublishServerLib,
 
   System.JSON,
   System.Generics.Collections,
