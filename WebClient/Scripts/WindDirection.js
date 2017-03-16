@@ -1,9 +1,15 @@
 L.Control.Arrow = L.Control.extend({
-    speed: "unknown",
-    direction: "unknown",
-    time: "unknown",
     arrow: null,
     text: null,
+    windHeight: 200, //only changes div size, not the wind arrow
+    windWidth: 200, //only changes div size, not the wind arrow
+    moveHeight: 15,
+    moveWidth: 15,
+    maxSpeed: 40, //in m/s
+    rotating: false,
+    dragging: false,
+    live: true,
+
 
     options: {
         collapsed: false,
@@ -47,6 +53,21 @@ L.Control.Arrow = L.Control.extend({
         var windDirectionDiv = L.DomUtil.create('div', "windDirectionDiv");
         windDirectionDiv.appendChild(text);
         container.appendChild(windDirectionDiv);
+        windDirectionDiv.style.width = this.windWidth + 'px';
+        windDirectionDiv.style.height = this.windHeight + 'px';
+        windDirectionDiv.addEventListener('click', this._windDirectionDivClick);
+        if (is_touch_device()) {
+            windDirectionDiv.addEventListener('touchstart', this._windDirectionDivMouseDown);
+        } else {
+            windDirectionDiv.addEventListener('mousedown', this._windDirectionDivMouseDown);
+        }
+        windDirectionDiv.addEventListener('contextmenu', this._windRightClick);
+        this._windDiv = windDirectionDiv;
+
+        var moveDiv = L.DomUtil.create('div', 'windMoveDiv');
+        windDirectionDiv.appendChild(moveDiv);
+        moveDiv.style.width = this.moveWidth + 'px';
+        moveDiv.style.height = this.moveHeight + 'px';
 
         var north = windDirectionDiv.appendChild(L.DomUtil.create('div', "north"));
         north.innerHTML = 'N';
@@ -63,8 +84,172 @@ L.Control.Arrow = L.Control.extend({
 
         this.arrow = arrow;
         arrow.id = "windArrow";
+        L.DomUtil.addClass(arrow, 'windArrowLive');
         arrow.src = "Content/images/arrow_wind.png";
 
+    },
+
+    _windRightClick: function (e) {
+        e.preventDefault(); //prevent showing of contextmenu since we use right-mouse for something else
+        e.stopPropagation();
+    },
+
+    GoLive: function() {
+        DataManager.wind.live = true;
+        if (DataManager.wind.time && DataManager.wind.direction && DataManager.wind.speed)
+            DataManager.wind.rotate(DataManager.wind.direction, DataManager.wind.speed, DataManager.wind.time);
+        L.DomUtil.addClass(DataManager.wind.arrow, 'windArrowLive');
+    },
+
+    _windDirectionDivMouseDown: function (e) {
+        if (DataManager.wind.dragging || DataManager.wind.rotating)
+            return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        if ((e.which && e.which == 3) || (e.button && (e.button == 2))) //check if right mouse button!
+        {
+            DataManager.wind.GoLive();
+            return;
+        }
+
+        L.DomUtil.removeClass(DataManager.wind.arrow, 'windArrowLive');
+
+        var offset = DataManager.wind.GetOffset(e);
+
+
+        if ((DataManager.wind._windDiv.offsetWidth - offset.X) <= DataManager.wind.moveWidth && (DataManager.wind._windDiv.offsetHeight - offset.Y) <= DataManager.wind.moveHeight) {
+            DataManager.wind.dragging = true;
+
+            if (is_touch_device()) {
+                window.addEventListener('touchmove', DataManager.wind._dragMove);
+                window.addEventListener('touchend', DataManager.wind._dragEnd);
+            } else {
+                window.addEventListener("mousemove", DataManager.wind._dragMove);
+                window.addEventListener("mouseup", DataManager.wind._dragEnd);
+            }
+        }
+        else
+        {
+            DataManager.wind.rotating = true;
+            DataManager.wind.live = false;
+
+            var data = DataManager.wind.GetDirectionSpeed(e);
+            var today = new Date();
+            var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
+
+            DataManager.wind.rotate(data.direction, data.speed, date);
+
+            if (is_touch_device()) {
+                window.addEventListener('touchmove', DataManager.wind._directionMove);
+                window.addEventListener('touchend', DataManager.wind._directionEnd);
+            } else {
+                window.addEventListener("mousemove", DataManager.wind._directionMove);
+                window.addEventListener("mouseup", DataManager.wind._directionEnd);
+            }
+        }
+
+
+    },
+
+    _dragMove: function(e)
+    {
+
+    },
+
+    _dragEnd: function(e)
+    {
+        if (is_touch_device()) {
+            window.removeEventListener('touchmove', DataManager.wind._dragMove);
+            window.removeEventListener('touchend', DataManager.wind._dragEnd);
+        } else {
+            window.removeEventListener("mousemove", DataManager.wind._dragMove);
+            window.removeEventListener("mouseup", DataManager.wind._dragEnd);
+        }
+
+        DataManager.wind.dragging = false;
+    },
+
+    _directionMove: function (e) {
+        if (!(DataManager.wind.dragging || DataManager.wind.rotating))
+            return
+
+        e = e ? e : window.event;
+        e.preventDefault();
+        e.stopPropagation();
+        var windDiv = DataManager.wind._windDiv;
+
+        var data = DataManager.wind.GetDirectionSpeed(e);
+        var today = new Date();
+        var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
+        DataManager.wind.rotate(data.direction, data.speed, date);
+    },
+
+    _directionEnd: function (e) {
+        DataManager.wind.rotating = false;
+
+        e = e ? e : window.event;
+        e.preventDefault();
+        e.stopPropagation();
+        if (is_touch_device()) {
+            window.removeEventListener('touchmove', DataManager.wind._directionMove);
+            window.removeEventListener('touchend', DataManager.wind._directionEnd);
+        } else {
+            window.removeEventListener("mousemove", DataManager.wind._directionMove);
+            window.removeEventListener("mouseup", DataManager.wind._directionEnd);
+        }
+        var data = DataManager.wind.GetDirectionSpeed(e);
+        var today = new Date();
+        var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
+        DataManager.wind.rotate(data.direction, data.speed, date);
+
+        //todo: send wsSend to server!
+    },
+
+    GetOffset: function(e)
+    {
+        e = e ? e : window.event;
+        var currentDiv = DataManager.wind._windDiv;
+        var totOffset = {
+            top: 0,
+            left: 0
+        };
+        while (currentDiv != null) {
+            totOffset.top += currentDiv.offsetTop;
+            totOffset.left += currentDiv.offsetLeft;
+            currentDiv = currentDiv.offsetParent;
+        }
+
+        return {
+            X: e.clientX - totOffset.left,
+            Y: e.clientY - totOffset.top
+        }
+    },
+
+    GetDirectionSpeed: function (e)
+    {
+        var offset = this.GetOffset(e);
+
+        var center = {
+            X: (DataManager.wind._windDiv.offsetWidth / 2),
+            Y: (DataManager.wind._windDiv.offsetHeight / 2)
+        }
+
+        var centerOffset = {
+            X: offset.X - center.X,
+            Y: offset.Y - center.Y
+        }
+
+        var length = Math.sqrt(Math.pow(centerOffset.X, 2) + Math.pow(centerOffset.Y, 2));
+        
+        var direction = (Math.atan((-1 * centerOffset.X) / centerOffset.Y) * (360 / (2 * Math.PI)) + 360) % 360;
+        if (centerOffset.Y >= 0)
+            direction = (direction + 180) % 360;
+
+        return {
+            direction: direction,
+            speed: (Math.pow(Math.min(length, center.X), 3) / Math.pow(center.X, 3)) * this.maxSpeed
+        }
     },
 
     _update: function () {
@@ -83,17 +268,18 @@ L.Control.Arrow = L.Control.extend({
         }
 
         if (typeof data.time !== 'undefined')
-            time = data.time;
+            this.time = data.time;
 
-        if (changed)
+        if (DataManager.wind.live && changed)
             this.rotate(this.direction, this.speed, data.time);
         wind = this;
 
     }),
 
     rotate: function (degrees, speed, time) {
-
-        if (degrees < 91 && degrees > -91 || degrees > 360 && degrees < 91) {
+        degrees = Math.round(degrees * 100) / 100;
+        speed = Math.round(speed * 100) / 100;
+        if (degrees >= 270 || degrees <= 90) {
             document.getElementsByClassName('windDirectionText')[0].style.top = '45px';
         } else {
             document.getElementsByClassName('windDirectionText')[0].style.top = '125px';
@@ -105,7 +291,7 @@ L.Control.Arrow = L.Control.extend({
 
 
         var displayTime = DataManager.GetDisplayTime(time);
-        this.text.innerHTML = displayTime + "<BR>" + degrees + '&deg;' + "<BR>" + Math.round(speed).toFixed(0) + 'm/s';
+        this.text.innerHTML = displayTime + "<BR>" + degrees + '&deg;' + "<BR>" + speed + 'm/s';
 
 
     },
@@ -116,10 +302,12 @@ L.Control.Arrow = L.Control.extend({
         var speed = Math.random() * 25;
         deg = Math.round(deg);
         var delay = Math.round(Math.random() * 10000);
-        var date = today.getFullYear() + '-' + today.getMonth() + '-' + today.getDay() + ' 12:12:12';
+        var today = new Date();
+        var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
 
-        wind.rotate(deg, speed, date);
-        setTimeout(wind.loopedRotate, delay);
+        DataManager.wind.NewData({ direction: deg, speed: speed, time: date });
+        //DataManager.wind.rotate(deg, speed, date);
+        setTimeout(DataManager.wind.loopedRotate, delay);
     }
 })
 
