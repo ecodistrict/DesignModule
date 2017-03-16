@@ -1298,7 +1298,7 @@ begin
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
     aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled,
     aSimulationControlEnabled, aAddBasicLayers, '', aDateFormData,
-    aMaxNearestObjectDistanceInMeters);
+    aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentScenario
   fTiler.onTilerStatus := handleTilerStatus;
   fLinks := TDictionary<TGUID, TWDGeometry>.Create;
   fPubEvent := aConnection.publish('EnSel2.geometry_roads', False);
