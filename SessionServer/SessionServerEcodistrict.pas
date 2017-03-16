@@ -1412,6 +1412,8 @@ end;
 constructor TEcodistrictProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
   aTilerStatusURL: string; aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled,
   aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aKPIList: TObjectList<TEcodistrictKPI>);
+var
+  dummyMapView: TMapView;
 begin
   fKpiList := TObjectDictionary<string, TEcodistrictKPI>.Create;
   UpdateKPIList(aKPIList);
@@ -1420,11 +1422,12 @@ begin
   fDIQueries := nil;
   fDIMeasuresHistory := nil;
   fDIMeasures := nil;
+  dummyMapView := TMapView.Create(0,0, 1);
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
     aDBConnection, aTimeSlider, aSelectionEnabled, aMeasuresEnabled,
     aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers, '', '',
-    aMaxNearestObjectDistanceInMeters);
+    aMaxNearestObjectDistanceInMeters, dummyMapView, nil, nil); // todo: check
   fTiler.onTilerStatus := handleTilerStatus;
 end;
 

@@ -2369,7 +2369,7 @@ begin
     aTilerFQDN, aTilerStatusURL,
     aDBConnection,
     0, False, False, False, False, addBasicLayers, '', '',
-    aMaxNearestObjectDistanceInMeters);
+    aMaxNearestObjectDistanceInMeters, mapView, nil, nil);
 end;
 
 destructor TUSProject.Destroy;
