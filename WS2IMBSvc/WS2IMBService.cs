@@ -58,6 +58,8 @@ namespace WS2IMBSvc
             try
             {
                 Lookups.connection = new TSocketConnection(IMBModelName, IMBModelID, "", IMBHub);
+                Lookups.connection.onDisconnect += handle_disconnect;
+                Lookups.connection.onException += handle_exception;
                 var baseAddresses = new List<Uri>();
                 foreach (var url in WebSocketUrl.Split('|'))
                     baseAddresses.Add(new Uri(url));
@@ -97,7 +99,7 @@ namespace WS2IMBSvc
                 transportSSL.WebSocketSettings.TransportUsage = WebSocketTransportUsage.Always;
                 transportSSL.WebSocketSettings.CreateNotificationOnConnection = true;
                 transportSSL.WebSocketSettings.KeepAliveInterval = new TimeSpan(3, 0, 0);
-                transportSSL.KeepAliveEnabled = true; // default true?
+                transportSSL.KeepAliveEnabled = true;
                 bindingSSL.Elements.Add(transportSSL);
 
                 var endPointSSL = Lookups.host.AddServiceEndpoint(typeof(IWebSocketsServer), bindingSSL, "");
@@ -106,12 +108,22 @@ namespace WS2IMBSvc
 
                 Lookups.host.Open();
                 //var dispatcher = Lookups.host.ChannelDispatchers[0] as ChannelDispatcher;
-                Debug.WriteLine("Started WS2IMB service");
+                Debug.WriteLine(DateTime.Now + ": Started WS2IMB service");
             }
             catch(Exception e)
             {
-                Debug.WriteLine("## Exception Starting WS2IMB service: " + e.Message);
+                Debug.WriteLine(DateTime.Now + ": ## Exception Starting WS2IMB service: " + e.Message);
             }
+        }
+
+        private void handle_disconnect(TConnection aConnection)
+        {
+            Debug.WriteLine(DateTime.Now + ": ## disconnected");
+        }
+
+        private void handle_exception(TConnection aConnection, Exception e)
+        {
+            Debug.WriteLine(DateTime.Now + ": ## exception in IMB reader thread: " + e.Message);
         }
 
         protected override void OnStop()
@@ -122,11 +134,11 @@ namespace WS2IMBSvc
                 ((IDisposable)Lookups.host).Dispose();
                 Lookups.host = null;
                 Lookups.connection.close();
-                Debug.WriteLine("Stopped WS2IMB service");
+                Debug.WriteLine(DateTime.Now + ": Stopped WS2IMB service");
             }
             catch(Exception e)
             {
-                Debug.WriteLine("## Exception Stopping WS2IMB service: " + e.Message);
+                Debug.WriteLine(DateTime.Now + ": ## Exception Stopping WS2IMB service: " + e.Message);
             }
         }
     }
@@ -156,6 +168,7 @@ namespace WS2IMBSvc
                 if (aInt == TEventEntry.actionInquire)
                 {
                     var returnEvent = aString != "" ? connection.publish(aString, false) : aEventEntry;
+                    Debug.WriteLine(DateTime.Now + ": received inquire on root " + aEventEntry.eventName + " (" + aString + "), return on "+returnEvent.eventName);
                     try
                     {
                         foreach (var ctep in channelToEvent)
@@ -163,8 +176,8 @@ namespace WS2IMBSvc
                     }
                     finally
                     {
-                        if (aString != "")
-                            aEventEntry.unPublish();
+                        if (returnEvent != aEventEntry)
+                            returnEvent.unPublish();
                     }
                 }
                 else if (aInt == actionStatus)
@@ -174,20 +187,21 @@ namespace WS2IMBSvc
                     var status = "{\"id\":\"" + connection.modelName + " @ " + host.BaseAddresses[0].AbsoluteUri + "\",\"status\":\"" + host.State.ToString() + "\",\"info\":\"" + channelToEvent.Count.ToString() + " channels\"}";
                     // signal status
                     var returnEvent = aString != "" ? connection.publish(aString, false) : aEventEntry;
+                    Debug.WriteLine(DateTime.Now + ": received status request on root " + aEventEntry.eventName + " (" + aString + "), return on " + returnEvent.eventName);
                     try
                     {
                         returnEvent.signalString(status);
                     }
                     finally
                     {
-                        if (aString != "")
-                            aEventEntry.unPublish();
+                        if (returnEvent != aEventEntry)
+                            returnEvent.unPublish();
                     }
                 }
             }
             catch (Exception e)
             {
-                Debug.WriteLine("## Exception in RootEvent_onIntString ("+aInt.ToString()+", "+aString+"): " + e.Message);
+                Debug.WriteLine(DateTime.Now + ": ## Exception in RootEvent_onIntString (" + aInt.ToString()+", "+aString+"): " + e.Message);
             }
         }
 
@@ -195,7 +209,7 @@ namespace WS2IMBSvc
         {
             foreach (var ctep in channelToEvent)
                 // check if channel belongs to session
-                if (ctep.Value.eventName.StartsWith(aSessionEventNamePrefix))
+                if (ctep.Value.eventName.StartsWith(aSessionEventNamePrefix, StringComparison.InvariantCultureIgnoreCase))
                     return false;
             return true;
         }
@@ -205,7 +219,7 @@ namespace WS2IMBSvc
     {
         public void Initialize(IClientChannel channel)
         {
-            Debug.WriteLine("Client connect: " + channel.SessionId.ToString());
+            Debug.WriteLine(DateTime.Now + ": Client connect: " + channel.SessionId.ToString());
             // link handlers
             channel.Closed += ClientDisconnected;
             channel.Faulted += ClientDisconnected;
@@ -213,13 +227,14 @@ namespace WS2IMBSvc
 
         static void ClientDisconnected(object sender, EventArgs e)
         {
-            Debug.WriteLine("Client disconnect: " + ((IClientChannel)sender).SessionId.ToString());
+            Debug.WriteLine(DateTime.Now + ": Client disconnect: " + ((IClientChannel)sender).SessionId.ToString());
             // cleanup event
             TEventEntry channelEvent;
             if (Lookups.channelToEvent.TryGetValue(sender, out channelEvent))
             {
                 // decode session part of event name
                 var sessionEventName = channelEvent.eventName.Substring(0, channelEvent.eventName.LastIndexOf('.'));
+                var connection = channelEvent.connection;
                 // signal client is removed
                 channelEvent.signalIntString(TEventEntry.actionDelete, ((IClientChannel)sender).SessionId); // channel, action delete (optional session id)
                 // remove link between channel and event
@@ -227,15 +242,48 @@ namespace WS2IMBSvc
                 channelEvent.unSubscribe();
                 channelEvent.Tag = null;
                 Lookups.channelToEvent.Remove(sender);
-                // check if last channel on session then session can be discarded
-                if (Lookups.checkForLastChannel(sessionEventName + "."))
+
+                lock (Lookups.rootEvent)
                 {
-                    channelEvent.connection.unsubscribe(sessionEventName, false);
-                    channelEvent.connection.unpublish(sessionEventName, false);
-                    Debug.WriteLine("   Last client on session " + sessionEventName);
+                    // check if last channel on session then session can be discarded
+                    if (Lookups.checkForLastChannel(sessionEventName + "."))
+                    {
+                        var sessionEvent = connection.publish(sessionEventName, false); // already published so is just a lookup
+                        // remove handler
+                        sessionEvent.onIntString -= SessionEvent_onIntString;
+                        // unlink
+                        sessionEvent.unPublish();
+                        sessionEvent.unSubscribe();
+                        Debug.WriteLine("   Last client on session " + sessionEventName);
+                    }
                 }
             }
         }
+
+        public static void SessionEvent_onIntString(TEventEntry aEventEntry, int aInt, string aString)
+        {
+            if (aInt == TEventEntry.actionInquire)
+            {
+                // return all clients on session
+                var returnEvent = aString != "" ? aEventEntry.connection.publish(aString, false) : aEventEntry;
+                Debug.WriteLine(DateTime.Now + ": received inquire on " + aEventEntry.eventName + " (" + aString + "), return on "+returnEvent.eventName);
+                try
+                {
+                    var eventNameFilter = aEventEntry.eventName + ".";
+                    foreach (var ctep in Lookups.channelToEvent)
+                        // check if channel belongs to session
+                        if (ctep.Value.eventName.StartsWith(eventNameFilter))
+                            returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName); // event names of clients on session
+                }
+                finally
+                {
+                    if (returnEvent != aEventEntry)
+                        returnEvent.unPublish();
+                }
+            }
+        }
+
+
     }
 
     class ClientTrackerEndpointBehavior : IEndpointBehavior
@@ -268,74 +316,79 @@ namespace WS2IMBSvc
     {
         public void SendMessageToServer(Message msg)
         {
-            var callback = OperationContext.Current.GetCallbackChannel<IMessageToClient>();
-            var channel = OperationContext.Current.Channel;
-
-            TEventEntry channelEvent;
-            if (!Lookups.channelToEvent.TryGetValue(channel, out channelEvent))
+            try
             {
-                var queryParameters = HttpUtility.ParseQueryString((OperationContext.Current.IncomingMessageProperties["WebSocketMessageProperty"] as WebSocketMessageProperty).WebSocketContext.RequestUri.Query);
-                var sessionName = queryParameters["session"];
-                if (sessionName == null || sessionName == "") sessionName = "unknown";
-                //var remoteAddress = OperationContext.Current.IncomingMessageHeaders.From;
-                var repmp = OperationContext.Current.IncomingMessageProperties[RemoteEndpointMessageProperty.Name] as RemoteEndpointMessageProperty;
+                var callback = OperationContext.Current.GetCallbackChannel<IMessageToClient>();
+                var channel = OperationContext.Current.Channel;
 
-                Debug.WriteLine("Start of client " + repmp.Address + ":" + repmp.Port.ToString() + " on session: " + sessionName + " (" + channel.SessionId.ToString() + ")");
-
-                // signal start of client on session
-                TEventEntry sessionEvent = Lookups.connection.subscribe(Lookups.RootEventName + "." + sessionName, false);
-                channelEvent = Lookups.connection.subscribe(sessionEvent.eventName + "." + channel.SessionId, false);
-                Lookups.channelToEvent[channel] = channelEvent;
-                channelEvent.Tag = callback;
-                channelEvent.onString += ChannelEvent_onString;
-                channelEvent.onStreamCreate += ChannelEvent_onStreamCreate;
-                channelEvent.onStreamEnd += ChannelEvent_onStreamEnd;
-                channelEvent.onIntString += ChannelEvent_onIntString;
-                sessionEvent.signalIntString(TEventEntry.actionNew, channelEvent.eventName); // new channel with event name on session event
-                sessionEvent.onIntString += SessionEvent_onIntString;
-                // make client list queryable by session module
-                Lookups.HookupRoot();
-            }
-            if (!msg.IsEmpty && ((IChannel)callback).State == CommunicationState.Opened)
-            {
-                byte[] returnMessage = msg.GetBody<byte[]>();
-                if (returnMessage.Length > TConnection.imbMaximumPayloadSize / 10) // switch to stream for very large messages
-                    channelEvent.signalStream("string", new MemoryStream(returnMessage));
-                else
-                    channelEvent.signalString(returnMessage);
-            }
-        }
-
-        private void SessionEvent_onIntString(TEventEntry aEventEntry, int aInt, string aString)
-        {
-            if (aInt == TEventEntry.actionInquire)
-            {
-                Debug.WriteLine("received inquire on " + aEventEntry.eventName + " (" + aString + ")");
-                // return all clients on session
-                var returnEvent = aString != "" ? aEventEntry.connection.publish(aString, false) : aEventEntry;
-                try
+                TEventEntry channelEvent;
+                if (!Lookups.channelToEvent.TryGetValue(channel, out channelEvent))
                 {
-                    var eventNameFilter = aEventEntry.eventName + ".";
-                    foreach (var ctep in Lookups.channelToEvent)
-                        // check if channel belongs to session
-                        if (ctep.Value.eventName.StartsWith(eventNameFilter))
-                            returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName); // event names of clients on session
+                    var queryParameters = HttpUtility.ParseQueryString((OperationContext.Current.IncomingMessageProperties["WebSocketMessageProperty"] as WebSocketMessageProperty).WebSocketContext.RequestUri.Query);
+                    var sessionName = queryParameters["session"];
+                    if (sessionName == null || sessionName == "") sessionName = "unknown";
+                    //var remoteAddress = OperationContext.Current.IncomingMessageHeaders.From;
+                    var repmp = OperationContext.Current.IncomingMessageProperties[RemoteEndpointMessageProperty.Name] as RemoteEndpointMessageProperty;
+
+                    // signal start of client on session
+                    Debug.WriteLine(DateTime.Now + ": Start of client " + repmp.Address + ":" + repmp.Port.ToString() + " on session: " + sessionName + " (" + channel.SessionId.ToString() + ")");
+                    try
+                    {
+                        var sessionEvent = Lookups.connection.publish(Lookups.RootEventName + "." + sessionName, false);
+                        // make sure we have a root event
+                        Lookups.HookupRoot();
+                        // check if first channel on session
+                        lock (Lookups.rootEvent)
+                        {
+                            if (!sessionEvent.isSubscribed)
+                            {
+                                // yes, is the first channel on session
+                                Debug.WriteLine("   First client on session " + sessionEvent.eventName);
+                                sessionEvent.subscribe();
+                                // make client list queryable by session module
+                                sessionEvent.onIntString += ClientTrackerChannelInitializer.SessionEvent_onIntString;
+                            }
+                        }
+                        // setup channel
+                        channelEvent = Lookups.connection.subscribe(sessionEvent.eventName + "." + channel.SessionId, false);
+                        Lookups.channelToEvent[channel] = channelEvent;
+                        channelEvent.Tag = callback;
+                        channelEvent.onString += ChannelEvent_onString;
+                        channelEvent.onStreamCreate += ChannelEvent_onStreamCreate;
+                        channelEvent.onStreamEnd += ChannelEvent_onStreamEnd;
+                        // make client event manageable by session module
+                        channelEvent.onIntString += ChannelEvent_onIntString;
+                        // new channel with event name on session event
+                        sessionEvent.signalIntString(TEventEntry.actionNew, channelEvent.eventName);
+                        // todo: signal new client on root event?
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.WriteLine(DateTime.Now + ": ## exception registering channel: " + e.Message);
+                    }
                 }
-                finally
+                if (!msg.IsEmpty && ((IChannel)callback).State == CommunicationState.Opened)
                 {
-                    if (aString != "")
-                        aEventEntry.unPublish();
+                    byte[] returnMessage = msg.GetBody<byte[]>();
+                    if (returnMessage.Length > TConnection.imbMaximumPayloadSize / 10) // switch to stream for very large messages
+                        channelEvent.signalStream("string", new MemoryStream(returnMessage));
+                    else
+                        channelEvent.signalString(returnMessage);
                 }
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(DateTime.Now + ": ## unhandled exception in WebSocketsServer.SendMessageToServer: " + e.Message);
             }
         }
 
         private void ChannelEvent_onIntString(TEventEntry aEventEntry, int aInt, string aString)
         {
-            if (aInt==TEventEntry.actionDelete)
+            if (aInt == TEventEntry.actionDelete)
             {
                 // handle disconnect of session server side..
-                // just unpublish to free up event, but keep on listening because web part is still up
-                aEventEntry.unPublish();
+                // NOT: just unpublish to free up event, but keep on listening because web part is still up
+                // NOT: aEventEntry.unPublish();
                 // signal web client session server is disconnected
                 if (aEventEntry.Tag != null)
                     (aEventEntry.Tag as IMessageToClient).SendMessageToClient(CreateMessage("{\"connection\":{\"message\":\"session server has disconnected\"}}"));
