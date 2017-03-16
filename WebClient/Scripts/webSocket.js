@@ -212,6 +212,18 @@ var wsLookup = {
                 InfoTextControl['leaflet-control-simulation'] = { active: false };
             }
         }
+        if (typeof payload.dateForm !== "undefined") {
+            if (payload.dateForm) {
+                DataManager.formData = payload.dateForm.data;
+                map.addControl(DataManager.DateFormControl);
+                InfoTextControl['leaflet-control-dateForm'] = { description: 'Click here to config or edit a simulation', active: true, iconPosition: 'left' };
+            }
+            else {
+                DataManager.formData = null;
+                map.removeControl(DataManager.DateFormControl);
+                InfoTextControl['leaflet-control-dateForm'] = { active: false };
+            }
+        }
         if (typeof payload.simulationClose !== "undefined")
         {
             if (payload.simulationClose) {

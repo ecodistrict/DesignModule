@@ -17,7 +17,7 @@
   to {  background-color: white }
 }
 
-#windArrow {
+.windArrowLive {
   -webkit-transition: 1s ease-in-out;
    -moz-transition: 1s ease-in-out;
    -o-transition: 1s ease-in-out;
@@ -29,12 +29,19 @@
   left:5px;
   top:5px;
   position: absolute;
+  pointer-events: none;
 }
 .windDirectionDiv {
-  width:200px;
-  height:200px;
   padding:5px;
   position:relative;
+}
+
+.windMoveDiv {
+    right: 0px;
+    bottom: 0px;
+    position: absolute;
+    background-image: url('images/move.png');
+    background-size: 100% 100%;
 }
 
 .north, .east, .south, .west {
@@ -50,6 +57,7 @@
   left:45px;
   top:45px;
 }
+
 .north {
   left:90px;
   top:5px;
@@ -93,5 +101,5 @@
   height: 120px;
   left: 45px;
   top: 45px;
-  overflow
+  /*overflow*/
 }

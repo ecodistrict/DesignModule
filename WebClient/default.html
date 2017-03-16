@@ -160,7 +160,8 @@
             //session = "tud";
             //session = 'dtv';
             //session = '80BD7A788D6B40A4B3608AA95C26E68F'; //us_utrecht2017
-            //session = "sesmi${d6e56676-077c-48b1-aea2-3bb8f34d7dde}$testuser";
+            //session = "sesmi${de087221-5bb1-40ac-90a9-371ca39a399f}$testexpert"; //test expert user
+            //session = "sesmi${d3d55d19-6568-4836-aa00-c2e88fd31fe9}$testuser"; //test guid from db
         }
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
@@ -227,6 +228,7 @@
         DataManager.HistoryControl = historyControl;
 
         //dateForm
+        DataManager.DateFormControl = L.control.dateForm();
         //DataManager.formData = [{ "formElement": "checkbox", "type": "string", "required": "y", "optionsArray": ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"], "labelText": "Dagen van de week", "idName": "daysSelect", "extraOptions": false },
         //    {
         //          "formElement":"slider",
@@ -246,10 +248,9 @@
         //        "idName": "toHour",
         //        "extraOptions": [1, 'uur']
         //    },
-        //    { "formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Van datum {dd-mm}", "idName": "fromDate", "extraOptions": {defaultValue: "01-05"} },
-        //    { "formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Tot en met datum {dd-mm}", "idName": "toDate", "extraOptions": { defaultValue: "28-05" } }
+        //    { "formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Van datum [dd-mm-jjjj]", "idName": "fromDate", "extraOptions": {defaultValue: "01-05-2017"} },
+        //    { "formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Tot en met datum [dd-mm-jjjj]", "idName": "toDate", "extraOptions": { defaultValue: "28-05-2017" } }
         //];
-        //DataManager.DateFormControl = L.control.dateForm();
         //map.addControl(DataManager.DateFormControl);
 
         //simulation
@@ -277,7 +278,7 @@
         map.removeControl(measuresControl);
         measuresControl.setSelectCategories([]);
 
-        //DataManager.wind = L.control.arrow();//L.control.wind({});
+        DataManager.wind = L.control.arrow();//L.control.wind({});
         //map.addControl(DataManager.wind);
 
         // bottom-right (reverse order)
