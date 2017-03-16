@@ -7,6 +7,8 @@ uses
 
   imb4,
 
+  StdIni,
+
   WorldDataCode,
   WorldLegends,
   WorldTilerConsts,
@@ -41,6 +43,7 @@ const
   sensordata_nh3                   = 2241;              //tag 280
   sensordata_pnc                   = 2401;              //tag 300
   sensordata_nox                   = 2561;              //tag 320
+  sensordata_linkid                = 2880;              //tag 360
 
   sensordata_pm10_total            = 1449;              //tag 181
   sensordata_pm25_total            = 1609;              //tag 201
@@ -89,6 +92,9 @@ const
   kpi_avg_concentration = 3521;    //tag 440
   kpi_duration = 3681;             //tag 460
 
+  TimeSpanSwitch = 'timespan';
+  DefaultTimeSpan = 1;
+
 type
   TSesmiClient = class(TClient)
   constructor Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
@@ -96,10 +102,17 @@ type
     procedure Login(aJSONObject: TJSONObject); override;
   end;
 
+  TTimedValue = record
+    time: Double;
+    value: Double;
+  end;
+
   TSesmiLink = class(TGeometryLayerObject)
   constructor Create(aLayer: TLayer; const aID: TWDID; aGeometry: TWDGeometry);
   destructor Destroy; override;
   private
+    fTotalValue: Double;
+    fValueList: TList<TTimedValue>;
   protected
   public
     procedure UpdateValue(aTimeStamp, aValue: Double);
@@ -116,53 +129,21 @@ type
     fLayerType: Integer;
     fKey: UInt32;
     fPalette: TWDPalette;
-
     fDataEvent: TEventEntry;
     fPrivateDataEvent: TEventEntry;
     fHandleDataHandlerRef: TOnEvent;
-
     procedure handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
   public
-    //procedure ReadObjects(aSender: TObject);
     procedure RegisterLayer; override;
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
-    //procedure signalInquire(const aQuery: string='');
   end;
-
-  {
-  TSesmiEmissionLayer = class(TSesmiLayer)
-  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
-    aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean=False);
-  private
-    // table: sources
-    // id uuid NOT NULL,
-    // latitude double precision (
-    // longitude double precision,
-    // emission_strength_analysis
-    procedure handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-  end;
-
-  TSesmiSensorsLayer = class(TSesmiLayer)
-  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
-    aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean=False);
-  destructor Destroy; override;
-  private
-    // table: sensordata
-    // id uuid NOT NULL,
-    // latitude double precision (
-    // longitude double precision,
-    // emission_strength_analysis
-    fGUIDToID: TDictionary<TGUID, Integer>;
-    procedure handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-  end;
-  }
+{
   TSesmiTrackLayer  = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean);
   private
     fEvent: TEventEntry;
     fEventHandler: TOnEvent;
-//    fPalette: TWDPalette;
   public
     procedure HandleEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
   public
@@ -173,7 +154,7 @@ type
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
   end;
-
+ }
   TSesmiMobileSensorLayer  = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
   destructor Destroy; override;
@@ -209,7 +190,8 @@ type
   public
     procedure AddValue(const aTimeStamp, aValue: Double);
     procedure AddLinkID(const aTimeStamp: Double; const aID: TWDID);
-    procedure AddLink(const aGuid: TGUID; aGeometry: TWDGeometry);
+    procedure AddLink(const aID: TWDID; aGeometry: TWDGeometry);
+    procedure Reset;
     function SliceType: Integer; override;
     procedure RegisterSlice; override;
     procedure RegisterLayer; override;
@@ -244,37 +226,33 @@ type
   constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean);
   destructor Destroy; override;
   private
-    //fSensorsLayer: TSesmiSensorsLayer;
-//    fTrackNOxLayer: TSesmiTrackLayer;
-//    fTrackPM10Layer: TSesmiTrackLayer;
-//    fChartGemodelleerdeBlootstelling: TChart;
     fLinkLayers: TDictionary<Integer, TSesmiLinkLayer>;
   protected
     fGUID: TGUID;
     fLive: Boolean;
     fQueryCounter: Integer;
     fQuerySubscribed: Boolean;
-    fQueryEvent: TEventEntry;
     fPubEvent: TEventEntry;
+    fQueryEvent: TEventEntry;
+    fLiveEvent: TEventEntry;
     fQueryEventHandler: TOnEvent;
+    fLiveEventHandler: TOnEvent;
+    procedure handleLiveEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleQueryEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-    procedure handleNetworkEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure AddSesmiLinkLayer(const aKey: Integer; const aLayer: TSesmiLinkLayer);
   public
     procedure InquireDB(const aInquire: string; const aLowerTimestamp, aUpperTimestamp: Double);
-//    function AddLayerFromTable(const aDomain, aID, aName, aDescription, aObjectTypes, aGeometryType: string;
-//      aDefaultLoad: Boolean; aBasicLayer: Boolean;
-//      const aSchema, aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string): TLayer;
-//    function AddLayerFromQuery(const aDomain, aID, aName, aDescription, aObjectTypes, aGeometryType: string;
-//      aDefaultLoad: Boolean; aBasicLayer: Boolean;
-//      const aSchema, aQuery: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string): TLayer;
-
     procedure ReadBasicData(); override;
     procedure addConcentrationLayer(
       const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
       aKey: UInt32; const aEventName: string;
       aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean=False);
     procedure AddLink(const aGuid: TGUID; const aGeometry: TWDGeometry);
+    procedure GoLive(const first: Boolean = False);
+    procedure GoDB(const aInquire: string; const aLowerTimestamp, aUpperTimestamp: Double);
+    procedure Reset;
+
+    property Live: Boolean read fLive;
   public
 //    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
 //    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
@@ -331,8 +309,14 @@ type
     property Projects: TDictionary<string, TProject> read fProjects;
   end;
 
-
 implementation
+
+//convert a Guid to TWDID
+function GuidToTWDID(aGuid: TGUID): TWDID;
+begin
+  SetLength(Result, SizeOf(aGuid));
+  Move(aGuid, PAnsiChar(Result)^, SizeOf(aGuid));
+end;
 
 //Discrete pallette for the Sesmi project
 function CreateHansPalette(const aTitle: string): TWDPalette;
@@ -343,7 +327,8 @@ begin
     TDiscretePaletteEntry.Create(TGeoColors.Create($Ffffff00), 30, 45, '30-45'),
     TDiscretePaletteEntry.Create(TGeoColors.Create($Ffff8000), 45, 60, '45-60'),
     TDiscretePaletteEntry.Create(TGeoColors.Create($Ffff0000), 60, 75, '60-75'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff8100c1), 75, 20000, '>75')
+    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff8100c1), 75, 20000, '>75'),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($FF000000), 20000, 40000, 'No Data')
   ],TGeoColors.Create($FF000000));
 end;
 
@@ -423,7 +408,7 @@ begin
   if aPalette is TRampPalette
   then Result := BuildRamplLegendJSON(aPalette as TRampPalette)
   else if aPalette is TDiscretePalette
-  then Result := BuildDiscreteLegendJSON(aPalette as TDiscretePalette, TLegendFormat.lfHorizontal)
+  then Result := BuildDiscreteLegendJSON(aPalette as TDiscretePalette, TLegendFormat.lfVertical)
   else Result := '';
 end;
 
@@ -792,80 +777,80 @@ end;
 *)
 
 { TSesmiTrackLayer }
-
-constructor TSesmiTrackLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad,
-  aShowInDomains: Boolean);
+//
+//constructor TSesmiTrackLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad,
+//  aShowInDomains: Boolean);
+////var
+////  entries: TPaletteDiscreteEntryArray;
+//begin
+//  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"track"', 'Point', ltObject, aShowInDomains, 0);
+//  // Track
+//  fEvent := scenario.project.connection.Subscribe('track');
+//  fEventHandler := HandleEvent;
+//  fEvent.OnEvent.Add(fEventHandler);
+//end;
+//
+//
+//
+//function TSesmiTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
 //var
-//  entries: TPaletteDiscreteEntryArray;
-begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"track"', 'Point', ltObject, aShowInDomains, 0);
-  // Track
-  fEvent := scenario.project.connection.Subscribe('track');
-  fEventHandler := HandleEvent;
-  fEvent.OnEvent.Add(fEventHandler);
-end;
-
-
-
-function TSesmiTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
-var
-  iop: TPair<TWDID, TLayerObject>;
-  _json: string;
-  sclo: TSVGCircleLayerObject;
-begin
-  result := inherited;
-  // send new track points
-  _json := '';
-  for iop in objects do
-  begin
-    if iop.Value is TSVGCircleLayerObject then
-    begin
-      sclo := iop.Value as TSVGCircleLayerObject;
-      (*
-      if _json<>''
-      then _json  := _json+',';
-      _json  := _json+
-        '{"newobject":'+
-          '{"id":"'+string(UTF8String(car.ID))+'",'+
-           '"lng":'+DoubleToJSON(car.latlon.x)+','+
-           '"lat":'+DoubleToJSON(car.latlon.y)+','+
-           '"fillColor":"'+ColorToJSON(car.baseColor)+'"}}';
-      *)
-    end;
-  end;
-  if _json<>'' then
-  begin
-    aClient.signalString('{"type":"updatelayer","payload":{"id":"'+ElementID+'","data":['+_json+']}}');
-  end;
-end;
-
-function TSesmiTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
-begin
-  // todo: option to clear objects
-
-  Result := inherited;
-end;
-
-procedure TSesmiTrackLayer.HandleEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
-begin
-  // todo: build track
-
-end;
-
-procedure TSesmiTrackLayer.RegisterLayer;
-begin
-  RegisterOnTiler(False, SliceType, name, 2500);
-end;
-
-procedure TSesmiTrackLayer.RegisterSlice;
-begin
-  tilerLayer.signalAddSlice(nil);
-end;
-
-function TSesmiTrackLayer.SliceType: Integer;
-begin
-  Result := stLocation;
-end;
+//  iop: TPair<TWDID, TLayerObject>;
+//  _json: string;
+//  sclo: TSVGCircleLayerObject;
+//begin
+//  result := inherited;
+//  // send new track points
+//  _json := '';
+//  for iop in objects do
+//  begin
+//    if iop.Value is TSVGCircleLayerObject then
+//    begin
+//      sclo := iop.Value as TSVGCircleLayerObject;
+//      (*
+//      if _json<>''
+//      then _json  := _json+',';
+//      _json  := _json+
+//        '{"newobject":'+
+//          '{"id":"'+string(UTF8String(car.ID))+'",'+
+//           '"lng":'+DoubleToJSON(car.latlon.x)+','+
+//           '"lat":'+DoubleToJSON(car.latlon.y)+','+
+//           '"fillColor":"'+ColorToJSON(car.baseColor)+'"}}';
+//      *)
+//    end;
+//  end;
+//  if _json<>'' then
+//  begin
+//    aClient.signalString('{"type":"updatelayer","payload":{"id":"'+ElementID+'","data":['+_json+']}}');
+//  end;
+//end;
+//
+//function TSesmiTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
+//begin
+//  // todo: option to clear objects
+//
+//  Result := inherited;
+//end;
+//
+//procedure TSesmiTrackLayer.HandleEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
+//begin
+//  // todo: build track
+//
+//end;
+//
+//procedure TSesmiTrackLayer.RegisterLayer;
+//begin
+//  RegisterOnTiler(False, SliceType, name, 2500);
+//end;
+//
+//procedure TSesmiTrackLayer.RegisterSlice;
+//begin
+//  tilerLayer.signalAddSlice(nil);
+//end;
+//
+//function TSesmiTrackLayer.SliceType: Integer;
+//begin
+//  Result := stLocation;
+//end;
 
 { TSesmiWindData }
 
@@ -1023,7 +1008,7 @@ begin
       TMonitor.Enter(fLinkLayers);
       try
         for linkLayer in fLinkLayers.Values do
-          linkLayer.AddLink(aGuid, aGeometry);
+          linkLayer.AddLink(GuidToTWDID(aGuid), aGeometry);
       finally
         TMonitor.Exit(fLinkLayers);
       end;
@@ -1045,8 +1030,6 @@ end;
 constructor TSesmiScenario.Create(aProject: TProject; const aID, aName,
   aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView;
   aUseSimulationSetup: Boolean);
-var
-  palette: TWDPalette;
 begin
   if TRegEx.IsMatch(aID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$') then
   begin
@@ -1060,49 +1043,98 @@ begin
   fQueryEventHandler := handleQueryEvent;
   fLinkLayers := TDictionary<Integer, TSesmiLinkLayer>.Create;
   inherited;
-  fPubEvent := project.Connection.publish('mobilesensordata', true);
+  fPubEvent := project.Connection.publish('mobilesensordata');
+  fLiveEvent := project.Connection.subscribe('mobilesensordata');
+  fLiveEventHandler := handleLiveEvent;
+  fLiveEvent.OnEvent.Add(fLiveEventHandler);
 end;
 
 destructor TSesmiScenario.Destroy;
 begin
-  if fQuerySubscribed then
+  if fQuerySubscribed then //unsubscribe from the previous returnEvent
+  begin
     fqueryEvent.OnEvent.Remove(fQueryEventHandler);
+    project.Connection.unSubscribe(fQueryEvent);
+  end;
+  fLiveEvent.OnEvent.Remove(fLiveEventHandler);
+  project.Connection.unSubscribe(fLiveEvent);
+  project.Connection.unPublish(fPubEvent);
   FreeAndNil(fLinkLayers);
   inherited;
 end;
 
-procedure TSesmiScenario.handleNetworkEvent(aEventEntry: TEventEntry;
-  const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-var
-  geometry: TWDGeometry;
-  linkLayer: TSesmiLinkLayer;
+procedure TSesmiScenario.GoDB(const aInquire: string; const aLowerTimestamp,
+  aUpperTimestamp: Double);
 begin
-//  while aCursor<aLimit do
-//  begin
-//    fieldInfo := aPayload.bb_read_uint32(aCursor);
-//    case fieldInfo of
-//    icehTilerGeometry:
-//    begin
-//      geometry := TWDGeometry.Create;
-//      geometry.Decode(aPayload, aCursor, aLimit);
-//      Monitor.Enter(fLinkLayers);
-//      try
-//        for linkLayer in fLinkLayers.Values do
-//          linkLayer.AddLink();
-//      finally
-//        Monitor.Exit(fLinkLayers);
-//      end;
-//    end;
-//    else
-//      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
-//    end;
-//  end;
+  fLive := False;
+  Reset;
+  InquireDB(aInquire, aLowerTimestamp, aUpperTimestamp);
+end;
+
+procedure TSesmiScenario.GoLive(const first: Boolean = False);
+var
+  currentTime: TDateTime;
+begin
+  fLive := True;
+  if not first then
+    Reset;
+  currentTime := Now;
+  InquireDB('', currentTime - GetSetting(TimeSpanSwitch, DefaultTimeSpan), currentTime);
+end;
+
+procedure TSesmiScenario.handleLiveEvent(aEventEntry: TEventEntry;
+  const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+begin
+  if Live then
+    handleQueryEvent(aEventEntry, aPayload, aCursor, aLimit);
 end;
 
 procedure TSesmiScenario.handleQueryEvent(aEventEntry: TEventEntry;
   const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+var
+  layer: TSesmiLinkLayer;
+  fieldInfo: UInt32;
+  value, timestamp: Double;
+  id: TWDID;
 begin
-
+  timestamp := 0;
+  while aCursor<aLimit do
+  begin
+    fieldInfo := aPayload.bb_read_uint32(aCursor);
+    case fieldInfo of
+    wdatTimeStamp shl 3 or wt64Bit:
+    begin
+      timestamp := aPayload.bb_read_double(aCursor);
+    end;
+    sensordata_no2 or wt64Bit:
+    begin
+      value := aPayload.bb_read_double(aCursor);
+      if fLinkLayers.TryGetValue(sensordata_no2, layer) then
+        layer.AddValue(timestamp, value);
+    end;
+    sensordata_pm10 or wt64Bit:
+    begin
+      value := aPayload.bb_read_double(aCursor);
+    end;
+    sensordata_pm25 or wt64Bit:
+    begin
+      value := aPayload.bb_read_double(aCursor);
+    end;
+    sensordata_linkid or wtLengthDelimited:
+    begin
+      id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
+      TMonitor.Enter(fLinkLayers);
+      try
+        for layer in fLinkLayers.Values do
+          layer.AddLinkID(timestamp, id);
+      finally
+        TMonitor.Exit(fLinkLayers);
+      end;
+    end;
+    else
+      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
+    end;
+  end;
 end;
 
 procedure TSesmiScenario.InquireDB(const aInquire: string; const aLowerTimestamp, aUpperTimestamp: Double);
@@ -1140,43 +1172,9 @@ var
   palette: TWDPalette;
   layer: TSesmiLinkLayer;
   mobileChart: TChartLines;
-//var
-//  layer: TLayer;
-//  palette: TDiscretePalette;
-//  entries: TPaletteDiscreteEntryArray;
 begin
-  {
-  // subscribe to data feeds
-  SetLength(entries, 5);
-  entries[0] := TDiscretePaletteEntry.Create(TGeoColors.Create($FF00FF00), 0, 5, '0 - 5');
-  entries[1] := TDiscretePaletteEntry.Create(TGeoColors.Create($FF66FF00), 5, 10, '5 - 10');
-  entries[2] := TDiscretePaletteEntry.Create(TGeoColors.Create($FFFFFF00), 10, 50, '10 - 50');
-  entries[3] := TDiscretePaletteEntry.Create(TGeoColors.Create($FFFF6600), 50, 100, '50 - 100');
-  entries[4] := TDiscretePaletteEntry.Create(TGeoColors.Create($FFFF0000), 100, 1000000, '> 100');
 
-  palette := TDiscretePalette.Create('Emissions', entries, TGeoColors.Create());
-  layer := TSesmiEmissionLayer.Create(self, 'air quality', 'emissions', 'Emissions', 'Emissions', True, '"sources"', 'Point', stReceptor,
-    palette, BuildDiscreteLegendJSON(palette, TLegendFormat.lfVertical));
-  fLayers.Add(layer.ID, layer);
-
-  SetLength(entries, 5);
-  entries[0] := TDiscretePaletteEntry.Create(TGeoColors.Create($FF00FF00), 0, 1, '0 - 1');
-  entries[1] := TDiscretePaletteEntry.Create(TGeoColors.Create($FF66FF00), 1, 3, '1 - 3');
-  entries[2] := TDiscretePaletteEntry.Create(TGeoColors.Create($FFFFFF00), 3, 5, '3 - 5');
-  entries[3] := TDiscretePaletteEntry.Create(TGeoColors.Create($FFFF6600), 5, 10, '5 - 10');
-  entries[4] := TDiscretePaletteEntry.Create(TGeoColors.Create($FFFF0000), 10, 1000000, '> 10');
-
-
-  palette := TDiscretePalette.Create('Sensor concentration', entries, TGeoColors.Create());
-  fSensorsLayer := TSesmiSensorsLayer.Create(self, 'air quality', 'sensor concentration', 'Sensors', 'Sensors', True, '"sensor"', 'Point', stReceptor,
-    palette, BuildDiscreteLegendJSON(palette, TLegendFormat.lfVertical));
-  fLayers.Add(fSensorsLayer.ID, fSensorsLayer);
-  }
-
-  // Personal exposure
   // Group exposure
-
-
   palette := CreateNiekPalette('NO2');//  CreateNO2Palette;
   addConcentrationLayer(
     'Group exposure', 'no2', 'NO2', 'Total exposure to NO2', false,
@@ -1197,20 +1195,7 @@ begin
     'Group exposure', 'pm10assim', 'PM10 assim', 'Total assimilated exposure to PM10', false,
     sensordata_assim_pm10_total, 'receptordata', palette, BuildLegendJSON(palette));
 
-
-  //spider := TSesmiSpiderChart.Create(Self, 'Group exposure per segment', 'spiderseg', 'Group NO2 exposure by mode of transport (MOT) per segment', '', False,
-  //  project.Connection.subscribe('Sesmi_kpi_group_segments'), 1, 'no2'); // per segment
-
-//  spider := TSesmiSpiderChart.Create(Self, 'Group exposure', 'spiderNO2', 'Group NO2 exposure by mode of transport (MOT)', '', False,
-//    project.Connection.subscribe('Sesmi_kpi_group'), -1, 'no2'); // all
-//  AddChart(spider);
-//  //spider := TSesmiSpiderChart.Create(Self, 'Group exposure per segment', 'spiderseg', 'Group NO2 exposure by mode of transport (MOT) per segment', '', False,
-//  //  project.Connection.subscribe('Sesmi_kpi_group_segments'), 1, 'no2'); // per segment
-//
-//  spider := TSesmiSpiderChart.Create(Self, 'Group exposure', 'spiderPM10', 'Group PM10 exposure by mode of transport (MOT)', '', False,
-//    project.Connection.subscribe('Sesmi_kpi_group'), -1, 'pm10'); // all
-//  AddChart(spider);
-
+  // Personal exposure
   mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts', 'Mobile sensors', '', False, 'line',
 
     TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
@@ -1218,60 +1203,24 @@ begin
 
   AddChart(mobileChart);
 
-  palette := CreateNiekPalette('NO2');
-  layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'no2', 'NO2', 'NO2', False, True, palette, BuildLegendJSON(palette), mobilechart);
+  palette := CreateHansPalette('NO2');
+  layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'personal-no2', 'Personal NO2', 'NO2', False, True, palette, BuildLegendJSON(palette), mobilechart);
   fLinkLayers.Add(sensordata_no2, layer);
   AddLayer(layer);
   layer.RegisterLayer;
+end;
 
-//  palette := CreateNiekPalette('NO2');//  CreateNO2Palette;
-//  layer := TSesmiMobileSensorLayer.Create(Self, 'Personal exposure', 'mobilesensors', 'Mobile sensors', '', false, true, palette, BuildLegendJSON(palette), mobileChart);
-//  fQueryLayers.Add(sensordata_no2, layer);
-//  AddLayer(layer);
-//  layer.RegisterLayer;
-
-
-//  spider.AddOrSetCategory('avg NO2', 'bike', Double.NaN);
-//  spider.AddOrSetCategory('avg NO2','walk', Double.NaN);
-//  spider.AddOrSetCategory('avg NO2', 'motorized', Double.NaN);
-//  spider.AddOrSetCategory('avg NO2', 'other', Double.NaN);
-
-//  spider.AddOrSetCategory('avg time', 'bike', Double.NaN);
-//  spider.AddOrSetCategory('avg time', 'walk', Double.NaN);
-//  spider.AddOrSetCategory('avg time', 'motorized', Double.NaN);
-//  spider.AddOrSetCategory('avg time', 'other', Double.NaN);
-
-//  spider.AddOrSetCategory('avg exposure', 'bike', Double.NaN);
-//  spider.AddOrSetCategory('avg exposure', 'walk', Double.NaN);
-//  spider.AddOrSetCategory('avg exposure', 'motorized', Double.NaN);
-//  spider.AddOrSetCategory('avg exposure', 'other', Double.NaN);
-
-
-
-
-
-  //addConcentrationLayer(
-  //  sensordata_pm10_total);
-  {
-  fTrackNOxLayer := TSesmiTrackLayer.Create(Self, 'Persoonlijke blootstelling', 'trackNOx', 'NOx', 'Track, NOx', True, True);
-  fTrackPM10Layer := TSesmiTrackLayer.Create(Self, 'Persoonlijke blootstelling', 'trackNOx', 'NOx', 'Track, PM10', False, True);
-
-  // tiler lagen concentraties
-
-  fChartGemodelleerdeBlootstelling := TChart.Create(Self, 'Persoonlijke blootstelling', 'pmb', 'Gemoduleerd', 'Gemoduleerde persoonlijke blootstelling', false, 'line',
-          TChartAxis.Create('Time', 'lightBlue', 'UTC', ''),
-          [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'kg/m3')]);
-  fChartGemodelleerdeBlootstelling := TChart.Create(Self, 'Persoonlijke blootstelling', 'pmb', 'Gemoduleerd', 'Gemoduleerde persoonlijke blootstelling', false, 'line',
-          TChartAxis.Create('Time', 'lightBlue', 'UTC', ''),
-          [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'kg/m3'),
-            TChartAxis.Create('concentration', 'yellow', 'Concentration', 'kg/m3'),
-            TChartAxis.Create('concentration', 'red', 'Concentration', 'kg/m3'),
-            TChartAxis.Create('concentration', 'green', 'Concentration', 'kg/m3')]);
-  }
-  // I laag
-
-  // walter prikken:
-  // layer keys:
+procedure TSesmiScenario.Reset;
+var
+  linkLayer: TSesmiLinkLayer;
+begin
+  TMonitor.Enter(fLinkLayers);
+      try
+        for linkLayer in fLinkLayers.Values do
+          linkLayer.Reset;
+      finally
+        TMonitor.Exit(fLinkLayers);
+      end;
 end;
 
 { TSesmiProject }
@@ -1303,11 +1252,7 @@ begin
   fLinks := TDictionary<TGUID, TWDGeometry>.Create;
   fPubEvent := aConnection.publish('EnSel2.geometry_roads', False);
   InquireNetwork;
-  // add Sesmi scenario
-  //scenario := TSesmiScenario.Create(Self, '1', '1', '1', false, Self.mapView);
-  //scenarios.Add(scenario.id, scenario);
   fWindData := TSesmiWindData.Create(Self);
-  //fComplaints := TSesmiComplaints.Create(Self);
 end;
 
 function TSesmiProject.CreateSesmiScenario(
@@ -1325,6 +1270,7 @@ begin
     TMonitor.Exit(fLinks);
   end;
   scenarios.Add(aScenarioID, scenario);
+  scenario.GoLive(True);
   Result := scenario;
 end;
 
@@ -1455,7 +1401,7 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
       day := stringSplit[0];
       month := stringSplit[1];
       year := stringSplit[2];
-      GetLocaleFormatSettings(0, formatSettings);
+      formatSettings := TFormatSettings.Create;
       formatSettings.ShortDateFormat := 'dd/mm/yyyy';
       formatSettings.DateSeparator := '/';
       aDate := StrToDate(day + '/' + month + '/' + year, formatSettings);
@@ -1518,7 +1464,7 @@ begin
         end;
         if valid then //build query;
         begin
-          GetLocaleFormatSettings(0, formatSettings);
+          formatSettings := TFormatSettings.Create;
           formatSettings.DecimalSeparator := '.';
           queryString := '';
           if daysSelect.Length > 0 then
@@ -1606,7 +1552,7 @@ procedure TSesmiProject.ReadBasicData;
 var
   scenario: TScenario;
 begin
-  scenario := ReadScenario('1'); //TSesmiScenario.Create(Self, '1', '1', '1', false, Self.mapView);
+  scenario := ReadScenario('basic'); //TSesmiScenario.Create(Self, '1', '1', '1', false, Self.mapView);
   scenarios.Add(scenario.id, scenario);
   fProjectCurrentScenario := scenario;
 end;
@@ -1618,7 +1564,7 @@ end;
 
 function TSesmiProject.ReadScenario(const aID: string): TScenario;
 begin
-  Result := TSesmiScenario.Create(Self, aID, 'Eindhoven', 'Luchtkwaliteit in Eindhoven', false, Self.mapView, False); // todo:
+  Result := TSesmiScenario.Create(Self, aID, 'Eindhoven', 'Luchtkwaliteit in Eindhoven - Geen persoonlijke data', false, Self.mapView, False); // todo:
 end;
 
 { TSesmiModule }
@@ -1843,10 +1789,10 @@ end;
 
 { TSesmiLinkLayer }
 
-procedure TSesmiLinkLayer.AddLink(const aGuid: TGUID; aGeometry: TWDGeometry);
+procedure TSesmiLinkLayer.AddLink(const aID: TWDID; aGeometry: TWDGeometry);
 begin
-  if not objects.ContainsKey(aGuid.ToString) then
-    AddObject(TSesmiLink.Create(Self, aGuid.ToString, aGeometry));
+  if not objects.ContainsKey(aID) then
+    AddObject(TSesmiLink.Create(Self, aID, aGeometry));
 end;
 
 procedure TSesmiLinkLayer.AddLinkID(const aTimeStamp: Double; const aID: TWDID);
@@ -1871,7 +1817,7 @@ var
   linkID: TWDID;
 begin
   //check if we can make a match
-  if valueList.ContainsKey(aTimeStamp) then //match
+  if linkidList.ContainsKey(aTimeStamp) then //match
   begin
     linkID := linkidList[aTimeStamp];
     linkidList.Remove(aTimeStamp);
@@ -1879,7 +1825,7 @@ begin
   end
   else //add to list so we can match later
   begin
-    valueList.Add(aTimeStamp, aValue);
+    valueList.AddOrSetValue(aTimeStamp, aValue);
   end;
 end;
 
@@ -1922,6 +1868,19 @@ begin
   else tilerLayer.signalAddSlice(nil);
 end;
 
+procedure TSesmiLinkLayer.Reset;
+var
+  link: TLayerObject;
+begin
+  TMonitor.Enter(objects);
+  try
+  for link in objects.Values do
+    (link as TSesmiLink).Reset;
+  finally
+    TMonitor.Exit(objects);
+  end;
+end;
+
 function TSesmiLinkLayer.SliceType: Integer;
 begin
   Result := stGeometryI;
@@ -1933,6 +1892,7 @@ constructor TSesmiLink.Create(aLayer: TLayer;
   const aID: TWDID; aGeometry: TWDGeometry);
 begin
   inherited Create(aLayer, aID, aGeometry, Double.NaN);
+  fValueList := TList<TTimedValue>.Create;
 end;
 
 destructor TSesmiLink.Destroy;
@@ -1942,20 +1902,40 @@ end;
 
 procedure TSesmiLink.Reset;
 begin
-  if fValue <> 0 then
+  if fValue <> Double.NaN then
   begin
-    fValue := 0;
+    fValue := Double.NaN;
+    fTotalValue := 0;
+    fValueList.Clear;
     layer.signalObject(Self);
   end;
 end;
 
 procedure TSesmiLink.UpdateValue(aTimeStamp, aValue: Double);
+var
+  timedValue: TTimedValue;
+  i: Integer;
 begin
-  if fValue <> aValue then
-  begin
-    fValue := aValue;
-    layer.signalObject(Self);
-  end;
+    //check if we need to remove values that are too old
+    if (layer.scenario is TSesmiScenario) and (layer.scenario as TSesmiScenario).Live then
+    for i := fValueList.Count - 1 to 0  do
+        if fValueList[i].time < (aTimeStamp - GetSetting(TimeSpanSwitch, DefaultTimeSpan)) then
+        begin
+          fTotalValue := fTotalValue - fValueList[i].value;
+          fValueList.Delete(i);
+        end;
+
+    //add new value
+    timedValue.time := aTimeStamp;
+    timedValue.value := aValue;
+    fValueList.Add(timedValue);
+    fTotalValue := fTotalValue + aValue;
+
+    if fValue <> (fTotalValue / fValueList.Count) then
+    begin
+      fValue := fTotalValue / fValueList.Count;
+      layer.signalObject(Self);
+    end;
 end;
 
 end.
