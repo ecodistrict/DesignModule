@@ -1105,7 +1105,7 @@ begin
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
     aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled,
-    aSimulationControlEnabled, aAddBasicLayers, '',
+    aSimulationControlEnabled, aAddBasicLayers, '', '',
     aMaxNearestObjectDistanceInMeters);
   fTiler.onTilerStatus := handleTilerStatus;
 end;
