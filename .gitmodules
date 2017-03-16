@@ -10,10 +10,6 @@
 	path = TilerServer/world
 	url = https://cornelissenja@bitbucket.org/imbclients/world-delphi.git
 	branch = master
-[submodule "SessionServer/logger"]
-	path = SessionServer/logger
-	url = https://cornelissenja@bitbucket.org/imbclients/logger-delphi.git
-	branch = master
 [submodule "EcoDistrictDebugger/logger"]
 	path = EcoDistrictDebugger/logger
 	url = https://cornelissenja@bitbucket.org/imbclients/logger-delphi.git
