@@ -46,3 +46,7 @@
 	path = Publish/world
 	url = https://cornelissenja@bitbucket.org/imbclients/world-delphi.git
 	branch = master
+[submodule "Publish/publisher-core"]
+	path = Publish/publisher-core
+	url =  https://cornelissenja@bitbucket.org/imbclients/publisher-core.git
+	branch = master
