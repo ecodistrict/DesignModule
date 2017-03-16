@@ -10,10 +10,6 @@
 	path = TilerServer/world
 	url = https://cornelissenja@bitbucket.org/imbclients/world-delphi.git
 	branch = master
-[submodule "SessionServer/imb"]
-	path = SessionServer/imb
-	url = https://cornelissenja@bitbucket.org/imbclients/imb-client-delphi.git
-	branch = master
 [submodule "SessionServer/logger"]
 	path = SessionServer/logger
 	url = https://cornelissenja@bitbucket.org/imbclients/logger-delphi.git
