@@ -275,6 +275,32 @@ begin
           'V5');
         sessionModel.Projects.Add(project);
 
+        //CACC on the A2
+        simParameters := TSSMSimulationParameterList.Create;
+        simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);Noise(RD);SSMAirModule;KPI Model;VissimController');
+        //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;KPI Model;VissimController');
+        //simParameters.setParameter('models', 'DataStore;'{Traffic (SSM);Air (SSM <-> US);} + 'SSMAirModule;KPI Model;VissimController');
+
+        simParameters.setParameter('DataStore-Description', '<scenarioName>');
+        simParameters.setParameter('VissimController-penetration', '<penetration>');
+        simParameters.setParameter('VissimController-randomseed', '<randomseed>');
+        simParameters.setParameter('VissimController-compliance rate', '1');
+        simParameters.setParameter('VissimController-A2 case', True);
+
+        project := TSSMProject.Create(sessionModel, imbConnection,
+          'a2', 'CACC on the A2 use case',
+          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+          nil, 0, false, false, false, True, false,
+          simParameters,
+          '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
+          '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration rate","idName":"penetration","extraOptions":[1, "%"]},'+
+          '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"random seed","idName":"randomseed","extraOptions":[1, ""]},'+
+          '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
+          TMapView.Create(51.64149, 5.4997, 9), 0,
+          'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde',
+          'V6'); //todo: correct US-prefix
+        sessionModel.Projects.Add(project);
+
         // inquire existing session and rebuild internal sessions..
         imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(
           procedure(event: TEventEntry; aInt: Integer; const aString: string)

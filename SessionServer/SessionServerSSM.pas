@@ -1777,7 +1777,7 @@ begin
     GetSetting('Projection', 'Amersfoort_RD_New')); // EPSG: 28992
   inherited Create(aSessionModel, aConnection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
     aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers,
-    aSimulationSetup, aMaxNearestObjectDistanceInMeters);
+    aSimulationSetup, '', aMaxNearestObjectDistanceInMeters);
 end;
 
 function TSSMProject.createSSMScenario(const aID, aName, aDescription: string; aUseSimulationSetup, aRecorded: Boolean): TSSMScenario;

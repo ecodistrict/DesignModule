@@ -18,6 +18,9 @@ const
   RemoteHostSwitch = 'RemoteHost';
   RemotePortSwitch = 'RemotePort';
 
+  ExpertScenarioSwitch = 'ExpertScenario';
+  DefaultExpertScenario = '{00000000-0000-0000-0000-000000000000}';
+
 procedure HandleException(aConnection: TConnection; aException: Exception);
 begin
   Log.WriteLn('FATAL IMB4 connection exception: '+aException.Message, llError);
@@ -62,7 +65,7 @@ begin
             imbConnection,
             tilerFQDN,
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), TGUID.Create(GetSetting(ExpertScenarioSwitch, DefaultExpertScenario)));
 
 
 

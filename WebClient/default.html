@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="Content/kpis.css" />
     <link rel="stylesheet" href="Content/history.css" />
     <link rel="stylesheet" href="Content/simulation.css" />
+    <link rel="stylesheet" href="Content/dateForm.css" />
     <link rel="stylesheet" href="Content/projectdescription.css" />
     <link rel="stylesheet" href="Content/connectionstatus.css" />
     <link rel="stylesheet" href="Content/userMessages.css" />
@@ -99,7 +100,7 @@
     <script src="Scripts/nouislider.js"></script>
     <script src="Scripts/modaldialog.js"></script>
     <script src="Scripts/querydialog.js"></script>
-    <script src="Scripts/simulationdialog.js"></script>
+    <script src="Scripts/formdialog.js"></script>
     <script src="Scripts/markerdialog.js"></script>
     <script src="Scripts/warningDialog.js"></script>
 
@@ -118,6 +119,7 @@
     <script src="Scripts/details.js"></script>
     <script src="Scripts/history.js"></script>
     <script src="Scripts/simulation.js"></script>
+    <script src="Scripts/dateFormControl.js"></script>
     <script src="Scripts/projectdescription.js"></script>
     <script src="Scripts/timeslider.js"></script>
     <script src="Scripts/timesliderSettings.js"></script>
@@ -225,6 +227,31 @@
         map.removeControl(historyControl);
         DataManager.HistoryControl = historyControl;
 
+        //dateForm
+        //DataManager.formData = [{ "formElement": "checkbox", "type": "string", "required": "y", "optionsArray": ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"], "labelText": "Dagen van de week", "idName": "daysSelect", "extraOptions": false },
+        //    {
+        //          "formElement":"slider",
+        //          "type":"int",
+        //          "required":"y",
+        //          "optionsArray":['0', '23'],
+        //          "labelText":"Vanaf (tijd):",
+        //          "idName":"fromHour",
+        //          "extraOptions":[1, 'uur']
+        //    },
+        //    {
+        //        "formElement": "slider",
+        //        "type": "int",
+        //        "required": "y",
+        //        "optionsArray": ['1', '24'],
+        //        "labelText": "Tot (tijd):",
+        //        "idName": "toHour",
+        //        "extraOptions": [1, 'uur']
+        //    },
+        //    { "formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Van datum {dd-mm}", "idName": "fromDate", "extraOptions": {defaultValue: "01-05"} },
+        //    { "formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Tot en met datum {dd-mm}", "idName": "toDate", "extraOptions": { defaultValue: "28-05" } }
+        //];
+        //DataManager.DateFormControl = L.control.dateForm();
+        //map.addControl(DataManager.DateFormControl);
 
         //simulation
         var simulationControl = L.control.simulation(); // todo (NK): why pass baseLayers as options?

@@ -1423,7 +1423,7 @@ begin
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
     aDBConnection, aTimeSlider, aSelectionEnabled, aMeasuresEnabled,
-    aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers, '',
+    aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers, '', '',
     aMaxNearestObjectDistanceInMeters);
   fTiler.onTilerStatus := handleTilerStatus;
 end;

@@ -767,7 +767,7 @@ type
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
     aDBConnection: TCustomConnection;
     aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
-    const aSimulationSetup: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView;
+    const aSimulationSetup, aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView;
     aProjectCurrentScenario, aProjectRefScenario: TScenario);
   destructor Destroy; override;
   private
@@ -802,9 +802,11 @@ type
     fMeasuresEnabled: Boolean;
     fMeasuresHistoryEnabled: Boolean;
     fSimulationControlEnabled: Boolean;
+    fDateFormControlEnabled: Boolean;
     fAddBasicLayers: Boolean;
 
     fSimulationsetup: string;
+    fDateFormData: string;
 
     procedure setTimeSlider(aValue: Integer);
     procedure setSelectionEnabled(aValue: Boolean);
@@ -853,7 +855,9 @@ type
     property measuresEnabled: Boolean read fMeasuresEnabled write setMeasuresEnabled;
     property measuresHistoryEnabled: Boolean read fMeasuresHistoryEnabled write setMeasuresHistoryEnabled;
     property simualtionControlEnabled: Boolean read fSimulationControlEnabled write fSimulationControlEnabled;
+    property dateFormControlEnabled: Boolean read fDateFormControlEnabled write fDateFormControlEnabled;
     property simulationSetup: string read fSimulationSetup write fSimulationSetup;
+    property dateFormData: string read fDateFormData write fDateFormData;
     property addBasicLayers: Boolean read fAddBasicLayers;
   public
     property diffLayers: TObjectDictionary<string, TDiffLayer> read fDiffLayers;
@@ -1058,7 +1062,7 @@ begin
           then Result := Result+',';
           Result := Result+'{"'+aPalette.entries[i].description+'":{'+aPalette.entries[i].colors.toJSON+'}}';
         end;
-        Result := '"grid2":{"title":"'+aPalette.description+'","labels":[{'+Result+'}]}';;
+        Result := '"grid2":{"title":"'+aPalette.description+'","labels":['+Result+']}';;
       end;
   end;
 end;
@@ -2127,6 +2131,14 @@ procedure TClient.SendSession;
     else Result := '"simulationSetup":0,';
   end;
 
+  function jsonDateFormData: string;
+  begin
+
+    if Assigned(fCurrentScenario) and (fProject.dateFormData<>'')
+    then Result := '"dateForm":{"data":'+fProject.dateFormData+'},'
+    else Result := '"dateForm":0,';
+  end;
+
 begin
   signalString(
     '{"session":{'+
@@ -2140,6 +2152,8 @@ begin
       '"measuresHistoryEnabled":'+ord(fProject.measuresHistoryEnabled).toString+','+
       '"simulationControlEnabled":'+ord(fProject.simualtionControlEnabled).ToString+','+
       jsonSimulationSetup+
+      '"dateFormControlEnabled":'+ord(fProject.dateFormControlEnabled).ToString+','+
+      jsonDateFormData+
       view+
     '}}');
 end;
@@ -3877,18 +3891,17 @@ begin
       if Result.clientID=aClientID
       then exit;
     end;
-    // if we come to this point id is not found so create new client
-    Result := TClient.Create(Self, fProjectCurrentScenario, fProjectRefScenario, aClientID);
-    clients.Add(Result);
   finally
     TMonitor.Exit(clients);
   end;
+    // if we come to this point id is not found so create new client
+    Result := addClient(aClientID);
 end;
 
 constructor TProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
   aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
-  const aSimulationSetup: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView;
+  const aSimulationSetup, aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView;
   aProjectCurrentScenario, aProjectRefScenario: TScenario);
 begin
   inherited  Create;
@@ -3900,6 +3913,7 @@ begin
   fMeasuresHistoryEnabled := aMeasuresHistoryEnabled;
   fSimulationControlEnabled := aSimulationControlEnabled;
   fSimulationSetup := aSimulationSetup;
+  fDateFormData := aDateFormData;
   fAddBasicLayers := aAddbasicLayers;
   fSessionModel := aSessionModel;
   fConnection := aConnection;
