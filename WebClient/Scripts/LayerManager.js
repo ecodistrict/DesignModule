@@ -1,4 +1,5 @@
-﻿var LayerManager = {
+﻿// todo: refactor data.lng to data.lon as in the rest of the publisher, latlng.lng is from leaflet and stays the same
+var LayerManager = {
     _layers: {},
     _layersonid: {},
     _subscribedLayers: {},
@@ -27,7 +28,7 @@
     },
 
     RemoveVisibleLayer: function (layer) {
-        for (var i = LayerManager._visibleLayers.length - 1; i >= 0 ; i--) {
+        for (var i = LayerManager._visibleLayers.length - 1; i >= 0; i--) {
             if (LayerManager._visibleLayers[i].id == layer.id) {
                 LayerManager._visibleLayers.splice(i, 1);
                 i--;
@@ -36,7 +37,7 @@
     },
 
     ClearVisibleLayers: function (displayGroup) {
-        for (var i = LayerManager._visibleLayers.length - 1; i >= 0 ; i--) {
+        for (var i = LayerManager._visibleLayers.length - 1; i >= 0; i--) {
             if (typeof LayerManager._visibleLayers[i] != "undefined" && (typeof displayGroup === "undefined" ||LayerManager._visibleLayers[i].displayGroup == displayGroup)) //todo check what goes wrong?
                 LayerManager._visibleLayers[i].removeDisplayLayer();
         }
@@ -46,7 +47,7 @@
     },
 
     GetLayers: function () {
-        var layers = {}
+        var layers = {};
         for (var l in LayerManager._layers) {
             layers[l] = LayerManager._layers[l];
         }
@@ -79,7 +80,7 @@
     },
 
     GetVisibleLayers: function () {
-        var layers = []
+        var layers = [];
         for (var i = 0; i < LayerManager._visibleLayers.length; i++) {
             layers.push(LayerManager._visibleLayers[i]);
         }
@@ -185,28 +186,15 @@
 
     GetLayer: function (layer, parent, crd) {
         if (typeof layer.type === "undefined")
-            return;
-
-        switch (layer.type) {
-            case "tile": return new LayerManager.TileLayer(layer, parent, crd);
-                break;
-            case "object": return new LayerManager.ObjectLayer(layer, parent, crd);
-                break;
-            case "geo": return new LayerManager.GeoJSONLayer(layer, parent, crd);
-                break;
-            case "switch": return new LayerManager.SwitchLayer(layer, parent, crd);
-                break;
-            case "empty": return new LayerManager.EmptyLayer(layer, parent, crd);
-                break;
-            default: return null;
-                break;
-        }
+            return null;
+        else
+            return createLayerOfType(layer, parent, crd);
     },
 
     Length: function () {
         return LayerManager._length;
     }
-}
+};
 
 //manages the onzoom event and calls all switchlayers to check if they need to change their layers!
 LayerManager.SwitchManager = {
@@ -240,7 +228,7 @@ LayerManager.SwitchManager = {
         for (var l in LayerManager.SwitchManager._switchLayers)
             LayerManager.SwitchManager._switchLayers[l].showSwitchLayer(LayerManager.SwitchManager._switchLayers[l].maplayer);
     }
-}
+};
 
 
 //is object manager needed?? maybe let an object layer handle it's objects!?
@@ -272,18 +260,35 @@ LayerManager.ObjectManager = {
             return null;
         return this.objectlayergroups[layer.id];
     }
-}
+};
 
 LayerManager.Object = function (data, layergroup) {
-    //this.lat = data.lat;// ? data.lat : 52.31428;
-    //this.lng = data.lng;// ? data.lng : 4.67426;
-    this.latlng = L.latLng(data.lat, data.lng);
     this.layergroup = layergroup;
+    this.latlng = L.latLng(data.lat, data.lng);
+    this.style = {};
 
+    this.update = null; // override
+
+    this.remove = null; // override
+
+    // todo: use this.object as generic object instead of shape and marker in derived classes
+
+    //this.object = null; 
+    //function () {
+    //    this.layergroup.removeLayer(this.object);
+    //};
+};
+
+LayerManager.Circle = function (data, layergroup) {
+    LayerManager.Object.call(this, data, layergroup);
+
+    // todo: remove?
+    /*
     if (data.fillColor && data.fillColor != "" && data.fillColor != "" && data.fillColor != "" && data.fillColor != "" && data.fillColor != "" && data.fillColor != "")
     {
 
     }
+    */
 
     //http://leafletjs.com/reference.html#path-options
     this.style = {
@@ -293,7 +298,7 @@ LayerManager.Object = function (data, layergroup) {
         fill: true,
         fillOpacity: data.fillOpacity ? data.fillOpacity : 1,
         fillColor: data.fillColor
-    }
+    };
 
     this.radius = data.radius || 2;
 
@@ -302,61 +307,174 @@ LayerManager.Object = function (data, layergroup) {
     ).addTo(layergroup);
 
     this.update = function (data) {
-
+        // position
         var posChanged = false;
+
         if (typeof data.lat !== 'undefined') {
-            //this.lat = data.lat;
             this.latlng.lat = data.lat;
             posChanged = true;
         }
         if (typeof data.lng !== 'undefined') {
-            //this.lng = data.lng;
             this.latlng.lng = data.lng;
             posChanged = true;
         }
         if (posChanged) {
-            //this.latlng = L.latLng(this.lat, this.lng);
             this.shape.setLatLng(this.latlng);
         }
 
+        // style
         var styleChanged = false;
 
-        if (typeof data.color !== 'undefined')
-        {
+        if (typeof data.color !== 'undefined') {
             this.style.color = data.color;
             styleChanged = true;
         }
-        if (typeof data.opacity !== 'undefined')
-        {
+        if (typeof data.opacity !== 'undefined') {
             this.style.opacity = data.opacity;
             styleChanged = true;
         }
-        if (typeof data.fillColor !== 'undefined')
-        {
+        if (typeof data.fillColor !== 'undefined') {
             this.style.fillColor = data.fillColor;
             styleChanged = true;
         }
-        if (typeof data.fillOpacity !== 'undefined')
-        {
+        if (typeof data.fillOpacity !== 'undefined') {
             this.style.fillOpacity = data.fillOpacity;
             styleChanged = true;
         }
-
         if (styleChanged) {
             this.shape.setStyle(this.style);
         }
 
-        if (typeof data.radius !== 'undefined')
-        {
+        // radius
+        if (typeof data.radius !== 'undefined') {
             this.radius = data.radius;
             this.shape.setRadius(this.radius);
         }
-    }
+    };
 
     this.remove = function () {
         this.layergroup.removeLayer(this.shape);
+    };
+};
+
+
+LayerManager.Marker = function (data, layergroup, markerlayer) {
+    LayerManager.Object.call(this, data, layergroup);
+    this.style = {
+        id: data.id,
+        layer: markerlayer,
+        opacity: data.opacity ? data.opacity : 1.0,
+        title: data.title ? data.title : '',
+        alt: data.alt ? data.alt : '',
+        draggable: data.draggable ? data.draggable : false,
+        riseOnHover: data.riseOnHover ? data.riseOnHover : false,
+        riseOffset: data.riseOffset ? data.riseOffset : 250
+    };
+
+    this.marker = L.marker(this.latlng, this.style);
+
+    if (data.draggable) {
+        this.marker.on('dragend', function (e) {
+            message = {
+                type: "updatelayerobject",
+                payload: {
+                    layerid: e.target.options.layer.id,
+                    objectid: e.target.options.id,
+                    moveto: {
+                        lat: e.target._latlng.lat,
+                        lon: e.target._latlng.lng
+                    }
+                }
+            };
+            wsSend(message);
+            //console.debug("dragged");
+        });
+    }
+
+    // todo: marker.move = 
+    // todo: bindPopup
+
+    this.update = function (data) {
+        // position
+        var posChanged = false;
+
+        if (typeof data.lat !== 'undefined') {
+            this.latlng.lat = data.lat;
+            posChanged = true;
+        }
+        if (typeof data.lng !== 'undefined') {
+            this.latlng.lng = data.lng;
+            posChanged = true;
+        }
+        if (posChanged) {
+            this.marker.setLatLng(this.latlng);
+        }
+
+        // icon
+        
+        var iconChanged = false;
+
+        if (typeof data.title !== 'undefined') {
+            this.marker.title = data.title;
+            iconChanged = true;
+        }
+
+        if (typeof data.icon !== 'undefined') {
+            this.marker.setIcon(data.icon);
+        }
+
+        if (iconChanged) {
+            this.marker.setIcon(this.marker.options.icon); // use the same icon but reset title with it..
+        }
+
+        if (typeof data.draggable !== 'undefined') {
+            this.marker.options.draggable = data.draggable;
+            // on-the-fly
+        }
+
+        if (typeof data.riseOnHover !== 'undefined') {
+            this.marker.options.riseOnHover = data.riseOnHover;
+            // on-the-fly
+        }
+
+        if (typeof data.riseOffset !== 'undefined') {
+            this.marker.options.riseOffset = data.riseOffset;
+            // on-the-fly
+        }
+
+        // style
+        var styleChanged = false;
+
+        if (typeof data.opacity !== 'undefined') {
+            this.style.opacity = data.opacity;
+            styleChanged = true;
+        }
+
+        if (styleChanged) {
+            this.marker.setStyle(this.style);
+        }
+    };
+
+    this.remove = function () {
+        this.layergroup.removeLayer(this.marker);
+    };
+};
+
+
+function createLayerOfType(data, detailsLayer, crd) {
+    // todo: remove breaks?
+    switch (data.type) {
+        case "tile": return new LayerManager.TileLayer(data, detailsLayer, crd);
+        case "object": return new LayerManager.ObjectLayer(data, detailsLayer, crd);
+        case "marker": return new LayerManager.MarkerLayer(data, detailsLayer, crd);
+        case "geo": return new LayerManager.GeoJSONLayer(data, detailsLayer, crd);
+        case "switch": return new LayerManager.SwitchLayer(data, detailsLayer, crd);
+        default:
+            console.log("## Encountered unknown " + crd + " layer type: " + data.type);
+            return null;
     }
 }
+
 
 LayerManager.DetailsLayer = function (data) {
     for (var v in data)
@@ -364,6 +482,7 @@ LayerManager.DetailsLayer = function (data) {
 
     //this.crd = "active";
     this.showing = null;
+    this.displayGroup = data.displayGroup ? data.displayGroup : "default";
 
     //set a get only function for maplayer property
     Object.defineProperties(this, {
@@ -377,9 +496,8 @@ LayerManager.DetailsLayer = function (data) {
     });
 
     this.GetPreview = function (parent) {
-        if (typeof this.show !== "undefined" && this.show > 0)
-        {
-             this.addDisplayLayer(this.show);
+        if (typeof this.show !== "undefined" && this.show > 0) {
+            this.addDisplayLayer(this.show);
         }
         var aWidth = DataManager.detailsInfo.layerWidth;
         var aHeight = DataManager.detailsInfo.layerHeight;
@@ -417,7 +535,7 @@ LayerManager.DetailsLayer = function (data) {
             selectedDiv: divLayerSelected,
             title: h,
             img: img
-        }
+        };
         mainDiv.addEventListener("click", this.onClick);
     };
 
@@ -448,7 +566,8 @@ LayerManager.DetailsLayer = function (data) {
             this.showing = this.diff;
         }
         else {
-            this.active.showLayer(this.maplayer);
+            if (this.active)
+                this.active.showLayer(this.maplayer);
             this.showing = this.active;
         }
         wsSend({ subscribe: this.id });
@@ -503,14 +622,14 @@ LayerManager.DetailsLayer = function (data) {
             }
             else {
                 if (!e.ctrlKey)
-                    LayerManager.ClearVisibleLayers(this.displayGroup);
+                    LayerManager.ClearVisibleLayers(layer.displayGroup);
                 layer.addDisplayLayer(opacity);
                 layer.setCRD();
                 if (LayerManager._visibleLayers.length == 1)
                     layer.setLegend();
             }
 
-        };
+        }
     };
 
     this.updateData = function (payload) {
@@ -518,7 +637,7 @@ LayerManager.DetailsLayer = function (data) {
         if (payload.tiles || payload.legend) {
             this.active.updateData(payload);
             if (payload.legend && this.ref)
-                this.ref.updateData({ legend: payload.legend })
+                this.ref.updateData({ legend: payload.legend });
         }
 
         if (payload.active)
@@ -533,7 +652,7 @@ LayerManager.DetailsLayer = function (data) {
         if (this.previewDisplay && this.active) {
             this.previewDisplay.img.src = this.active.getPreview();
         }
-    }
+    };
 
     //if (data.type == "object")
     //    delete data.type;
@@ -541,54 +660,15 @@ LayerManager.DetailsLayer = function (data) {
     //set the active/ref/diff layers!
     if (data.type) //check for new system!
     {
-        switch (data.type) {
-            case "tile": this.active = new LayerManager.TileLayer(data, this, "active");
-                break;
-            case "object": this.active = new LayerManager.ObjectLayer(data, this, "active");
-                break;
-            case "geo": this.active = new LayerManager.GeoJSONLayer(data, this, "active");
-                break;
-            case "switch": this.active = new LayerManager.SwitchLayer(data, this, "active");
-                break;
-            default:
-                this.active = null;
-                console.log("Encountered unknown active layer type: " + data.type);
-                break;
-        }
+        this.active = createLayerOfType(data, this, "active");
         if (data.ref) {
-            switch (data.ref.type) {
-                case "tile": this.ref = new LayerManager.TileLayer(data.ref, this, "reference");
-                    break;
-                case "object": this.ref = new LayerManager.ObjectLayer(data.ref, this, "reference");
-                    break;
-                case "geo": this.ref = new LayerManager.GeoJSONLayer(data.ref, this, "reference");
-                    break;
-                case "switch": this.ref = new LayerManager.SwitchLayer(data.ref, this, "reference");
-                    break;
-                default:
-                    this.ref = null;
-                    console.log("Encountered unknown reference layer type: " + data.ref.type);
-                    break;
-            }
+            this.ref = createLayerOfType(data.ref, this, "reference");
         }
         else {
             this.ref = null;
         }
         if (data.diff) {
-            switch (data.diff.type) {
-                case "tile": this.diff = new LayerManager.TileLayer(data.diff, this, "difference");
-                    break;
-                case "object": this.diff = new LayerManager.ObjectLayer(data.diff, this, "difference");
-                    break;
-                case "geo": this.diff = new LayerManager.GeoJSONLayer(data.diff, this, "difference");
-                    break;
-                case "switch": this.diff = new LayerManager.SwitchLayer(data.diff, this, "difference");
-                    break;
-                default:
-                    this.diff = null;
-                    console.log("Encountered unknown difference layer type: " + data.diff.type);
-                    break;
-            }
+            this.diff = createLayerOfType(data.diff, this, "difference");
         }
         else {
             this.diff = null;
@@ -616,12 +696,11 @@ LayerManager.DetailsLayer = function (data) {
                     name: data.name
                 }, this, "active");
             }
-            else
-            {
+            else {
                 //error
                 this.active = new LayerManager.EmptyLayer({}, this, "active");
             }
-            
+
 
             if (data.ref) {
                 this.ref = new LayerManager.TileLayer(data.ref, this, "reference");
@@ -635,10 +714,10 @@ LayerManager.DetailsLayer = function (data) {
                 this.diff = null;
         }
     }
-}
+};
 
 LayerManager.BaseLayer = function (layer, detailsLayer, crd) {
-    this.maplayer = false
+    this.maplayer = false;
     this.id = layer.id;
     this.legend = layer.legend;
     this.crd = crd;
@@ -672,8 +751,8 @@ LayerManager.BaseLayer = function (layer, detailsLayer, crd) {
         if (this.preview)
             return this.preview;
         return "";
-    }
-}
+    };
+};
 
 LayerManager.TileLayer = function (layer, detailsLayer, crd) {
     LayerManager.BaseLayer.call(this, layer, detailsLayer, crd);
@@ -727,11 +806,11 @@ LayerManager.TileLayer = function (layer, detailsLayer, crd) {
             this.updatePreview(payload.preview);
         }
     };
-}
+};
 
 LayerManager.ObjectLayer = function (layer, detailsLayer, crd) {
     LayerManager.BaseLayer.call(this, layer, detailsLayer, crd);
-    this.objects = {};
+    this.objects = {}; // todo:  = layer.objects ? layer.objects : {};
 
     this.showLayer = function (leafletlayer) {
         if (legendControl.legendLayer == this.detailsLayer.id)
@@ -801,7 +880,8 @@ LayerManager.ObjectLayer = function (layer, detailsLayer, crd) {
         if (typeof this.objects[object.id] !== "undefined") {
             return;
         }
-        this.objects[object.id] = new LayerManager.Object(object, this.maplayer);
+        // todo: create object by calling given type via constructor
+        this.objects[object.id] = new LayerManager.Circle(object, this.maplayer);
     };
 
     this.updateObject = function (object) {
@@ -817,6 +897,54 @@ LayerManager.ObjectLayer = function (layer, detailsLayer, crd) {
         delete this.objects[object.id];
     };
 };
+
+
+LayerManager.MarkerLayer = function (layer, detailsLayer, crd) {
+    LayerManager.ObjectLayer.call(this, layer, detailsLayer, crd);
+    //this.displayGroup = "separate"; // override
+    detailsLayer.displayGroup = "separate"; // todo: for now 'hard' override for all marker layers
+    this.objects = {};
+    this.subscribe();
+    // todo: when to unsubscribe? (on delete layer, NOT on hide..)
+
+    // first define newObject for correct type
+    this.newObject = function (object) {
+        if (typeof this.objects[object.id] !== "undefined") {
+            return;
+        }
+        this.objects[object.id] = new LayerManager.Marker(object, this.maplayer, this);
+    };
+
+    // add markers
+    if (layer.objects) {
+        for (var o in layer.objects) {
+            this.newObject(layer.objects[o]);
+        }
+    }
+
+    // overwrite methods
+
+    this.showLayer = function (leafletlayer) {
+        if (leafletlayer)
+            map.removeLayer(leafletlayer);
+
+        this.maplayer = L.layerGroup().addTo(map);
+        this.maplayer.idShowing = this.id;
+        this.maplayer.id = this.name;
+        this.maplayer.type = "marker";
+
+        for (var o in this.objects) {
+            this.maplayer.addLayer(this.objects[o].marker);
+        }
+
+        return this.maplayer;
+    };
+
+    this.hideLayer = function () {
+        this.maplayer = null;
+    };
+};
+
 
 LayerManager.GeoJSONLayer = function (layer, detailsLayer, crd) {
     LayerManager.BaseLayer.call(this, layer, detailsLayer, crd);
@@ -888,7 +1016,7 @@ LayerManager.SwitchLayer = function (layer, detailsLayer, crd) {
     this.showLayer = function (leafletlayer) {
         LayerManager.SwitchManager.addSwitchLayer(this);
         return this.showSwitchLayer(leafletlayer);
-    }
+    };
 
     this.showSwitchLayer = function (leafletlayer) {
         var nextLayer = null;
@@ -915,7 +1043,7 @@ LayerManager.SwitchLayer = function (layer, detailsLayer, crd) {
         }
 
         return null;
-    }
+    };
 
     this.hideLayer = function () {
         if (this.showing)
@@ -923,7 +1051,7 @@ LayerManager.SwitchLayer = function (layer, detailsLayer, crd) {
         this.showing = null;
         this.maplayer = null;
         LayerManager.SwitchManager.removeSwitchLayer(this);
-    }
+    };
 
     this.updateData = function (data) {
         if (this.showing)
@@ -935,24 +1063,24 @@ LayerManager.SwitchLayer = function (layer, detailsLayer, crd) {
         }
         this.layers = [];
 
-        for (var i = 0; i < data.layers.length; i++) {
-            this.layers.push({ zoom: data.layers[i].zoom, layer: LayerManager.GetLayer(data.layers[i].layer, this.detailsLayer, this.crd) });
+        for (var i2 = 0; i2 < data.layers.length; i2++) {
+            this.layers.push({ zoom: data.layers[i2].zoom, layer: LayerManager.GetLayer(data.layers[i2].layer, this.detailsLayer, this.crd) });
         }
 
         if (this.showing)
             this.showLayer(drawlayer);
-    }
+    };
 
     this.showLegend = function () {
         if (this.showing)
             this.showing.showLegend();
-    }
+    };
 
     this.getPreview = function () {
         if (this.layers.length > 0)
             return this.layers[0].layer.getPreview();
         return "";
-    }
+    };
 
 
     //add the layers!
@@ -970,9 +1098,9 @@ LayerManager.EmptyLayer = function (layer, detailsLayer, crd) {
         if (leafletlayer != null)
             map.removeLayer(leafletlayer);
         return null;
-    }
+    };
 
     this.hideLayer = function () {
         return;
-    }
+    };
 };

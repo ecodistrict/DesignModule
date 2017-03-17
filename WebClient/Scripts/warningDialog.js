@@ -40,7 +40,7 @@ function showSensorWarning(sensor, data) {
     addressLI.innerText = "Address: " + sensor.address;
 
     var positionLI = L.DomUtil.create("li", "informationLI", informationList);
-    positionLI.innerText = "Lat: " + sensor.latitude + " Lng: " + sensor.longitude;
+    positionLI.innerText = "Lat: " + sensor.latitude + " Lon: " + sensor.longitude;
 
     var substanceLI = L.DomUtil.create("li", "informationLI", informationList);
     substanceLI.innerText = "Measured substance: " + sensor.measuredsubstance;

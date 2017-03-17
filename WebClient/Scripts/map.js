@@ -47,6 +47,10 @@ var map = L.map('map', {
         }]
 });
 
+// set default icon path
+
+L.Icon.Default.imagePath = location.href + 'Content/images';
+
 function showCoordinates(e) {
     alert(e.latlng + " (zoom:" + map._zoom + ")"); // todo: change to nicer view? or remove
 }
