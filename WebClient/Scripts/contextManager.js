@@ -39,16 +39,17 @@
             text: contextItem.text,
             callback: (function (e) {
                 wsSend({
-                    message: {
                         type: 'context',
                         payload: {
                             owner: 'map',
                             id: this.id,
-                            position: e.latlng,
+                            position: {
+                                lat: e.latlng.lat,
+                                lon: e.latlng.lng
+                            },
                             action: 'select',
                         }
-                    }
-                });
+                    });
             }).bind({id: contextItem.id})
         });
     }

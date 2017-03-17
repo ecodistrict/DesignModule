@@ -204,14 +204,12 @@ L.Control.Arrow = L.Control.extend({
         DataManager.wind.rotate(data.direction, data.speed, date);
 
         wsSend({
-            message: {
                 type: 'windData',
                 payload: {
                     direction: data.direction,
                     speed: data.speed
                 }
-            }
-        });
+            });
 
 
 
