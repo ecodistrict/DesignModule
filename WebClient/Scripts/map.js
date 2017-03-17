@@ -40,11 +40,11 @@ var map = L.map('map', {
             text: 'Show coordinates',
             callback: showCoordinates
         },
-        */
+        
         {
             text: 'Deselect objects',
             callback: deselectObjects
-        }]
+        }*/]
 });
 
 // set default icon path

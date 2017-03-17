@@ -39,7 +39,6 @@
             text: contextItem.text,
             callback: (function (e) {
                 wsSend({
-                    message: {
                         type: 'context',
                         payload: {
                             owner: 'map',
@@ -47,8 +46,7 @@
                             position: e.latlng,
                             action: 'select',
                         }
-                    }
-                });
+                    });
             }).bind({id: contextItem.id})
         });
     }
