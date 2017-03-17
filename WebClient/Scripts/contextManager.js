@@ -40,11 +40,12 @@
             callback: (function (e) {
                 wsSend({
                     message: {
-                        context: {
-                        owner: 'map',
-                        id: this.id,
-                        position: e.latlng,
-                        action: 'select',
+                        type: 'context',
+                        payload: {
+                            owner: 'map',
+                            id: this.id,
+                            position: e.latlng,
+                            action: 'select',
                         }
                     }
                 });

@@ -205,7 +205,8 @@ L.Control.Arrow = L.Control.extend({
 
         wsSend({
             message: {
-                windData: {
+                type: 'windData',
+                payload: {
                     direction: data.direction,
                     speed: data.speed
                 }
