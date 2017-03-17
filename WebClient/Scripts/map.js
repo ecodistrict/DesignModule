@@ -33,10 +33,10 @@ var map = L.map('map', {
     minZoom: 2,
     layers: [baseMapLayerStreets],
     contextmenu: true,
-    contextmenuWidth: 140,
+    //contextmenuWidth: 250,
     contextmenuItems: [
-        /*
-        {
+        
+        /*{
             text: 'Show coordinates',
             callback: showCoordinates
         },

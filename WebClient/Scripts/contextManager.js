@@ -43,7 +43,10 @@
                         payload: {
                             owner: 'map',
                             id: this.id,
-                            position: e.latlng,
+                            position: {
+                                lat: e.latlng.lat,
+                                lon: e.latlng.lng
+                            },
                             action: 'select',
                         }
                     });
