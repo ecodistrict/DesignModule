@@ -64,7 +64,7 @@ function AddErrorMessage(MessageText, MessageType, MessageTimeOut) {
     if (typeof (MessageTimeOut) === 'number') {
         selectedTime = MessageTimeOut;
     } else if (typeof (MeasgeTimeOut) === 'undefined') {
-        selectedTime = false;
+        selectedTime = 60000; // show for 1 minute
     } else {
         selectedTime = 15000; // default 15 seconds
     }
@@ -90,15 +90,20 @@ function AddErrorMessage(MessageText, MessageType, MessageTimeOut) {
         switch (MessageType) {
             case 'succes':
                 found = true;
+                break;
             case 'warning':
                 found = true;
+                break;
             case 'error':
                 found = true;
+                break;
             default:
-                if (found) {
-                    message.classList.add(MessageType);
-                    status.innerHTML = MessageType + ': ';
-                }
+                found = false;
+                break;
+        }
+        if (found) {
+            message.classList.add(MessageType);
+            status.innerHTML = MessageType + ': ';
         }
     }
     message.appendChild(bl); // add borderLeft to messageItem

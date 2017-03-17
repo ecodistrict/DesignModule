@@ -10,6 +10,10 @@
         L.setOptions(this, options);
         this.rightMargin = '75px';
         this.bottomMargin = '75px';
+        this._modelControl = { Div: null };
+        this._models = {};
+        this._first = true;
+        this._showing = false;
 
         this.modelControlMouseDown = this.modelControlMouseDown.bind(this);
         this.modelControlDragMove = this.modelControlDragMove.bind(this);
@@ -34,14 +38,29 @@
             L.DomEvent.disableScrollPropagation(container);
         }
 
-        container.addEventListener("click", this.showModelControl.bind(this));
-
-        this._modelControl = { Div: null };
-        this._models = {};
+        container.addEventListener("click", this.clickModelControl.bind(this));
 
         var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
         link.href = '#';
         link.title = 'Show model control information';
+    },
+
+    clickModelControl: function () {
+        if (this._showing)
+            this.hideModelControl();
+        else
+            this.showModelControl();
+    },
+
+    hideModelControl: function () {
+        if (this._modelControl.Div != null)
+        {
+            this._modelControl.Div.style.display = 'none';
+            //reset positioning
+            this._modelControl.Div.style.right = this.rightMargin;
+            this._modelControl.Div.style.bottom = this.bottomMargin;
+        }
+        this._showing = false;
     },
 
     showModelControl: function () {
@@ -56,18 +75,9 @@
             if (this._modelControl.Div.style.display == 'none') {
                 this._modelControl.Div.style.display = "block";
             }
-            else {
-                this._modelControl.Div.style.display = 'none';
-                //reset positioning
-                this._modelControl.Div.style.right = this.rightMargin;
-                this._modelControl.Div.style.bottom = this.bottomMargin;
-            }
         }
         this.FillModelControl();
-
-        //this.AddModel({ name: "model1", status: "busy", progress: -1, id: "1" });
-        //this.AddModel({ name: "model2", status: "idle", progress: 3, id: "2" });
-        //this.AddModel({ name: "model3", status: "ready", progress: 1, id: "3" });
+        this._showing = true;
     },
 
 
@@ -130,6 +140,7 @@
 
     ClickCloseCross: function (e) {
         this._modelControl.Div.style.display = 'none';
+        this._showing = false;
     },
 
     AddModel: function (model) {
@@ -139,6 +150,10 @@
         else {
             this._models[model.id] = model;
             this.FillModelControl();
+            if (this._first) {
+                this._first = false;
+                this.showModelControl();
+            }
         }
     },
 
