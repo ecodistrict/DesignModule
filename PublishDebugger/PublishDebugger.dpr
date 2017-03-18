@@ -8,8 +8,9 @@ uses
   StdIni,
   Logger, LogConsole, LogFile,
   imb4,
-  //System.JSON,
-  SuperObject,
+  System.JSON,
+  Rest.JSON,
+  //SuperObject,
   System.Classes, System.SysUtils;
 
 const
@@ -34,19 +35,25 @@ procedure HandleClientCommand(const aJSONString: string);
 var
   lines: TStringList;
   l: Integer;
-  lJSON : ISuperObject;
+  jsonValue: TJSONValue;
+  //lJSON : ISuperObject;
 begin
   try
-    lJSON := SO(aJSONString);
-    lines := TStringList.Create;
+    jsonValue := TJSONObject.ParseJSONValue(aJSONString);
     try
-      lines.Text := lJSON.AsJSon(True);
-      for l := 0 to lines.Count-1 do
-      begin
-        Log.WriteLn(lines[l], llDump, 1);
+      //lJSON := SO(aJSONString);
+      lines := TStringList.Create;
+      try
+        lines.Text := Rest.JSON.TJson.Format(jsonValue);
+        for l := 0 to lines.Count-1 do
+        begin
+          Log.WriteLn(lines[l], llDump, 1);
+        end;
+      finally
+        lines.Free;
       end;
     finally
-      lines.Free;
+      jsonValue.Free;
     end;
   except
     on e: Exception

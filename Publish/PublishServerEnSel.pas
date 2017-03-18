@@ -1,4 +1,4 @@
-unit SessionServerEnSel;
+unit PublishServerEnSel;
 
 interface
 
@@ -13,8 +13,8 @@ uses
 
   TilerControl,
 
-  SessionServerLib,
-  SessionServerGIS,
+  PublishServerLib,
+  PublishServerGIS,
 
   GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
 
@@ -1106,7 +1106,7 @@ begin
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
     aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled,
     aSimulationControlEnabled, aAddBasicLayers, '', '',
-    aMaxNearestObjectDistanceInMeters);
+    aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentProject
   fTiler.onTilerStatus := handleTilerStatus;
 end;
 

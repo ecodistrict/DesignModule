@@ -5,7 +5,7 @@ interface
 uses
   Logger, LogFile,
   StdIni,
-  SessionServerDB,
+  PublishServerDB,
 
   System.JSON,
   System.Generics.Collections,

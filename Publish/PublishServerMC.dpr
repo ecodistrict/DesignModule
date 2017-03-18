@@ -1,4 +1,4 @@
-program SessionServerMC;
+program PublishServerMC;
 
 {$APPTYPE CONSOLE}
 
@@ -15,9 +15,9 @@ uses
 
   TilerControl,
 
-  SessionServerLib,
-  SessionServerDB,
-  SessionServerUS,
+  PublishServerLib,
+  PublishServerDB,
+  PublishServerUS,
 
   ModelControllerLib,
 

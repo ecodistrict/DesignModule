@@ -1,4 +1,4 @@
-unit SessionServerSSM;
+unit PublishServerSSM;
 
 interface
 
@@ -12,12 +12,12 @@ uses
 
   GisDefs, GisCsSystems,
   TimerPool,
-  SessionServerLib,
+  PublishServerLib,
   ModelControllerLib,
   CommandQueue,
 
   // US
-  SessionServerUS,
+  PublishServerUS,
   Ora,
   MyOraLib,
 
@@ -1198,20 +1198,6 @@ begin
         else log.WriteLn('TSSMProject.handleClientMessage: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
       end;
     end;
-//    if not Assigned (fAirSSMEmissionsChartTotal) then
-//    begin
-//      fAirSSMEmissionsChartTotal := TChartLines.Create(Self, 'Air', 'aset', 'Emissions total', '', false, 'line',
-//        TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-//        [TChartAxis.Create('gram NO2', 'lightBlue', 'Mass', 'g')]);
-//      AddChart(fAirSSMEmissionsChartTotal);
-//    end;
-//    if not Assigned (fAirSSMEmissionsChartFraction) then
-//    begin
-//      fAirSSMEmissionsChartFraction := TChartLines.Create(Self, 'Air', 'asef', 'Emissions fraction', '', false, 'line',
-//        TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-//        [TChartAxis.Create('kg NO2/h', 'lightBlue', 'Mass rate', 'kg/h')]);
-//      AddChart(fAirSSMEmissionsChartFraction);
-//    end;
   end;
    //add US layers
   if not fUSLayersLoaded then
@@ -1437,31 +1423,10 @@ end;
 
 procedure TSSMScenario.HandleLastSubscriber(aClient: TClient);
 var
-  //controlInterface : TSSMMCControlInterface;
-  //cim: TCIModelEntry2;
-  //layer: TLayer;
   EmptyPayload: ByteBuffers.TByteBuffer;
 begin
   inherited;
   fSIMStopEvent.SignalEvent(ekNormalEvent, EmptyPayload)
-//  if not useSimulationSetup then
-//      begin
-//        controlInterface := (fProject as TSSMProject).controlInterface;
-//        // unlcaim datastore module
-//        for cim in controlInterface.Models do
-//        begin
-//          if (cim.State<>msIdle) and (string.Compare(cim.Federation, ID, True)=0) then
-//          begin
-//            controlInterface.UnclaimModel(cim);
-//            fStatistics.Clear();
-//            fCharts.Clear();
-//            for layer in fLayers.Values do
-//              begin
-//                layer.objects.Clear();
-//              end;
-//          end;
-//        end;
-//      end;
 end;
 
 procedure TSSMScenario.HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);
@@ -1667,7 +1632,9 @@ begin
     begin
       //todo: force scenario change?
       //scenario.HandleClientUnsubscribe(aClient);
+      aClient.removeClient(scenario);
       aClient.currentScenario := scenarios['base'];
+      aClient.addClient(aClient.currentScenario);
       //aClient.addClient(aClient.currentScenario);
       aClient.signalString('{"type":"session","payload":{"simulationClose":0,"simulationSetup":1, "simulationControlEnabled":1}}');
     end
@@ -1700,16 +1667,7 @@ begin
       finally
         TMonitor.Exit(scenario.statistics);
       end;
-      //TMonitor.Enter(scenario.charts);
-//      try
-//        begin
-//          scenario.charts.Clear();
-//          //for chart in scenario.Charts do
-//            //todo: clear charts!
-//        end
-//      finally
-//        TMonitor.Exit(scenario.charts);
-//      end;
+
       TMonitor.Enter(scenario.charts);
       try
         begin
@@ -1722,10 +1680,12 @@ begin
       finally
         TMonitor.Exit(scenario.charts);
       end;
+
       for layer in scenario.fLayers.Values do
         begin
           layer.objects.Clear();
         end;
+
       if scenario.Recording then
       begin
         //todo logic to make the recorded scenario available
@@ -1777,7 +1737,7 @@ begin
     GetSetting('Projection', 'Amersfoort_RD_New')); // EPSG: 28992
   inherited Create(aSessionModel, aConnection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
     aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers,
-    aSimulationSetup, '', aMaxNearestObjectDistanceInMeters);
+    aSimulationSetup, '', aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentScenario etc..
 end;
 
 function TSSMProject.createSSMScenario(const aID, aName, aDescription: string; aUseSimulationSetup, aRecorded: Boolean): TSSMScenario;

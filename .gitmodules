@@ -1,6 +1,3 @@
-[submodule "EcoDistrictDebugger/SuperObject"]
-	path = EcoDistrictDebugger/SuperObject
-	url = https://github.com/hgourvest/superobject.git
 [submodule "WS2IMBSvc/imb"]
 	path = WS2IMBSvc/imb
 	url = https://cornelissenja@bitbucket.org/imbclients/imb-client-c.git
@@ -12,18 +9,6 @@
 [submodule "TilerServer/world"]
 	path = TilerServer/world
 	url = https://cornelissenja@bitbucket.org/imbclients/world-delphi.git
-	branch = master
-[submodule "SessionServer/world"]
-	path = SessionServer/world
-	url = https://cornelissenja@bitbucket.org/imbclients/world-delphi.git
-	branch = master
-[submodule "SessionServer/imb"]
-	path = SessionServer/imb
-	url = https://cornelissenja@bitbucket.org/imbclients/imb-client-delphi.git
-	branch = master
-[submodule "SessionServer/logger"]
-	path = SessionServer/logger
-	url = https://cornelissenja@bitbucket.org/imbclients/logger-delphi.git
 	branch = master
 [submodule "EcoDistrictDebugger/logger"]
 	path = EcoDistrictDebugger/logger
@@ -48,4 +33,8 @@
 [submodule "Publish/world"]
 	path = Publish/world
 	url = https://cornelissenja@bitbucket.org/imbclients/world-delphi.git
+	branch = master
+[submodule "Publish/publisher-core"]
+	path = Publish/publisher-core
+	url =  https://cornelissenja@bitbucket.org/imbclients/publisher-core.git
 	branch = master

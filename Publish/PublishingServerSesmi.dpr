@@ -1,4 +1,4 @@
-program PublishingServerEnsel;
+program PublishingServerSesmi;
 
 {$APPTYPE CONSOLE}
 
@@ -10,36 +10,17 @@ uses
   imb4,
   CommandQueue,
   TilerControl,
-  SessionServerLib, SessionServerDB,
-  SessionServerEnsel,
+  PublishServerLib,
+  PublishServerDB,
+  PublishServerSesmi,
   System.SysUtils;
 
 const
   RemoteHostSwitch = 'RemoteHost';
   RemotePortSwitch = 'RemotePort';
 
-{
-  sensors:
-
-  "468bedca-71e4-3771-99df-50f03c21352f"
-  "4ceb2566-59a0-44f7-8530-8d7e2e68ffd6"
-
-}
-
-{
-function ConsoleCtrlHandler(dwCtrlType: DWORD): Boolean; stdcall;
-begin
-  Result := False; // execute default handler
-  if Assigned(ModelControl) then
-  begin
-    Log.WriteLn('Received ctrl-c request', llWarning);
-    if not CommandLine.TestSwitch(FederationParameterName)
-    then ModelControl.DoStopModel;
-    ModelControl.SignalModelExit;
-    ModelControl.QuitApplicationEvent.SetEvent;
-  end;
-end;
-}
+  ExpertScenarioSwitch = 'ExpertScenario';
+  DefaultExpertScenario = '{00000000-0000-0000-0000-000000000000}';
 
 procedure HandleException(aConnection: TConnection; aException: Exception);
 begin
@@ -57,16 +38,16 @@ var
   imbConnection: TConnection;
   sessionModel: TSessionModel;
   tilerFQDN: string;
-  enselModule: TEnselModule;
+  SesmiModule: TSesmiModule;
 begin
-  enselModule := nil; // sentinel
+  SesmiModule := nil; // sentinel
   FileLogger.SetLogDef(AllLogLevels, [llsTime]);
   try
     try
       // todo: change to tls connection
       imbConnection := TSocketConnection.Create(
-        'PublishingServerEnsel', 12,
-        'EnSel2',
+        'PublishingServerSesmi', 12,
+        'ensel2',
         GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
       try
         imbConnection.onException := HandleException;
@@ -79,13 +60,13 @@ begin
 //          CreateSessionProject(sessionModel, '1234'{'rotterdam'}, 'Rotterdam dashboard', ptNWBLiveFeed, tilerFQDN, '', '',
 //            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters)); {todo: NWBLiveFeedProjectName}
 
-          // ensel module
-          enselModule := TEnselModule.Create(
+          // Sesmi module
+          SesmiModule := TSesmiModule.Create(
             sessionModel,
             imbConnection,
             tilerFQDN,
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), TGUID.Create(GetSetting(ExpertScenarioSwitch, DefaultExpertScenario)));
 
 
 
@@ -97,7 +78,7 @@ begin
               p: TProject;
             begin
               // find project with client
-              for p in enselModule.Projects.Values do
+              for p in SesmiModule.Projects.Values do
               begin
                 projectEventPrefix := p.ProjectEvent.eventName+'.';
                 if aString.StartsWith(projectEventPrefix) then
@@ -123,7 +104,7 @@ begin
 
         finally
           FinalizeCommandQueue();
-          enselModule.Free;
+          SesmiModule.Free;
           sessionModel.Free;
         end;
       finally

@@ -1,4 +1,4 @@
-unit SessionServerSvcMain;
+unit PublishServerSvcMain;
 
 interface
 
@@ -8,8 +8,8 @@ uses
   imb4,
   CommandQueue,
   TilerControl,
-  SessionServerLib, SessionServerDB,
-  SessionServerEcodistrict,
+  PublishServerLib, PublishServerDB,
+  PublishServerEcodistrict,
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.SvcMgr, Vcl.Dialogs;
 
 const

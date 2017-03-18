@@ -1,4 +1,4 @@
-unit SessionServerUS;
+unit PublishServerUS;
 
 interface
 
@@ -25,8 +25,8 @@ uses
   CommandQueue,
   TimerPool,
 
-  SessionServerLib,
-  SessionServerGIS,
+  PublishServerLib,
+  PublishServerGIS,
 
   Vcl.graphics, // TPicture
 
@@ -1487,12 +1487,12 @@ begin
     5,9: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
       begin
         // Left and right
-          value := FieldFloatValueOrNaN(aQuery.Fields[1]);
-          value2 := FieldFloatValueOrNaN(aQuery.Fields[2]);
-          texture := FieldFloatValueOrNaN(aQuery.Fields[3]);
-          texture2 := FieldFloatValueOrNaN(aQuery.Fields[4]);
-          if not Assigned(aObject) then
-          begin
+        value := FieldFloatValueOrNaN(aQuery.Fields[1]);
+        value2 := FieldFloatValueOrNaN(aQuery.Fields[2]);
+        texture := FieldFloatValueOrNaN(aQuery.Fields[3]);
+        texture2 := FieldFloatValueOrNaN(aQuery.Fields[4]);
+        if not Assigned(aObject) then
+        begin
           geometry := CreateWDGeometryFromSDOShape(aQuery, 'SHAPE');
           projectGeometry(geometry, fSourceProjection);
           Result := TUSRoadICLR.Create(Self, oid, geometry, value, value2, texture, texture2);
@@ -2369,7 +2369,7 @@ begin
     aTilerFQDN, aTilerStatusURL,
     aDBConnection,
     0, False, False, False, False, addBasicLayers, '', '',
-    aMaxNearestObjectDistanceInMeters);
+    aMaxNearestObjectDistanceInMeters, mapView, nil, nil);
 end;
 
 destructor TUSProject.Destroy;

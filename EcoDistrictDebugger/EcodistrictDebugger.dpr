@@ -7,8 +7,9 @@ program EcodistrictDebugger;
 uses
   Logger, LogConsole, LogFile,
   imb4,
-  //System.JSON,
-  SuperObject,
+  System.JSON,
+  Rest.JSON,
+  //SuperObject,
   System.Classes, System.SysUtils;
 
 procedure HandleException(aConnection: TConnection; aException: Exception);
@@ -32,40 +33,40 @@ begin
       var
         lines: TStringList;
         l: Integer;
-        lJSON : ISuperObject;
+        //lJSON : ISuperObject;
+        jsonObject: TJSONObject;
         _type: string;
         _method: string;
         _eventId: string;
       begin
         try
-          lJSON := SO(aString);
+          jsonObject := TJSONObject.Create;
           try
-            _type := lJSON.S['type'];
-          except
-            _type := '##';
-          end;
-          try
-            _method := lJSON.S['method'];
-          except
-            _method := '##';
-          end;
-          try
-            _eventId:= lJSON.S['eventId'];
-            if _eventId<>''
-            then Subscribe(aConnection, _eventId);
-          except
-            _eventId:= '';
-          end;
-          Log.WriteLn('on '+aEventName+': '+_type+', '+_method, llNormal, 0);
-          lines := TStringList.Create;
-          try
-            lines.Text := lJSON.AsJSon(True);
-            for l := 0 to lines.Count-1 do
+            jsonObject := TJSONObject.ParseJSONValue(aString) as TJSONObject;
+            //lJSON := SO(aString);
+            if not jsonObject.TryGetValue<string>('type', _type)
+            then _type := '##';
+            if not jsonObject.TryGetValue<string>('method', _method)
+            then _method := '##';
+            if jsonObject.TryGetValue<string>('eventId', _eventId) then
             begin
-              Log.WriteLn(lines[l], llDump, 1);
+              if _eventId<>''
+              then Subscribe(aConnection, _eventId);
+            end
+            else _eventId:= '';
+            Log.WriteLn('on '+aEventName+': '+_type+', '+_method, llNormal, 0);
+            lines := TStringList.Create;
+            try
+              lines.Text := REST.JSON.TJson.Format(jsonObject);
+              for l := 0 to lines.Count-1 do
+              begin
+                Log.WriteLn(lines[l], llDump, 1);
+              end;
+            finally
+              lines.Free;
             end;
           finally
-            lines.Free;
+            jsonObject.Free;
           end;
         except
           on e: Exception

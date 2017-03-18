@@ -1,8 +1,8 @@
-program SessionServerSvc;
+program PublishServerSvc;
 
 uses
   Vcl.SvcMgr,
-  SessionServerSvcMain in 'SessionServerSvcMain.pas' {PublishingServer: TService};
+  PublishServerSvcMain in 'PublishServerSvcMain.pas' {PublishingServer: TService};
 
 {$R *.RES}
 
