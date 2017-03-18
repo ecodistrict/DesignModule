@@ -356,6 +356,9 @@ var wsLookup = {
     context: function (payload) {
         ContextManager.contextMessage(payload);
     },
+    resetcontext: function (payload) {
+        ContextManager.resetContextMenu();
+    },
     openformdialog: function (payload) {
         DataManager.formDialogID = payload.id; //can override, but there can only be 1 dialog
         openFormDialog(payload.title, payload.data);

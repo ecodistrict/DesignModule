@@ -101,6 +101,12 @@ L.Control.Arrow = L.Control.extend({
         if (DataManager.wind.time && DataManager.wind.direction && DataManager.wind.speed)
             DataManager.wind.rotate(DataManager.wind.direction, DataManager.wind.speed, DataManager.wind.time);
         L.DomUtil.addClass(DataManager.wind.arrow, 'windArrowLive');
+        wsSend({
+            type: 'windData',
+            payload: {
+                live: true
+            }
+        });
     },
 
     _windDirectionDivMouseDown: function (e) {
