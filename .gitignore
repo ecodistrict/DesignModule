@@ -1,3 +1,4 @@
+# delphi 
 # delphi files
 *.dcu
 *.exe
@@ -15,6 +16,8 @@ __history
 Win32
 Win64
 
+# vs
+.vs
 
 # svn repositories
 .svn
