@@ -486,6 +486,8 @@ DataManager = {
             DataManager.wind = L.control.arrow();
             map.addControl(DataManager.wind);
         }
+        else if (!DataManager.wind.active)
+            map.addControl(DataManager.wind);
         DataManager.wind.NewData(aData);
     },
 

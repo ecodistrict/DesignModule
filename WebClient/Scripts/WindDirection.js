@@ -9,6 +9,7 @@ L.Control.Arrow = L.Control.extend({
     rotating: false,
     dragging: false,
     live: true,
+    active: false,
 
 
     options: {
@@ -23,6 +24,7 @@ L.Control.Arrow = L.Control.extend({
     },
 
     onAdd: function (map) {
+        this.active = true;
         this._initLayout();
         this._map = map;
         this._update();
@@ -30,6 +32,7 @@ L.Control.Arrow = L.Control.extend({
     },
 
     onRemove: function () {
+        this.active = false;
     },
 
     _initLayout: function () {
@@ -64,10 +67,10 @@ L.Control.Arrow = L.Control.extend({
         windDirectionDiv.addEventListener('contextmenu', this._windRightClick);
         this._windDiv = windDirectionDiv;
 
-        var moveDiv = L.DomUtil.create('div', 'windMoveDiv');
-        windDirectionDiv.appendChild(moveDiv);
-        moveDiv.style.width = this.moveWidth + 'px';
-        moveDiv.style.height = this.moveHeight + 'px';
+        //var moveDiv = L.DomUtil.create('div', 'windMoveDiv');
+        //windDirectionDiv.appendChild(moveDiv);
+        //moveDiv.style.width = this.moveWidth + 'px';
+        //moveDiv.style.height = this.moveHeight + 'px';
 
         var north = windDirectionDiv.appendChild(L.DomUtil.create('div', "north"));
         north.innerHTML = 'N';
@@ -86,7 +89,6 @@ L.Control.Arrow = L.Control.extend({
         arrow.id = "windArrow";
         L.DomUtil.addClass(arrow, 'windArrowLive');
         arrow.src = "Content/images/arrow_wind.png";
-
     },
 
     _windRightClick: function (e) {
@@ -99,6 +101,12 @@ L.Control.Arrow = L.Control.extend({
         if (DataManager.wind.time && DataManager.wind.direction && DataManager.wind.speed)
             DataManager.wind.rotate(DataManager.wind.direction, DataManager.wind.speed, DataManager.wind.time);
         L.DomUtil.addClass(DataManager.wind.arrow, 'windArrowLive');
+        wsSend({
+            type: 'windData',
+            payload: {
+                live: true
+            }
+        });
     },
 
     _windDirectionDivMouseDown: function (e) {
@@ -148,8 +156,6 @@ L.Control.Arrow = L.Control.extend({
                 window.addEventListener("mouseup", DataManager.wind._directionEnd);
             }
         }
-
-
     },
 
     _dragMove: function(e)
@@ -203,6 +209,16 @@ L.Control.Arrow = L.Control.extend({
         var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
         DataManager.wind.rotate(data.direction, data.speed, date);
 
+        wsSend({
+                type: 'windData',
+                payload: {
+                    direction: data.direction,
+                    speed: data.speed
+                }
+            });
+
+
+
         //todo: send wsSend to server!
     },
 
@@ -248,7 +264,7 @@ L.Control.Arrow = L.Control.extend({
 
         return {
             direction: direction,
-            speed: (Math.pow(Math.min(length, center.X), 3) / Math.pow(center.X, 3)) * this.maxSpeed
+            speed: (Math.pow(Math.min(length, center.X), 2.5) / Math.pow(center.X, 2.5)) * this.maxSpeed
         }
     },
 
@@ -270,13 +286,15 @@ L.Control.Arrow = L.Control.extend({
         if (typeof data.time !== 'undefined')
             this.time = data.time;
 
+        if (!DataManager.wind.live && data.live)
+            DataManager.wind.GoLive();
+
         if (DataManager.wind.live && changed)
             this.rotate(this.direction, this.speed, data.time);
         wind = this;
-
     }),
 
-    rotate: function (degrees, speed, time) {
+    rotate: function (degrees, speed) {
         degrees = Math.round(degrees * 100) / 100;
         speed = Math.round(speed * 100) / 100;
         if (degrees >= 270 || degrees <= 90) {
@@ -289,11 +307,7 @@ L.Control.Arrow = L.Control.extend({
         arrow.style.transform = "rotate(" + (degrees + 90) + "deg)";
         arrow.style.webkitTransform = "rotate(" + (degrees + 90) + "deg)";
 
-
-        var displayTime = DataManager.GetDisplayTime(time);
-        this.text.innerHTML = displayTime + "<BR>" + degrees + '&deg;' + "<BR>" + speed + 'm/s';
-
-
+        this.text.innerHTML = degrees + '&deg;' + "<BR>" + speed + ' m/s';
     },
 
     loopedRotate: function () {
@@ -306,7 +320,6 @@ L.Control.Arrow = L.Control.extend({
         var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
 
         DataManager.wind.NewData({ direction: deg, speed: speed, time: date });
-        //DataManager.wind.rotate(deg, speed, date);
         setTimeout(DataManager.wind.loopedRotate, delay);
     }
 })

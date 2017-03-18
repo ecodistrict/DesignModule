@@ -461,11 +461,20 @@ function addSelectControl() {
     L.DomEvent.disableClickPropagation(selectByQueryButton);
     selectControl._container.children[0].children[0].appendChild(selectByQueryButton);
     canSelect = true;
+    if (typeof DataManager.selectContextItem == 'undefined' || DataManager.selectContextItem == null)
+        DataManager.selectContextItem = map.contextmenu.addItem({
+        text: 'Deselect objects',
+        callback: handleObjectsDeselect
+        });
 }
 
 function removeSelectControl() {
     map.removeControl(selectControl);
     canSelect = false;
+    if (DataManager.selectContextItem) {
+        map.contextmenu.removeItem(DataManager.selectContextItem);
+        DataManager.selectContextItem = null;
+    }
 }
 
 function signalSelectByQuery(aQuery) {

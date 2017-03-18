@@ -200,12 +200,13 @@ var wsLookup = {
         //}
         if (typeof payload.simulationSetup !== "undefined") {
             if (payload.simulationSetup) {
-                DataManager.simulationSetupData = payload.simulationSetup.data;
+                if (typeof payload.simulationSetup.data !== 'undefined')
+                    DataManager.simulationSetupData = payload.simulationSetup.data;
                 map.addControl(simulationControl);
                 InfoTextControl['leaflet-control-simulation'] = { description: 'Click here to config or edit a simulation', active: true, iconPosition: 'left' };
             }
             else {
-                DataManager.simulationSetupData = null;
+                //DataManager.simulationSetupData = null;
                 map.removeControl(simulationControl);
                 InfoTextControl['leaflet-control-simulation'] = { active: false };
             }
@@ -233,7 +234,7 @@ var wsLookup = {
                 InfoTextControl['leaflet-control-simclose'] = { active: false };
             }
         }
-
+        
         if (typeof payload.startstopControlEnabled !== "undefined") {
             if (payload.startstopControlEnabled) {
                 map.addControl(startControl);
@@ -270,7 +271,7 @@ var wsLookup = {
     connection: function (payload) {
         // connection specific, from ws2imb
         if (payload.message)
-            AddErrorMessage(payload.message, payload.messageType);
+          AddErrorMessage(payload.message, payload.messageType, payload.messageTimeOut);
 
     },
     sensor: function (payload) {
@@ -331,7 +332,7 @@ var wsLookup = {
 
         if (typeof payload.speed !== "undefined") {
             DataManager.simSpeed = payload.speed;
-            AddErrorMessage("Simulation speed changed to: " + payload.speed);
+            AddErrorMessage("Simulation speed changed to: " + payload.speed, "succes", 5000);
         }
     },
     ccv: function (payload) {
@@ -351,6 +352,16 @@ var wsLookup = {
     },
     modelcontrol: function (payload) {
         DataManager.modelControl.HandleMessages(payload);
+    },
+    context: function (payload) {
+        ContextManager.contextMessage(payload);
+    },
+    resetcontext: function (payload) {
+        ContextManager.resetContextMenu();
+    },
+    openformdialog: function (payload) {
+        DataManager.formDialogID = payload.id; //can override, but there can only be 1 dialog
+        openFormDialog(payload.title, payload.data);
     }
 };
 
