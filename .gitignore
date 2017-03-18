@@ -1,0 +1,31 @@
+# delphi files
+*.dcu
+*.exe
+*.stat
+*.dll
+*.rsm
+*.local
+*.dsk
+*.identcache
+*.~*
+*.tvsconfig
+
+# delphi folders
+__history
+Win32
+Win64
+
+
+# svn repositories
+.svn
+
+/Publish/avl
+/Publish/delaunay
+/Publish/imb3
+/Publish/mc
+/Publish/odac
+/Publish/oracleTools
+/Publish/tatukGIS
+
+/TilerServer/FMX.Canvas.D2D.my.pas
+/TilerServer/FMX.Canvas.D2D.my10_1.pas

@@ -1,0 +1,24 @@
+Publish
+	avl		https://tf.tno.nl/svn/repos/urban_strategy/trunk/Common/AVL
+
+	delaunay	https://tf.tno.nl/svn/repos/urban_strategy/trunk/Common/Delaunay
+
+	imb3		https://tf.tno.nl/svn/repos/imb_core/trunk/src/delphi/client/imb
+
+	mc		https://tf.tno.nl/svn/repos/urban_strategy/trunk/Common/ModelController/Delphi
+
+	odac		https://tf.tno.nl/svn/repos/delphi_third_party_svn/Devart/ODAC/9.1.4/Source
+
+	oracletools	https://tf.tno.nl/svn/repos/urban_strategy/trunk/Common/OracleTools
+
+
+	tatukgis
+		lib	https://tf.tno.nl/svn/repos/urban_strategy/thirdparty/TatukGIS/DK_10_46_0_15567/Lib
+
+		libsrc	https://tf.tno.nl/svn/repos/urban_strategy/thirdparty/TatukGIS/DK_10_46_0_15567/LibSrc
+
+
+TilerServer: fixed delphi files, see source
+	FMX.Canvas.D2D.my.pas		delphi 10
+	FMX.Canvas.D2D.my10_1.pas	delphi 10.1
+	
