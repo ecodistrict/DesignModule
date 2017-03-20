@@ -523,5 +523,4 @@ function simulationDialogApply() {
         wsSend(sessionRequest);
         modalDialogClose();
     }
-
 }

@@ -362,6 +362,9 @@ var wsLookup = {
     openformdialog: function (payload) {
         DataManager.formDialogID = payload.id; //can override, but there can only be 1 dialog
         openFormDialog(payload.title, payload.data);
+    },
+    timerangeslider: function (payload) {
+        DataManager.NewRangeTimeSliderData(payload);
     }
 };
 
