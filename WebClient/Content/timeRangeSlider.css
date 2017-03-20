@@ -1,0 +1,13 @@
+﻿.leaflet-control-timeRangeSlider {
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 5px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  animation-duration: 10s;
+  /*top: -30px;*/
+}
+
+.windDirectionDiv {
+  padding:5px;
+  position:relative;
+}
+

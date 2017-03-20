@@ -967,7 +967,7 @@ LayerManager.GeoJSONLayer = function (layer, detailsLayer, crd) {
         if (leafletlayer)
             map.removeLayer(leafletlayer);
 
-        this.maplayer = L.geoJson(layer.objects ? layer.objects.features : [], {
+        this.maplayer = L.geoJson(this.geoJSON ? this.geoJSON.features : [], {
             opacity: this.detailsLayer.opacity,
             style: this.getStyle.bind(this)
         }).addTo(map);
