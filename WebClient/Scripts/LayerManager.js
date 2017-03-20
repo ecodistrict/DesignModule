@@ -88,11 +88,16 @@ var LayerManager = {
     },
 
     SetNextLegend: function () {
-        if (LayerManager._visibleLayers.length > 0) {
-            LayerManager._visibleLayers[0].setLegend();
-        }
-        else
-            legendControl.clearLegend();
+        //if (LayerManager._visibleLayers.length > 0) {
+        //    LayerManager._visibleLayers[0].setLegend();
+        //}
+        //else
+        //    legendControl.clearLegend();
+
+        for (var i = 0; i < LayerManager._visibleLayers.length; i++)
+            if (LayerManager._visibleLayers[i].setLegend())
+                return;
+        legendControl.clearLegend();
     },
 
     SetNextCRD: function () {
@@ -596,8 +601,8 @@ LayerManager.DetailsLayer = function (data) {
 
     this.setLegend = function () {
         if (!this.showing)
-            return;
-        this.showing.showLegend();
+            return false;
+        return this.showing.showLegend();
     };
 
     this.onClick = function (e) {
@@ -625,8 +630,9 @@ LayerManager.DetailsLayer = function (data) {
                     LayerManager.ClearVisibleLayers(layer.displayGroup);
                 layer.addDisplayLayer(opacity);
                 layer.setCRD();
-                if (LayerManager._visibleLayers.length == 1)
-                    layer.setLegend();
+                //if (LayerManager._visibleLayers.length == 1)
+                //    layer.setLegend();
+                LayerManager.SetNextLegend();
             }
 
         }
@@ -725,10 +731,13 @@ LayerManager.BaseLayer = function (layer, detailsLayer, crd) {
     this.type = layer.type;
 
     this.showLegend = function () {
-        if (!this.legend)
+        if (!this.legend) {
             legendControl.clearLegend(false, this.detailsLayer.id);
+            return false;
+        }
         else {
             legendControl.createLegend(this.legend, this.detailsLayer.id);
+            return true;
         }
     };
 
@@ -913,6 +922,8 @@ LayerManager.MarkerLayer = function (layer, detailsLayer, crd) {
             return;
         }
         this.objects[object.id] = new LayerManager.Marker(object, this.maplayer, this);
+        if (this.detailsLayer.showing == this)
+            this.objects[object.id].marker.addTo(this.maplayer);
     };
 
     // add markers
@@ -934,7 +945,8 @@ LayerManager.MarkerLayer = function (layer, detailsLayer, crd) {
         this.maplayer.type = "marker";
 
         for (var o in this.objects) {
-            this.maplayer.addLayer(this.objects[o].marker);
+            this.objects[o].layergroup = this.maplayer;
+            this.objects[o].marker.addTo(this.maplayer);
         }
 
         return this.maplayer;
@@ -984,8 +996,8 @@ LayerManager.GeoJSONLayer = function (layer, detailsLayer, crd) {
     };
 
     this.updateData = function (payload) {
-        if (payload.objects) {
-            this.geoJSON = payload.objects;
+        if (payload.data && payload.data.objects) {
+            this.geoJSON = payload.data.objects;
             if (this.maplayer)
                 this.showLayer(this.maplayer);
         }
@@ -1073,7 +1085,7 @@ LayerManager.SwitchLayer = function (layer, detailsLayer, crd) {
 
     this.showLegend = function () {
         if (this.showing)
-            this.showing.showLegend();
+            return this.showing.showLegend();
     };
 
     this.getPreview = function () {
