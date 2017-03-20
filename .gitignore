@@ -18,6 +18,11 @@ Win64
 
 # vs
 .vs
+.vscode
+bin
+obj
+App_Data
+
 
 # svn repositories
 .svn
@@ -26,6 +31,7 @@ Win64
 /Publish/delaunay
 /Publish/imb3
 /Publish/mc
+/Publish/us
 /Publish/odac
 /Publish/oracleTools
 /Publish/tatukGIS
