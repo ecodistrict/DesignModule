@@ -480,7 +480,7 @@ DataManager = {
     },
 
     NewRangeTimeSliderData: function (aData) {
-        if (DataManager.rangeTimeSlider == null) {
+        if (DataManager.timeRangeSlider == null) {
             DataManager.timeRangeSlider = new L.Control.TimeRangeSlider();
             map.addControl(DataManager.timeRangeSlider);
         }
