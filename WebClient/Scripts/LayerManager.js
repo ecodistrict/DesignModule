@@ -376,6 +376,8 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
         riseOffset: data.riseOffset ? data.riseOffset : 250
     };
 
+    this.markerlayer = markerlayer;
+
     this.marker = L.marker(this.latlng, this.style);
 
     if (data.draggable) {
@@ -394,6 +396,37 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
             wsSend(message);
             //console.debug("dragged");
         });
+    }
+
+    //data.popup = {
+    //    options: [
+    //        { text: "click1", tag: "1" },
+    //        { text: "click2", tag: "2" },
+    //        { text: "click3", tag: "3" },
+    //    ]
+    //};
+    if (data.popup && data.popup.options) {
+        this.popupDiv = L.DomUtil.create('div', 'markerPopupDiv');
+        for (var i = 0; i < data.popup.options.length; i++)
+        {
+            var tag = data.popup.options[i].tag;
+            var itemDiv = L.DomUtil.create('div', 'markerPopupItem');
+            itemDiv.addEventListener('click', (function (e) {
+                wsSend({
+                    type: "updatelayerobject",
+                    payload: {
+                        layerid: this.marker.options.layer.id,
+                        objectid: this.marker.options.id,
+                        popupclick: this.tag
+                    }
+                });
+                console.log("layerid: " + this.marker.options.layer.id + ", objectid: " + this.marker.id + ", tag: " + this.tag);
+                this.marker.closePopup();
+            }).bind({marker: this.marker, tag: data.popup.options[i].tag}));
+            itemDiv.innerText = data.popup.options[i].text;
+            this.popupDiv.appendChild(itemDiv);
+        }
+        this.marker.bindPopup(this.popupDiv);
     }
 
     // todo: marker.move = 
