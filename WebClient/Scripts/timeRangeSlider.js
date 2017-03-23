@@ -55,7 +55,7 @@
     containerRightClick: function (e) {
         e.preventDefault(); //prevent showing of contextmenu since we use right-mouse for something else
         e.stopPropagation();
-        DataManager.rangeTimeSlider.goLive();
+        DataManager.timeRangeSlider.goLive();
     },
 
     goLive: function () {
