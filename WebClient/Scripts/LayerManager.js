@@ -376,6 +376,35 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
         riseOffset: data.riseOffset ? data.riseOffset : 250
     };
 
+    if (data.contextmenu && data.contextmenu.items.length > 0)
+    {
+        var itemsArray = [];
+        if (data.contextmenu.contextmenuinherititems) {
+            itemsArray.push({
+                separator: true,
+                index: 0
+            });
+        }
+        for (var i = data.contextmenu.items.length - 1; i >= 0; i--)
+        {
+            itemsArray.push({
+                text: data.contextmenu.items[i].text, index: 0, callback: (function () {
+                    wsSend({
+                        type: "updatelayerobject",
+                        payload: {
+                            layerid: this.object.marker.options.layer.id,
+                            objectid: this.object.marker.options.id,
+                            contextmenuclick: this.tag
+                        }
+                    });
+                }).bind({ object: this, tag: data.contextmenu.items[i].tag })
+            })
+        }
+        this.style.contextmenu = true;
+        this.style.contextmenuItems = itemsArray;
+        this.style.contextmenuInheritItems = data.contextmenu.contextmenuinherititems ? true : false;
+    }
+
     this.markerlayer = markerlayer;
 
     this.marker = L.marker(this.latlng, this.style);
@@ -420,7 +449,6 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
                         popupclick: this.tag
                     }
                 });
-                console.log("layerid: " + this.marker.options.layer.id + ", objectid: " + this.marker.id + ", tag: " + this.tag);
                 this.marker.closePopup();
             }).bind({marker: this.marker, tag: data.popup.options[i].tag}));
             itemDiv.innerText = data.popup.options[i].text;

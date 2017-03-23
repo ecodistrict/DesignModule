@@ -62,7 +62,7 @@
         this.live = true;
         this._slider.set(this.liveTime);
         wsSend({
-            type: "rangetimeslider",
+            type: "timerangeslider",
             payload: { live: true }
         });
     },
