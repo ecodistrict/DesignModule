@@ -418,6 +418,18 @@ var GraphManager = {
         }
     },
 
+    ResetGraphs: function (dataArray) {
+        var graph;
+        for (var i = 0; i < dataArray.length; i++)
+        {
+            graph = GraphManager._getGraph(dataArray[i]);
+            if (graph.Reset)
+                graph.Reset();
+            else
+                console.log("Graph does not support Reset, id: " + dataArray[i]);
+        }
+    },
+
     RepositionGraphs: function () {
         for (var i = 0; i < GraphManager.alignedGraphs.length; i++)
             GraphManager.PositionGraph(GraphManager.alignedGraphs[i], i);

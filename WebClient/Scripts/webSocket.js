@@ -322,6 +322,9 @@ var wsLookup = {
     updategtustatistics: function (payload) {
         GraphManager.UpdateGraphs(payload);
     },
+    resetgraphs: function (payload) {
+        GraphManager.ResetGraphs(payload);
+    },
     simulationcontrol: function (payload) {
         if (typeof payload.start !== "undefined") {
             startControl.SimulationStarted();
