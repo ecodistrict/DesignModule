@@ -379,7 +379,7 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
     if (data.contextmenu && data.contextmenu.items.length > 0)
     {
         var itemsArray = [];
-        if (data.contextmenu.contextmenuInheritItems) {
+        if (data.contextmenu.contextmenuinherititems) {
             itemsArray.push({
                 separator: true,
                 index: 0
@@ -402,7 +402,7 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
         }
         this.style.contextmenu = true;
         this.style.contextmenuItems = itemsArray;
-        this.style.contextmenuInheritItems = data.contextmenu.contextmenuInheritItems ? true : false;
+        this.style.contextmenuInheritItems = data.contextmenu.contextmenuinherititems ? true : false;
     }
 
     this.markerlayer = markerlayer;
