@@ -296,7 +296,7 @@ begin
           '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration rate","idName":"penetration","extraOptions":[1, "%"]},'+
           '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"random seed","idName":"randomseed","extraOptions":[1, ""]},'+
           '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
-          TMapView.Create(51.64149, 5.4997, 9), 0,
+          TMapView.Create(51.787807, 5.3098297, 12), 0,
           'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde',
           'V6'); //todo: correct US-prefix
         sessionModel.Projects.Add(project);

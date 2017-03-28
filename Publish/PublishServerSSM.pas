@@ -84,6 +84,7 @@ type
     // new
     networkId: AnsiString;
     linkId: AnsiString;
+    currentLinkId: AnsiString;
     laneId: AnsiString;
     longitudinalPosition: Double;
     length: Double;
@@ -467,6 +468,8 @@ begin
   aPayload.Read(G);
   aPayload.Read(B);
 
+  currentLinkId := linkId;
+
   if aPayload.ReadAvailable>0
   then aPayload.Read(gtuType)
   else gtuType := 'unkown';
@@ -642,7 +645,7 @@ begin
   entries[0] := TRampPaletteEntry.Create(LowSpeedColor, 0, 'low');
   entries[1] := TRampPaletteEntry.Create(MediumSpeedColor, 11.1, 'medium'); // about 40 km/u
   entries[2] := TRampPaletteEntry.Create(HighSpeedColor, 22.2, 'high'); // about 80 km/u
-  fPalette := TRampPalette.Create('Link avagere speed', entries, LowSpeedColor, NoSpeedColor, HighSpeedColor);
+  fPalette := TRampPalette.Create('Link average speed', entries, LowSpeedColor, NoSpeedColor, HighSpeedColor);
   legendJSON := BuildRamplLegendJSON(fPalette as TRampPalette);
   fCarLayer := aCarLayer;
   // link
@@ -713,7 +716,12 @@ begin
           fCarLayer.objectsLock.BeginRead;
           try
             if fCarLayer.objects.TryGetValue(gtuId, lo) and (lo is TSSMCar)
-            then speed := (lo as TSSMCar).speed
+            then
+            begin
+              speed := (lo as TSSMCar).speed;
+              if isVehicleAdded then
+                (lo as TSSMCar).currentLinkId := linkId;
+            end
             else
             begin
               speed := double.NaN;
@@ -923,7 +931,7 @@ begin
           begin
             TMonitor.Enter(fLinkLayer.objects);
             try
-              if fLinkLayer.objects.TryGetValue(car.linkId, link) then
+              if fLinkLayer.objects.TryGetValue(car.currentlinkId, link) then
               begin
                 if link is TSSMLink
                 then (link as TSSMLink).ChangeGTU(oldSpeed, newSpeed)
@@ -1118,19 +1126,64 @@ begin
 end;
 
 function TSSMScenario.HandleClientSubscribe(aClient: TClient): Boolean;
+var
+  ssmMCControlInterface: TSSMMCControlInterface;
+  jsonNewModels: String;
+  model: TCIModelEntry2;
 begin
-   Result := inherited HandleClientSubscribe(aClient);
-   aClient.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0}}');
-   if running then
-      aClient.SignalString('{"simulationControl":{"speed":'+DoubleToJSON(fSpeed)+', "start": true}}')
-   else
-      aClient.signalString('{"simulationControl":{"stop": true}}');
+  Result := inherited HandleClientSubscribe(aClient);
+  aClient.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0}}');
+  if running then
+    aClient.SignalString('{"simulationControl":{"speed":'+DoubleToJSON(fSpeed)+', "start": true}}')
+  else
+    aClient.signalString('{"simulationControl":{"stop": true}}');
+
+  //send the model control information
+  ssmMCControlInterface := (project as TSSMProject).controlInterface;
+  ssmMCControlInterface.Lock.Acquire;
+  try
+    jsonNewModels := '';
+    for model in ssmMCControlInterface.Models do
+    begin
+      if model.IsThisSession(aClient.currentScenario.ID) then
+      begin
+        if jsonNewModels<>''
+          then jsonNewModels := jsonNewModels+',';
+        jsonNewModels := jsonNewModels+ssmMCControlInterface.jsonModelStatusNew(model.UID.ToString, model.ModelName, model.State.ToString, model.Progress)
+      end;
+    end;
+    aClient.signalString(ssmMCControlInterface.jsonModelStatusArray(jsonNewModels));
+  finally
+    ssmMCControlInterface.Lock.Release;
+  end;
 end;
 
 function TSSMScenario.HandleClientUnsubscribe(aClient: TClient): Boolean;
-
+var
+  ssmMCControlInterface: TSSMMCControlInterface;
+  jsonDeleteModels: String;
+  model: TCIModelEntry2;
 begin
-  Result := inherited
+  Result := inherited HandleClientUnsubscribe(aClient);
+
+  //delete the models of this scenario from the ModelControlInterface
+  ssmMCControlInterface := (project as TSSMProject).controlInterface;
+  ssmMCControlInterface.Lock.Acquire;
+  try
+    jsonDeleteModels := '';
+    for model in ssmMCControlInterface.Models do
+    begin
+      if model.IsThisSession(aClient.currentScenario.ID) then
+      begin
+        if jsonDeleteModels<>''
+          then jsonDeleteModels := jsonDeleteModels+',';
+        jsonDeleteModels := jsonDeleteModels+ssmMCControlInterface.jsonModelStatusDelete(model.UID.ToString);
+      end;
+    end;
+    aClient.signalString(ssmMCControlInterface.jsonModelStatusArray(jsonDeleteModels));
+  finally
+    ssmMCControlInterface.Lock.Release;
+  end;
 end;
 
 procedure TSSMScenario.HandleFirstSubscriber(aClient: TClient);
@@ -1886,8 +1939,6 @@ end;
 procedure TSSMProject.handleNewClient(aClient: TClient);
 var
   isp: TPair<string, TScenario>;
-  model: TCIModelEntry2;
-  jsonNewModels: string;
 begin
   if not Assigned(aClient.currentScenario) then
   begin
@@ -1910,23 +1961,7 @@ begin
       do Log.WriteLn('Exception in TSSMProject.handleNewClient: '+e.Message, llError);
     end;
   end;
-  // models state
-  fControlInterface.Lock.Acquire;
-  try
-    jsonNewModels := '';
-    for model in fControlInterface.Models do
-    begin
-      if model.IsThisSession(fControlInterface.Federation) then
-      begin
-        if jsonNewModels<>''
-        then jsonNewModels := jsonNewModels+',';
-        jsonNewModels := jsonNewModels+controlInterface.jsonModelStatusNew(model.UID.ToString, model.ModelName, model.State.ToString, model.Progress)
-      end;
-    end;
-    aClient.signalString(controlInterface.jsonModelStatusArray(jsonNewModels));
-  finally
-    fControlInterface.Lock.Release;
-  end;
+  // models state --> moved handling to scenario subscribe/unsubscribe
 end;
 
 procedure TSSMProject.handleRecordingsEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);

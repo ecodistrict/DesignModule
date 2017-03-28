@@ -38,12 +38,12 @@ const
 
   sensordata_pm10                  = 1441;              //tag 180
   sensordata_pm25                  = 1601;              //tag 200
-  sensordata_no2                   = 961;               //tag 240
+  sensordata_no2                   = 1921;               //tag 240
   sensordata_pm1                   = 2081;              //tag 260
   sensordata_nh3                   = 2241;              //tag 280
   sensordata_pnc                   = 2401;              //tag 300
   sensordata_nox                   = 2561;              //tag 320
-  sensordata_linkid                = 2880;              //tag 360
+  sensordata_linkid                = 2882;              //tag 360
 
   sensordata_pm10_total            = 1449;              //tag 181
   sensordata_pm25_total            = 1609;              //tag 201
@@ -179,12 +179,14 @@ type
   end;
 
   TSesmiLinkLayer = class(TLayer)
-  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart, aTotalChart: TChartLines);
   destructor Destroy; override;
   private
     valueList: TDictionary<Double, Double>;
     linkidList: TDictionary<Double, TWDID>;
     fPalette: TWDPalette;
+    fChart: TChartLines; //used to lock fChart and fTotalChart
+    fTotalChart: TChartLines;
     procedure ProcessMatch(const aTimeStamp, aValue: Double; aID: TWDID);
   protected
   public
@@ -239,7 +241,7 @@ type
     fLiveEventHandler: TOnEvent;
     procedure handleLiveEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleQueryEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-    procedure AddSesmiLinkLayer(const aKey: Integer; const aLayer: TSesmiLinkLayer);
+    procedure AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette: TWDPalette; const aLegendJSON: string);
   public
     procedure InquireDB(const aInquire: string; const aLowerTimestamp, aUpperTimestamp: Double);
     procedure ReadBasicData(); override;
@@ -327,9 +329,8 @@ begin
     TDiscretePaletteEntry.Create(TGeoColors.Create($Ffffff00), 30, 45, '30-45'),
     TDiscretePaletteEntry.Create(TGeoColors.Create($Ffff8000), 45, 60, '45-60'),
     TDiscretePaletteEntry.Create(TGeoColors.Create($Ffff0000), 60, 75, '60-75'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff8100c1), 75, 20000, '>75'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($FF000000), 20000, 40000, 'No Data')
-  ],TGeoColors.Create($FF000000));
+    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff8100c1), 75, 20000, '>75')
+  ],TGeoColors.Create($00000000)); //default: transparant
 end;
 
 function CreateNiekPalette(const aTitle: string): TWDPalette;
@@ -1014,17 +1015,32 @@ begin
       end;
 end;
 
-procedure TSesmiScenario.AddSesmiLinkLayer(const aKey: Integer; const aLayer: TSesmiLinkLayer);
+procedure TSesmiScenario.AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette: TWDPalette; const aLegendJSON: string);
+var
+  layer: TSesmiLinkLayer;
+  mobileChart, totalChart: TChartLines;
 begin
+  mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + aID, aName, aDescription, False, 'line',
+    TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+    [TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')]);
+  AddChart(mobileChart);
+
+  totalChart := TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + aID + 'total', aName + '-total', aDescription + ' Total', False, 'line',
+    TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+    [TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')]);
+  AddChart(totalChart);
+
+  layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'personal-' + aName, 'Personal ' + aName, aName, False, True, aPalette, BuildLegendJSON(aPalette), mobilechart, totalChart);
   TMonitor.Enter(fLinkLayers);
   try
     begin
-      fLinkLayers.AddOrSetValue(aKey, aLayer);
+      fLinkLayers.AddOrSetValue(aKey, layer);
     end
   finally
     TMonitor.Exit(fLinkLayers);
   end;
-  AddLayer(aLayer);
+  AddLayer(layer);
+  layer.RegisterLayer;
 end;
 
 constructor TSesmiScenario.Create(aProject: TProject; const aID, aName,
@@ -1084,9 +1100,52 @@ end;
 
 procedure TSesmiScenario.handleLiveEvent(aEventEntry: TEventEntry;
   const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+var
+  layer: TSesmiLinkLayer;
+  fieldInfo: UInt32;
+  value, timestamp: Double;
+  id: TWDID;
+  sensorid: TGUID;
 begin
-  if Live then
-    handleQueryEvent(aEventEntry, aPayload, aCursor, aLimit);
+  if not Live then
+    exit;
+  timestamp := 0;
+  sensorid := TGUID.Empty;
+  while aCursor<aLimit do
+  begin
+    fieldInfo := aPayload.bb_read_uint32(aCursor);
+    case fieldInfo of
+    wdatTimeStamp:
+    begin
+      timestamp := aPayload.bb_read_double(aCursor);
+    end;
+    (icehObjectID shl 3) or wtLengthDelimited:
+    begin
+      sensorid := aPayload.bb_read_guid(aCursor);
+      if (fGUID <> (project as TSesmiProject).ExpertScenarioGUID) and (fGUID <> sensorid)  then //filter: only accept live events that match our id
+       exit; //todo: mag dit, of moeten we de buffer leeg lezen? Wordt id altijd verstuurd voor de data?
+    end;
+    sensordata_no2, sensordata_pm10, sensordata_pm25:
+    begin
+      value := aPayload.bb_read_double(aCursor);
+      if fLinkLayers.TryGetValue(fieldInfo, layer) then
+        layer.AddValue(timestamp, value);
+    end;
+    sensordata_linkid:
+    begin
+      id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
+      TMonitor.Enter(fLinkLayers);
+      try
+        for layer in fLinkLayers.Values do
+          layer.AddLinkID(timestamp, id);
+      finally
+        TMonitor.Exit(fLinkLayers);
+      end;
+    end;
+    else
+      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
+    end;
+  end;
 end;
 
 procedure TSesmiScenario.handleQueryEvent(aEventEntry: TEventEntry;
@@ -1102,25 +1161,17 @@ begin
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
     case fieldInfo of
-    wdatTimeStamp shl 3 or wt64Bit:
+    wdatTimeStamp:
     begin
       timestamp := aPayload.bb_read_double(aCursor);
     end;
-    sensordata_no2 or wt64Bit:
+    sensordata_no2, sensordata_pm10, sensordata_pm25:
     begin
       value := aPayload.bb_read_double(aCursor);
-      if fLinkLayers.TryGetValue(sensordata_no2, layer) then
+      if fLinkLayers.TryGetValue(fieldInfo, layer) then
         layer.AddValue(timestamp, value);
     end;
-    sensordata_pm10 or wt64Bit:
-    begin
-      value := aPayload.bb_read_double(aCursor);
-    end;
-    sensordata_pm25 or wt64Bit:
-    begin
-      value := aPayload.bb_read_double(aCursor);
-    end;
-    sensordata_linkid or wtLengthDelimited:
+    sensordata_linkid:
     begin
       id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
       TMonitor.Enter(fLinkLayers);
@@ -1147,18 +1198,17 @@ begin
     fqueryEvent.OnEvent.Remove(fQueryEventHandler);
     project.Connection.unSubscribe(fQueryEvent);
   end;
-
   //subscribe to the returnEvent
   returnString := ID + '-' + fQueryCounter.ToString();
   fQueryCounter := fQueryCounter+1;
   fQueryEvent := project.Connection.subscribe(returnString, False);
   fQueryEvent.OnEvent.Add(fQueryEventHandler);
   fQuerySubscribed := True;
-  if (fProject is TSesmiProject) and (fGUID = (fProject as TSesmiProject).ExpertScenarioGUID) then //check expertscenario
-    buffer := TByteBuffer.bb_tag_guid(icehObjectID, fGUID.Empty)
-  else if fGUID <> TGUID.Empty then //check if's not the empty GUID
+  if (fProject is TSesmiProject) and (fGUID = (fProject as TSesmiProject).ExpertScenarioGUID) then
+    buffer := TByteBuffer.bb_tag_guid(icehObjectID, fGUID.Empty) //expert scenario, send empty guid to access all data
+  else if fGUID <> TGUID.Empty then //check if's not the empty guid
     buffer := TByteBuffer.bb_tag_guid(icehObjectID, fGUID)
-  else //static non-empty Guid, prevents people using the empty guid to access all data
+  else //constant non-empty Guid, prevents people using the empty guid to access all data
     buffer := TByteBuffer.bb_tag_guid(icehObjectID, TGUID.Create('{00000000-0000-0000-0000-000000000001}'));
   buffer := buffer + TByteBuffer.bb_tag_double(wDatTimeStampLower shr 3, aLowerTimeStamp);
   buffer := buffer + TByteBuffer.bb_tag_double(wDatTimeStampUpper shr 3, aUpperTimeStamp);
@@ -1170,8 +1220,6 @@ end;
 procedure TSesmiScenario.ReadBasicData;
 var
   palette: TWDPalette;
-  layer: TSesmiLinkLayer;
-  mobileChart: TChartLines;
 begin
 
   // Group exposure
@@ -1196,18 +1244,22 @@ begin
     sensordata_assim_pm10_total, 'receptordata', palette, BuildLegendJSON(palette));
 
   // Personal exposure
-  mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts', 'Mobile sensors', '', False, 'line',
-
-    TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-    [TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')]);
-
-  AddChart(mobileChart);
+//  mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts', 'Mobile sensors', '', False, 'line',
+//    TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+//    [TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')]);
+//
+//  AddChart(mobileChart);
 
   palette := CreateHansPalette('NO2');
-  layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'personal-no2', 'Personal NO2', 'NO2', False, True, palette, BuildLegendJSON(palette), mobilechart);
-  fLinkLayers.Add(sensordata_no2, layer);
-  AddLayer(layer);
-  layer.RegisterLayer;
+  AddSesmiLinkLayer(sensordata_no2, 'Personal exposure', 'NO2', 'NO2', 'Personal NO2', palette, BuildLegendJSON(palette));
+  palette := CreateHansPalette('PM10');
+  AddSesmiLinkLayer(sensordata_pm10, 'Personal exposure', 'PM10', 'PM10', 'Personal PM10', palette, BuildLegendJSON(palette));
+  palette := CreateHansPalette('PM25');
+  AddSesmiLinkLayer(sensordata_pm25, 'Personal exposure', 'PM25', 'PM25', 'Personal PM25', palette, BuildLegendJSON(palette));
+//  layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'personal-no2', 'Personal NO2', 'NO2', False, True, palette, BuildLegendJSON(palette), mobilechart);
+//  fLinkLayers.Add(sensordata_no2, layer);
+//  AddLayer(layer);
+//  layer.RegisterLayer;
 end;
 
 procedure TSesmiScenario.Reset;
@@ -1243,6 +1295,7 @@ begin
   mapView := aMapView;
   //fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   fSourceProjection := nil;
+  fExpertScenarioGUID := aExpertScenarioGUID;
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
     aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled,
@@ -1298,7 +1351,8 @@ var
   buffer: TByteBuffer;
   returnEventName: string;
 begin
-  returnEventName := TGuid.NewGuid.ToString + '.networkInquire';
+  //returnEventName := TGuid.NewGuid.ToString + '.networkInquire';
+  returnEventName := 'EnSel2.geometry_roads';
   fNetworkEvent := fConnection.subscribe(returnEventName, False);
   fNetworkEvent.OnEvent.Add(HandleNetworkEvent);
   buffer := TByteBuffer.bb_tag_double(wDatTimeStampLower shr 3, -1.5);
@@ -1480,7 +1534,7 @@ begin
               queryString := queryString + ' OR ';
             queryString := queryString + 'ts - floor(ts) < ' + toHour.ToString(formatSettings) + ')';
           end;
-          (aClient.currentScenario as TSesmiScenario).InquireDB(queryString, fromDate, toDate);
+          (aClient.currentScenario as TSesmiScenario).GoDB(queryString, fromDate, toDate);
         end;
       end;
     end;
@@ -1494,6 +1548,7 @@ var
   guid: TGUID;
   scenario: Tscenario;
   fieldInfo: UInt32;
+  len: UInt64;
 begin
   guid := TGUID.Empty;
   while aCursor<aLimit do
@@ -1503,12 +1558,15 @@ begin
     (icehTilerGeometry shl 3) or wtLengthDelimited:
     begin
       geometry := TWDGeometry.Create;
-      geometry.Decode(aPayload, aCursor, aLimit);
+      len := aPayload.bb_read_uint64(aCursor);
+      geometry.Decode(aPayload, aCursor, aCursor + len);
       TMonitor.Enter(scenarios);
       try
+      begin
         for scenario in scenarios.Values do
           if scenario is TSesmiScenario then
             (scenario as TSesmiScenario).AddLink(guid, geometry);
+      end;
       finally
         TMonitor.Exit(scenarios);
       end;
@@ -1815,6 +1873,8 @@ end;
 procedure TSesmiLinkLayer.AddValue(const aTimeStamp, aValue: Double);
 var
   linkID: TWDID;
+  lastValue: TChartValue;
+  average, delta, total: Double;
 begin
   //check if we can make a match
   if linkidList.ContainsKey(aTimeStamp) then //match
@@ -1827,17 +1887,39 @@ begin
   begin
     valueList.AddOrSetValue(aTimeStamp, aValue);
   end;
+
+  //always add value to charts
+  TMonitor.Enter(fChart);
+  try
+    if fChart.values.Count > 0 then
+    begin
+      lastValue := fChart.values[fChart.values.Count - 1];
+      average := (aValue + lastValue.y[0]) / 2;
+      delta := aTimeStamp - lastValue.x;
+      total := average * delta * 24 * 60;
+      if fTotalChart.values.Count > 0 then
+        total := total + fTotalChart.values[fTotalChart.values.Count -1].y[0];
+      fTotalChart.AddValue(aTimeStamp, [total]);
+    end;
+    fChart.AddValue(aTimeStamp, [aValue])
+  finally
+    TMonitor.Exit(fChart);
+  end;
+
+
 end;
 
 constructor TSesmiLinkLayer.Create(aScenario: TScenario; const aDomain, aID,
   aName, aDescription: string; aDefaultLoad, aShowInDomains: Boolean;
-  aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
+  aPalette: TWDPalette; aLegendJSON: string; aChart, aTotalChart: TChartLines);
 begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"Link"', 'LineString', ltTile, aShowInDomains, 0);
   valueList := TDictionary<Double, Double>.Create;
   linkidList := TDictionary<Double, TWDID>.Create;
   fPalette := aPalette;
   fLegendJSON := aLegendJSON;
+  fChart := aChart;
+  fTotalChart := aTotalChart;
 end;
 
 destructor TSesmiLinkLayer.Destroy;
@@ -1850,9 +1932,14 @@ procedure TSesmiLinkLayer.ProcessMatch(const aTimeStamp, aValue: Double;
 var
   link: TLayerObject;
 begin
-  if objects.TryGetValue(aID, link) then
-  begin
-    (link as TSesmiLink).UpdateValue(aTimeStamp, aValue);
+  TMonitor.Enter(objects);
+  try
+    if objects.TryGetValue(aID, link) then
+    begin
+      (link as TSesmiLink).UpdateValue(aTimeStamp, aValue);
+    end;
+  finally
+    TMonitor.Exit(objects);
   end;
 end;
 
@@ -1878,6 +1965,13 @@ begin
     (link as TSesmiLink).Reset;
   finally
     TMonitor.Exit(objects);
+  end;
+  TMonitor.Enter(fChart);
+  try
+    fChart.reset;
+    fTotalChart.reset;
+  finally
+    TMonitor.Exit(fChart);
   end;
 end;
 
@@ -1917,7 +2011,7 @@ var
   i: Integer;
 begin
     //check if we need to remove values that are too old
-    if (layer.scenario is TSesmiScenario) and (layer.scenario as TSesmiScenario).Live then
+    if (layer.scenario is TSesmiScenario) and (layer.scenario as TSesmiScenario).Live and (fValueList.Count > 0) then
     for i := fValueList.Count - 1 to 0  do
         if fValueList[i].time < (aTimeStamp - GetSetting(TimeSpanSwitch, DefaultTimeSpan)) then
         begin

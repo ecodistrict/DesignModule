@@ -1995,7 +1995,20 @@ begin
           layerInfoKey := mlp.Value.LEGEND_DESC.trim+'-'+mlp.Value.VALUE_EXPR.trim;
           layerInfo := StandardIni.ReadString('layers', layerInfoKey, '');
         end;
+        layerInfoParts := layerInfo.Split([',']);
 
+        nam := mlp.Value.description;
+        if (nam='') and (length(layerInfoParts)>1)
+        then nam := layerInfoParts[1];
+        if nam=''
+        then nam := mlp.Value.LEGEND_DESC;
+
+        dom := mlp.Value.domain;
+        if (dom='') and (length(layerInfoParts)>0)
+        then dom := standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0]);
+
+
+        {
         if layerInfo<>'' then
         begin
           layerInfoParts := layerInfo.Split([',']);
@@ -2009,7 +2022,17 @@ begin
           then dom := mlp.Value.domain
           else dom := standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0]);
           nam := layerInfoParts[1];
-
+        end
+        else
+        begin
+          if mlp.Value.domain<>''
+          then dom := mlp.Value.domain
+          else dom := '';
+          nam := mlp.Value.description;
+        end;
+        }
+        if (dom<>'') and (nam<>'') then
+        begin
           //todo: check if fix from name to nam worked!?
           layer := mlp.Value.CreateUSLayer(self, fTablePrefix, connectString, SubscribeDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS), sourceProjection, dom, nam);
           if Assigned(layer) then
@@ -2101,9 +2124,9 @@ begin
       begin
         gridPrefix := 'Grid' + IntToStr(i) + ',' + IntToStr(j) + '$';
 
-        if lines.ContainsKey(gridPrefix + 'GraphicType') then
+        if lines.ContainsKey(gridPrefix + 'GraphicType') and (lines[gridPrefix + 'GraphicType'] = 'TChart') then
         begin
-          if lines[gridPrefix + 'GraphicType'] = 'TChart' then
+          if (not lines.ContainsKey(gridPrefix + 'Enabled')) or (lines[gridPrefix + 'Enabled'] = 'True') then
             uscharts.Add(TUSChart.Create(Self, lines, gridPrefix, tab, tab + ' (' + inttostr(i) + '-' + inttostr(j) + ')', aTableName));
         end
         else
