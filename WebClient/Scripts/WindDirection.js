@@ -259,8 +259,10 @@ L.Control.Arrow = L.Control.extend({
         var length = Math.sqrt(Math.pow(centerOffset.X, 2) + Math.pow(centerOffset.Y, 2));
         
         var direction = (Math.atan((-1 * centerOffset.X) / centerOffset.Y) * (360 / (2 * Math.PI)) + 360) % 360;
-        if (centerOffset.Y >= 0)
+        if (centerOffset.Y < 0)
             direction = (direction + 180) % 360;
+
+        //direction = (direction + 18) % 360;
 
         return {
             direction: direction,

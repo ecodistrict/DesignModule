@@ -47,6 +47,8 @@ const
   PUBLISHINGSERVER_TABLE_PREFIX = 'PBLS';
   PROJECT_TABLE_NAME = PUBLISHINGSERVER_TABLE_PREFIX+'_PROJECT';
 
+  MEASURES_TABLE_NAME = 'META_MEASURES';
+
 type
   TUSLayer = class; // forward
 
@@ -159,40 +161,40 @@ type
   end;
 
   TUSChartValue = class
-    constructor Create(aValue: string);
-    protected
-      fStringValue: string;
-      fNumValue: Double;
-      fNumber: Boolean;
-    public
-      function GetJSON: string;
+  constructor Create(aValue: string);
+  protected
+    fStringValue: string;
+    fNumValue: Double;
+    fNumber: Boolean;
+  public
+    function GetJSON: string;
   end;
 
   TUSChartSeries = class
-    constructor Create(aLines: TDictionary<string, string>; const aPrefix: string; const aID: Integer; const aSeriesID: string);
-    destructor Destroy; override;
+  constructor Create(aLines: TDictionary<string, string>; const aPrefix: string; const aID: Integer; const aSeriesID: string);
+  destructor Destroy; override;
   private
     function GetColumnJSON: string;
-    protected
-      fTitle, fXCol, fYCol, fType, fMultiBar, fStackGroup, fVertAxis: string;
-      fID: Integer;
-      fActive: Boolean;
-      fYValues: TList<TUSChartValue>;
-      procedure AddXValues(aValues: array of string);
-    public
-      property XCol: string read fXCol;
-      property YCol: string read fYCol;
-      property MultiBar: string read fMultiBar;
-      property StackGroup: string read fStackGroup;
-      property VertAxis: string read fVertAxis;
-      property Active: Boolean read fActive;
-      property Title: string read fTitle;
-      procedure FillData(aData: TDictionary<string, TStringList>);
+  protected
+    fTitle, fXCol, fYCol, fType, fMultiBar, fStackGroup, fVertAxis: string;
+    fID: Integer;
+    fActive: Boolean;
+    fYValues: TList<TUSChartValue>;
+    procedure AddXValues(aValues: array of string);
+  public
+    property XCol: string read fXCol;
+    property YCol: string read fYCol;
+    property MultiBar: string read fMultiBar;
+    property StackGroup: string read fStackGroup;
+    property VertAxis: string read fVertAxis;
+    property Active: Boolean read fActive;
+    property Title: string read fTitle;
+    procedure FillData(aData: TDictionary<string, TStringList>);
   end;
 
   TUSChart = class(TChart)
-    constructor Create(aScenario: TScenario; aLines: TDictionary<string, string>; aPrefix, aGroup, aTitle, aTableName: string);
-    destructor Destroy; override;
+  constructor Create(aScenario: TScenario; aLines: TDictionary<string, string>; aPrefix, aGroup, aTitle, aTableName: string);
+  destructor Destroy; override;
   private
     fTitle, fGroup, fJSON: string;
     fSeries: TDictionary<string, TUSChartSeries>;
@@ -1661,7 +1663,7 @@ begin
 //                      if ((changeCount mod 1000) = 0) then
 //                        Log.WriteLn('Calculating changes...' + changeCount.ToString);
                       if FindObject(wdid, o) then
-                        begin
+                      begin
 //                          fChangeQuery.ParamByName('OBJECT_ID').AsInteger := entry.objectID;
 //                          fChangeQuery.Execute;
 //                          if not fChangeQuery.Eof then
@@ -1669,8 +1671,8 @@ begin
 //                              UpdateObject(fChangeQuery, wdid, o);
 //                              signalObject(o);
 //                            end
-                          ChangeStack.Push(entry.objectID.ToString);
-                        end
+                        ChangeStack.Push(entry.objectID.ToString);
+                      end
                 else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+entry.objectID.toString+') query', llWarning);
                     end;
                 end;
@@ -2442,11 +2444,11 @@ var
   m: Integer;
 begin
   // todo:
-  if not TableExists(OraSession, 'META_MEASURES') then
+  if not TableExists(OraSession, MEASURES_TABLE_NAME) then
   begin
     // add table
     OraSession.ExecSQL(
-      'CREATE TABLE META_MEASURES('+
+      'CREATE TABLE '+MEASURES_TABLE_NAME+'('+
         'OBJECT_ID NUMBER,'+
         'CATEGORY VARCHAR2(100 BYTE),'+
         'MEASURE VARCHAR2(100 BYTE),'+
@@ -2455,24 +2457,24 @@ begin
         'ACTION VARCHAR2(100 BYTE),'+
         'ACTION_PARAMETERS VARCHAR2(255 BYTE),'+
         'ACTION_ID INTEGER,'+
-        'CONSTRAINT META_MEASURES_PK PRIMARY KEY (OBJECT_ID))');
+        'CONSTRAINT '+MEASURES_TABLE_NAME+'_PK PRIMARY KEY (OBJECT_ID))');
     OraSession.Commit;
   end;
   try
   measures := ReturnAllResults(OraSession,
     'SELECT OBJECT_ID, Category, Measure, Description, ObjectTypes, Action, Action_Parameters, Action_ID '+
-    'FROM META_MEASURES');
+    'FROM '+MEASURES_TABLE_NAME);
     if length(measures)>0 then
     begin
-  for m := 0 to length(measures)-1 do
-  begin
-        // todo:
+      for m := 0 to length(measures)-1 do
+      begin
+            // todo:
 
-  end;
+      end;
     end
     else log.WriteLn('NO measures defined (no entries)', llWarning);
   except
-    // no measures, prop. no META_MEASURES table defined
+    // no measures, prop. no MEASURES_TABLE_NAME table defined
     log.WriteLn('NO measures defined (no valid table)', llWarning);
   end;
   // todo:
@@ -2567,28 +2569,32 @@ function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapV
 var
   table: TOraTable;
 begin
-  // try to read view from database
-  table := TOraTable.Create(nil);
-  try
-    table.Session := aOraSession;
-    table.SQL.Text :=
-      'SELECT Lat, Lon, Zoom '+
-      'FROM '+PROJECT_TABLE_NAME;
+  if not TableExists(aOraSession, PROJECT_TABLE_NAME) then
+  begin
+    // try to read view from database
+    table := TOraTable.Create(nil);
     try
-    table.Execute;
-    try
-      if table.FindFirst
-      then Result := TMapView.Create(table.Fields[0].AsFloat, table.Fields[1].AsFloat, table.Fields[2].AsInteger)
-      else Result := aDefault;
+      table.Session := aOraSession;
+      table.SQL.Text :=
+        'SELECT Lat, Lon, Zoom '+
+        'FROM '+PROJECT_TABLE_NAME;
+      try
+        table.Execute;
+        try
+          if table.FindFirst
+          then Result := TMapView.Create(table.Fields[0].AsFloat, table.Fields[1].AsFloat, table.Fields[2].AsInteger)
+          else Result := aDefault;
+        finally
+          table.Close;
+        end;
+      except
+        Result := aDefault;
+      end;
     finally
-      table.Close;
+      table.Free;
     end;
-    except
-      Result := aDefault;
-    end;
-  finally
-    table.Free;
-  end;
+  end
+  else Result := aDefault;
 end;
 
 function getUSProjectID(aOraSession: TOraSession; const aDefault: string): string;
@@ -2597,32 +2603,32 @@ var
 begin
   if TableExists(aOraSession, PROJECT_TABLE_NAME) then
   begin
-  // try to read project info from database
-  table := TOraTable.Create(nil);
-  try
-    table.Session := aOraSession;
-    table.SQL.Text :=
-      'SELECT ProjectID '+
-        'FROM '+PROJECT_TABLE_NAME;
-      try
-    table.Execute;
+    // try to read project info from database
+    table := TOraTable.Create(nil);
     try
-      if table.FindFirst then
-      begin
-        if not table.Fields[0].IsNull
-        then Result := table.Fields[0].AsString
-        else Result := aDefault;
-      end
-      else Result := aDefault;
-    finally
-      table.Close;
-    end;
+      table.Session := aOraSession;
+      table.SQL.Text :=
+        'SELECT ProjectID '+
+          'FROM '+PROJECT_TABLE_NAME;
+      try
+        table.Execute;
+        try
+          if table.FindFirst then
+          begin
+            if not table.Fields[0].IsNull
+            then Result := table.Fields[0].AsString
+            else Result := aDefault;
+          end
+          else Result := aDefault;
+        finally
+          table.Close;
+        end;
       except
         Result := aDefault;
       end;
-  finally
-    table.Free;
-  end;
+    finally
+      table.Free;
+    end;
   end
   else Result := aDefault;
 end;
@@ -2642,7 +2648,7 @@ begin
         'LON NUMBER,'+
         'ZOOM INTEGER,'+
         'STARTPUBLISHEDSCENARIOID INTEGER,'+
-        'CONSTRAINT PBLS_PROJECT_PK PRIMARY KEY (PROJECTID))');
+        'CONSTRAINT '+PROJECT_TABLE_NAME+'_PK PRIMARY KEY (PROJECTID))');
     aOraSession.Commit;
     Log.WriteLn('Create table '+PROJECT_TABLE_NAME, llWarning);
   end;
@@ -2659,7 +2665,7 @@ begin
         'WHERE PROJECTID='''+aProjectID+'''';
       query.Execute;
       if query.RowsAffected=0 then
-    begin
+      begin
         query.SQL.Text :=
           'INSERT INTO '+PROJECT_TABLE_NAME+' (PROJECTID, LAT, LON, ZOOM) '+
           'VALUES ('''+aProjectID+''', '+aLat.ToString(dotFormat)+', '+aLon.ToString(dotFormat)+', '+aZoomLevel.ToString+')';
@@ -2669,18 +2675,18 @@ begin
       else
       begin
         query.Close;
-    end;
+      end;
       aOraSession.Commit;
     finally
       query.Free;
-  end;
-    except
-      on E: Exception do
-      begin
+    end;
+  except
+    on E: Exception do
+    begin
       Log.WriteLn('Exception processing project id: '+e.Message, llError);
-      end;
     end;
   end;
+end;
 
 function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer): Integer;
 var
@@ -2839,11 +2845,11 @@ begin
   begin
     Result := '';
     for serie in fSeries.Values do
-      begin
-        if Result <> '' then
-          Result := Result + ',';
-        Result := Result + '"' + serie.Title + '": "' + serie.VertAxis + '"';
-      end;
+    begin
+      if Result <> '' then
+        Result := Result + ',';
+      Result := Result + '"' + serie.Title + '": "' + serie.VertAxis + '"';
+    end;
   end;
 end;
 
@@ -2864,38 +2870,38 @@ var
 begin
   Result := '';
   for key in fXValues.Keys do
-    begin
-      if Result <> '' then
-        Result := Result + ',';
-      Result := Result + '[';
-      columnString := '"' + key + '"';
-      dataList := fXValues[key];
-      for index := 0 to dataList.Count - 1 do
-        begin
-          columnString := columnString + ',' + dataList[index].GetJSON;
-        end;
-        Result := Result + columnString + ']';
-    end;
+  begin
+    if Result <> '' then
+      Result := Result + ',';
+    Result := Result + '[';
+    columnString := '"' + key + '"';
+    dataList := fXValues[key];
+    for index := 0 to dataList.Count - 1 do
+      begin
+        columnString := columnString + ',' + dataList[index].GetJSON;
+      end;
+      Result := Result + columnString + ']';
+  end;
   for serie in fSeries.Values do
   begin
     if serie.Active then
-      begin
-        if Result <> '' then
-          Result := Result + ',';
-        Result := Result + '[' + serie.GetColumnJSON + ']';
-      end;
+    begin
+      if Result <> '' then
+        Result := Result + ',';
+      Result := Result + '[' + serie.GetColumnJSON + ']';
+    end;
   end;
 end;
 
 function TUSChart.getJSONData: string;
 begin
-    Result := '"columns":[' + getJSONColumns +'],';
-    if fXValues.Count > 1 then
-      Result := Result + '"xs":{' + getJSONXS + '},'
-    else if fXValues.Count = 1 then
-      Result := Result + '"x":' + getJSONX + ',';
+  Result := '"columns":[' + getJSONColumns +'],';
+  if fXValues.Count > 1 then
+    Result := Result + '"xs":{' + getJSONXS + '},'
+  else if fXValues.Count = 1 then
+    Result := Result + '"x":' + getJSONX + ',';
 
-    Result := Result + '"groups":[' + getJSONGroups + '],' +
+  Result := Result + '"groups":[' + getJSONGroups + '],' +
     '"types":[' + getJSONTypes + '],' +
     '"axes":{' + getJSONAxes + '}';
 end;
@@ -2913,12 +2919,12 @@ begin
       Result := Result + ',';
     groupstring := '';
     for group in groupList do
-      begin
-        if groupstring <> '' then
-          groupstring := groupstring + ',';
-        groupstring := groupstring + '"' + group + '"';
-      end;
-      Result := Result + '[' + groupstring + ']';
+    begin
+      if groupstring <> '' then
+        groupstring := groupstring + ',';
+      groupstring := groupstring + '"' + group + '"';
+    end;
+    Result := Result + '[' + groupstring + ']';
   end;
 end;
 
@@ -2974,12 +2980,12 @@ begin
   fYCol := aLines[aPrefix + sPrefixLong + 'Data'].Split([','])[0];
 
   for key in aLines.Keys do
+  begin
+    if (key.StartsWith(aPrefix + 'TChart$Series' + aSeriesID + ':')) and key.Contains('$$') then
     begin
-      if (key.StartsWith(aPrefix + 'TChart$Series' + aSeriesID + ':')) and key.Contains('$$') then
-      begin
-        seriesLines.AddOrSetValue(key.Split(['$$'])[1], aLines[key]);
-      end;
+      seriesLines.AddOrSetValue(key.Split(['$$'])[1], aLines[key]);
     end;
+  end;
 
   if aLines.ContainsKey(aPrefix + sPrefixLong + 'Caption ') then
     fTitle := aLines[aPrefix + sPrefixLong + 'Caption ']

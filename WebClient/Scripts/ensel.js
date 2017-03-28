@@ -479,6 +479,14 @@ DataManager = {
 
     },
 
+    NewRangeTimeSliderData: function (aData) {
+        if (DataManager.timeRangeSlider == null) {
+            DataManager.timeRangeSlider = new L.Control.TimeRangeSlider();
+            map.addControl(DataManager.timeRangeSlider);
+        }
+        DataManager.timeRangeSlider.update(aData);
+    },
+
     NewWindData: function (aData) {
 
 

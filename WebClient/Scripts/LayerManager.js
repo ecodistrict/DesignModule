@@ -88,11 +88,16 @@ var LayerManager = {
     },
 
     SetNextLegend: function () {
-        if (LayerManager._visibleLayers.length > 0) {
-            LayerManager._visibleLayers[0].setLegend();
-        }
-        else
-            legendControl.clearLegend();
+        //if (LayerManager._visibleLayers.length > 0) {
+        //    LayerManager._visibleLayers[0].setLegend();
+        //}
+        //else
+        //    legendControl.clearLegend();
+
+        for (var i = 0; i < LayerManager._visibleLayers.length; i++)
+            if (LayerManager._visibleLayers[i].setLegend())
+                return;
+        legendControl.clearLegend();
     },
 
     SetNextCRD: function () {
@@ -371,6 +376,37 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
         riseOffset: data.riseOffset ? data.riseOffset : 250
     };
 
+    if (data.contextmenu && data.contextmenu.items.length > 0)
+    {
+        var itemsArray = [];
+        if (data.contextmenu.contextmenuinherititems) {
+            itemsArray.push({
+                separator: true,
+                index: 0
+            });
+        }
+        for (var i = data.contextmenu.items.length - 1; i >= 0; i--)
+        {
+            itemsArray.push({
+                text: data.contextmenu.items[i].text, index: 0, callback: (function () {
+                    wsSend({
+                        type: "updatelayerobject",
+                        payload: {
+                            layerid: this.object.marker.options.layer.id,
+                            objectid: this.object.marker.options.id,
+                            contextmenuclick: this.tag
+                        }
+                    });
+                }).bind({ object: this, tag: data.contextmenu.items[i].tag })
+            })
+        }
+        this.style.contextmenu = true;
+        this.style.contextmenuItems = itemsArray;
+        this.style.contextmenuInheritItems = data.contextmenu.contextmenuinherititems ? true : false;
+    }
+
+    this.markerlayer = markerlayer;
+
     this.marker = L.marker(this.latlng, this.style);
 
     if (data.draggable) {
@@ -389,6 +425,36 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
             wsSend(message);
             //console.debug("dragged");
         });
+    }
+
+    //data.popup = {
+    //    options: [
+    //        { text: "click1", tag: "1" },
+    //        { text: "click2", tag: "2" },
+    //        { text: "click3", tag: "3" },
+    //    ]
+    //};
+    if (data.popup && data.popup.options) {
+        this.popupDiv = L.DomUtil.create('div', 'markerPopupDiv');
+        for (var i = 0; i < data.popup.options.length; i++)
+        {
+            var tag = data.popup.options[i].tag;
+            var itemDiv = L.DomUtil.create('div', 'markerPopupItem');
+            itemDiv.addEventListener('click', (function (e) {
+                wsSend({
+                    type: "updatelayerobject",
+                    payload: {
+                        layerid: this.marker.options.layer.id,
+                        objectid: this.marker.options.id,
+                        popupclick: this.tag
+                    }
+                });
+                this.marker.closePopup();
+            }).bind({marker: this.marker, tag: data.popup.options[i].tag}));
+            itemDiv.innerText = data.popup.options[i].text;
+            this.popupDiv.appendChild(itemDiv);
+        }
+        this.marker.bindPopup(this.popupDiv);
     }
 
     // todo: marker.move = 
@@ -596,8 +662,8 @@ LayerManager.DetailsLayer = function (data) {
 
     this.setLegend = function () {
         if (!this.showing)
-            return;
-        this.showing.showLegend();
+            return false;
+        return this.showing.showLegend();
     };
 
     this.onClick = function (e) {
@@ -625,8 +691,9 @@ LayerManager.DetailsLayer = function (data) {
                     LayerManager.ClearVisibleLayers(layer.displayGroup);
                 layer.addDisplayLayer(opacity);
                 layer.setCRD();
-                if (LayerManager._visibleLayers.length == 1)
-                    layer.setLegend();
+                //if (LayerManager._visibleLayers.length == 1)
+                //    layer.setLegend();
+                LayerManager.SetNextLegend();
             }
 
         }
@@ -725,10 +792,13 @@ LayerManager.BaseLayer = function (layer, detailsLayer, crd) {
     this.type = layer.type;
 
     this.showLegend = function () {
-        if (!this.legend)
+        if (!this.legend) {
             legendControl.clearLegend(false, this.detailsLayer.id);
+            return false;
+        }
         else {
             legendControl.createLegend(this.legend, this.detailsLayer.id);
+            return true;
         }
     };
 
@@ -913,6 +983,8 @@ LayerManager.MarkerLayer = function (layer, detailsLayer, crd) {
             return;
         }
         this.objects[object.id] = new LayerManager.Marker(object, this.maplayer, this);
+        if (this.detailsLayer.showing == this)
+            this.objects[object.id].marker.addTo(this.maplayer);
     };
 
     // add markers
@@ -934,7 +1006,8 @@ LayerManager.MarkerLayer = function (layer, detailsLayer, crd) {
         this.maplayer.type = "marker";
 
         for (var o in this.objects) {
-            this.maplayer.addLayer(this.objects[o].marker);
+            this.objects[o].layergroup = this.maplayer;
+            this.objects[o].marker.addTo(this.maplayer);
         }
 
         return this.maplayer;
@@ -955,7 +1028,7 @@ LayerManager.GeoJSONLayer = function (layer, detailsLayer, crd) {
         if (leafletlayer)
             map.removeLayer(leafletlayer);
 
-        this.maplayer = L.geoJson(layer.objects ? layer.objects.features : [], {
+        this.maplayer = L.geoJson(this.geoJSON ? this.geoJSON.features : [], {
             opacity: this.detailsLayer.opacity,
             style: this.getStyle.bind(this)
         }).addTo(map);
@@ -984,8 +1057,8 @@ LayerManager.GeoJSONLayer = function (layer, detailsLayer, crd) {
     };
 
     this.updateData = function (payload) {
-        if (payload.objects) {
-            this.geoJSON = payload.objects;
+        if (payload.data && payload.data.objects) {
+            this.geoJSON = payload.data.objects;
             if (this.maplayer)
                 this.showLayer(this.maplayer);
         }
@@ -1073,7 +1146,7 @@ LayerManager.SwitchLayer = function (layer, detailsLayer, crd) {
 
     this.showLegend = function () {
         if (this.showing)
-            this.showing.showLegend();
+            return this.showing.showLegend();
     };
 
     this.getPreview = function () {

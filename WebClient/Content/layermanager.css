@@ -1,0 +1,16 @@
+﻿.markerPopupDiv {
+    font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+
+.markerPopupItem {
+    cursor: pointer;
+    background: white;
+    border: 1px solid rgba(173, 216, 230, 1);
+    border-radius: 3px;
+    margin: 2px 2px;
+    padding-left: 5px;
+}
+
+.markerPopupItem:hover {
+    background: rgba(173, 216, 230, 1); 
+}

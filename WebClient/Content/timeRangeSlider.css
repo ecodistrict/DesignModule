@@ -1,0 +1,28 @@
+﻿.leaflet-control-timeRangeSlider {
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 5px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  animation-duration: 10s;
+  width: 200px;
+  height: auto;
+  padding: 5px;
+  /*top: -30px;*/
+}
+
+.leaflet-control-timeRangeSlider-sliderDiv {
+  position:relative;
+  margin: 5px 15px 5px 15px;
+}
+
+.leaflet-control-timeRangeSlider-sliderTextDiv {
+  margin: 5px 15px 5px 15px;
+  padding-top: 5px;
+}
+
+.leaflet-control-timeRangeSlider .noUi-handle {
+    border-color: rgba(173, 216, 230, 1);
+}
+
+.noUi-connect {
+    background: rgba(173, 216, 230, 1);
+}
