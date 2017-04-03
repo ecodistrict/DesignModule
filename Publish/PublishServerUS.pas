@@ -323,7 +323,7 @@ type
 
 function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapView;
 function getUSProjectID(aOraSession: TOraSession; const aDefault: string): string;
-procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon: Double; aZoomLevel: Integer);
+procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon, aZoomLevel: Double);
 function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer): Integer;
 
 function Left(const s: string; n: Integer): string;
@@ -2633,7 +2633,7 @@ begin
   else Result := aDefault;
 end;
 
-procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon: Double; aZoomLevel: Integer);
+procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon, aZoomLevel: Double);
 var
 //  tryUpdate: Boolean;
 //  res: Variant;

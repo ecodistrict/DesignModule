@@ -1803,7 +1803,7 @@ begin
   scenarios.Add(Result.ID, Result);
   // links
   linkLayer := TSSMLinkLayer.Create(Result, domainAllVehicles, 'LINK', 'LINK', 'LINK', false, false, 10, nil);
-  linkLayer.extraJSON2DAttributes := ',"weight":1';
+  linkLayer.extraJSON2DAttributes := '"weight":1';
   Result.Layers.Add(linkLayer.ID, linkLayer);
   linkLayer.RegisterLayer;
   // GTUs

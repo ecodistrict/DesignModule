@@ -59,7 +59,7 @@ type
   protected
     procedure HandleException(aConnection: TConnection; aException: Exception);
     procedure HandleDisconnect(aConnection: TConnection);
-    procedure ProgressTimerTick(aTimer: TTimer);
+    procedure ProgressTimerTick(aTimer: TTimer; aTime: THighResTicks);
   public
     property sessionModel: TSessionModel read fSessionModel;
     property imbConnection: TConnection read fIMBConnection;
@@ -170,7 +170,7 @@ begin
   end;
 end;
 
-procedure TModel.ProgressTimerTick(aTimer: TTimer);
+procedure TModel.ProgressTimerTick(aTimer: TTimer; aTime: THighResTicks);
 begin
   // report progress to MC about length of command queue
   if Assigned(fProject)
