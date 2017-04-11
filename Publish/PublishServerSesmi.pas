@@ -265,8 +265,7 @@ type
 
   TSesmiProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
-    const aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
+    aAddBasicLayers: Boolean; const aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
   destructor Destroy; override;
   private
     fPubEvent: TEventEntry;
@@ -1289,8 +1288,7 @@ begin
 end;
 
 constructor TSesmiProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
-  aTilerStatusURL: string; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
-  const aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
+  aTilerStatusURL: string; aAddBasicLayers: Boolean; const aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
 begin
   mapView := aMapView;
   //fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
@@ -1298,10 +1296,11 @@ begin
   fExpertScenarioGUID := aExpertScenarioGUID;
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
-    aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled,
-    aSimulationControlEnabled, aAddBasicLayers, '', aDateFormData,
-    aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentScenario
+    aTilerStatusURL, nil, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentScenario
   fTiler.onTilerStatus := handleTilerStatus;
+
+  //Set Sesmi controls
+  SetControl(dateFormControl, '{"data":' + aDateFormData + '}');
   fLinks := TDictionary<TGUID, TWDGeometry>.Create;
   fPubEvent := aConnection.publish('EnSel2.geometry_roads', False);
   InquireNetwork;
@@ -1648,7 +1647,7 @@ begin
             ']';
   //InitPG;
   project := TSesmiProject.Create(aSessionModel, aConnection, 'Sesmi', 'Fietsproject Eindhoven', aTilerFQDN, aTilerStatusURL,
-    1, False, False, False, False, False, dateFormData, aMaxNearestObjectDistanceInMeters, TMapView.Create(51.4475, 5.4808, 13), aExpertScenarioGUID);
+    False, dateFormData, aMaxNearestObjectDistanceInMeters, TMapView.Create(51.4475, 5.4808, 13), aExpertScenarioGUID);
   fProjects.Add(project.ProjectID, project);
 end;
 

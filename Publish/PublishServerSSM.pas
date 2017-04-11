@@ -301,8 +301,7 @@ type
   TSSMProject  = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection;
     const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
-    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
-    aSimulationParameters: TSSMSimulationParameterList; const aSimulationSetup: string;
+    aAddBasicLayers: Boolean; aSimulationParameters: TSSMSimulationParameterList; const aSimulationSetup: string;
     aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer; const aDataSource, aUSScenario: string);
   destructor Destroy; override;
   private
@@ -1099,6 +1098,8 @@ begin
 
   fAirSSMEmissionsEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.Air_ssm_emissions');
   fAirSSMEmissionsEvent.OnNormalEvent := HandleAirSSMEmissions;
+  EnableControl(startstopControl);
+  EnableControl(simulationCloseControl);
 end;
 
 destructor TSSMScenario.Destroy;
@@ -1132,7 +1133,7 @@ var
   model: TCIModelEntry2;
 begin
   Result := inherited HandleClientSubscribe(aClient);
-  aClient.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0}}');
+  //aClient.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0}}');
   if running then
     aClient.SignalString('{"simulationControl":{"speed":'+DoubleToJSON(fSpeed)+', "start": true}}')
   else
@@ -1670,6 +1671,8 @@ var
   layer: TLayer;
   link: TScenarioLink;
   chart: TChart;
+  scenarioClients: TList<TClient>;
+  scenarioClient: TCLient;
 begin
   for cim in controlInterface.Models do
   begin
@@ -1681,17 +1684,25 @@ begin
   if (fScenarios.TryGetValue(aFederation, genericScenario) and (genericScenario Is TSSMScenario)) then
   begin
     scenario := genericScenario as TSSMScenario;
-    scenario.forEachClient(procedure (aClient: TClient)
-    begin
-      //todo: force scenario change?
-      //scenario.HandleClientUnsubscribe(aClient);
-      aClient.removeClient(scenario);
-      aClient.currentScenario := scenarios['base'];
-      aClient.addClient(aClient.currentScenario);
-      //aClient.addClient(aClient.currentScenario);
-      aClient.signalString('{"type":"session","payload":{"simulationClose":0,"simulationSetup":1, "simulationControlEnabled":1}}');
-    end
-    );
+    scenarioClients := TList<TClient>.Create;
+    try
+      scenario.forEachClient(procedure (aClient: TClient)
+      begin
+        scenarioClients.Add(aClient);
+      end
+      );
+      for scenarioClient in scenarioClients do
+      begin
+        scenarioClient.removeClient(scenario);
+        scenarioClient.currentScenario := scenarios['base'];
+        scenarioClient.addClient(aClient.currentScenario);
+        //aClient.addClient(aClient.currentScenario);
+        //scenarioClient.signalString('{"type":"session","payload":{"simulationClose":0,"simulationSetup":1, "simulationControlEnabled":1}}');
+      end;
+    finally
+    FreeAndNil(scenarioClients);
+    end;
+
     //remove or reset the scenario
     if scenario.useSimulationSetup and not scenario.Recording then
     begin
@@ -1747,18 +1758,17 @@ begin
       end;
     end;
   end;
-  scenario.HandleClientUnsubscribe(aClient);
+  //scenario.HandleClientUnsubscribe(aClient);
   // todo: switch back to base scenario!
   // todo: extra checks
-  aClient.currentScenario := scenarios['base'];
-  aClient.signalString('{"type":"session","payload":{"simulationClose":0,"simulationSetup":1}}');
+  //aClient.currentScenario := scenarios['base'];
+  //aClient.signalString('{"type":"session","payload":{"simulationClose":0,"simulationSetup":1}}');
   //aClient.SendDomains
 end;
 
 constructor TSSMProject.Create(aSessionModel: TSessionModel; aConnection: TConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
-  aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
-  aSimulationParameters: TSSMSimulationParameterList; const aSimulationSetup: string;
+  aAddBasicLayers: Boolean; aSimulationParameters: TSSMSimulationParameterList; const aSimulationSetup: string;
   aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer; const aDataSource, aUSScenario: string);
 var
   prefix: string;
@@ -1778,7 +1788,7 @@ begin
     aDataSource, // todo: datasource
     Self,
     SSMIdlePrefix);
-
+  fSimulationSetup := aSimulationSetup;
   fRecordingsEvent := fControlInterface.Connection.Subscribe(SSMIdlePrefix+'.recordings', false);
   //fRecordingsEvent.OnNormalEvent := handleRecordingsEvent;
 
@@ -1788,9 +1798,10 @@ begin
   mapView := aMapView;
   fSourceProjection := CSProjectedCoordinateSystemList.ByWKT(
     GetSetting('Projection', 'Amersfoort_RD_New')); // EPSG: 28992
-  inherited Create(aSessionModel, aConnection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
-    aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers,
-    aSimulationSetup, '', aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentScenario etc..
+  inherited Create(aSessionModel, aConnection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aAddBasicLayers,
+    aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentScenario etc..
+  EnableControl(presenterViewerControl);
+  EnableControl(modelControl);
 end;
 
 function TSSMProject.createSSMScenario(const aID, aName, aDescription: string; aUseSimulationSetup, aRecorded: Boolean): TSSMScenario;
@@ -1919,6 +1930,7 @@ begin
         TScenarioLink.Create(scenario.ID, //  InterlockedIncrement(fScenarioNewLinkID),
         '', '', newScenarioName, '', 'new', scenario));
       // add
+      aClient.removeClient(aClient.currentScenario);
       aClient.currentScenario := scenario;
       aClient.addClient(scenario);
 
@@ -1954,7 +1966,7 @@ begin
         if (isp.Value as TSSMScenario).running
         then aClient.signalString('{"simulationControl":{"start":true,"speed":'+DoubleToJSON((isp.Value as TSSMScenario).speed)+'}}')
         else aClient.signalString('{"simulationControl":{"stop":true}}');
-        aClient.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0, simulationControlEnabled: 1}}');
+        //aClient.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0, simulationControlEnabled: 1}}');
       end;
     except
       on E: Exception
@@ -2136,7 +2148,9 @@ begin
     end;
     _scenario.claimed := True;
     // enable simulation close control
-    _client.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0}}');
+    //_client.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0}}');
+    _scenario.DisableControl(simulationSetupControl);
+    _scenario.EnableControl(simulationCloseControl);
     // update domains for all clients on this project
     forEachClient(procedure(aClient: TClient)
       begin;
@@ -2159,6 +2173,7 @@ begin
     scenarios.Add(scenario.ID, scenario);
     projectCurrentScenario := scenario;
   end;
+  scenario.SetControl(simulationSetupControl, '{"data":' + fSimulationSetup + '}');
   // inquire scenarios from database module
   payload.Clear();
   payload.Write(fPrivateEvent.EventName);
