@@ -25,6 +25,8 @@ uses
   CommandQueue,
   TimerPool,
 
+  NDWLib,
+
   PublishServerLib,
   PublishServerGIS,
   PublishServerUS;
