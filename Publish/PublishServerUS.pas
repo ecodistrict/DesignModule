@@ -313,6 +313,7 @@ type
     procedure ReadScenarios;
     procedure ReadMeasures;
     function ReadScenario(const aID: string): TScenario; override;
+    procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
   public
     procedure ReadBasicData(); override;
   public
@@ -2392,8 +2393,7 @@ begin
   fPreLoadScenarios := aPreLoadScenarios;
   inherited Create(aSessionModel, aConnection, aProjectID, aProjectName,
     aTilerFQDN, aTilerStatusURL,
-    aDBConnection,
-    0, False, False, False, False, addBasicLayers, '', '',
+    aDBConnection, addBasicLayers,
     aMaxNearestObjectDistanceInMeters, mapView, nil, nil);
 end;
 
@@ -2407,6 +2407,46 @@ end;
 function TUSProject.getOraSession: TOraSession;
 begin
   Result := fDBConnection as TOraSession;
+end;
+
+procedure TUSProject.handleClientMessage(aClient: TClient; aScenario: TScenario;
+  aJSONObject: TJSONObject);
+var
+  jsonMeasures, selectCategories, selectedObjects: TJSONArray;
+  jsonMeasure, jsonArrayItem: TJSONValue;
+  jsonStringValue, selectCategoriesString, selectedObjectsString: string;
+  measureHistory: TMeasureHistory;
+begin
+  inherited;
+  if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
+  begin
+    for jsonMeasure in jsonMeasures do
+      begin
+        selectCategoriesString := '';
+        if jsonMeasure.TryGetValue('selectCategories', selectCategories) then
+        begin
+          for jsonArrayItem in selectCategories do
+            if jsonArrayItem.TryGetValue<string>(jsonStringValue) then
+            begin
+              if selectCategoriesString <> '' then
+                selectCategoriesString := selectCategoriesString + ', ';
+              selectCategoriesString := selectCategoriesString + jsonStringValue;
+            end;
+        end;
+        selectedObjectsString := '';
+        if jsonMeasure.TryGetValue('selectedObjects', selectedObjects) then
+        begin
+          for jsonArrayItem in selectedObjects do
+            if jsonArrayItem.TryGetValue<string>(jsonStringValue) then
+            begin
+              if selectedObjectsString <> '' then
+                selectedObjectsString := selectedObjectsString + ', ';
+              selectedObjectsString := selectedObjectsString + jsonStringValue;
+            end;
+        end;
+        //measureHistory := TMeasureHistory.Create();
+      end;
+  end;
 end;
 
 procedure TUSProject.ReadBasicData;
@@ -2469,7 +2509,9 @@ begin
       for m := 0 to length(measures)-1 do
       begin
             // todo:
-
+        //measure := TMeasure.Create(measures[m][0], measures[m][1], measures[m][2], measures[m][3], measures[m][4], measures[m][5], measures[m][6], StrToIntDef(measures[m][7], 0));
+        //fMeasures.AddOrSetValue(measure.ID, measure);
+        AddMeasure(measures[m][0], measures[m][1], measures[m][2], measures[m][3], measures[m][4], measures[m][5], measures[m][6], StrToIntDef(measures[m][7], 0));
       end;
     end
     else log.WriteLn('NO measures defined (no entries)', llWarning);
@@ -2478,8 +2520,11 @@ begin
     log.WriteLn('NO measures defined (no valid table)', llWarning);
   end;
   // todo:
-  Self.measuresEnabled := length(measures)>0;
-  Self.measuresHistoryEnabled := Self.measuresEnabled;
+  if length(measures)>0 then
+  begin
+    Self.EnableControl(measuresControl);
+    Self.EnableControl(measuresHistoryControl);
+  end;
 end;
 
 function TUSProject.ReadScenario(const aID: string): TScenario;
