@@ -17,6 +17,8 @@ uses
   CommandQueue,
   TilerControl,
 
+  NDWLib,
+
   PublishServerLib,
   PublishServerDB,
   PublishServerGIS,

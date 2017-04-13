@@ -1668,7 +1668,7 @@ begin
     		'WHERE cat||id='''+measureId+'''').Replace('{case_id}', scenarioSchema).Replace('{ids}', objectIDs.Replace('"', ''''));
       if sql<>'' then
       begin
-        // todo:
+        // todo: check for sql injection -> fix
         (fDBConnection as TFDConnection).ExecSQL(sql);
         Log.WriteLn('Applied measure '+measureId+' ('+categories+'): '+sql);
         // add measure to history
