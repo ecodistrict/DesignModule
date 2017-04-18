@@ -13,7 +13,10 @@ procedure Test;
 var
   connection: TNDWConnection;
 begin
-  connection := TNDWConnection.Create('app-usmodel01.tsn.tno.nl', 4000);
+  connection := TNDWConnection.Create(
+    'app-usmodel01.tsn.tno.nl', 4000,
+    'us_ams_2017#v7', 'v7#',
+    'us_ams_2017/us_ams_2017@app-usdata01.tsn.tno.nl/uspsde');
   try
     connection.LoadLinkInfoFromFile('c:\temp\ndw.world');
     WriteLn(connection.links.Count);

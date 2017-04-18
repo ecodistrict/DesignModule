@@ -58,7 +58,10 @@ var
   i: Integer;
 begin
   try
-    connection := TNDWConnection.Create('app-usmodel01.tsn.tno.nl', 4000);
+    connection := TNDWConnection.Create(
+      'app-usmodel01.tsn.tno.nl', 4000,
+      'us_ams_2017#v7', 'v7#',
+      'us_ams_2017/us_ams_2017@app-usdata01.tsn.tno.nl/uspsde');
     try
       connection.LoadLinkInfoFromFile('c:\temp\ndw.world');
       WriteLn('read '+connection.links.Count.toString+' from c:\temp\ndw.world');
@@ -96,6 +99,7 @@ begin
                 '1400,1400,50,50,null,null,1,null,null,'+
                 'null,null,null,null,'+
                 geometryToSDOCoords(ilp.Value.geometry)+')');
+            // todo: fill gene_road_intensity!
             session.Commit;
           end;
         finally
