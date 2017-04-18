@@ -51,6 +51,7 @@ const
 
 type
   TUSLayer = class; // forward
+  TUSScenario = class; //forward
 
   TIMBEventEntryArray = array of TIMBEventEntry;
 
@@ -179,7 +180,7 @@ type
     fTitle, fXCol, fYCol, fType, fMultiBar, fStackGroup, fVertAxis: string;
     fID: Integer;
     fActive: Boolean;
-    fYValues: TList<TUSChartValue>;
+    fYValues: TObjectList<TUSChartValue>;
     procedure AddXValues(aValues: array of string);
   public
     property XCol: string read fXCol;
@@ -200,7 +201,7 @@ type
     fSeries: TDictionary<string, TUSChartSeries>;
     fGroups: TDictionary<string, TList<string>>;
     fDoubleAxes, fChanged: Boolean;
-    fXValues: TDictionary<string, TList<TUSChartValue>>;
+    fXValues: TDictionary<string, TObjectList<TUSChartValue>>;
     function getJSONColumns: string;
     function getJSONXS: string;
     function getJSONX: string;
@@ -213,6 +214,26 @@ type
     function getJSONData: string; override;
     procedure FillData(aData: TDictionary<string, TStringList>);
     property Series: TDictionary<string, TUSChartSeries> read fSeries;
+  end;
+
+  TUSChartGroup = class
+  constructor Create(const aScenario: TUSScenario; const aDefTableName, aDatTableName: string);
+  destructor Destroy;
+  private
+  fScenario: TUSScenario;
+  fDefTableName, fDatTableName: string;
+  fCharts: TList<TUSChart>; //only holds ref to group charts
+  fDataEvent: TIMBEventEntry;
+  fUpdateTimer: TTimer;
+  fLastUpdate: THighResTicks;
+  protected
+  public
+    procedure HandleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
+    procedure HandleDataUpdate(aTimer: TTimer; aTime: THighResTicks);
+    property Charts: TList<TUSChart> read fCharts;
+    property DefTableName: string read fDefTableName;
+    property DatTableName: string read fDatTableName;
+    procedure SetEvent(aDataEvent: TIMBEventEntry);
   end;
 
   TUSLayer = class(TLayer)
@@ -252,11 +273,15 @@ type
 
   TUSScenario = class(TScenario)
   constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddBasicLayers: Boolean; aMapView: TMapView; aIMBConnection: TIMBConnection; const aTablePrefix: string);
+  destructor Destroy; override;
   private
     fTableprefix: string;
     fIMBConnection: TIMBConnection; // ref
+    fChartEvents: TList<TIMBEventEntry>;
     procedure ReadIndicators (aTableNames: array of string; aOraSession: TOraSession);
     procedure ReadIndicator (aTableName: string; aOraSession: TOraSession);
+  public
+    property Tableprefix: string read fTableprefix;
   public
     procedure ReadBasicData(); override;
   public
@@ -312,6 +337,7 @@ type
   protected
     procedure ReadScenarios;
     procedure ReadMeasures;
+    function FindMeasure(const aActionID: string; out aMeasure: TMeasureAction): Boolean;
     function ReadScenario(const aID: string): TScenario; override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
   public
@@ -1827,7 +1853,14 @@ constructor TUSScenario.Create(aProject: TProject; const aID, aName, aDescriptio
 begin
   fTablePrefix := aTablePrefix;
   fIMBConnection := aIMBConnection;
+  fChartEvents := TList<TIMBEventEntry>.Create;
   inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView, false);
+end;
+
+destructor TUSScenario.Destroy;
+begin
+  inherited;
+  FreeAndNil(fChartEvents);
 end;
 
 procedure TUSScenario.ReadBasicData;
@@ -2090,12 +2123,15 @@ var
   dataCol: TStringList;
   singleRowResult: TSingleRowResult;
   gridWidth, gridHeight, i, j: Integer;
-  uscharts: TList<TUSChart>;
+  uscharts: TUSChartGroup;
   chartSeries: TUSChartSeries;
+  indicatorEvent: TIMBEventEntry;
+  imbEventName: string;
 begin
   defQuery := 'SELECT * FROM ' + aTableName;
   defResult := ReturnAllResults(aOraSession, defQuery);
-  uscharts := TList<TUSChart>.Create;
+  datTableName := aTableName.Replace('_DEF', '_DAT');
+  uscharts := TUSChartGroup.Create(Self, aTableName, datTableName);
   dataCols := TStringList.Create;
   dataCols.Duplicates := TDuplicates.dupIgnore;
   lines := TDictionary<string, string>.Create;
@@ -2129,16 +2165,16 @@ begin
 
         if lines.ContainsKey(gridPrefix + 'GraphicType') and (lines[gridPrefix + 'GraphicType'] = 'TChart') then
         begin
-          if (not lines.ContainsKey(gridPrefix + 'Enabled')) or (lines[gridPrefix + 'Enabled'] = 'True') then
-            uscharts.Add(TUSChart.Create(Self, lines, gridPrefix, tab, tab + ' (' + inttostr(i) + '-' + inttostr(j) + ')', aTableName));
+          if ((not lines.ContainsKey(gridPrefix + 'Enabled')) or (lines[gridPrefix + 'Enabled'] = ' True')) then
+            uscharts.Charts.Add(TUSChart.Create(Self, lines, gridPrefix, tab, tab + ' (' + inttostr(i) + '-' + inttostr(j) + ')', aTableName));
         end
         else
           continue;
       end;
 
-  for i := 0 to uscharts.Count - 1 do
+  for i := 0 to uscharts.Charts.Count - 1 do
     begin
-      for chartSeries in uscharts[i].Series.Values do
+      for chartSeries in uscharts.Charts[i].Series.Values do
         begin
           if dataCols.IndexOf(chartSeries.XCol) = -1 then
             dataCols.Add(chartSeries.XCol);
@@ -2149,7 +2185,6 @@ begin
   data := TDictionary<string, TStringList>.Create;
   if dataCols.Count > 0 then
   begin
-    datTableName := aTableName.Replace('_DEF', '_DAT');
     datQuery := 'SELECT ' + dataCols[0];
     for i := 1 to dataCols.Count - 1 do
       datQuery := datQuery + ', ' + dataCols[i];
@@ -2169,11 +2204,18 @@ begin
       end;
   end;
 
-  for i := 0 to uscharts.Count - 1 do
+  for i := 0 to uscharts.Charts.Count - 1 do
   begin
-    uscharts[i].FillData(data);
-    AddChart(uscharts[i]);
+    uscharts.Charts[i].FillData(data);
+    AddChart(uscharts.Charts[i]);
   end;
+
+  imbEventName := aOraSession.UserName + '#' + datTableName.Split(['#'])[0] + '.' + datTableName.Split(['#'])[1]; //assume always contains #
+  while (Length(imbEventName) > 0) and (imbEventName[Length(imbEventName)] in ['0'..'9']) do
+    SetLength(imbEventName,Length(imbEventName)-1);
+  indicatorEvent := fIMBConnection.Subscribe(imbEventName, false);
+  uscharts.SetEvent(indicatorEvent);
+  //todo: keep track of the TUSChartGroups??
 end;
 
 procedure TUSScenario.ReadIndicators(aTableNames: array of string; aOraSession: TOraSession);
@@ -2402,6 +2444,27 @@ begin
   FreeAndNil(fScenarioLinks);
   inherited;
   FreeAndNil(fUSDBScenarios);
+end;
+
+function TUSProject.FindMeasure(const aActionID: string;
+  out aMeasure: TMeasureAction): Boolean;
+var
+  measureCategory: TMeasureCategory;
+begin
+  Result := False;
+  TMonitor.Enter(fMeasures);
+  try
+    for measureCategory in fMeasures.Values do
+    begin
+      if measureCategory.FindMeasure(aActionID, aMeasure) then
+      begin
+        Result := True;
+        Exit;
+      end;
+    end;
+  finally
+    TMonitor.Exit(fMeasures);
+  end;
 end;
 
 function TUSProject.getOraSession: TOraSession;
@@ -2809,7 +2872,6 @@ begin
   begin
     if index > seriesIDs.Count - 1 then
       break;
-
     if index < 10 then
       seriesNumber := 'Series0'+ IntToStr(index)
     else
@@ -2850,17 +2912,19 @@ var
   chartSeries: TUSChartSeries;
   index: Integer;
 begin
-  fXValues := TDictionary<string, TList<TUSChartValue>>.Create;
+  FreeAndNil(fXValues);
+  fXValues := TDictionary<string, TObjectList<TUSChartValue>>.Create;
   for chartSeries in fSeries.Values do
     begin
       if chartSeries.Active and not fXValues.ContainsKey(chartSeries.XCol) then
       begin
-        fxValues.Add(chartSeries.XCol, TList<TUSChartValue>.Create);
+        fxValues.Add(chartSeries.XCol, TObjectList<TUSChartValue>.Create);
         for index := 0 to aData[chartSeries.XCol].Count - 1 do
           fXValues[chartSeries.XCol].Add(TUSChartValue.Create(aData[chartSeries.XCol][index]));
       end;
       chartSeries.FillData(aData);
     end;
+  fChanged := True;
 end;
 
 function TUSChart.getJSON: string;
@@ -3081,7 +3145,8 @@ procedure TUSChartSeries.FillData(aData: TDictionary<string, TStringList>);
 var
   index: Integer;
 begin
-  fYValues := TList<TUSChartValue>.Create;
+  FreeAndNil(fYValues);
+  fYValues := TObjectList<TUSChartValue>.Create;
   for index := 0 to aData[YCol].Count - 1 do
     fYValues.Add(TUSChartValue.Create(aData[YCol][index]));
 end;
@@ -3119,6 +3184,119 @@ begin
     Result := FloatToStr(fNumValue).Replace(',', '.')
   else
     Result := fStringValue;
+end;
+
+{ TUSChartGroup }
+
+constructor TUSChartGroup.Create(const aScenario: TUSScenario; const aDefTableName, aDatTableName: string);
+begin
+  fScenario := aScenario;
+  fDefTableName := aDefTableName;
+  fDatTableName := aDatTableName;
+  fCharts := TList<TUSChart>.Create;
+  fUpdateTimer := fScenario.project.Timers.CreateInactiveTimer;
+  //fUpdateTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneMinute*5);
+  fUpdateTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*30);
+  fLastUpdate := hrtNow;
+end;
+
+destructor TUSChartGroup.Destroy;
+begin
+  FreeAndNil(fCharts);
+end;
+
+procedure TUSChartGroup.HandleChangeObject(aAction, aObjectID: Integer;
+  const aObjectName, aAttribute: string);
+var
+  delta: THighResTicks;
+begin
+  //delta := Max(DateTimeDelta2HRT(dtOneSecond*5),DateTimeDelta2HRT(dtOneMinute*5) - (hrtNow - fLastUpdate));
+  delta := Max(DateTimeDelta2HRT(dtOneSecond*5),DateTimeDelta2HRT(dtOneSecond*30) - (hrtNow - fLastUpdate));
+  fUpdateTimer.Arm(delta,
+    HandleDataUpdate);
+end;
+
+procedure TUSChartGroup.HandleDataUpdate(aTimer: TTimer; aTime: THighResTicks);
+var
+  i,j: Integer;
+  oraSession: TOraSession;
+  datResult: TAllRowsResults;
+  data: TDictionary<string, TStringList>;
+  dataCols, dataCol: TStringList;
+  chartSeries: TUSChartSeries;
+  datQuery: string;
+  client: TClient;
+  chart: TUSChart;
+  clientMessage: string;
+begin
+  data := TDictionary<string, TStringList>.Create;
+  oraSession := (fScenario.project as TUSProject).OraSession;
+  dataCols := TStringList.Create;
+  dataCols.Duplicates := TDuplicates.dupIgnore;
+  TMonitor.Enter(fScenario.fCharts);
+  try
+    for i := 0 to Charts.Count - 1 do
+    begin
+      for chartSeries in Charts[i].Series.Values do
+        begin
+          if dataCols.IndexOf(chartSeries.XCol) = -1 then
+            dataCols.Add(chartSeries.XCol);
+          if dataCols.IndexOf(chartSeries.YCol) = -1 then
+            dataCols.Add(chartSeries.YCol);
+        end;
+    end;
+    if dataCols.Count > 0 then
+    begin
+      datQuery := 'SELECT ' + dataCols[0];
+      for i := 1 to dataCols.Count - 1 do
+        datQuery := datQuery + ', ' + dataCols[i];
+      datQuery := datQuery + ' FROM ' + DatTableName;
+      try
+        datResult := ReturnAllResults(oraSession, datQuery);
+      except
+        setLength(datResult, 0);
+      end;
+      for i := 0 to dataCols.Count -1 do
+      begin
+        dataCol := TStringList.Create;
+        for j := 0 to length(datResult) - 1 do
+          dataCol.Add(datResult[j,i]);
+        data.Add(dataCols[i], dataCol);
+      end;
+      for i := 0 to Charts.Count - 1 do
+      begin
+        charts[i].FillData(data);
+      end;
+    end;
+    clientMessage := '';
+    for chart in Charts do
+    begin
+      if clientMessage <> '' then
+        clientMessage := clientMessage + ',';
+      clientMessage := clientMessage + '{' + chart.getJSON + '}';
+    end;
+    clientMessage := '{"type":"updatechart", "payload":[' + clientMessage + ']}'
+  finally
+    TMonitor.Exit(fScenario.fCharts);
+    FreeAndNil(data);
+    if charts.Count > 0 then
+    begin
+      TMonitor.Enter(fScenario.clients);
+      fLastUpdate := aTime;
+      try
+        for client in fScenario.clients do
+          client.signalString(clientMessage);
+      finally
+        TMonitor.Exit(fScenario.clients);
+      end;
+    end;
+  end;
+end;
+
+procedure TUSChartGroup.SetEvent(aDataEvent: TIMBEventEntry);
+begin
+  fDataEvent := aDataEvent;
+  fDataEvent.OnChangeObject := HandleChangeObject;
 end;
 
 end.
