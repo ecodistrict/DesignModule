@@ -31,13 +31,13 @@ var
   prefix: string;
   ilp: TPair<TNDWLinkID, TNDWLink>;
   i: Integer;
-  query: TOraSQL;
+//  query: TOraSQL;
 begin
   try
     connection := TNDWConnection.Create(
-      'app-usmodel01.tsn.tno.nl', 4000,
-      'us_ams_2017#v7', 'v7#',
-      'us_ams_2017/us_ams_2017@app-usdata01.tsn.tno.nl/uspsde');
+      'app-usmodel01.tsn.tno.nl', 4000, 'NDW',
+      'vps17642.public.cloudvps.com', 4000, 'us_ams_2017#v7',
+      'v7#', 'us_ams_2017/us_ams_2017@app-usdata01.tsn.tno.nl/uspsde');
     try
       connection.LoadLinkInfoFromFile('c:\temp\ndw.world');
       WriteLn('read '+connection.links.Count.toString+' from c:\temp\ndw.world');

@@ -108,12 +108,16 @@ type
   end;
 
   TNDWConnection = class
-  constructor Create(const aRemoteHost: string; aRemotePort: Integer; const aFederation, aTablePrefix, aConnectString: string);
+  constructor Create(
+    const aRemoteHostNDW: string; aRemotePortNDW: Integer; const aFederationNDW: string;
+    const aRemoteHostUS: string; aRemotePortUS: Integer; const aFederationUS: string;
+    const aTablePrefix, aConnectString: string);
   destructor Destroy; override;
   private
-    fConnection: TIMBConnection;
+    fConnectionNDW: TIMBConnection;
     fLiveEvent: TIMBEventEntry;
-    fGENE_ROAD_event: TIMBEventEntry;
+    fConnectionUS: TIMBConnection;
+    fGeneRoadEvent: TIMBEventEntry;
     fLinks: TObjectDictionary<TNDWLinkID, TNDWLink>; // owns
     // oracle
     fSession: TOraSession;
@@ -129,6 +133,7 @@ type
     procedure HandleNDWNormalEvent(aEvent: TIMBEventEntry; var aPayload: TByteBuffer); stdcall;
     procedure addLinkToChanedQueue(aLink: TNDWLink; aDirtyFlag: Integer);
     procedure processQueues();
+  protected
     procedure SaveGeometry(aObjectID: Integer; aGeometry: TWDGeometry);
   public
     property links: TObjectDictionary<TNDWLinkID, TNDWLink> read fLinks;
@@ -290,7 +295,10 @@ begin
   end;
 end;
 
-constructor TNDWConnection.Create(const aRemoteHost: string; aRemotePort: Integer; const aFederation, aTablePrefix, aConnectString: string);
+constructor TNDWConnection.Create(
+  const aRemoteHostNDW: string; aRemotePortNDW: Integer; const aFederationNDW: string;
+  const aRemoteHostUS: string; aRemotePortUS: Integer; const aFederationUS: string;
+  const aTablePrefix, aConnectString: string);
 begin
   inherited Create;
   fLinks := TObjectDictionary<TNDWLinkID, TNDWLink>.Create([doOwnsValues]);
@@ -298,7 +306,8 @@ begin
   fChangedLinkQueue := TObjectList<TNDWLink>.Create(False);
   fTablePRefix := aTablePrefix;
   fRoutes := TObjectDictionary<Integer, TRoute>.Create([doOwnsValues]);
-  fConnection := TIMBConnection.Create(aRemoteHost, aRemotePort, 'NDWlistener', 0, aFederation);
+  fConnectionNDW := TIMBConnection.Create(aRemoteHostNDW, aRemotePortNDW, 'NDWlistener', 0, aFederationNDW);
+  fConnectionUS := TIMBConnection.Create(aRemoteHostUS, aRemotePortUS, 'NDWlistener', 0, aFederationUS);
   if aConnectString<>'' then
   begin
     // oracle session
@@ -313,7 +322,7 @@ begin
     fChangedLinkQueueThread.NameThreadForDebugging('NDW link processor');
     fChangedLinkQueueThread.Start;
     // imb events to signal on for queued items
-    fGENE_ROAD_event := fConnection.Publish('GENE_ROAD');
+    fGeneRoadEvent := fConnectionUS.Publish('GENE_ROAD');
     LoadFromUS();
     Log.WriteLn('loaded '+fLinks.Count.toString+' links from '+aConnectString);
   end
@@ -322,9 +331,9 @@ begin
     fSession := nil;
     fChangedLinkQueueEvent := nil;
     fChangedLinkQueueThread := nil;
-    fGENE_ROAD_event := nil;
+    fGeneRoadEvent := nil;
   end;
-  fLiveEvent := fConnection.Subscribe('NDW.Live', False);
+  fLiveEvent := fConnectionNDW.Subscribe('Live');
   fLiveEvent.OnNormalEvent := HandleNDWNormalEvent;
 end;
 
@@ -334,8 +343,9 @@ begin
   fChangedLinkQueueEvent.SetEvent;
   FreeAndNil(fChangedLinkQueueThread);
   fLiveEvent := nil;
-  fGENE_ROAD_event := nil;
-  FreeAndNil(fConnection);
+  fGeneRoadEvent := nil;
+  FreeAndNil(fConnectionNDW);
+  FreeAndNil(fConnectionUS);
   FreeAndNil(fNewLinkQueue);
   FreeAndNil(fChangedLinkQueue);
   FreeAndNil(fLinks);
@@ -808,7 +818,7 @@ begin
                         ChangeSpeedQuery.Execute(speedIndex);
                         fSession.Commit;
                         for i := 0 to speedIndex-1
-                        do fGENE_ROAD_event.SignalChangeObject(actionChange, speedObjectIDParam.ItemAsInteger[i], 'SPEED_R');
+                        do fGeneRoadEvent.SignalChangeObject(actionChange, speedObjectIDParam.ItemAsInteger[i], 'SPEED_R');
                         speedIndex := 0;
                       end;
                     end;
@@ -825,7 +835,7 @@ begin
                           ChangeIntensityQuery.Execute(intensityIndex);
                           fSession.Commit;
                           for i := 0 to intensityIndex-1
-                          do fGENE_ROAD_event.SignalChangeObject(actionChange, intensityObjectIDParam.ItemAsInteger[i], 'INTENSITY');
+                          do fGeneRoadEvent.SignalChangeObject(actionChange, intensityObjectIDParam.ItemAsInteger[i], 'INTENSITY');
                           intensityIndex := 0;
                         end;
                       end;
@@ -845,16 +855,16 @@ begin
             ChangeSpeedQuery.Execute(speedIndex);
             fSession.Commit;
             for i := 0 to speedIndex-1
-            do fGENE_ROAD_event.SignalChangeObject(actionChange, speedObjectIDParam.ItemAsInteger[i+1], 'SPEED_R');
-            speedIndex := 0;
+            do fGeneRoadEvent.SignalChangeObject(actionChange, speedObjectIDParam.ItemAsInteger[i+1], 'SPEED_R');
+            //speedIndex := 0;
           end;
           if intensityIndex>0 then
           begin
             ChangeIntensityQuery.Execute(intensityIndex);
             fSession.Commit;
             for i := 0 to intensityIndex-1
-            do fGENE_ROAD_event.SignalChangeObject(actionChange, intensityObjectIDParam.ItemAsInteger[i+1], 'INTENSITY');
-            intensityIndex := 0;
+            do fGeneRoadEvent.SignalChangeObject(actionChange, intensityObjectIDParam.ItemAsInteger[i+1], 'INTENSITY');
+            //intensityIndex := 0;
           end;
           // clear all processed entries
         except
