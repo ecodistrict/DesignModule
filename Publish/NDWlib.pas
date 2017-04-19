@@ -142,6 +142,7 @@ type
     procedure dump();
     function FixGeometries(): Integer;
     procedure LoadFromUS();
+    procedure SaveIndicatorsUS();
   end;
 
 
@@ -375,8 +376,10 @@ var
   routeID: Integer;
   routeTrajectTimestamp: Integer;
   route: TRoute;
+  UpdatedRoutes: Boolean;
 begin
   link := nil;
+  UpdatedRoutes := false;
   while aPayload.ReadAvailable>0 do
   begin
     key := aPayload.ReadInteger();
@@ -567,7 +570,7 @@ begin
 
               end;
               // todo: what to do with route..
-
+              UpdatedRoutes := true;
               Log.WriteLn('route: '+route.routeID.ToString+': '+route.fTravelTime.ToString+'  '+route.fTrajectSpeed.ToString);
             finally
               TMonitor.Exit(route);
@@ -576,6 +579,7 @@ begin
         end;
     end;
   end;
+  if UpdatedRoutes then SaveIndicatorsUS();
 end;
 
 function FixGeometry(aGeometry: TWDGeometry): Boolean;
@@ -740,6 +744,53 @@ begin
     end;
   finally
     CloseFile(F);
+  end;
+end;
+
+procedure TNDWConnection.SaveIndicatorsUS();
+var
+  stm: TOraSQL;
+  route: TRoute;
+  traveltime: double;
+
+const
+  RouteNames: array[1..8] of string = ('A10 Zuid O-W', 'A10 Zuid W-O', 'A10 West O-W', 'A10 West W-O',
+                             'A9 ZuidOost O-W', 'A9 ZuidOost W-O', 'A9 Zuid O-W', 'A9 Zuid W-O' );
+
+begin
+  stm := TOraSQL.Create(nil);
+  try
+    // link to session
+    stm.Session := fSession;
+    // build and execute sql
+    stm.SQL.Text :=
+      'TRUNCATE TABLE V7#TRAF_INDIC_DAT3';
+    stm.Execute;
+    TMonitor.Enter(fRoutes);
+    try
+      for route in fRoutes.Values do
+      begin
+        traveltime:=route.fTravelTime*60;
+        stm.SQL.Text := 'INSERT INTO V7#TRAF_INDIC_DAT3 (OBJECT_ID, ROUTE, TRAVEL_TIME) VALUES (';
+        if (route.fRouteID>=1) and (route.fRouteID<=8) then
+        begin
+          stm.SQL.Text := stm.SQL.Text +
+            route.fRouteID.ToString + ',''' + RouteNames[route.fRouteID] + ''',' + traveltime.ToString + ')';
+        end
+        else
+        begin
+          stm.SQL.Text := stm.SQL.Text +
+            route.fRouteID.ToString + ', ''route_' + route.fRouteID.ToString + ''',' + traveltime.ToString + ')';
+        end;
+        stm.Execute;
+      end;
+      fSession.Commit;
+      fConnectionUS.SignalChangeObject('TRAF_INDIC_DAT', 2, 0,'');
+    finally
+      TMonitor.Exit(fRoutes);
+    end;
+  finally
+    stm.Free;
   end;
 end;
 
