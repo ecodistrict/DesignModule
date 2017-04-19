@@ -108,12 +108,16 @@ type
   end;
 
   TNDWConnection = class
-  constructor Create(const aRemoteHost: string; aRemotePort: Integer; const aFederation, aTablePrefix, aConnectString: string);
+  constructor Create(
+    const aRemoteHostNDW: string; aRemotePortNDW: Integer; const aFederationNDW: string;
+    const aRemoteHostUS: string; aRemotePortUS: Integer; const aFederationUS: string;
+    const aTablePrefix, aConnectString: string);
   destructor Destroy; override;
   private
-    fConnection: TIMBConnection;
+    fConnectionNDW: TIMBConnection;
     fLiveEvent: TIMBEventEntry;
-    fGENE_ROAD_event: TIMBEventEntry;
+    fConnectionUS: TIMBConnection;
+    fGeneRoadEvent: TIMBEventEntry;
     fLinks: TObjectDictionary<TNDWLinkID, TNDWLink>; // owns
     // oracle
     fSession: TOraSession;
@@ -129,15 +133,49 @@ type
     procedure HandleNDWNormalEvent(aEvent: TIMBEventEntry; var aPayload: TByteBuffer); stdcall;
     procedure addLinkToChanedQueue(aLink: TNDWLink; aDirtyFlag: Integer);
     procedure processQueues();
+  protected
+    procedure SaveGeometry(aObjectID: Integer; aGeometry: TWDGeometry);
   public
     property links: TObjectDictionary<TNDWLinkID, TNDWLink> read fLinks;
     procedure SaveLinkInfoToFile(const aFileName: string);
     procedure LoadLinkInfoFromFile(const aFileName: string);
     procedure dump();
+    function FixGeometries(): Integer;
     procedure LoadFromUS();
   end;
 
+
+// only works for line right now..
+function geometryToSDOCoords(aGeometry: TWDGeometry; aType: Integer=2002): string;
+
+
 implementation
+
+
+function geometryToSDOCoords(aGeometry: TWDGeometry; aType: Integer=2002): string;
+var
+  part: TWDGeometryPart;
+  point: TWDGeometryPoint;
+  x,y: Single;
+begin
+  if Assigned(aGeometry) then
+  begin
+    Result := '';
+    for part in aGeometry.parts do
+    begin
+      for point in part.points do
+      begin
+        if Result<>''
+        then Result := Result+',';
+        x := point.x;
+        y := point.y;
+        Result := Result+x.ToString(dotFormat)+','+y.ToString(dotFormat);
+      end;
+    end;
+    Result := 'MDSYS.SDO_GEOMETRY('+aType.ToString+',NULL,NULL,MDSYS.SDO_ELEM_INFO_ARRAY(1,2,1),MDSYS.SDO_ORDINATE_ARRAY('+result+'))';
+  end
+  else Result := 'null';
+end;
 
 { TNWDLink }
 
@@ -257,7 +295,10 @@ begin
   end;
 end;
 
-constructor TNDWConnection.Create(const aRemoteHost: string; aRemotePort: Integer; const aFederation, aTablePrefix, aConnectString: string);
+constructor TNDWConnection.Create(
+  const aRemoteHostNDW: string; aRemotePortNDW: Integer; const aFederationNDW: string;
+  const aRemoteHostUS: string; aRemotePortUS: Integer; const aFederationUS: string;
+  const aTablePrefix, aConnectString: string);
 begin
   inherited Create;
   fLinks := TObjectDictionary<TNDWLinkID, TNDWLink>.Create([doOwnsValues]);
@@ -265,7 +306,8 @@ begin
   fChangedLinkQueue := TObjectList<TNDWLink>.Create(False);
   fTablePRefix := aTablePrefix;
   fRoutes := TObjectDictionary<Integer, TRoute>.Create([doOwnsValues]);
-  fConnection := TIMBConnection.Create(aRemoteHost, aRemotePort, 'NDWlistener', 0, aFederation);
+  fConnectionNDW := TIMBConnection.Create(aRemoteHostNDW, aRemotePortNDW, 'NDWlistener', 0, aFederationNDW);
+  fConnectionUS := TIMBConnection.Create(aRemoteHostUS, aRemotePortUS, 'NDWlistener', 0, aFederationUS);
   if aConnectString<>'' then
   begin
     // oracle session
@@ -280,7 +322,7 @@ begin
     fChangedLinkQueueThread.NameThreadForDebugging('NDW link processor');
     fChangedLinkQueueThread.Start;
     // imb events to signal on for queued items
-    fGENE_ROAD_event := fConnection.Publish('GENE_ROAD');
+    fGeneRoadEvent := fConnectionUS.Publish('GENE_ROAD');
     LoadFromUS();
     Log.WriteLn('loaded '+fLinks.Count.toString+' links from '+aConnectString);
   end
@@ -289,9 +331,9 @@ begin
     fSession := nil;
     fChangedLinkQueueEvent := nil;
     fChangedLinkQueueThread := nil;
-    fGENE_ROAD_event := nil;
+    fGeneRoadEvent := nil;
   end;
-  fLiveEvent := fConnection.Subscribe('NDW.Live', False);
+  fLiveEvent := fConnectionNDW.Subscribe('Live');
   fLiveEvent.OnNormalEvent := HandleNDWNormalEvent;
 end;
 
@@ -301,8 +343,9 @@ begin
   fChangedLinkQueueEvent.SetEvent;
   FreeAndNil(fChangedLinkQueueThread);
   fLiveEvent := nil;
-  fGENE_ROAD_event := nil;
-  FreeAndNil(fConnection);
+  fGeneRoadEvent := nil;
+  FreeAndNil(fConnectionNDW);
+  FreeAndNil(fConnectionUS);
   FreeAndNil(fNewLinkQueue);
   FreeAndNil(fChangedLinkQueue);
   FreeAndNil(fLinks);
@@ -535,6 +578,28 @@ begin
   end;
 end;
 
+function FixGeometry(aGeometry: TWDGeometry): Boolean;
+var
+  part: TWDGeometryPart;
+  p: Integer;
+
+begin
+  Result := False; // assume geoemtry is OK
+  for part in aGeometry.parts do
+  begin
+    // traverse in reverse so when can remove points at the end of the part that ar the same as the predecesor point
+    for p := part.points.Count-1 downto 1 do
+    begin
+      if (part.points[p].x = part.points[p-1].x) and (part.points[p].y = part.points[p-1].y) then
+      begin
+        part.points.Delete(p);
+        Result := True; // geometry is NOT OK and now fixed
+      end
+      else Break; // break on first good point
+    end;
+  end;
+end;
+
 procedure TNDWConnection.LoadFromUS();
 var
   query: TOraQuery;
@@ -753,7 +818,7 @@ begin
                         ChangeSpeedQuery.Execute(speedIndex);
                         fSession.Commit;
                         for i := 0 to speedIndex-1
-                        do fGENE_ROAD_event.SignalChangeObject(actionChange, speedObjectIDParam.ItemAsInteger[i], 'SPEED_R');
+                        do fGeneRoadEvent.SignalChangeObject(actionChange, speedObjectIDParam.ItemAsInteger[i], 'SPEED_R');
                         speedIndex := 0;
                       end;
                     end;
@@ -770,7 +835,7 @@ begin
                           ChangeIntensityQuery.Execute(intensityIndex);
                           fSession.Commit;
                           for i := 0 to intensityIndex-1
-                          do fGENE_ROAD_event.SignalChangeObject(actionChange, intensityObjectIDParam.ItemAsInteger[i], 'INTENSITY');
+                          do fGeneRoadEvent.SignalChangeObject(actionChange, intensityObjectIDParam.ItemAsInteger[i], 'INTENSITY');
                           intensityIndex := 0;
                         end;
                       end;
@@ -790,16 +855,16 @@ begin
             ChangeSpeedQuery.Execute(speedIndex);
             fSession.Commit;
             for i := 0 to speedIndex-1
-            do fGENE_ROAD_event.SignalChangeObject(actionChange, speedObjectIDParam.ItemAsInteger[i+1], 'SPEED_R');
-            speedIndex := 0;
+            do fGeneRoadEvent.SignalChangeObject(actionChange, speedObjectIDParam.ItemAsInteger[i+1], 'SPEED_R');
+            //speedIndex := 0;
           end;
           if intensityIndex>0 then
           begin
             ChangeIntensityQuery.Execute(intensityIndex);
             fSession.Commit;
             for i := 0 to intensityIndex-1
-            do fGENE_ROAD_event.SignalChangeObject(actionChange, intensityObjectIDParam.ItemAsInteger[i+1], 'INTENSITY');
-            intensityIndex := 0;
+            do fGeneRoadEvent.SignalChangeObject(actionChange, intensityObjectIDParam.ItemAsInteger[i+1], 'INTENSITY');
+            //intensityIndex := 0;
           end;
           // clear all processed entries
         except
@@ -827,6 +892,40 @@ begin
   finally
     TMonitor.Exit(fLinks);
   end;
+end;
+
+function TNDWConnection.FixGeometries: Integer;
+var
+  lilp: TPair<Int64, TNDWLink>;
+begin
+  Result := 0;
+  TMonitor.Enter(fLinks);
+  try
+    // check geometries
+    for lilp in fLinks do
+    begin
+      if Assigned(lilp.Value.geometry) then
+      begin
+        if FixGeometry(lilp.Value.geometry)
+        then Result := Result+1;
+//        begin
+          //SaveGeometry(lilp.Value.objectID, lilp.Value.geometry);
+          //Log.WriteLn('fixed geometry of road '+lilp.Value.objectID.ToString+' (link: '+lilp.Value.linkID.ToString+')');
+//        end;
+      end;
+    end;
+  finally
+    TMonitor.Exit(fLinks);
+  end;
+end;
+
+procedure TNDWConnection.SaveGeometry(aObjectID: Integer; aGeometry: TWDGeometry);
+begin
+  fSession.ExecSQL(
+    'UPDATE '+fTablePrefix+'GENE_ROAD '+
+    'SET shape='+geometryToSDOCoords(aGeometry)+' '+
+    'WHERE OBJECT_ID='+aObjectID.ToString);
+  fSession.Commit;
 end;
 
 procedure TNDWConnection.SaveLinkInfoToFile(const aFileName: string);
