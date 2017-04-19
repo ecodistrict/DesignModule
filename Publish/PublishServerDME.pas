@@ -25,6 +25,8 @@ uses
   CommandQueue,
   TimerPool,
 
+  NDWLib,
+
   System.JSON,
   System.SysUtils,
 

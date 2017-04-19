@@ -27,6 +27,7 @@ uses
 
   PublishServerLib,
   PublishServerGIS,
+  PublishServerOra,
 
   Vcl.graphics, // TPicture
 
@@ -218,7 +219,7 @@ type
 
   TUSChartGroup = class
   constructor Create(const aScenario: TUSScenario; const aDefTableName, aDatTableName: string);
-  destructor Destroy;
+  destructor Destroy; override;
   private
   fScenario: TUSScenario;
   fDefTableName, fDatTableName: string;
@@ -360,19 +361,9 @@ procedure SplitAt(const s: string; i: Integer; var LeftStr, RightStr: string);
 
 function ReadMetaLayer(aSession: TOraSession; const aTablePrefix: string; aMetaLayer: TMetaLayer): Boolean;
 
-function CreateWDGeometryFromSDOShape(aQuery: TOraQuery; const aFieldName: string): TWDGeometry;
-function CreateWDGeometryPointFromSDOShape(aQuery: TOraQuery; const aFieldName: string): TWDGeometryPoint;
-
-function ConnectStringFromSession(aOraSession: TOraSession): string;
 //function ConnectToUSProject(const aConnectString, aProjectID: string; out aMapView: TMapView): TOraSession;
 
 implementation
-
-function ConnectStringFromSession(aOraSession: TOraSession): string;
-begin
-  with aOraSession
-  do Result := userName+'/'+password+'@'+server;
-end;
 
 function ConnectToUSProject(const aConnectString, aProjectID: string; out aMapView: TMapView): TOraSession;
 var
@@ -1142,144 +1133,6 @@ begin
     if JOINCONDITION<>''
     then Result := Result+' AND '+
       JOINCONDITION;
-  end;
-end;
-
-function CreateWDGeometryFromSDOShape(aQuery: TOraQuery; const aFieldName: string): TWDGeometry;
-// https://docs.oracle.com/cd/B19306_01/appdev.102/b14255/sdo_objrelschema.htm
-var
-  Geometry: TOraObject;
-  Ordinates: TOraArray;
-  ElemInfo: TOraArray;
-  GType: Integer;
-  NParts: Integer;
-  PartNo: Integer;
-  PartSize: Integer;
-  x1,y1{,z1}: double;
-  i: Integer;
-  pnt: Integer;
-begin
-  // create WDGeometry as function result
-  Result := TWDGeometry.Create;
-  // read SDO geometry
-  Geometry := aQuery.GetObject(aFieldName);
-  GType := Geometry.AttrAsInteger['SDO_GTYPE'];
-  Ordinates := Geometry.AttrAsArray['SDO_ORDINATES'];
-  ElemInfo := Geometry.AttrAsArray['SDO_ELEM_INFO'];
-  // convert SDO geometry to WDGeometry
-  case Gtype of
-    2007: // 2D MULTIPOLYGON
-      begin
-        NParts := ElemInfo.Size div 3;
-        for PartNo := 0 to NParts-1 do
-        begin
-          Result.AddPart;
-          i := ElemInfo.ItemAsInteger[PartNo*3]-1; // convert 1-based index to 0-based (TOraArray)
-          if PartNo < NParts-1
-          then PartSize := ElemInfo.ItemAsInteger[(PartNo+1)*3] - i
-          else PartSize := Ordinates.Size - i;
-          PartSize := PartSize div 2; // 2 ordinates per co-ordinate
-          for pnt := 0 to PartSize-1 do
-          begin
-            Result.AddPoint(Ordinates.ItemAsFloat[i], Ordinates.ItemAsFloat[i + 1], NaN);
-            Inc(i, 2);
-          end;
-        end;
-
-      end;
-    2003: // 2D POLYGON
-      begin
-        NParts := ElemInfo.Size div 3;
-        for PartNo := 0 to NParts-1 do
-        begin
-          Result.AddPart;
-          i := ElemInfo.ItemAsInteger[PartNo*3]-1; // convert 1-based index to 0-based (TOraArray)
-          if PartNo < NParts-1
-          then PartSize := ElemInfo.ItemAsInteger[(PartNo+1)*3] - i
-          else PartSize := Ordinates.Size - i;
-          PartSize := PartSize div 2; // 2 ordinates per co-ordinate
-          for pnt := 0 to PartSize-1 do
-          begin
-            Result.AddPoint(Ordinates.ItemAsFloat[i], Ordinates.ItemAsFloat[i + 1], NaN);
-            Inc(i, 2);
-          end;
-        end;
-      end;
-    2002: // 2D LINE
-      begin
-        for pnt := 0 to (Ordinates.Size div 2)-1 do
-        begin
-          Result.AddPoint(Ordinates.ItemAsFloat[pnt*2], Ordinates.ItemAsFloat[pnt*2 + 1], NaN);
-        end;
-      end;
-    2001: // 2D POINT
-      begin
-        x1:=Geometry.AttrAsFloat['SDO_POINT.X'];
-        y1:=Geometry.AttrAsFloat['SDO_POINT.Y'];
-        Result.AddPoint(x1, y1, NaN);
-      end;
-  end;
-end;
-
-function CreateWDGeometryPointFromSDOShape(aQuery: TOraQuery; const aFieldName: string): TWDGeometryPoint;
-// https://docs.oracle.com/cd/B19306_01/appdev.102/b14255/sdo_objrelschema.htm
-var
-  Geometry: TOraObject;
-  Ordinates: TOraArray;
-  ElemInfo: TOraArray;
-  GType: Integer;
-  NParts: Integer;
-  idx: Integer;
-  StartIdx: Integer;
-  EndIdx: Integer;
-begin
-  // create WDGeometryPoint as function result
-  Result := TWDGeometryPoint.Create;
-  // read SDO geometry
-  Geometry := aQuery.GetObject(aFieldName);
-  GType := Geometry.AttrAsInteger['SDO_GTYPE'];
-  Ordinates := Geometry.AttrAsArray['SDO_ORDINATES'];
-  ElemInfo := Geometry.AttrAsArray['SDO_ELEM_INFO'];
-  // convert SDO geometry to WDGeometryPoint, use first point from SDO as value
-  case Gtype of
-    2007: // 2D MULTIPOLYGON
-      begin
-        if Ordinates.Size>=2 then
-        begin
-          Result.x := Ordinates.ItemAsFloat[0];
-          Result.y := Ordinates.ItemAsFloat[1];
-        end;
-      end;
-    2003: // 2D POLYGON
-      begin
-        Eleminfo.InsertItem(ElemInfo.Size); // prevent out of bounds
-        ElemInfo.ItemAsInteger[ElemInfo.size-1]:=Ordinates.Size + 1;
-        NParts := ElemInfo.Size div 3;
-        if NParts>0 then
-        begin
-          idx := 0;
-          StartIdx :=ElemInfo.ItemAsInteger[idx*3];
-          EndIdx   :=ElemInfo.ItemAsInteger[(idx*3)+3] -2 ;
-          if EndIdx > StartIdx then
-          begin
-            Result.x := ordinates.itemasfloat[EndIdx-1];
-            Result.y := ordinates.itemasfloat[EndIdx];
-          end;
-        end;
-      end;
-    2002: // 2D LINE
-      begin
-        if Ordinates.Size>=2 then
-        begin
-          Result.x := Ordinates.ItemAsFloat[0];
-          Result.y := Ordinates.ItemAsFloat[1];
-        end;
-      end;
-    2001: // 2D POINT
-      begin
-        Result.x := Geometry.AttrAsFloat['SDO_POINT.X'];
-        Result.y := Geometry.AttrAsFloat['SDO_POINT.Y'];
-      end;
   end;
 end;
 
@@ -2211,7 +2064,7 @@ begin
   end;
 
   imbEventName := aOraSession.UserName + '#' + datTableName.Split(['#'])[0] + '.' + datTableName.Split(['#'])[1]; //assume always contains #
-  while (Length(imbEventName) > 0) and (imbEventName[Length(imbEventName)] in ['0'..'9']) do
+  while (Length(imbEventName) > 0) and (imbEventName[Length(imbEventName)] in ['0'..'9']) do //todo better check for numbers!
     SetLength(imbEventName,Length(imbEventName)-1);
   indicatorEvent := fIMBConnection.Subscribe(imbEventName, false);
   uscharts.SetEvent(indicatorEvent);

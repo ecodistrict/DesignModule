@@ -972,7 +972,7 @@ LayerManager.ObjectLayer = function (layer, detailsLayer, crd) {
 LayerManager.MarkerLayer = function (layer, detailsLayer, crd) {
     LayerManager.ObjectLayer.call(this, layer, detailsLayer, crd);
     //this.displayGroup = "separate"; // override
-    detailsLayer.displayGroup = "separate"; // todo: for now 'hard' override for all marker layers
+    //detailsLayer.displayGroup = "separate"; // todo: for now 'hard' override for all marker layers
     this.objects = {};
     this.subscribe();
     // todo: when to unsubscribe? (on delete layer, NOT on hide..)
