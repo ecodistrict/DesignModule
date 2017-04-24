@@ -278,7 +278,7 @@ type
   private
     fTableprefix: string;
     fIMBConnection: TIMBConnection; // ref
-    fChartEvents: TList<TIMBEventEntry>;
+    fUSChartGroups: TObjectList<TUSChartGroup>;
     procedure ReadIndicators (aTableNames: array of string; aOraSession: TOraSession);
     procedure ReadIndicator (aTableName: string; aOraSession: TOraSession);
   public
@@ -335,9 +335,13 @@ type
     fPreLoadScenarios: Boolean;
     fIMB3Connection: TIMBConnection;
     function getOraSession: TOraSession;
+  public
+    property IMB3Connection: TIMBConnection read fIMB3Connection;
   protected
     procedure ReadScenarios;
     procedure ReadMeasures;
+    property PreLoadScenarios: Boolean read fPreLoadScenarios;
+    property USDBScenarios: TObjectDictionary<string, TUSDBScenario> read fUSDBScenarios;
     function FindMeasure(const aActionID: string; out aMeasure: TMeasureAction): Boolean;
     function ReadScenario(const aID: string): TScenario; override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
@@ -855,22 +859,27 @@ var
   end;
 
 begin
-  values := TList<double>.Create;
-  try
-    for odb in odbList do
-    begin
-      addValue(odb.Min);
-      addValue(odb.Max);
+  if Length(odbList) > 2 then
+  begin
+    values := TList<double>.Create;
+    try
+      for odb in odbList do
+      begin
+        addValue(odb.Min);
+        addValue(odb.Max);
+      end;
+      values.Sort;
+      // remove first and last value to remove large ranges on the edge off legends
+      values.Delete(0);
+      values.Delete(values.Count-1);
+      // use difference highest-lowest/aFactor
+      Result := Abs(values[values.count-1]-values[0]);
+    finally
+      values.Free;
     end;
-    values.Sort;
-    // remove first and last value to remove large ranges on the edge off legends
-    values.Delete(0);
-    values.Delete(values.Count-1);
-    // use difference highest-lowest/aFactor
-    Result := Abs(values[values.count-1]-values[0]);
-  finally
-    values.Free;
-  end;
+  end
+  else
+    Result := 0.2;
 end;
 
 function TMetaLayerEntry.SQLQuery(const aTablePrefix:string; xMin, yMin, xMax, yMax: Integer): string;
@@ -1706,14 +1715,14 @@ constructor TUSScenario.Create(aProject: TProject; const aID, aName, aDescriptio
 begin
   fTablePrefix := aTablePrefix;
   fIMBConnection := aIMBConnection;
-  fChartEvents := TList<TIMBEventEntry>.Create;
+  fUSChartGroups := TObjectList<TUSChartGroup>.Create(True);
   inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView, false);
 end;
 
 destructor TUSScenario.Destroy;
 begin
   inherited;
-  FreeAndNil(fChartEvents);
+  FreeAndNil(fUSChartGroups);
 end;
 
 procedure TUSScenario.ReadBasicData;
@@ -2062,13 +2071,12 @@ begin
     uscharts.Charts[i].FillData(data);
     AddChart(uscharts.Charts[i]);
   end;
-
   imbEventName := aOraSession.UserName + '#' + datTableName.Split(['#'])[0] + '.' + datTableName.Split(['#'])[1]; //assume always contains #
-  while (Length(imbEventName) > 0) and (imbEventName[Length(imbEventName)] in ['0'..'9']) do //todo better check for numbers!
+  while (Length(imbEventName) > 0) and TryStrToInt(imbEventName[Length(imbEventName)], i) do //todo better check for numbers?
     SetLength(imbEventName,Length(imbEventName)-1);
   indicatorEvent := fIMBConnection.Subscribe(imbEventName, false);
   uscharts.SetEvent(indicatorEvent);
-  //todo: keep track of the TUSChartGroups??
+  fUSChartGroups.Add(uscharts);
 end;
 
 procedure TUSScenario.ReadIndicators(aTableNames: array of string; aOraSession: TOraSession);
@@ -2331,7 +2339,6 @@ var
   jsonMeasures, selectCategories, selectedObjects: TJSONArray;
   jsonMeasure, jsonArrayItem: TJSONValue;
   jsonStringValue, selectCategoriesString, selectedObjectsString: string;
-  measureHistory: TMeasureHistory;
 begin
   inherited;
   if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
@@ -2417,9 +2424,9 @@ begin
     OraSession.Commit;
   end;
   try
-  measures := ReturnAllResults(OraSession,
-    'SELECT OBJECT_ID, Category, Measure, Description, ObjectTypes, Action, Action_Parameters, Action_ID '+
-    'FROM '+MEASURES_TABLE_NAME);
+    measures := ReturnAllResults(OraSession,
+      'SELECT OBJECT_ID, Category, Measure, Description, ObjectTypes, Action, Action_Parameters, Action_ID '+
+      'FROM '+MEASURES_TABLE_NAME);
     if length(measures)>0 then
     begin
       for m := 0 to length(measures)-1 do
@@ -2688,7 +2695,10 @@ var
   series: TUSChartSeries;
   seriesIDs: TStringList;
 begin
-  domain := 'US Charts';
+  if aLines.ContainsKey(aPrefix + 'Domain') then
+    domain := aLines[aPrefix + 'Domain']
+  else
+    domain := 'US Charts';
   name := '';
   description := 'No Description';
   defaultLoad := True;

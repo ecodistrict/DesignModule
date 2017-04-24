@@ -235,7 +235,7 @@ begin
         simParameters.setParameter('VissimController-compliance rate', '1');
         simParameters.setParameter('VissimController-OD Matrix', 'JUNO N470_3');
         simParameters.setParameter('VissimController-JUNO case', True);
-        simParameters.setParameter('VissimController-Simulation Time Start(hh:mm:ss)', '00:00:00');
+        simParameters.setParameter('VissimController-Simulation Time Start(hh:mm:ss)', '16:45:00');
         simParameters.setParameter('VissimController-Simulation Duration', 3600);
         simParameters.setParameter('VissimController-Period', 'avond');//todo
 

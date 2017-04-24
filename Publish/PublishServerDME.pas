@@ -38,28 +38,36 @@ const
   //hardcoded bounding box zones for the Park & Shuttle measure
   xMin = '119000';
   xMax = '120600';
-  yMin = '484200';
-  yMax = '482500';
+  yMin = '482500';
+  yMax = '484200';
   targetZone = '719';
 
 type
   TUSDesignProject = class(TUSProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string);
   destructor Destroy; override;
   private
-    odEvent: TIMBEventEntry;
+    fUSIMBConnection: TIMBConnection;
   public
     procedure ReadBasicData(); override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
   end;
 
   TUSMonitorProject = class(TUSProject)
-
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string{; aSourceEPSG: Integer});
+  destructor Destroy; override;
+  public
+    procedure ReadBasicData(); override;
   end;
 
   TUSEvaluateProject = class(TUSProject)
-
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string{; aSourceEPSG: Integer});
+  destructor Destroy; override;
+  public
+    procedure ReadBasicData(); override;
   end;
 
 implementation
@@ -70,9 +78,14 @@ constructor TUSDesignProject.Create(aSessionModel: TSessionModel;
   aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID,
   aProjectName, aTilerFQDN, aTilerStatusURL: string;
   aDBConnection: TCustomConnection; aMapView: TMapView;
-  aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
+  aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string);
 begin
-  inherited;
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, aMaxNearestObjectDistanceInMeters);
+  fProjectCurrentScenario := ReadScenario(aStartScenario);
+  fUSIMBConnection := TIMBConnection.Create(
+      GetSetting('IMB3RemoteHost', 'vps17642.public.cloudvps.com'),
+      GetSetting('IMB3RemotePort', 4000),
+      'PublisherDME-Design', 21, '');
   EnableControl(selectControl);
   EnableControl(measuresControl);
   EnableControl(measuresHistoryControl);
@@ -87,7 +100,6 @@ procedure TUSDesignProject.handleClientMessage(aClient: TClient;
   aScenario: TScenario; aJSONObject: TJSONObject);
 var
   oraSession: TOraSession;
-  query: TOraQuery;
   measure: TMeasureAction;
   jsonMeasures: TJSONArray;
   jsonMeasure, jsonAction: TJSONValue;
@@ -95,6 +107,8 @@ var
   measureFactor: Double;
   factorString, inverseString: string;
   queryText1, queryText2, table1, table2: string;
+  publishEventName: string;
+  publishEvent: TIMBEventEntry;
 begin
   if Assigned(aScenario) and (aScenario is TUSScenario) then
   begin
@@ -146,7 +160,11 @@ begin
                     oraSession.ExecSQL(queryText1);
                     oraSession.ExecSQL(queryText2);
                     oraSession.Commit;
-                    //todo: send imb message about update!
+
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.TRAF_OD';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    publishEvent.SignalChangeObject(actionChange, 0, 'CAR_TRIPS'); //todo: send object id = 0 in case of everything?
+                    publishEvent.UnPublish;
                   except
                     oraSession.Rollback;
                     //todo: logging transaction failed
@@ -162,9 +180,85 @@ begin
 end;
 
 procedure TUSDesignProject.ReadBasicData;
+var
+  scenarioID: Integer;
+  s: string;
 begin
-  inherited;
+  ReadScenarios;
   ReadMeasures;
+  // load current scenario and ref scenario first
+  scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession));
+  fProjectCurrentScenario := ReadScenario(scenarioID.ToString);
+  Log.WriteLn('current US scenario: '+fProjectCurrentScenario.ID+' ('+(fProjectCurrentScenario as TUSScenario).Tableprefix+'): "'+fProjectCurrentScenario.description+'"', llOk);
+  // ref
+  scenarioID := GetScenarioBaseID(OraSession, scenarioID);
+  if scenarioID>=0 then
+  begin
+    fProjectRefScenario := ReadScenario(scenarioID.ToString);
+    Log.WriteLn('reference US scenario: '+fProjectRefScenario.ID+' ('+(fProjectRefScenario as TUSScenario).Tableprefix+'): "'+fProjectRefScenario.description+'"', llOk);
+  end
+  else Log.WriteLn('NO reference US scenario', llWarning);
+  if PreLoadScenarios then
+  begin
+    for s in USDBScenarios.Keys do
+    begin
+      if USDBScenarios[s]._published=1
+        then ReadScenario(s);
+    end;
+  end;
+end;
+
+{ TUSMonitorProject }
+
+constructor TUSMonitorProject.Create(aSessionModel: TSessionModel;
+  aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID,
+  aProjectName, aTilerFQDN, aTilerStatusURL: string;
+  aDBConnection: TCustomConnection; aMapView: TMapView;
+  aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
+  aStartScenario: string);
+begin
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, aMaxNearestObjectDistanceInMeters);
+  DisableControl(selectControl);
+  DisableControl(measuresControl);
+  DisableControl(measuresHistoryControl);
+  fProjectCurrentScenario := ReadScenario(aStartScenario);
+end;
+
+destructor TUSMonitorProject.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TUSMonitorProject.ReadBasicData;
+begin
+
+end;
+
+{ TUSEvaluateProject }
+
+constructor TUSEvaluateProject.Create(aSessionModel: TSessionModel;
+  aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID,
+  aProjectName, aTilerFQDN, aTilerStatusURL: string;
+  aDBConnection: TCustomConnection; aMapView: TMapView;
+  aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
+  aStartScenario: string);
+begin
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, aMaxNearestObjectDistanceInMeters);
+  DisableControl(selectControl);
+  DisableControl(measuresControl);
+  DisableControl(measuresHistoryControl);
+  fProjectCurrentScenario := ReadScenario(aStartScenario);
+end;
+
+destructor TUSEvaluateProject.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TUSEvaluateProject.ReadBasicData;
+begin
 end;
 
 end.
