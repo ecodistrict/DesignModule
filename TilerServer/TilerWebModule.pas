@@ -2234,10 +2234,10 @@ begin
               end
               else
               begin
-              colors2 := fPalette.ValueToColors(isgop.Value.texture2);
-              if IsNaN(isgop.Value.texture)
-              then colors := colors2
-              else colors := fPalette.ValueToColors(isgop.Value.texture);
+                colors2 := fPalette.ValueToColors(isgop.Value.texture2);
+                if IsNaN(isgop.Value.texture)
+                then colors := colors2
+                else colors := fPalette.ValueToColors(isgop.Value.texture);
               end;
               setLength(polygon, 5);
               for part in isgop.Value.fGeometry.parts do
@@ -2401,53 +2401,53 @@ begin
         (icehObjectID shl 3) or wtLengthDelimited:
           begin
             id := aBuffer.bb_read_rawbytestring(aCursor);
-    if fGeometries.TryGetValue(id, sgo) then
-    begin
-      if Assigned(geometry) then
-      begin
-      // Assume that geometry is modified if we received geometry in the payload.
-      // We remove the geometry from fLocations. The list will free the geometry.
-        fGeometries.Remove(id);
-        sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
-        if fMaxExtent.IsEmpty
-        then fMaxExtent := sgo.extent
-        else fMaxExtent.Expand(sgo.extent);
-        fGeometries.Add(id, sgo);
-        geometry := nil; // do not free. Object is owned by fLocations
-      end
-      else
-      begin
-        if not IsNaN(value) then
-        begin
-          sgo.value := value;
-        end;
-        if not IsNaN(value2) then
-        begin
-          sgo.value2 := value2;
-        end;
-        if not IsNaN(texture) then
-        begin
-          sgo.texture := texture;
-        end;
-        if not IsNaN(texture2) then
-        begin
-          sgo.texture2 := texture2;
-        end;
-      end;
-    end
-    else
-    begin
-      if Assigned(geometry) then
-      begin
-        sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
-        if fMaxExtent.IsEmpty
-        then fMaxExtent := sgo.extent
-        else fMaxExtent.Expand(sgo.extent);
-        fGeometries.Add(id, sgo);
-        geometry := nil;
-        value := NaN;
-      end;
-    end;
+            if fGeometries.TryGetValue(id, sgo) then
+            begin
+              if Assigned(geometry) then
+              begin
+              // Assume that geometry is modified if we received geometry in the payload.
+              // We remove the geometry from fLocations. The list will free the geometry.
+                fGeometries.Remove(id);
+                sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
+                if fMaxExtent.IsEmpty
+                then fMaxExtent := sgo.extent
+                else fMaxExtent.Expand(sgo.extent);
+                fGeometries.Add(id, sgo);
+                geometry := nil; // do not free. Object is owned by fLocations
+              end
+              else
+              begin
+                if not IsNaN(value) then
+                begin
+                  sgo.value := value;
+                end;
+                if not IsNaN(value2) then
+                begin
+                  sgo.value2 := value2;
+                end;
+                if not IsNaN(texture) then
+                begin
+                  sgo.texture := texture;
+                end;
+                if not IsNaN(texture2) then
+                begin
+                  sgo.texture2 := texture2;
+                end;
+              end;
+            end
+            else
+            begin
+              if Assigned(geometry) then
+              begin
+                sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
+                if fMaxExtent.IsEmpty
+                  then fMaxExtent := sgo.extent
+                else fMaxExtent.Expand(sgo.extent);
+                fGeometries.Add(id, sgo);
+                geometry := nil;
+                value := NaN;
+              end;
+            end;
           end;
         (icehTilerValue shl 3) or wt64Bit:
           begin
@@ -3117,9 +3117,48 @@ begin
 end;
 
 function TSliceDiffGeometryI.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+var
+  isgop: TPair<TWDID, TSliceGeometryObject>;
+  refObj: TSliceGeometryObject;
+  path: TPathData;
 begin
-  // todo: implement
   Result := gtsFailed;
+  aBitmap.Canvas.BeginScene;
+  try
+    aBitmap.Canvas.Clear(0);
+    aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+    fDataLock.BeginRead;
+    try
+      for isgop in (fCurrentSlice as TSliceGeometryI).fGeometries do
+      begin
+        if aExtent.Intersects(isgop.Value.fExtent) then
+        begin
+          path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
+          try
+            if (fRefSlice as TSliceGeometryI).fGeometries.TryGetValue(isgop.Key, refObj) then
+            begin
+              if Assigned(fPalette)
+              then aBitmap.Canvas.Stroke.Color := fPalette.ValueToColors(isgop.Value.value - refObj.value).mainColor
+              else aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Blue or TAlphaColorRec.Alpha;
+            end
+            else //no refObject found color black?
+            begin
+              aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
+            end;
+            aBitmap.Canvas.StrokeThickness := 2; // todo: default width?
+            aBitmap.Canvas.DrawPath(path, 1);
+          finally
+            path.Free;
+          end;
+        end;
+      end;
+    finally
+      fDataLock.EndRead;
+    end;
+  finally
+    aBitmap.Canvas.EndScene;
+  end;
+  Result := gtsOk;
 end;
 
 { TSliceDiffGeometryIC }
@@ -3163,11 +3202,13 @@ var
   part: TWDGeometryPart;
   point: TWDGeometryPoint;
   path: TPathData;
-  x, y, xPrev, yPrev, xn, yn: Double;
+  x, y, xPrev, yPrev, xn, yn, xd, yd: Double;
   l: Double;
   bufferExtent: TExtent;
-  colors: TGeoColors;
-  colors2: TGeoColors;
+  widthL, widthR: Double;
+  colorsL: TGeoColors;
+  colorsR: TGeoColors;
+  validL, validR: Boolean;
   refObj: TSliceGeometryICLRObject;
 begin
   Result := gtsFailed; // sentinel
@@ -3184,14 +3225,62 @@ begin
       try
         for isgop in (fCurrentSlice as TSliceGeometryICLR).fGeometries do
         begin
-          // get reference geometry object
-          if not (fRefSlice as TSliceGeometryICLR).fGeometries.TryGetValue(isgop.Key, refObj)
-          then refObj := nil;
-
           if bufferExtent.Intersects(isgop.Value.fExtent) then
           begin
-            if (not Assigned(refObj)) or (IsNaN(isgop.Value.texture) and IsNaN(isgop.Value.texture2)) then
-            begin // both values are NaN -> draw small black line
+            // get reference geometry object
+            validL := True;
+            validR := True;
+            if not (fRefSlice as TSliceGeometryICLR).fGeometries.TryGetValue(isgop.Key, refObj) then
+            begin
+              validL := False;
+              validR := False;
+            end
+            else
+            begin
+              //see if we can find L width
+              if not IsNaN(isgop.Value.value) then
+              begin
+                if not IsNaN(refObj.value) then
+                  widthL := (isgop.Value.value + refObj.value) / 2
+                else
+                  widthL := isgop.Value.value;
+              end
+              else
+              begin
+                if not IsNaN(refObj.value) then
+                  widthL := refObj.value
+                else
+                  validL := False;
+              end;
+              //see if we can find R width
+              if not IsNaN(isgop.Value.value2) then
+              begin
+                if not IsNaN(refObj.value2) then
+                  widthR := (isgop.Value.value2 + refObj.value2) / 2
+                else
+                  widthR := isgop.Value.value2;
+              end
+              else
+              begin
+                if not IsNaN(refObj.value2) then
+                  widthR := refObj.value2
+                else
+                  validR := False;
+              end;
+              //see if we can find L color
+              if not (IsNaN(isgop.Value.texture) or IsNaN(refObj.texture)) then
+                colorsL := fPalette.ValueToColors(isgop.Value.texture-refObj.texture)
+              else
+                validL := False;
+              //see if we can find R color
+              if not (IsNaN(isgop.Value.texture2) or IsNaN(refObj.texture2)) then
+                colorsR := fPalette.ValueToColors(isgop.Value.texture2-refObj.texture2)
+              else
+                validR := False;
+            end;
+
+            if not (validR or validL) then //if neither side is valid -> draw a thin black line
+            begin
               path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
               try
                 aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
@@ -3201,21 +3290,8 @@ begin
                 path.Free;
               end;
             end
-            else
+            else //draw our polygons
             begin
-              // todo: add smart code for combinations of refObj=nil, texture values being NaN etc.
-              if Assigned(refObj) and not IsNaN(refObj.texture2) then
-              begin
-                colors2 := fPalette.ValueToColors(isgop.Value.texture2-refObj.texture2);
-                if IsNaN(isgop.Value.texture)
-                then colors := colors2
-                else colors := fPalette.ValueToColors(isgop.Value.texture-refObj.texture);
-              end
-              else
-              begin
-                colors2 := TGeoColors.Create(TAlphaColorRec.Black or TAlphaColorRec.Alpha, TAlphaColorRec.Black or TAlphaColorRec.Alpha);
-                colors := colors2;
-              end;
               setLength(polygon, 5);
               for part in isgop.Value.fGeometry.parts do
               begin
@@ -3233,96 +3309,56 @@ begin
                     yn := xPrev-x;
                     // normalize..
                     l := sqrt((xn*xn)+(yn*yn));
+                    polygon[0].X := xPrev;
+                    polygon[0].Y := yPrev;
+                    polygon[1].X := x;
+                    polygon[1].Y := y;
+                    polygon[4].X := xPrev;
+                    polygon[4].Y := yPrev;
 
-                    if not (IsNaN(isgop.Value.value) or IsNaN(isgop.Value.value2)) then
+                    //draw right side
+                    if validR then
                     begin
-                      // add polygon to the right for x,y x2,y2
-                      xn := {(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-                      yn := {(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+                      xd := {(1+}widthR*capacityFactor{)}*xn/l;
+                      yd := {(1+}widthR*capacityFactor{)}*yn/l;
 
-                      polygon[0].X := xPrev;
-                      polygon[0].Y := yPrev;
-                      polygon[1].X := x;
-                      polygon[1].Y := y;
-                      polygon[2].X := x+xn;
-                      polygon[2].Y := y+yn;
-                      polygon[3].X := xPrev+xn;
-                      polygon[3].Y := yPrev+yn;
-                      polygon[4].X := xPrev;
-                      polygon[4].Y := yPrev;
+                      polygon[2].X := x-xd;
+                      polygon[2].Y := y-yd;
+                      polygon[3].X := xPrev-xd;
+                      polygon[3].Y := yPrev-yd;
 
                       // draw
-                      if colors.fillColor<>0  then
+                      if colorsR.fillColor<>0  then
                       begin
-                        aBitmap.Canvas.Fill.Color := colors.fillColor;
+                        aBitmap.Canvas.Fill.Color := colorsR.fillColor;
                         aBitmap.Canvas.FillPolygon(polygon, 1);
                       end;
-                      if colors.outlineColor<>0 then
+                      if colorsR.outlineColor<>0 then
                       begin
-                        aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+                        aBitmap.Canvas.Stroke.Color := colorsR.outlineColor;
                         aBitmap.Canvas.DrawPolygon(polygon, 1);
                       end;
-
-                      //left
-                      // add polygon to the left for x,y x2,y2
-                      xn := yPrev-y;
-                      yn := x-xPrev;
-                      // normalize..
-                      l := sqrt((xn*xn)+(yn*yn));
-                      xn := {(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-                      yn := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
+                    end;
+                    //draw left side
+                    if validL then
+                    begin
+                      xd := {(1+}widthL*capacityFactor{)}*xn/l;
+                      yd := {(1+}widthL*capacityFactor{)}*yn/l;
 
                       // todo: wrong rotation direction..
-                      polygon[2].X := x-xn;
-                      polygon[2].Y := y-yn;
-                      polygon[3].X := xPrev-xn;
-                      polygon[3].Y := yPrev-yn;
+                      polygon[2].X := x+xd;
+                      polygon[2].Y := y+yd;
+                      polygon[3].X := xPrev+xd;
+                      polygon[3].Y := yPrev+yd;
                       // draw left
-                      if colors2.fillColor<>0 then
+                      if colorsL.fillColor<>0 then
                       begin
-                        aBitmap.Canvas.Fill.Color := colors2.fillColor;
+                        aBitmap.Canvas.Fill.Color := colorsL.fillColor;
                         aBitmap.Canvas.FillPolygon(polygon, 1);
                       end;
-                      if colors2.outlineColor<>0 then
+                      if colorsL.outlineColor<>0 then
                       begin
-                        aBitmap.Canvas.Stroke.Color := colors2.outlineColor;
-                        aBitmap.Canvas.DrawPolygon(polygon, 1);
-                      end;
-                    end
-                    else
-                    begin
-                      // draw centered line around path with capacity as width
-                      if IsNaN(isgop.Value.value) then
-                      begin
-                        xn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-                        yn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
-                      end
-                      else
-                      begin
-                        xn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-                        yn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*yn/l;
-                      end;
-
-                      polygon[0].X := xPrev-xn;
-                      polygon[0].Y := yPrev-yn;
-                      polygon[1].X := x-xn;
-                      polygon[1].Y := y-yn;
-                      polygon[2].X := x+xn;
-                      polygon[2].Y := y+yn;
-                      polygon[3].X := xPrev+xn;
-                      polygon[3].Y := yPrev+yn;
-                      polygon[4].X := xPrev-xn;
-                      polygon[4].Y := yPrev-yn;
-
-                      // draw
-                      if colors.fillColor<>0 then
-                      begin
-                        aBitmap.Canvas.Fill.Color := colors.fillColor;
-                        aBitmap.Canvas.FillPolygon(polygon, 1);
-                      end;
-                      if colors.outlineColor<>0 then
-                      begin
-                        aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+                        aBitmap.Canvas.Stroke.Color := colorsL.outlineColor;
                         aBitmap.Canvas.DrawPolygon(polygon, 1);
                       end;
                     end;
@@ -3330,6 +3366,147 @@ begin
                 end;
               end;
             end;
+
+//            if (not Assigned(refObj)) or (IsNaN(isgop.Value.texture) and IsNaN(isgop.Value.texture2)) then
+//            begin // both values are NaN -> draw small black line
+//              path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
+//              try
+//                aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
+//                aBitmap.Canvas.StrokeThickness := 1;
+//                aBitmap.Canvas.DrawPath(path, 1);
+//              finally
+//                path.Free;
+//              end;
+//            end
+//            else
+//            begin
+//              // todo: add smart code for combinations of refObj=nil, texture values being NaN etc.
+//              if Assigned(refObj) and not IsNaN(refObj.texture2) then
+//              begin
+//                colors2 := fPalette.ValueToColors(isgop.Value.texture2-refObj.texture2);
+//                if IsNaN(isgop.Value.texture)
+//                then colors := colors2
+//                else colors := fPalette.ValueToColors(isgop.Value.texture-refObj.texture);
+//              end
+//              else
+//              begin
+//                colors2 := TGeoColors.Create(TAlphaColorRec.Black or TAlphaColorRec.Alpha, TAlphaColorRec.Black or TAlphaColorRec.Alpha);
+//                colors := colors2;
+//              end;
+//              setLength(polygon, 5);
+//              for part in isgop.Value.fGeometry.parts do
+//              begin
+//                x := NaN;
+//                for point in part.points do
+//                begin
+//                  // recalc coordinates relative to extent
+//                  xPrev := x;
+//                  yPrev := y;
+//                  x := (point.X-aExtent.XMin)/aPixelWidth;
+//                  y := (aExtent.YMax-point.Y)/aPixelHeight;
+//                  if not IsNaN(xPrev) then
+//                  begin
+//                    xn := y-yPrev;
+//                    yn := xPrev-x;
+//                    // normalize..
+//                    l := sqrt((xn*xn)+(yn*yn));
+//
+//                    if not (IsNaN(isgop.Value.value) or IsNaN(isgop.Value.value2)) then
+//                    begin
+//                      // add polygon to the right for x,y x2,y2
+//                      xn := {(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
+//                      yn := {(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+//
+//                      polygon[0].X := xPrev;
+//                      polygon[0].Y := yPrev;
+//                      polygon[1].X := x;
+//                      polygon[1].Y := y;
+//                      polygon[2].X := x+xn;
+//                      polygon[2].Y := y+yn;
+//                      polygon[3].X := xPrev+xn;
+//                      polygon[3].Y := yPrev+yn;
+//                      polygon[4].X := xPrev;
+//                      polygon[4].Y := yPrev;
+//
+//                      // draw
+//                      if colors.fillColor<>0  then
+//                      begin
+//                        aBitmap.Canvas.Fill.Color := colors.fillColor;
+//                        aBitmap.Canvas.FillPolygon(polygon, 1);
+//                      end;
+//                      if colors.outlineColor<>0 then
+//                      begin
+//                        aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+//                        aBitmap.Canvas.DrawPolygon(polygon, 1);
+//                      end;
+//
+//                      //left
+//                      // add polygon to the left for x,y x2,y2
+//                      xn := yPrev-y;
+//                      yn := x-xPrev;
+//                      // normalize..
+//                      l := sqrt((xn*xn)+(yn*yn));
+//                      xn := {(1+}isgop.Value.value*capacityFactor{)}*xn/l;
+//                      yn := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
+//
+//                      // todo: wrong rotation direction..
+//                      polygon[2].X := x-xn;
+//                      polygon[2].Y := y-yn;
+//                      polygon[3].X := xPrev-xn;
+//                      polygon[3].Y := yPrev-yn;
+//                      // draw left
+//                      if colors2.fillColor<>0 then
+//                      begin
+//                        aBitmap.Canvas.Fill.Color := colors2.fillColor;
+//                        aBitmap.Canvas.FillPolygon(polygon, 1);
+//                      end;
+//                      if colors2.outlineColor<>0 then
+//                      begin
+//                        aBitmap.Canvas.Stroke.Color := colors2.outlineColor;
+//                        aBitmap.Canvas.DrawPolygon(polygon, 1);
+//                      end;
+//                    end
+//                    else
+//                    begin
+//                      // draw centered line around path with capacity as width
+//                      if IsNaN(isgop.Value.value) then
+//                      begin
+//                        xn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
+//                        yn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+//                      end
+//                      else
+//                      begin
+//                        xn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*xn/l;
+//                        yn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*yn/l;
+//                      end;
+//
+//                      polygon[0].X := xPrev-xn;
+//                      polygon[0].Y := yPrev-yn;
+//                      polygon[1].X := x-xn;
+//                      polygon[1].Y := y-yn;
+//                      polygon[2].X := x+xn;
+//                      polygon[2].Y := y+yn;
+//                      polygon[3].X := xPrev+xn;
+//                      polygon[3].Y := yPrev+yn;
+//                      polygon[4].X := xPrev-xn;
+//                      polygon[4].Y := yPrev-yn;
+//
+//                      // draw
+//                      if colors.fillColor<>0 then
+//                      begin
+//                        aBitmap.Canvas.Fill.Color := colors.fillColor;
+//                        aBitmap.Canvas.FillPolygon(polygon, 1);
+//                      end;
+//                      if colors.outlineColor<>0 then
+//                      begin
+//                        aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+//                        aBitmap.Canvas.DrawPolygon(polygon, 1);
+//                      end;
+//                    end;
+//                  end;
+//                end;
+//              end;
+//            end;
           end;
         end;
         // todo: process ref geometries not in current? or just skip..
