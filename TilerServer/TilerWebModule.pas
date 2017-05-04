@@ -2004,12 +2004,8 @@ end;
 function TSliceGeometryIC.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   isgop: TPair<TWDID, TSliceGeometryICObject>;
-  polygon: TPolygon;
   capacityFactor: Double;
-  // polygon drawing
-  part: TWDGeometryPart;
-  point: TWDGeometryPoint;
-  x, y, xPrev, yPrev{, xn, yn}: Double;
+  path: TPathData;
   bufferExtent: TExtent;
   colors: TGeoColors;
 begin
@@ -2029,31 +2025,14 @@ begin
           if bufferExtent.Intersects(isgop.Value.fExtent) then
           begin
             colors := fPalette.ValueToColors(isgop.Value.texture);
-            aBitmap.Canvas.Stroke.Color := colors.mainColor;
-
-            // geometry is multi line, create polygons to right with width based on capacity
-            setLength(polygon, 5); // will auto close so only 4 points needed
-            for part in isgop.Value.fGeometry.parts do
-            begin
-              x := NaN;
-              for point in part.points do
-              begin
-                // recalc coordinates relative to extent and in pixels
-                xPrev := x;
-                yPrev := y;
-                x := (point.X-aExtent.XMin)/aPixelWidth;
-                y := (aExtent.YMax-point.Y)/aPixelHeight;
-                if not IsNaN(xPrev) then
-                begin
-                  aBitmap.Canvas.StrokeThickness := isgop.Value.value*capacityFactor;
-                  if colors.fillColor<>0
-                  then aBitmap.Canvas.DrawLine(TPointF.Create(xPrev, yPrev), TPointF.Create(x,y), 1);
-                  if colors.outlineColor<>0
-                  then aBitmap.Canvas.DrawPolygon(polygon, 1);
-                end;
+            path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
+              try
+                aBitmap.Canvas.Stroke.Color := colors.mainColor;
+                aBitmap.Canvas.StrokeThickness := isgop.Value.value*capacityFactor;
+                aBitmap.Canvas.DrawPath(path, 1);
+              finally
+                path.Free;
               end;
-            end;
-
           end;
         end;
       finally
@@ -2828,6 +2807,7 @@ var
   fileStream: TStream;
   bitmap: FMX.Graphics.TBitmap;
   status: TGenerateTileStatus;
+
 begin
   Result := HSC_ERROR_NOT_FOUND; // sentinel
   status  := gtsRestart; // sentinel
@@ -2969,6 +2949,7 @@ procedure TDiffSlice.HandleDiffUpdate;
 begin
   // recalc extent
   fMaxExtent := fCurrentSlice.fMaxExtent.Intersection(fRefSlice.fMaxExtent);
+  fDataVersion := fDataVersion+1; // trigger new set of tiles in cache
   fLayer.signalRefresh(timeStamp);
 end;
 
@@ -3175,9 +3156,88 @@ begin
 end;
 
 function TSliceDiffGeometryIC.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+var
+  isgop: TPair<TWDID, TSliceGeometryICObject>;
+  capacityFactor: Double;
+  path: TPathData;
+  bufferExtent: TExtent;
+  width: Double;
+  colors: TGeoColors;
+  refObj: TSliceGeometryICObject;
 begin
-  // todo: implement
-  Result := gtsFailed;
+  Result := gtsFailed; // sentinel
+  if Assigned(fPalette) then
+  begin
+    aBitmap.Canvas.BeginScene;
+    try
+      aBitmap.Canvas.Clear(0);
+      aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+      capacityFactor := 0.001/Abs(aExtent.YMax-aExtent.YMin);
+      bufferExtent := aExtent.Inflate(1.3);
+      fCurrentSlice.fDataLock.BeginRead;
+      fRefSlice.fDataLock.BeginRead;
+      try
+        for isgop in (fCurrentSlice as TSliceGeometryIC).fGeometries do
+        begin
+          if bufferExtent.Intersects(isgop.Value.fExtent) then
+          begin
+            width := Double.NaN;
+            // get reference geometry object
+            if (fRefSlice as TSliceGeometryIC).fGeometries.TryGetValue(isgop.Key, refObj) then
+            begin
+              //see if we can find width
+              if not IsNaN(isgop.Value.value) then
+              begin
+                if not IsNaN(refObj.value) then
+                  width := (isgop.Value.value + refObj.value) / 2
+                else
+                  width := isgop.Value.value;
+              end
+              else if not IsNaN(refObj.value) then
+                  width := refObj.value;
+              //see if we can find color
+              if not (IsNaN(isgop.Value.texture) or IsNaN(refObj.texture)) then
+                colors := fPalette.ValueToColors(isgop.Value.texture-refObj.texture)
+              else
+                width := Double.NaN;
+            end;
+
+            if isNaN(width) then //either color or value is not valid -> draw a thin black line
+            begin
+              path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
+              try
+                aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
+                aBitmap.Canvas.StrokeThickness := 1;
+                aBitmap.Canvas.DrawPath(path, 1);
+              finally
+                path.Free;
+              end;
+            end
+            else //valid color and width -> draw the path
+            begin
+              path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
+              try
+                aBitmap.Canvas.Stroke.Color := colors.mainColor;
+                aBitmap.Canvas.StrokeThickness := width*capacityFactor;
+                aBitmap.Canvas.DrawPath(path, 1);
+              finally
+                path.Free;
+              end;
+            end;
+          end;
+        end;
+        // todo: process ref geometries not in current? or just skip..
+      finally
+        fCurrentSlice.fDataLock.EndRead;
+        fRefSlice.fDataLock.EndRead;
+      end;
+      Result := gtsOk;
+    finally
+      aBitmap.Canvas.EndScene;
+    end;
+  end
+  else Log.WriteLn('TSliceDiffGeometryIC layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+
 end;
 
 { TSliceDiffGeometryICLR }
@@ -3211,6 +3271,8 @@ var
   validL, validR: Boolean;
   refObj: TSliceGeometryICLRObject;
 begin
+  widthL := Double.NaN;
+  widthR := Double.NaN;
   Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
   begin
