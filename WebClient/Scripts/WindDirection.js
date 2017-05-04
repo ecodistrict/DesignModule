@@ -121,6 +121,9 @@ L.Control.Arrow = L.Control.extend({
             return;
         }
 
+        e.clientX = e.clientX ? e.client : e.touches[0].clientX;
+        e.clientY = e.clientY ? e.client : e.touches[0].clientY;
+
         L.DomUtil.removeClass(DataManager.wind.arrow, 'windArrowLive');
 
         var offset = DataManager.wind.GetOffset(e);
@@ -183,6 +186,10 @@ L.Control.Arrow = L.Control.extend({
         e = e ? e : window.event;
         e.preventDefault();
         e.stopPropagation();
+
+        e.clientX = e.clientX ? e.client : e.touches[0].clientX;
+        e.clientY = e.clientY ? e.client : e.touches[0].clientY;
+
         var windDiv = DataManager.wind._windDiv;
 
         var data = DataManager.wind.GetDirectionSpeed(e);
@@ -197,6 +204,10 @@ L.Control.Arrow = L.Control.extend({
         e = e ? e : window.event;
         e.preventDefault();
         e.stopPropagation();
+
+        e.clientX = e.clientX ? e.client : e.touches[0].clientX;
+        e.clientY = e.clientY ? e.client : e.touches[0].clientY;
+
         if (is_touch_device()) {
             window.removeEventListener('touchmove', DataManager.wind._directionMove);
             window.removeEventListener('touchend', DataManager.wind._directionEnd);
@@ -216,10 +227,6 @@ L.Control.Arrow = L.Control.extend({
                     speed: data.speed
                 }
             });
-
-
-
-        //todo: send wsSend to server!
     },
 
     GetOffset: function(e)
