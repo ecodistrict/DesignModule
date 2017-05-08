@@ -1,3 +1,4 @@
+//todo: change square functionality into rectangle (and circle to ellipse)
 L.Control.Arrow = L.Control.extend({
     arrow: null,
     text: null,
@@ -6,10 +7,15 @@ L.Control.Arrow = L.Control.extend({
     moveHeight: 15,
     moveWidth: 15,
     maxSpeed: 40, //in m/s
+    directionBorder: 15, //pixel width of the border where direction will be changed instead of speed
     rotating: false,
     dragging: false,
     live: true,
     active: false,
+    speedLive: true,
+    directionLive: true,
+    liveData: {speed: 0, direction: 0},
+    currentData: {speed: 0, direction: 0},
 
 
     options: {
@@ -21,6 +27,15 @@ L.Control.Arrow = L.Control.extend({
 
     initialize: function (options) {
         L.setOptions(this, options);
+
+        //bind our event functions to this
+        this._windDirectionDivMouseDown = this._windDirectionDivMouseDown.bind(this);
+        this._directionMove = this._directionMove.bind(this);
+        this._directionEnd = this._directionEnd.bind(this);
+        this._speedMove = this._speedMove.bind(this);
+        this._speedEnd = this._speedEnd.bind(this);
+        this._dragMove = this._dragMove.bind(this);
+        this._dragEnd = this._dragEnd.bind(this);
     },
 
     onAdd: function (map) {
@@ -97,10 +112,12 @@ L.Control.Arrow = L.Control.extend({
     },
 
     GoLive: function() {
-        DataManager.wind.live = true;
-        if (DataManager.wind.time && DataManager.wind.direction && DataManager.wind.speed)
-            DataManager.wind.rotate(DataManager.wind.direction, DataManager.wind.speed, DataManager.wind.time);
-        L.DomUtil.addClass(DataManager.wind.arrow, 'windArrowLive');
+        this.speedLive = true;
+        this.directionLive = true;
+        this.currentData.direction = typeof this.liveData.direction != "undefined" ? this.liveData.direction : 0;
+        this.currentData.speed = typeof this.liveData.speed != "undefined" ? this.liveData.speed : 0;;
+        this.rotate(this.currentData.direction, this.currentData.speed);
+        L.DomUtil.addClass(this.arrow, 'windArrowLive');
         wsSend({
             type: 'windData',
             payload: {
@@ -110,54 +127,69 @@ L.Control.Arrow = L.Control.extend({
     },
 
     _windDirectionDivMouseDown: function (e) {
-        if (DataManager.wind.dragging || DataManager.wind.rotating)
+        if (this.dragging || this.rotating)
             return;
         e.preventDefault();
         e.stopPropagation();
 
         if ((e.which && e.which == 3) || (e.button && (e.button == 2))) //check if right mouse button!
         {
-            DataManager.wind.GoLive();
+            this.GoLive();
             return;
         }
 
-        e.clientX = e.clientX ? e.client : e.touches[0].clientX;
-        e.clientY = e.clientY ? e.client : e.touches[0].clientY;
+        e.clientX = typeof e.clientX != "undefined" ? e.clientX : e.touches[0].clientX;
+        e.clientY = typeof e.clientY != "undefined" ? e.clientY : e.touches[0].clientY;
 
-        L.DomUtil.removeClass(DataManager.wind.arrow, 'windArrowLive');
-
-        var offset = DataManager.wind.GetOffset(e);
+        var offset = this.GetOffset(e);
 
 
-        if ((DataManager.wind._windDiv.offsetWidth - offset.X) <= DataManager.wind.moveWidth && (DataManager.wind._windDiv.offsetHeight - offset.Y) <= DataManager.wind.moveHeight) {
-            DataManager.wind.dragging = true;
+        if ((this._windDiv.offsetWidth - offset.X) <= this.moveWidth && (this._windDiv.offsetHeight - offset.Y) <= this.moveHeight) {
+            this.dragging = true;
 
             if (is_touch_device()) {
-                window.addEventListener('touchmove', DataManager.wind._dragMove);
-                window.addEventListener('touchend', DataManager.wind._dragEnd);
+                window.addEventListener('touchmove', this._dragMove);
+                window.addEventListener('touchend', this._dragEnd);
             } else {
-                window.addEventListener("mousemove", DataManager.wind._dragMove);
-                window.addEventListener("mouseup", DataManager.wind._dragEnd);
+                window.addEventListener("mousemove", this._dragMove);
+                window.addEventListener("mouseup", this._dragEnd);
             }
         }
         else
         {
-            DataManager.wind.rotating = true;
-            DataManager.wind.live = false;
+            this.rotating = true;
+            //DataManager.wind.live = false;
 
-            var data = DataManager.wind.GetDirectionSpeed(e);
-            var today = new Date();
-            var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
+            var length = this.GetLength(offset);
 
-            DataManager.wind.rotate(data.direction, data.speed, date);
-
-            if (is_touch_device()) {
-                window.addEventListener('touchmove', DataManager.wind._directionMove);
-                window.addEventListener('touchend', DataManager.wind._directionEnd);
-            } else {
-                window.addEventListener("mousemove", DataManager.wind._directionMove);
-                window.addEventListener("mouseup", DataManager.wind._directionEnd);
+            if (length > (this.windWidth / 2) - this.directionBorder) //check if we're adjustion direction
+            {
+                L.DomUtil.removeClass(this.arrow, 'windArrowLive');
+                this.directionLive = false;
+                this.currentData.direction = this.GetDirection(offset);
+                if (is_touch_device()) {
+                    window.addEventListener('touchmove', this._directionMove);
+                    window.addEventListener('touchend', this._directionEnd);
+                } else {
+                    window.addEventListener("mousemove", this._directionMove);
+                    window.addEventListener("mouseup", this._directionEnd);
+                }
             }
+            else // adjusting speed
+            {
+
+                this.speedLive = false;
+                this.currentData.speed = this.GetSpeed(offset);
+                if (is_touch_device()) {
+                    window.addEventListener('touchmove', this._speedMove);
+                    window.addEventListener('touchend', this._speedEnd);
+                } else {
+                    window.addEventListener("mousemove", this._speedMove);
+                    window.addEventListener("mouseup", this._speedEnd);
+                }
+            }
+
+            this.rotate(this.currentData.direction, this.currentData.speed);
         }
     },
 
@@ -169,70 +201,117 @@ L.Control.Arrow = L.Control.extend({
     _dragEnd: function(e)
     {
         if (is_touch_device()) {
-            window.removeEventListener('touchmove', DataManager.wind._dragMove);
-            window.removeEventListener('touchend', DataManager.wind._dragEnd);
+            window.removeEventListener('touchmove', this._dragMove);
+            window.removeEventListener('touchend', this._dragEnd);
         } else {
-            window.removeEventListener("mousemove", DataManager.wind._dragMove);
-            window.removeEventListener("mouseup", DataManager.wind._dragEnd);
+            window.removeEventListener("mousemove", this._dragMove);
+            window.removeEventListener("mouseup", this._dragEnd);
         }
 
-        DataManager.wind.dragging = false;
+        this.dragging = false;
     },
 
     _directionMove: function (e) {
-        if (!(DataManager.wind.dragging || DataManager.wind.rotating))
+        if (!(this.dragging || this.rotating))
             return
 
         e = e ? e : window.event;
         e.preventDefault();
         e.stopPropagation();
 
-        e.clientX = e.clientX ? e.client : e.touches[0].clientX;
-        e.clientY = e.clientY ? e.client : e.touches[0].clientY;
+        e.clientX = typeof e.clientX != "undefined" ? e.clientX : e.touches[0].clientX;
+        e.clientY = typeof e.clientY != "undefined" ? e.clientY : e.touches[0].clientY;
 
-        var windDiv = DataManager.wind._windDiv;
-
-        var data = DataManager.wind.GetDirectionSpeed(e);
-        var today = new Date();
-        var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
-        DataManager.wind.rotate(data.direction, data.speed, date);
+        var windDiv = this._windDiv;
+        //var today = new Date();
+        //var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
+        //var data = DataManager.wind.GetDirectionSpeed(e);
+        this.currentData.direction = this.GetDirection(this.GetOffset(e));
+        this.rotate(this.currentData.direction, this.currentData.speed);
     },
 
     _directionEnd: function (e) {
-        DataManager.wind.rotating = false;
+        this.rotating = false;
 
         e = e ? e : window.event;
         e.preventDefault();
         e.stopPropagation();
 
-        e.clientX = e.clientX ? e.client : e.touches[0].clientX;
-        e.clientY = e.clientY ? e.client : e.touches[0].clientY;
+        e.clientX = typeof e.clientX != "undefined" ? e.clientX : e.changedTouches[0].clientX;
+        e.clientY = typeof e.clientY != "undefined" ? e.clientY : e.changedTouches[0].clientY;
 
         if (is_touch_device()) {
-            window.removeEventListener('touchmove', DataManager.wind._directionMove);
-            window.removeEventListener('touchend', DataManager.wind._directionEnd);
+            window.removeEventListener('touchmove', this._directionMove);
+            window.removeEventListener('touchend', this._directionEnd);
         } else {
-            window.removeEventListener("mousemove", DataManager.wind._directionMove);
-            window.removeEventListener("mouseup", DataManager.wind._directionEnd);
+            window.removeEventListener("mousemove", this._directionMove);
+            window.removeEventListener("mouseup", this._directionEnd);
         }
-        var data = DataManager.wind.GetDirectionSpeed(e);
-        var today = new Date();
-        var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
-        DataManager.wind.rotate(data.direction, data.speed, date);
+
+        this.currentData.direction = this.GetDirection(this.GetOffset(e));
+        this.rotate(this.currentData.direction, this.currentData.speed);
 
         wsSend({
                 type: 'windData',
                 payload: {
-                    direction: data.direction,
-                    speed: data.speed
+                    direction: this.currentData.direction
                 }
             });
+    },
+
+    _speedMove: function (e) {
+        if (!(this.dragging || this.rotating))
+            return
+
+        e = e ? e : window.event;
+        e.preventDefault();
+        e.stopPropagation();
+
+        e.clientX = typeof e.clientX != "undefined" ? e.clientX : e.touches[0].clientX;
+        e.clientY = typeof e.clientY != "undefined" ? e.clientY : e.touches[0].clientY;
+
+        //var windDiv = this._windDiv;
+        //var today = new Date();
+        //var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
+        //var data = this.GetDirectionSpeed(e);
+        this.currentData.speed = this.GetSpeed(this.GetOffset(e));
+        this.rotate(this.currentData.direction, this.currentData.speed);
+    },
+
+    _speedEnd: function (e) {
+        this.rotating = false;
+
+        e = e ? e : window.event;
+        e.preventDefault();
+        e.stopPropagation();
+
+        e.clientX = typeof e.clientX != "undefined" ? e.clientX : e.changedTouches[0].clientX;
+        e.clientY = typeof e.clientY != "undefined" ? e.clientY : e.changedTouches[0].clientY;
+
+        if (is_touch_device()) {
+            window.removeEventListener('touchmove', this._speedMove);
+            window.removeEventListener('touchend', this._speedEnd);
+        } else {
+            window.removeEventListener("mousemove", this._speedMove);
+            window.removeEventListener("mouseup", this._speedEnd);
+        }
+
+        this.currentData.speed = this.GetSpeed(this.GetOffset(e));
+        this.rotate(this.currentData.direction, this.currentData.speed);
+
+        wsSend({
+            type: 'windData',
+            payload: {
+                speed: this.currentData.speed
+            }
+        });
+
     },
 
     GetOffset: function(e)
     {
         e = e ? e : window.event;
-        var currentDiv = DataManager.wind._windDiv;
+        var currentDiv = this._windDiv;
         var totOffset = {
             top: 0,
             left: 0
@@ -243,38 +322,46 @@ L.Control.Arrow = L.Control.extend({
             currentDiv = currentDiv.offsetParent;
         }
 
-        return {
+        var center = {
+            X: (this._windDiv.offsetWidth / 2),
+            Y: (this._windDiv.offsetHeight / 2)
+        }
+
+        var position = {
             X: e.clientX - totOffset.left,
             Y: e.clientY - totOffset.top
         }
-    },
-
-    GetDirectionSpeed: function (e)
-    {
-        var offset = this.GetOffset(e);
-
-        var center = {
-            X: (DataManager.wind._windDiv.offsetWidth / 2),
-            Y: (DataManager.wind._windDiv.offsetHeight / 2)
-        }
 
         var centerOffset = {
-            X: offset.X - center.X,
-            Y: offset.Y - center.Y
+            X: position.X - center.X,
+            Y: position.Y - center.Y
         }
-
-        var length = Math.sqrt(Math.pow(centerOffset.X, 2) + Math.pow(centerOffset.Y, 2));
-        
-        var direction = (Math.atan((-1 * centerOffset.X) / centerOffset.Y) * (360 / (2 * Math.PI)) + 360) % 360;
-        if (centerOffset.Y < 0)
-            direction = (direction + 180) % 360;
-
-        //direction = (direction + 18) % 360;
 
         return {
-            direction: direction,
-            speed: (Math.pow(Math.min(length, center.X), 2.5) / Math.pow(center.X, 2.5)) * this.maxSpeed
+            X: position.X,
+            Y: position.Y,
+            centerOffset: centerOffset,
+            center: center
         }
+    },
+
+    GetLength: function(offset)
+    {
+        return Math.sqrt(Math.pow(offset.centerOffset.X, 2) + Math.pow(offset.centerOffset.Y, 2));
+    },
+
+    GetSpeed: function(offset)
+    {
+        var length = this.GetLength(offset);
+        return (Math.pow(Math.min(length, offset.center.X), 2.5) / Math.pow(offset.center.X, 2.5)) * this.maxSpeed;
+    },
+
+    GetDirection: function(offset)
+    {
+        var direction = (Math.atan((-1 * offset.centerOffset.X) / offset.centerOffset.Y) * (360 / (2 * Math.PI)) + 360) % 360;
+        if (offset.centerOffset.Y < 0)
+            direction = (direction + 180) % 360;
+        return direction;
     },
 
     _update: function () {
@@ -283,24 +370,31 @@ L.Control.Arrow = L.Control.extend({
 
     NewData: (function (data) {
         let changed = false;
-        if (typeof data.speed !== 'undefined' && this.speed != data.speed) {
-            this.speed = Math.max(data.speed, 0);
-            changed = true;
+        let direction = this.currentData.direction;
+        let speed = this.currentData.speed;
+        if (typeof data.speed !== 'undefined' && this.liveData.speed != data.speed) {
+            this.liveData.speed = Math.max(data.speed, 0);
+            if (this.speedLive)
+            {
+                speed = this.liveData.speed;
+                this.currentData.speed = speed;
+                changed = true;
+            }
         }
         if (typeof data.direction !== 'undefined' && this.direction != data.direction) {
-            this.direction = data.direction;
-            changed = true;
+            this.liveData.direction = data.direction;
+            if (this.directionLive) {
+                direction = this.liveData.direction;
+                this.currentData.direction = direction;
+                changed = true;
+            }
         }
+        
+        if (!this.live && data.live)
+            this.GoLive();
 
-        if (typeof data.time !== 'undefined')
-            this.time = data.time;
-
-        if (!DataManager.wind.live && data.live)
-            DataManager.wind.GoLive();
-
-        if (DataManager.wind.live && changed)
-            this.rotate(this.direction, this.speed, data.time);
-        wind = this;
+        if (changed)
+            this.rotate(direction, speed);
     }),
 
     rotate: function (degrees, speed) {
@@ -319,17 +413,15 @@ L.Control.Arrow = L.Control.extend({
         this.text.innerHTML = degrees + '&deg;' + "<BR>" + speed + ' m/s';
     },
 
-    loopedRotate: function () {
+    loopedRotate: function () { //only for testing purposes
         var deg = Math.random() * (270 - 1) + 1;
 
         var speed = Math.random() * 25;
         deg = Math.round(deg);
         var delay = Math.round(Math.random() * 10000);
-        var today = new Date();
-        var date = today.getFullYear() + '-' + today.getMonth() + 1 + '-' + today.getDate() + ' 12:12:12';
 
-        DataManager.wind.NewData({ direction: deg, speed: speed, time: date });
-        setTimeout(DataManager.wind.loopedRotate, delay);
+        this.NewData({ direction: deg, speed: speed});
+        setTimeout(this.loopedRotate.bind(this), delay);
     }
 })
 
