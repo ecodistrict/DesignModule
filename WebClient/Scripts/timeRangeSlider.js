@@ -19,7 +19,7 @@
         };
         this.lastUpdate = null;
         this.lastValue = null;
-        this.updateDelta = 500;
+        this.updateDelta = 500; // max update time while sliding 1 second
         this.valueDelta = 10; // percentage
         this.liveTime = 0;
         this.live = true;
@@ -55,7 +55,7 @@
     containerRightClick: function (e) {
         e.preventDefault(); //prevent showing of contextmenu since we use right-mouse for something else
         e.stopPropagation();
-        DataManager.rangeTimeSlider.goLive();
+        DataManager.timeRangeSlider.goLive();
     },
 
     goLive: function () {
