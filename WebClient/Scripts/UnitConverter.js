@@ -605,3 +605,18 @@ for (var i = 0; i < UnitConverter.ENTRIES.length; i++) {
     UnitConverter.Converters[UnitConverter.ENTRIES[i].qnt] = new UnitConverter.Converter(UnitConverter.ENTRIES[i]);
     UnitConverter.Converters["Date"] = new UnitConverter.DateConverter();
 }
+
+DateConverter = {
+    _millisecondsPerDay: 86400000,
+    _offset: new Date("12-30-1899Z").valueOf() / 86400000, //gets the offset in days between Delphi DateTime and epoch
+    doubleToDate: function (aDouble)
+    {
+        var daysSinceEpoch = aDouble + this._offset;
+        return new Date(daysSinceEpoch * this._millisecondsPerDay);
+    },
+    dateToDouble: function (aDate)
+    {
+        var daysSinceEpoch = aDate.valueOf() / this._millisecondsPerDay;
+        return daysSinceEpoch - this._offset;
+    }
+}

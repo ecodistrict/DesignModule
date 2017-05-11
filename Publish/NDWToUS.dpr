@@ -26,24 +26,27 @@ begin
 end;
 
 var
+  scenario: string;
   connection: TNDWConnection;
   session: TOraSession;
   prefix: string;
-  ilp: TPair<TNDWLinkID, TNDWLink>;
+  ilp: TPair<Int64, TNDWLink>;
   i: Integer;
 //  query: TOraSQL;
 begin
   try
+    scenario := 'v11';
+
     connection := TNDWConnection.Create(
       'app-usmodel01.tsn.tno.nl', 4000, 'NDW',
-      'vps17642.public.cloudvps.com', 4000, 'us_ams_2017#v7',
-      'v7#', 'us_ams_2017/us_ams_2017@app-usdata01.tsn.tno.nl/uspsde');
+      'vps17642.public.cloudvps.com', 4000, 'us_ams_2017#'+scenario,
+      scenario+'#', 'us_ams_2017/us_ams_2017@app-usdata01.tsn.tno.nl/uspsde');
     try
       connection.LoadLinkInfoFromFile('c:\temp\ndw.world');
       WriteLn('read '+connection.links.Count.toString+' from c:\temp\ndw.world');
       if connection.links.Count>0 then
       begin
-        WriteLn('Press return to update database.. WARNING ALL roads of V7 will be removed first! CTRL-C NOW..!');
+        WriteLn('Press return to update database.. WARNING ALL roads of '+scenario+' will be removed first! CTRL-C NOW..!');
         ReadLn;
         // fix first
         WriteLn(connection.FixGeometries.tostring+' geometries fixed..');
@@ -51,7 +54,7 @@ begin
         try
           session.ConnectString := 'us_ams_2017/us_ams_2017@app-usdata01.tsn.tno.nl/uspsde';
           session.Open;
-          prefix := 'V7#';
+          prefix := scenario+'#';
 
           TMonitor.Enter(connection.links);
           try

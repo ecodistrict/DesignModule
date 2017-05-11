@@ -83,7 +83,6 @@
             this.lastUpdate = newTime;
             this.sliderSet();
         }
-
         this.updateTimeDisplay();
     },
 

@@ -12,11 +12,14 @@ uses
 procedure Test;
 var
   connection: TNDWConnection;
+  scenario: string;
 begin
+  scenario := 'v11';
+
   connection := TNDWConnection.Create(
     'app-usmodel01.tsn.tno.nl', 4000, 'NDW',
-    'vps17642.public.cloudvps.com', 4000, 'us_ams_2017#v7',
-    'v7#', 'us_ams_2017/us_ams_2017@app-usdata01.tsn.tno.nl/uspsde');
+    'vps17642.public.cloudvps.com', 4000, 'us_ams_2017#'+scenario,
+    scenario+'#', 'us_ams_2017/us_ams_2017@app-usdata01.tsn.tno.nl/uspsde');
   try
     WriteLn('Waiting for events');
     ReadLn;

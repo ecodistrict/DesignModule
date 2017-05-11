@@ -25,6 +25,17 @@ uses
   System.SysUtils;
 
 const
+  // imb 4 tags
+  tag_link_id = icehAttributeBase+1;
+  tag_flow = icehAttributeBase+2;
+  tag_speed = icehAttributeBase+3;
+  tag_length = icehAttributeBase+4;
+  tag_hwn = icehAttributeBase+5;
+  tag_geometry = icehAttributeBase+6;
+
+  // imb 3 tags (live feed from taoufik)
+
+  // links
   tagNDWTime = 1;
   tagNDWLinkID = 2;
   tagNDWSpeed = 3;
@@ -43,46 +54,85 @@ const
   tagRouteID = 13;
   tagRouteTrajectTimestamp = 14;
 
-  dirtySpeed = 1;
-  dirtyFlow = 2;
-  dirtyLength = 4;
-  dirtyHWN = 8;
-  dirtyGeometry = 16;
-
   ORA_BATCHED_QUERY_ARRAY_LENGTH = 1000;
 
 
 type
-  TNDWUnixTime = Int32; // UInt32 in payload
-  TNDWLinkID = Int64; // UInt64 in payload
-  TNDWFlow = Int32;
-  TNDWSpeed = Int32;
-  TNDWCoordinate = Double;
-
-  TNDWLink = class
-  constructor Create(aLinkID: TNDWLinkID; aObjectID: Integer);
+  TChangeObjectUpdateQuery = class
+  constructor Create(aEvent: TIMBEventEntry; const aEventAttribute: string; const aConnectString, aTableName, aKeyField, aUpdateField: string; aArrayLength: Integer=ORA_BATCHED_QUERY_ARRAY_LENGTH);
   destructor Destroy; override;
   private
-    fLinkID: TNDWLinkID;
-    fObjectID: Integer;
+    fSession: TOraSession;
+    fQuery: TOraSQL;
+    fKeyParam: TOraParam; // 1-based
+    fUpdateParam: TOraParam; // 1-based
+    fUpdateIndex: Integer; // 0-based
+    fEvent: TIMBEventEntry;
+    fEventAttribute: string;
+  public
+    procedure Update(aKey: Integer; aValue: Double);
+    procedure Commit();
+  end;
+
+  TQueuedObjectID = Integer; // normally TGUID;
+
+  TQueuedObject = class
+  // class
+  public
+    class function getUpdateQueries(): TObjectDictionary<Integer, TChangeObjectUpdateQuery>; virtual; abstract;
+    class procedure CommitAllL();
+  // instance
+  constructor Create(const aID: TQueuedObjectID);
+  destructor Destroy; override;
+  protected
+    fID: TQueuedObjectID;
+    fDirty: TList<Integer>;
+    function fieldOffset(const aField): Integer;
+    function getIsDirty: Boolean;
+    procedure markDirty(const aField);
+    procedure markCreated;
+    procedure updateFieldL(const aField; aValue: Double);
+    // field type specific
+    function getFieldAsDouble(aFieldOffset: Integer): Double;
+    procedure setFieldAsDouble(const aField; aValue: Double);
+  public
+    property ID: TQueuedObjectID read fID;
+    property isDirty: Boolean read getIsDirty;
+    function isMarkedDirty(const aField): Boolean;
+    procedure resetDirty();
+    procedure commit;
+  end;
+
+  TNDWUnixTime = Int32; // UInt32 in payload
+
+  TNDWLink = class(TQueuedObject)
+  // class
+  class constructor Create();
+  class destructor Destroy;
+  private
+    class var fUpdateQueries: TObjectDictionary<Integer, TChangeObjectUpdateQuery>;
+  public
+    class function getUpdateQueries(): TObjectDictionary<Integer, TChangeObjectUpdateQuery>; override;
+  // instance
+  constructor Create(const aID: TQueuedObjectID; const aLinkID: Int64);
+  destructor Destroy; override;
+  private
+    fLinkID: Int64;
     fFlow: Double;
     fFlowLastUpdate: TNDWUnixTime;
     fSpeed: Double;
     fSpeedLastUpdate: TNDWUnixTime;
     fLength: Double;
-    fHWN: Integer; // 0,1
+    fHWN: Integer; // 0,1 HoofdWegenNet yes/no
     fGeometry: TWDGEometry; // owned
-    fDirty: Integer;
     procedure setGeometry(const aValue: TWDGeometry);
   public
-    property linkID: TNDWLinkID read fLinkID;
-    property objectID: Integer read fObjectID;
+    property linkID: Int64 read fLinkID;
     property flow: Double read fFlow;
     property speed: Double read fSpeed;
     property length: Double read fLength write fLength;
     property HWN: Integer read fHWN write fHWN;
     property geometry: TWDGeometry read fGeometry write setGeometry;
-    property dirty: Integer read fDirty write fDirty;
 
     procedure UpdateSpeed(aSpeed: Double; aTime: TNDWUnixTime);
     procedure UpdateFlow(aFlow: Double; aTime: TNDWUnixTime);
@@ -91,16 +141,22 @@ type
     procedure dump;
   end;
 
-  TRoute = class
-  constructor Create(aRouteID: Integer);
+  TNDWRoute = class(TQueuedObject)
+  // class
+  class constructor Create();
+  class destructor Destroy;
   private
-    fRouteID: Integer;
+    class var fUpdateQueries: TObjectDictionary<Integer, TChangeObjectUpdateQuery>;
+  public
+    class function getUpdateQueries(): TObjectDictionary<Integer, TChangeObjectUpdateQuery>; override;
+  // instance
+  constructor Create(const aID: TQueuedObjectID);
+  private
     fTimestamp: Integer;
     fTravelTime: Double;
     fTrajectSpeed: Double;
     fDataBeschikbaarheid: Integer;
   public
-    property routeID: Integer read fRouteID write fRouteID;
     property timestamp: Integer read fTimestamp write fTimestamp;
     property travelTime: Double read fTravelTime write fTravelTime;
     property trajectSpeed: Double read fTrajectSpeed write fTrajectSpeed;
@@ -117,26 +173,26 @@ type
     fConnectionNDW: TIMBConnection;
     fLiveEvent: TIMBEventEntry;
     fConnectionUS: TIMBConnection;
-    fGeneRoadEvent: TIMBEventEntry;
-    fLinks: TObjectDictionary<TNDWLinkID, TNDWLink>; // owns
     // oracle
     fSession: TOraSession;
     fTablePrefix: string;
     // handling changes
-    fNewLinkQueue: TObjectList<TNDWLink>; // refs
-    fChangedLinkQueue: TObjectList<TNDWLink>; // refs
-    fChangedLinkQueueEvent: TEvent;
-    fChangedLinkQueueThread: TThread;
+    fChangedQueue: TObjectList<TQueuedObject>; // refs
+    fChangedQueueEvent: TEvent;
+    fChangedQueueThread: TThread;
+    // links
+    fLinks: TObjectDictionary<Int64, TNDWLink>; // owns
+    fGeneRoadEvent: TIMBEventEntry;
     // routes
-    fRoutes: TObjectDictionary<Integer, TRoute>;
+    fRoutes: TObjectDictionary<Integer, TNDWRoute>;
 
     procedure HandleNDWNormalEvent(aEvent: TIMBEventEntry; var aPayload: TByteBuffer); stdcall;
-    procedure addLinkToChanedQueue(aLink: TNDWLink; aDirtyFlag: Integer);
+    procedure addToChangedQueue(aObject: TQueuedObject; const aField);
     procedure processQueues();
   protected
     procedure SaveGeometry(aObjectID: Integer; aGeometry: TWDGeometry);
   public
-    property links: TObjectDictionary<TNDWLinkID, TNDWLink> read fLinks;
+    property links: TObjectDictionary<Int64, TNDWLink> read fLinks;
     procedure SaveLinkInfoToFile(const aFileName: string);
     procedure LoadLinkInfoFromFile(const aFileName: string);
     procedure dump();
@@ -178,11 +234,166 @@ begin
   else Result := 'null';
 end;
 
-{ TNWDLink }
+{ TChangeObjectUpdateQuery }
 
-constructor TNDWLink.Create(aLinkID: TNDWLinkID; aObjectID: Integer);
+procedure TChangeObjectUpdateQuery.Commit;
+var
+  i: Integer;
+begin
+  if fUpdateIndex>0 then
+  begin
+    fQuery.Execute(fUpdateIndex);
+    fQuery.session.Commit;
+    for i := 0 to fUpdateIndex-1
+    do fEvent.SignalChangeObject(actionChange, fKeyParam.ItemAsInteger[i+1], fEventAttribute); // ItemAs.. index is 1-based!
+    fUpdateIndex := 0;
+  end;
+end;
+
+constructor TChangeObjectUpdateQuery.Create(aEvent: TIMBEventEntry; const aEventAttribute: string; const aConnectString, aTableName, aKeyField, aUpdateField: string; aArrayLength: Integer);
 begin
   inherited Create;
+  fSession := TOraSession.Create(nil);
+  fSession.ConnectString := aConnectString;
+  fSession.Open;
+  fQuery := TOraSQL.Create(nil);
+  fQuery.Session := fSession;
+  fQuery.SQL.Text :=
+    'UPDATE '+aTableName+' '+
+    'SET '+aUpdateField+'=:'+aUpdateField+' '+
+    'WHERE '+aKeyField+'=:'+aKeyField+'';
+  fQuery.Prepare;
+  fQuery.ArrayLength := aArrayLength;
+  fKeyParam := fQuery.ParamByName(aKeyField);
+  fUpdateParam := fQuery.ParamByName(aUpdateField);
+  fUpdateIndex := 0;
+  fEvent := aEvent;
+  fEventAttribute := aEventAttribute;
+end;
+
+destructor TChangeObjectUpdateQuery.Destroy;
+begin
+  Commit;
+  FreeAndNil(fQuery);
+  inherited;
+end;
+
+procedure TChangeObjectUpdateQuery.Update(aKey: Integer; aValue: Double);
+begin
+  // ItemAs.. index is 1-based, fUpdateIndex is 0-based!
+  fKeyParam.ItemAsInteger[fUpdateIndex+1] := aKey;
+  fUpdateParam.ItemAsFloat[fUpdateIndex+1] := aValue;
+  fUpdateIndex := fUpdateIndex+1;
+  if fUpdateIndex = fKeyParam.Length
+  then Commit();
+end;
+
+{ TQueuedObject }
+
+procedure TQueuedObject.commit;
+var
+  fo: Integer;
+  query: TChangeObjectUpdateQuery;
+  value: Double;
+  queries: TObjectDictionary<Integer, TChangeObjectUpdateQuery>;
+begin
+  queries := getUpdateQueries();
+  for fo in fDirty do
+  begin
+    // only process if query defined for field offset
+    if queries.TryGetValue(fo, query) then
+    begin
+      value :=  getFieldAsDouble(fo);
+      query.Update(fID, value);
+    end;
+  end;
+  fDirty.Clear;
+end;
+
+class procedure TQueuedObject.CommitAllL;
+var
+  queries: TObjectDictionary<Integer, TChangeObjectUpdateQuery>;
+  oqp: TPair<Integer, TChangeObjectUpdateQuery>;
+begin
+  queries := getUpdateQueries();
+  if Assigned(queries) then
+  begin
+    for oqp in queries
+    do oqp.value.Commit;
+  end;
+end;
+
+constructor TQueuedObject.Create(const aID: TQueuedObjectID);
+begin
+  fID := aID;
+  fDirty := TList<Integer>.Create;
+end;
+
+destructor TQueuedObject.Destroy;
+begin
+  FreeAndNil(fDirty);
+  inherited;
+end;
+
+function TQueuedObject.getFieldAsDouble(aFieldOffset: Integer): Double;
+begin
+  move(Pointer(NativeInt(Self)+aFieldOffset)^, Result, SizeOf(Result));
+end;
+
+function TQueuedObject.getIsDirty: Boolean;
+begin
+  Result := fDirty.Count>0;
+end;
+
+function TQueuedObject.isMarkedDirty(const aField): Boolean;
+begin
+  Result := fDirty.IndexOf(fieldOffset(aField))>=0;
+end;
+
+function TQueuedObject.fieldOffset(const aField): Integer;
+begin
+  Result := NativeInt(@aField)-NativeInt(Self);
+end;
+
+procedure TQueuedObject.markCreated;
+var
+  fo: Integer;
+begin
+  fo := -1;
+  if fDirty.IndexOf(fo)<0
+  then fDirty.Add(fo);
+end;
+
+procedure TQueuedObject.markDirty(const aField);
+var
+  fo: Integer;
+begin
+  fo := fieldOffset(aField);
+  if fDirty.IndexOf(fo)<0
+  then fDirty.Add(fo);
+end;
+
+procedure TQueuedObject.resetDirty;
+begin
+  fDirty.Clear;
+end;
+
+procedure TQueuedObject.setFieldAsDouble(const aField; aValue: Double);
+begin
+  move(aValue, (@aField)^, SizeOf(aValue)); // work-a-round
+end;
+
+procedure TQueuedObject.updateFieldL(const aField; aValue: Double);
+begin
+  setFieldAsDouble(aField, aValue);
+  markDirty(aField);
+end;
+
+{ TNWDLink }
+
+constructor TNDWLink.Create(const aID: TQueuedObjectID; const aLinkID: Int64);
+begin
+  inherited Create(aID);
   fFlow := Double.NaN;
   fFlowLastUpdate := -1;
   fSpeed := Double.NaN;
@@ -190,9 +401,17 @@ begin
   fLength := Double.NaN;
   fHWN := -1;
   fGeometry := nil;
-  fObjectID := aObjectID;
   fLinkID := aLinkID;
-  fDirty := 0;
+end;
+
+class destructor TNDWLink.Destroy;
+begin
+  FreeAndNil(fUpdateQueries);
+end;
+
+class constructor TNDWLink.Create();
+begin
+  fUpdateQueries := TObjectDictionary<Integer, TChangeObjectUpdateQuery>.Create([doOwnsValues]);
 end;
 
 destructor TNDWLink.Destroy;
@@ -220,15 +439,6 @@ begin
   WriteLn;
 end;
 
-const
-  // todo:
-  tag_link_id = icehAttributeBase+1;
-  tag_flow = icehAttributeBase+2;
-  tag_speed = icehAttributeBase+3;
-  tag_length = icehAttributeBase+4;
-  tag_hwn = icehAttributeBase+5;
-  tag_geometry = icehAttributeBase+6;
-
 function TNDWLink.encode: imb4.TByteBuffer;
 begin
   Result :=
@@ -240,6 +450,11 @@ begin
   if Assigned(fGeometry)
   then Result := Result+
     imb4.TByteBuffer.bb_tag_rawbytestring(tag_geometry, fGeometry.encode);
+end;
+
+class function TNDWLink.getUpdateQueries: TObjectDictionary<Integer, TChangeObjectUpdateQuery>;
+begin
+  Result := fUpdateQueries;
 end;
 
 procedure TNDWLink.setGeometry(const aValue: TWDGeometry);
@@ -265,10 +480,9 @@ end;
 
 { TRoute }
 
-constructor TRoute.Create(aRouteID: Integer);
+constructor TNDWRoute.Create(const aID: TQueuedObjectID);
 begin
-  inherited Create;
-  fRouteID := aRouteID;
+  inherited Create(aID);
   fTimestamp := 0;
   fTravelTime := Double.NaN;
   fTrajectSpeed := Double.NaN;
@@ -277,22 +491,22 @@ end;
 
 { TNDWConnection }
 
-procedure TNDWConnection.addLinkToChanedQueue(aLink: TNDWLink; aDirtyFlag: Integer);
+procedure TNDWConnection.addToChangedQueue(aObject: TQueuedObject; const aField);
 begin
-  if aLink.objectID>=0 then
+  if aObject.ID>=0 then
   begin
-    if aLink.dirty=0 then
+    if not aObject.isDirty then
     begin
       // cannot lock fChangedLinkQueue because could be swapped with local queue in processing thread
       TMonitor.Enter(fLinks);
       try
-        fChangedLinkQueue.Add(aLink);
+        fChangedQueue.Add(aObject);
       finally
         TMonitor.Exit(fLinks);
       end;
     end;
-    aLink.dirty := aLink.dirty or aDirtyFlag;
-    fChangedLinkQueueEvent.SetEvent;
+    aObject.markDirty(aField);
+    fChangedQueueEvent.SetEvent;
   end;
 end;
 
@@ -300,13 +514,15 @@ constructor TNDWConnection.Create(
   const aRemoteHostNDW: string; aRemotePortNDW: Integer; const aFederationNDW: string;
   const aRemoteHostUS: string; aRemotePortUS: Integer; const aFederationUS: string;
   const aTablePrefix, aConnectString: string);
+var
+  queries: TObjectDictionary<Integer, TChangeObjectUpdateQuery>;
+  link: TNDWLink;
 begin
   inherited Create;
-  fLinks := TObjectDictionary<TNDWLinkID, TNDWLink>.Create([doOwnsValues]);
-  fNewLinkQueue := TObjectList<TNDWLink>.Create(False);
-  fChangedLinkQueue := TObjectList<TNDWLink>.Create(False);
+  fLinks := TObjectDictionary<Int64, TNDWLink>.Create([doOwnsValues]);
+  fChangedQueue := TObjectList<TQueuedObject>.Create(False);
   fTablePRefix := aTablePrefix;
-  fRoutes := TObjectDictionary<Integer, TRoute>.Create([doOwnsValues]);
+  fRoutes := TObjectDictionary<Integer, TNDWRoute>.Create([doOwnsValues]);
   fConnectionNDW := TIMBConnection.Create(aRemoteHostNDW, aRemotePortNDW, 'NDWlistener', 0, aFederationNDW);
   fConnectionUS := TIMBConnection.Create(aRemoteHostUS, aRemotePortUS, 'NDWlistener', 0, aFederationUS);
   if aConnectString<>'' then
@@ -316,22 +532,31 @@ begin
     fSession.connectString := aConnectString;
     fSession.Open;
     // event for signaling queue
-    fChangedLinkQueueEvent := TEvent.Create(nil, False, False, '');
+    fChangedQueueEvent := TEvent.Create(nil, False, False, '');
     // thread to process queued items
-    fChangedLinkQueueThread := TThread.CreateAnonymousThread(processQueues);
-    fChangedLinkQueueThread.FreeOnTerminate := False;
-    fChangedLinkQueueThread.NameThreadForDebugging('NDW link processor');
-    fChangedLinkQueueThread.Start;
+    fChangedQueueThread := TThread.CreateAnonymousThread(processQueues);
+    fChangedQueueThread.FreeOnTerminate := False;
+    fChangedQueueThread.NameThreadForDebugging('NDW link processor');
+    fChangedQueueThread.Start;
     // imb events to signal on for queued items
     fGeneRoadEvent := fConnectionUS.Publish('GENE_ROAD');
+    // add field update queries
+    queries := TNDWLink.getUpdateQueries();
+    link := TNDWLink.Create(0, 0);
+    try
+      queries.Add(link.fieldOffset(link.speed), TChangeObjectUpdateQuery.Create(fGeneRoadEvent, 'SPEED_R', aConnectString, fTablePrefix+'GENE_ROAD', 'OBJECT_ID', 'SPEED_R'));
+      queries.Add(link.fieldOffset(link.flow), TChangeObjectUpdateQuery.Create(fGeneRoadEvent, 'INTENSITY', aConnectString, fTablePrefix+'GENE_ROAD_INTENSITY', 'OBJECT_ID', 'INTENSITY'));
+    finally
+      link.Free;
+    end;
     LoadFromUS();
     Log.WriteLn('loaded '+fLinks.Count.toString+' links from '+aConnectString);
   end
   else
   begin
     fSession := nil;
-    fChangedLinkQueueEvent := nil;
-    fChangedLinkQueueThread := nil;
+    fChangedQueueEvent := nil;
+    fChangedQueueThread := nil;
     fGeneRoadEvent := nil;
   end;
   fLiveEvent := fConnectionNDW.Subscribe('Live');
@@ -340,246 +565,247 @@ end;
 
 destructor TNDWConnection.Destroy;
 begin
-  fChangedLinkQueueThread.Terminate;
-  fChangedLinkQueueEvent.SetEvent;
-  FreeAndNil(fChangedLinkQueueThread);
+  fChangedQueueThread.Terminate;
+  fChangedQueueEvent.SetEvent;
+  FreeAndNil(fChangedQueueThread);
   fLiveEvent := nil;
   fGeneRoadEvent := nil;
   FreeAndNil(fConnectionNDW);
   FreeAndNil(fConnectionUS);
-  FreeAndNil(fNewLinkQueue);
-  FreeAndNil(fChangedLinkQueue);
+  FreeAndNil(fChangedQueue);
   FreeAndNil(fLinks);
   FreeAndNil(fRoutes);
   inherited;
-  FreeAndNil(fChangedLinkQueueEvent);
+  FreeAndNil(fChangedQueueEvent);
   FreeAndNil(fSession);
 end;
 
 procedure TNDWConnection.HandleNDWNormalEvent(aEvent: TIMBEventEntry; var aPayload: TByteBuffer);
 var
-  key: Integer;
-  time: TNDWUnixTime;
-  linkID: TNDWLinkID;
+  key: Integer; // (tag shl 3) or wiretype
   link: TNDWLink;
-  speed: TNDWSpeed;
-  flow: TNDWFlow;
-  nwd_length: Double;
-  hwn: Integer;
-  geometry_length: Integer;
+  route: TNDWRoute;
   geometry: TWDGeometry;
   i: Integer;
-  x, y: TNDWCoordinate;
+  UpdatedRoutes: Boolean;
+  // format specific to spec of feed
+  linkID: Int64;
+  time: TNDWUnixTime;
+  linkSpeed: Integer;
+  linkFlow: Integer;
+  linkNWDLength: Double;
+  linkHWN: Integer;
+  x, y: Double;
+  geometryLengthInBytes: Integer;
+  routeID: Integer;
   routeTravelTime: Double;
   routeTrajectSpeed: Double;
   routeDataBeschikbaarheid: Integer;
-  routeID: Integer;
-  routeTrajectTimestamp: Integer;
-  route: TRoute;
-  UpdatedRoutes: Boolean;
+  routeTrajectTimestamp: TNDWUnixTime;
 begin
   link := nil;
+  route := nil;
   UpdatedRoutes := false;
-  while aPayload.ReadAvailable>0 do
-  begin
-    key := aPayload.ReadInteger();
-    case key of
-      tagNDWTime:
-        aPayload.Read(time);
-      tagNDWLinkID,
-      tagNDWGEOLinkID:
-        begin
-          aPayload.Read(linkID);
-          TMonitor.Enter(fLinks);
-          try
-            if not fLinks.TryGetValue(linkID, link) then
+  try
+    while aPayload.ReadAvailable>0 do
+    begin
+      key := aPayload.ReadInteger();
+      case key of
+        tagNDWTime:
+          aPayload.Read(time);
+        tagNDWLinkID,
+        tagNDWGEOLinkID:
+          begin
+            aPayload.Read(linkID);
+            TMonitor.Enter(fLinks);
+            try
+              if not fLinks.TryGetValue(linkID, link) then
+              begin
+                link := TNDWLink.Create(-1, linkID); // mark link as NOT active with object id = -1
+                fLinks.Add(linkID, link);
+                link.markCreated;
+                Log.Progress('added link '+linkID.ToString);
+              end;
+            finally
+              TMonitor.Exit(fLinks);
+            end;
+          end;
+        tagNDWSpeed:
+          begin
+            aPayload.Read(linkSpeed);
+            if Assigned(link) then
             begin
-              link := TNDWLink.Create(linkID, -1); // mark link as NOT active with object id = -1
-              fLinks.Add(linkID, link);
-              fNewLinkQueue.Add(link);
-              Log.Progress('added link '+linkID.ToString);
-            end;
-          finally
-            TMonitor.Exit(fLinks);
-          end;
-        end;
-      tagNDWSpeed:
-        begin
-          aPayload.Read(speed);
-          if Assigned(link) then
-          begin
-            TMonitor.Enter(link);
-            try
-              if (link.speed<>speed) and (Speed>=0) then
-              begin
-                //Log.WriteLn('link speed changed for link '+linkID.ToString+': '+speed.ToString);
-                link.UpdateSpeed(speed, time);
-                addLinkToChanedQueue(link, dirtySpeed);
+              TMonitor.Enter(link);
+              try
+                if (link.speed<>linkSpeed) and (linkSpeed>=0) then
+                begin
+                  link.UpdateSpeed(linkSpeed, time);
+                  addToChangedQueue(link, link.speed);
+                end;
+              finally
+                TMonitor.Exit(link);
               end;
-            finally
-              TMonitor.Exit(link);
             end;
           end;
-        end;
-      tagNDWFlow:
-        begin
-          aPayload.Read(flow);
-          if Assigned(link) then
+        tagNDWFlow:
           begin
-            TMonitor.Enter(link);
-            try
-              if (link.flow<>flow) and (flow>=0) then
-              begin
-                //Log.WriteLn('link flow changed for link '+linkID.ToString+': '+flow.ToString);
-                link.UpdateFlow(flow, time);
-                addLinkToChanedQueue(link, dirtyFlow);
-              end;
-            finally
-              TMonitor.Exit(link);
-            end;
-          end;
-        end;
-      tagNDWGEOLength:
-        begin
-          aPayload.Read(nwd_length);
-          if Assigned(link) then
-          begin
-            TMonitor.Enter(link);
-            try
-              link.length := nwd_length;
-              addLinkToChanedQueue(link, dirtyLength);
-            finally
-              TMonitor.Exit(link);
-            end;
-          end;
-        end;
-      tagNDWGEOHWN:
-        begin
-          aPayload.Read(hwn);
-          if Assigned(link) then
-          begin
-            TMonitor.Enter(link);
-            try
-              link.HWN := hwn;
-              //Log.WriteLn('link hwn for link '+linkID.ToString+': '+Ord(hwn).ToString);
-              addLinkToChanedQueue(link, dirtyHWN);
-            finally
-              TMonitor.Exit(link);
-            end;
-          end;
-        end;
-      tagNDWGEOCoordinates:
-        begin
-          aPayload.Read(geometry_length);
-          geometry := TWDGeometry.Create;
-          for i := 0 to (geometry_length div 16) -1 do
-          begin
-            aPayload.Read(x);
-            aPayload.Read(y);
-            geometry.AddPoint(x, y, Double.NaN);
-          end;
-//          if geometry_length>0
-//          then Log.WriteLn('link geo for link '+linkID.ToString+': '+geometry.parts[0].points[0].x.toString+' '+geometry.parts[0].points[0].y.toString)
-//          else Log.WriteLn('## link geo for link '+linkID.ToString+': EMPTY');
-          if Assigned(link) then
-          begin
-            TMonitor.Enter(link);
-            try
-              link.geometry := geometry;
-              addLinkToChanedQueue(link, dirtyGeometry);
-            finally
-              TMonitor.Exit(link);
-            end;
-          end;
-        end;
-      tagRouteID:
-        begin
-          aPayload.Read(routeID);
-          TMonitor.Enter(fRoutes);
-          try
-            if not fRoutes.TryGetValue(routeID, route) then
+            aPayload.Read(linkFlow);
+            if Assigned(link) then
             begin
-              route := TRoute.Create(routeID);
-              fRoutes.Add(routeID, route);
+              TMonitor.Enter(link);
+              try
+                if (link.flow<>linkFlow) and (linkFlow>=0) then
+                begin
+                  link.UpdateFlow(linkFlow, time);
+                  addToChangedQueue(link, link.flow);
+                end;
+              finally
+                TMonitor.Exit(link);
+              end;
             end;
-          finally
-            TMonitor.Exit(fRoutes);
           end;
-        end;
-      tagRouteTrajectTimestamp:
-        begin
-          aPayload.Read(routeTrajectTimestamp);
-          if Assigned(route) then
+        tagNDWGEOLength:
           begin
-            TMonitor.Enter(route);
+            aPayload.Read(linkNWDLength);
+            if Assigned(link) then
+            begin
+              TMonitor.Enter(link);
+              try
+                link.length := linkNWDLength;
+                addToChangedQueue(link, link.length);
+              finally
+                TMonitor.Exit(link);
+              end;
+            end;
+          end;
+        tagNDWGEOHWN:
+          begin
+            aPayload.Read(linkHWN);
+            if Assigned(link) then
+            begin
+              TMonitor.Enter(link);
+              try
+                link.HWN := linkHWN;
+                //Log.WriteLn('link hwn for link '+linkID.ToString+': '+Ord(hwn).ToString);
+                addToChangedQueue(link, link.HWN);
+              finally
+                TMonitor.Exit(link);
+              end;
+            end;
+          end;
+        tagNDWGEOCoordinates:
+          begin
+            aPayload.Read(geometryLengthInBytes);
+            geometry := TWDGeometry.Create;
+            for i := 0 to (geometryLengthInBytes div 16) -1 do
+            begin
+              aPayload.Read(x);
+              aPayload.Read(y);
+              geometry.AddPoint(x, y, Double.NaN);
+            end;
+            if Assigned(link) then
+            begin
+              TMonitor.Enter(link);
+              try
+                link.geometry := geometry;
+                addToChangedQueue(link, link.geometry);
+              finally
+                TMonitor.Exit(link);
+              end;
+            end;
+          end;
+        tagRouteID:
+          begin
+            aPayload.Read(routeID);
+            TMonitor.Enter(fRoutes);
             try
-              if route.timestamp<>routeTrajectTimestamp then
+              if not fRoutes.TryGetValue(routeID, route) then
               begin
-                route.timestamp := routeTrajectTimestamp;
-
+                route := TNDWRoute.Create(routeID);
+                fRoutes.Add(routeID, route);
+                route.markCreated;
+                Log.Progress('added rotue '+routeID.ToString);
               end;
             finally
-              TMonitor.Exit(route);
+              TMonitor.Exit(fRoutes);
             end;
           end;
-        end;
-      tagRouteTravelTime:
-        begin
-          aPayload.Read(routeTravelTime);
-          if Assigned(route) then
+        tagRouteTrajectTimestamp:
           begin
-            TMonitor.Enter(route);
-            try
-              if route.travelTime<>routeTravelTime then
-              begin
-                route.travelTime := routeTravelTime;
-
+            aPayload.Read(routeTrajectTimestamp);
+            if Assigned(route) then
+            begin
+              TMonitor.Enter(route);
+              try
+                if route.timestamp<>routeTrajectTimestamp then
+                begin
+                  route.timestamp := routeTrajectTimestamp;
+                  addToChangedQueue(route, route.timestamp);
+                end;
+              finally
+                TMonitor.Exit(route);
               end;
-            finally
-              TMonitor.Exit(route);
             end;
           end;
-        end;
-      tagRouteTrajectSpeed:
-        begin
-          aPayload.Read(routeTrajectSpeed);
-          if Assigned(route) then
+        tagRouteTravelTime:
           begin
-            TMonitor.Enter(route);
-            try
-              if route.trajectSpeed <>routeTrajectSpeed then
-              begin
-                route.trajectSpeed := routeTrajectSpeed;
-
+            aPayload.Read(routeTravelTime);
+            if Assigned(route) then
+            begin
+              TMonitor.Enter(route);
+              try
+                if route.travelTime<>routeTravelTime then
+                begin
+                  route.travelTime := routeTravelTime;
+                  addToChangedQueue(route, route.travelTime);
+                end;
+              finally
+                TMonitor.Exit(route);
               end;
-            finally
-              TMonitor.Exit(route);
             end;
           end;
-        end;
-      tagRouteDataBeschikbaarheid:
-        begin
-          aPayload.Read(routeDataBeschikbaarheid);
-          if Assigned(route) then
+        tagRouteTrajectSpeed:
           begin
-            TMonitor.Enter(route);
-            try
-              if route.fDataBeschikbaarheid<>routeDataBeschikbaarheid then
-              begin
-                route.fDataBeschikbaarheid := routeDataBeschikbaarheid;
-
+            aPayload.Read(routeTrajectSpeed);
+            if Assigned(route) then
+            begin
+              TMonitor.Enter(route);
+              try
+                if route.trajectSpeed <>routeTrajectSpeed then
+                begin
+                  route.trajectSpeed := routeTrajectSpeed;
+                  addToChangedQueue(route, route.trajectSpeed);
+                end;
+              finally
+                TMonitor.Exit(route);
               end;
-              // todo: what to do with route..
-              UpdatedRoutes := true;
-              Log.WriteLn('route: '+route.routeID.ToString+': '+route.fTravelTime.ToString+'  '+route.fTrajectSpeed.ToString);
-            finally
-              TMonitor.Exit(route);
             end;
           end;
-        end;
+        tagRouteDataBeschikbaarheid:
+          begin
+            aPayload.Read(routeDataBeschikbaarheid);
+            if Assigned(route) then
+            begin
+              TMonitor.Enter(route);
+              try
+                if route.fDataBeschikbaarheid<>routeDataBeschikbaarheid then
+                begin
+                  route.fDataBeschikbaarheid := routeDataBeschikbaarheid;
+                  addToChangedQueue(route, route.fDataBeschikbaarheid);
+                end;
+                UpdatedRoutes := true;
+                Log.Progress('route: '+route.ID.ToString+': '+route.fTravelTime.ToString+'  '+route.fTrajectSpeed.ToString);
+              finally
+                TMonitor.Exit(route);
+              end;
+            end;
+          end;
+      end;
     end;
+  finally
+    if UpdatedRoutes
+    then SaveIndicatorsUS();
   end;
-  if UpdatedRoutes then SaveIndicatorsUS();
 end;
 
 function FixGeometry(aGeometry: TWDGeometry): Boolean;
@@ -620,7 +846,7 @@ begin
     query.ReadOnly := True;
     // build and execute sql
     query.SQL.Text :=
-      'SELECT V7#GENE_ROAD.OBJECT_ID, FNODE_, LENGTH, SPEED_R, INTENSITY, V7#GENE_ROAD.SHAPE '+
+      'SELECT '+fTablePrefix+'GENE_ROAD.OBJECT_ID, FNODE_, LENGTH, SPEED_R, INTENSITY, '+fTablePrefix+'GENE_ROAD.SHAPE '+
       'FROM '+fTablePRefix+'GENE_ROAD LEFT JOIN '+fTablePRefix+'GENE_ROAD_INTENSITY '+
         'ON '+fTablePRefix+'GENE_ROAD.OBJECT_ID = '+fTablePRefix+'GENE_ROAD_INTENSITY.OBJECT_ID';
     query.Execute;
@@ -635,7 +861,7 @@ begin
           linkID := query.Fields[1].AsLargeInt;
           if not fLinks.TryGetValue(linkID, link) then
           begin
-            link := TNDWLink.Create(linkID, objectID);
+            link := TNDWLink.Create(objectID, linkID);
             fLinks.Add(linkID, link);
           end;
 
@@ -696,7 +922,7 @@ begin
               linkID := buffer.bb_read_uint64(cursor);
               if not fLinks.TryGetValue(linkID, link) then
               begin
-                link := TNDWLink.Create(linkID, -1); // mark link as NOT active with object id = -1
+                link := TNDWLink.Create(-1, linkID); // mark link as NOT active with object id = -1
                 fLinks.Add(linkID, link);
               end;
             end;
@@ -747,16 +973,16 @@ begin
   end;
 end;
 
+const
+  RouteNames: array[1..8] of string = (
+    'A10 Zuid O-W', 'A10 Zuid W-O', 'A10 West O-W', 'A10 West W-O',
+    'A9 ZuidOost O-W', 'A9 ZuidOost W-O', 'A9 Zuid O-W', 'A9 Zuid W-O' );
+
 procedure TNDWConnection.SaveIndicatorsUS();
 var
   stm: TOraSQL;
-  route: TRoute;
+  route: TNDWRoute;
   traveltime: double;
-
-const
-  RouteNames: array[1..8] of string = ('A10 Zuid O-W', 'A10 Zuid W-O', 'A10 West O-W', 'A10 West W-O',
-                             'A9 ZuidOost O-W', 'A9 ZuidOost W-O', 'A9 Zuid O-W', 'A9 Zuid W-O' );
-
 begin
   stm := TOraSQL.Create(nil);
   try
@@ -764,28 +990,30 @@ begin
     stm.Session := fSession;
     // build and execute sql
     stm.SQL.Text :=
-      'TRUNCATE TABLE V7#TRAF_INDIC_DAT3';
+      'TRUNCATE TABLE '+fTablePrefix+'TRAF_INDIC_DAT3';
     stm.Execute;
     TMonitor.Enter(fRoutes);
     try
       for route in fRoutes.Values do
       begin
         traveltime:=route.fTravelTime*60;
-        stm.SQL.Text := 'INSERT INTO V7#TRAF_INDIC_DAT3 (OBJECT_ID, ROUTE, TRAVEL_TIME) VALUES (';
-        if (route.fRouteID>=1) and (route.fRouteID<=8) then
+        stm.SQL.Text :=
+          'INSERT INTO '+fTablePrefix+'TRAF_INDIC_DAT3 (OBJECT_ID, ROUTE, TRAVEL_TIME) '+
+          'VALUES (';
+        if (route.ID>=1) and (route.ID<=8) then
         begin
           stm.SQL.Text := stm.SQL.Text +
-            route.fRouteID.ToString + ',''' + RouteNames[route.fRouteID] + ''',' + traveltime.ToString + ')';
+            route.ID.ToString + ',''' + RouteNames[route.ID] + ''',' + traveltime.ToString + ')';
         end
         else
         begin
           stm.SQL.Text := stm.SQL.Text +
-            route.fRouteID.ToString + ', ''route_' + route.fRouteID.ToString + ''',' + traveltime.ToString + ')';
+            route.ID.ToString + ', ''route_' + route.ID.ToString + ''',' + traveltime.ToString + ')';
         end;
         stm.Execute;
       end;
       fSession.Commit;
-      fConnectionUS.SignalChangeObject('TRAF_INDIC_DAT', 2, 0,'');
+      fConnectionUS.SignalChangeObject('TRAF_INDIC_DAT', actionChange, 0,'');
     finally
       TMonitor.Exit(fRoutes);
     end;
@@ -796,23 +1024,26 @@ end;
 
 procedure TNDWConnection.processQueues;
 var
-  ChangeSpeedQuery: TOraSQL;
-  ChangeIntensityQuery: TOraSQL;
-  link: TNDWLink;
-  speedObjectIDParam: TOraParam;
-  speedSpeedParam: TOraParam;
-  intensityObjectIDParam: TOraParam;
-  intensityIntensityParam: TOraParam;
-  speedIndex: Integer;
-  intensityIndex: Integer;
-  i: Integer;
-  localQueue, tempQueue: TObjectList<TNDWLink>;
+//  ChangeSpeedQuery: TOraSQL;
+//  ChangeIntensityQuery: TOraSQL;
+  o: TQueuedObject;
+//  speedObjectIDParam: TOraParam;
+//  speedSpeedParam: TOraParam;
+//  intensityObjectIDParam: TOraParam;
+//  intensityIntensityParam: TOraParam;
+//  speedIndex: Integer;
+//  intensityIndex: Integer;
+//  i: Integer;
+  localQueue, tempQueue: TObjectList<TQueuedObject>;
 begin
   // we can use global orasession because only 1 thread uses it at the same time right now..
+  {
   ChangeSpeedQuery := TOraSQL.Create(nil);
   ChangeIntensityQuery := TOraSQL.Create(nil);
-  localQueue := TObjectList<TNDWLink>.Create(False); // refs
+  }
+  localQueue := TObjectList<TQueuedObject>.Create(False); // refs
   try
+    {
     ChangeSpeedQuery.SQL.Text :=
       'UPDATE '+fTablePrefix+'GENE_ROAD '+
       'SET SPEED_R=:speed '+
@@ -830,76 +1061,83 @@ begin
     ChangeIntensityQuery.ArrayLength := ORA_BATCHED_QUERY_ARRAY_LENGTH;
     intensityObjectIDParam := ChangeIntensityQuery.ParamByName('object_id');
     intensityIntensityParam := ChangeIntensityQuery.ParamByName('intensity');
-
+    }
     while not TThread.CheckTerminated do
     begin
-      if fChangedLinkQueueEvent.WaitFor()=TWaitResult.wrSignaled then
+      if fChangedQueueEvent.WaitFor()=TWaitResult.wrSignaled then
       begin
         try
           // swap queues
           TMonitor.Enter(fLinks);
           try
-            tempQueue := fChangedLinkQueue;
-            fChangedLinkQueue := localQueue;
+            tempQueue := fChangedQueue;
+            fChangedQueue := localQueue;
             localQueue := tempQueue;
           finally
             TMonitor.Exit(fLinks);
           end;
           // process local (ie swapped queue)
-          speedIndex := 0;
-          intensityIndex := 0;
-          for link in localQueue do
+//          speedIndex := 0;
+//          intensityIndex := 0;
+          for o in localQueue do
           begin
-            TMonitor.Enter(link);
+            TMonitor.Enter(o);
             try
               // check if updatable (ie object_id>=0)
-              if link.objectID>=0 then
+              if o.ID>=0 then
               begin
-                if link.dirty<>0 then
+                if o.isDirty then
                 begin
+                  o.Commit();
+
+                  // todo:
+                  {
                   try
-                    if (link.dirty and dirtySpeed) <>0 then
+                    if o.isMarkedDirty(o.speed) then
                     begin
-                      Log.Progress('New speed '+link.speed.tostring+' for '+link.objectID.tostring);
-                      speedObjectIDParam.ItemAsInteger[speedIndex+1] := link.objectID;
-                      speedSpeedParam.ItemAsFloat[speedIndex+1] := link.speed;
+                      Log.Progress('New speed '+o.speed.tostring+' for '+o.ID.tostring);
+                      speedObjectIDParam.ItemAsInteger[speedIndex+1] := o.ID;
+                      speedSpeedParam.ItemAsFloat[speedIndex+1] := o.speed;
                       speedIndex := speedIndex+1;
                       if speedIndex = speedObjectIDParam.Length then
                       begin
                         ChangeSpeedQuery.Execute(speedIndex);
                         fSession.Commit;
                         for i := 0 to speedIndex-1
-                        do fGeneRoadEvent.SignalChangeObject(actionChange, speedObjectIDParam.ItemAsInteger[i], 'SPEED_R');
+                        do fGeneRoadEvent.SignalChangeObject(actionChange, speedObjectIDParam.ItemAsInteger[i+1], 'SPEED_R');
                         speedIndex := 0;
                       end;
                     end;
-                    if (link.dirty and dirtyFlow) <>0 then
+                    if o.isMarkedDirty(o.flow) then
                     begin
-                      if link.flow>=0 then
+                      if o.flow>=0 then
                       begin
-                        Log.Progress('New intensity '+link.flow.ToString+' for '+link.objectID.tostring);
-                        intensityObjectIDParam.ItemAsInteger[intensityIndex+1] := link.objectID;
-                        intensityIntensityParam.ItemAsFloat[intensityIndex+1] := link.flow; // todo: convert to intensity and avoid negative intensity
+                        Log.Progress('New intensity '+o.flow.ToString+' for '+o.ID.tostring);
+                        intensityObjectIDParam.ItemAsInteger[intensityIndex+1] := o.ID;
+                        intensityIntensityParam.ItemAsFloat[intensityIndex+1] := o.flow; // todo: convert to intensity and avoid negative intensity
                         intensityIndex := intensityIndex+1;
                         if intensityIndex = intensityObjectIDParam.Length then
                         begin
                           ChangeIntensityQuery.Execute(intensityIndex);
                           fSession.Commit;
                           for i := 0 to intensityIndex-1
-                          do fGeneRoadEvent.SignalChangeObject(actionChange, intensityObjectIDParam.ItemAsInteger[i], 'INTENSITY');
+                          do fGeneRoadEvent.SignalChangeObject(actionChange, intensityObjectIDParam.ItemAsInteger[i+1], 'INTENSITY');
                           intensityIndex := 0;
                         end;
                       end;
                     end;
+
                   finally
-                    link.dirty := 0;
+                    o.resetDirty();
                   end;
+                  }
                 end;
               end;
             finally
-              TMonitor.Exit(link);
+              TMonitor.Exit(o);
             end;
           end;
+          {
           // process rest items in batched queries
           if speedIndex>0 then
           begin
@@ -918,6 +1156,10 @@ begin
             //intensityIndex := 0;
           end;
           // clear all processed entries
+          }
+          // call commit on all queable classes
+          TNDWLink.CommitAllL;
+          TNDWRoute.CommitAllL;
         except
          on E: Exception
          do Log.WriteLn('Exception in processing loop: '+E.Message, llError);
@@ -926,15 +1168,15 @@ begin
       end;
     end;
   finally
-    ChangeSpeedQuery.Free;
-    ChangeIntensityQuery.Free;
+//    ChangeSpeedQuery.Free;
+//    ChangeIntensityQuery.Free;
     localQueue.Free;
   end;
 end;
 
 procedure TNDWConnection.dump();
 var
-  ilp: TPair<TNDWLinkID, TNDWLink>;
+  ilp: TPair<Int64, TNDWLink>;
 begin
   TMonitor.Enter(fLinks);
   try
@@ -982,7 +1224,7 @@ end;
 procedure TNDWConnection.SaveLinkInfoToFile(const aFileName: string);
 var
   F: File;
-  ilp: TPair<TNDWLinkID, TNDWLink>;
+  ilp: TPair<Int64, TNDWLink>;
   buffer: imb4.TByteBuffer;
 begin
   AssignFile(F, aFileName);
@@ -1001,6 +1243,21 @@ begin
   finally
     CloseFile(F);
   end;
+end;
+
+class constructor TNDWRoute.Create;
+begin
+  fUpdateQueries := TObjectDictionary<Integer, TChangeObjectUpdateQuery>.Create([doOwnsValues]);
+end;
+
+class destructor TNDWRoute.Destroy;
+begin
+  FreeAndNil(fUpdateQueries);
+end;
+
+class function TNDWRoute.getUpdateQueries: TObjectDictionary<Integer, TChangeObjectUpdateQuery>;
+begin
+  Result := fUpdateQueries;
 end;
 
 end.

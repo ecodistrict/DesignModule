@@ -132,7 +132,8 @@ begin
       GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(fTilerFQDNName)),
       GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
     Log.WriteLn('Publishing server started ecodistrict module');
-
+    // every project has own listener for clients -> global list not needed anymore
+    {
     // inquire existing session and rebuild internal sessions..
     fIMBConnection.subscribe(fIMBConnection.privateEventName, False).OnIntString.Add(
       procedure(event: TEventEntry; aInt: Integer; const aString: string)
@@ -159,7 +160,7 @@ begin
 
     // inquire existing sessions
     fIMBConnection.publish(WS2IMBEventName, False).signalIntString(actionInquire, fIMBConnection.privateEventName);
-
+    }
     Log.WriteLn('Publishing server start');
     started := True;
   except

@@ -213,7 +213,8 @@ var wsLookup = {
         }
         if (typeof payload.dateForm !== "undefined") {
             if (payload.dateForm) {
-                DataManager.formData = payload.dateForm.data;
+                if (typeof payload.dateForm.data !== 'undefined')
+                    DataManager.formData = payload.dateForm.data;
                 map.addControl(DataManager.DateFormControl);
                 InfoTextControl['leaflet-control-dateForm'] = { description: 'Click here to config or edit a simulation', active: true, iconPosition: 'left' };
             }
@@ -253,6 +254,17 @@ var wsLookup = {
             else {
                 map.removeControl(presenterViewerControl);
                 InfoTextControl['leaflet-control-pv'] = { active: false };
+            }
+        }
+
+        if (typeof payload.modelControlEnabled !== "undefined") {
+            if (payload.modelControlEnabled) {
+                map.addControl(DataManager.modelControl);
+                InfoTextControl['leaflet-control-model'] = { description: 'View model control info', active: true, iconPosition: 'left' };
+            }
+            else {
+                map.removeControl(DataManager.modelControl);
+                InfoTextControl['leaflet-control-model'] = { active: false };
             }
         }
 
@@ -372,7 +384,8 @@ var wsLookup = {
 };
 
 function wsConnect() {
-    ws = new WebSocket(wsBaseURL + '/sessions?session=' + session);
+    ws = new WebSocket(wsBaseURL + '/sessions?session=' + session + (clientType != '' ? '&clienttype=' + clientType : ''));
+    //ws = new WebSocket(wsBaseURL + '/sessions?session=' + session);
     ws.onopen = function (e) {
         connectionStatus.classList.remove('connection-status-disconnected');
         connectionStatus.classList.add('connection-status-connected');

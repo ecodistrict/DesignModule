@@ -359,7 +359,6 @@ var GraphManager = {
                 graph = new LineBottomLeft(graphObject);
                 break;
             case 'bar':
-                // graph = new BarChart(graphObject);
                 graph = new Chart(graphObject);
                 break;
             case 'spline':
@@ -423,8 +422,8 @@ var GraphManager = {
         for (var i = 0; i < dataArray.length; i++)
         {
             graph = GraphManager._getGraph(dataArray[i]);
-            if (graph.Reset)
-                graph.Reset();
+            if (graph.graph.Reset)
+                graph.graph.Reset();
             else
                 console.log("Graph does not support Reset, id: " + dataArray[i]);
         }
@@ -580,6 +579,23 @@ var GraphManager = {
     ...
     ]
     */
+    GetVar: function(aValue, aScaleType, aQnt, aUnit)
+    {
+        if (aScaleType == "time")
+        {
+            var result = DataManager.PublisherTimeToDate(aValue);
+            result.value = result.getTime();
+            result.GetDisplayValue = (function () { return this; }).bind(result);
+            return result;
+        }
+        else
+        {
+            var result = new UnitConverter.ConvNum(aQnt, aValue);
+            result.SetUnit(aUnit);
+            return result;
+        }
+    },
+
     AddGraphData: function (graph, data) {
         //check if there are changes
         if (data == null)
@@ -595,8 +611,9 @@ var GraphManager = {
         for (var j = 0; j < data.length; j++) {
             //can I assume the arrays always have the same length!?
             for (var i = 0; i < graph.data.length; i++) {
-                var xNum = new UnitConverter.ConvNum(graph.x.qnt, data[j].x);
-                xNum.SetUnit(graph.x.unit);
+                //var xNum = new UnitConverter.ConvNum(graph.x.qnt, data[j].x);
+                //xNum.SetUnit(graph.x.unit);
+                var xNum = GraphManager.GetVar(data[j].x, graph.xScale, graph.x.qnt, graph.x.unit);
                 if (maxX != null && xNum.value < maxX) //check if new xValue is bigger then all the others!
                     continue;
                 maxX = xNum.value;

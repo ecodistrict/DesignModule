@@ -254,6 +254,7 @@ L.Control.History = L.Control.extend({
             message.applyMeasures.push(am);
         }
         wsSend(message);
+        this._collapse();
         this._refocusOnMap();
     },
 

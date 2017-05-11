@@ -151,10 +151,11 @@
         //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
         var session = getParameterByName('session', '');
         if (session == '') {
-            //session = '6B84B11553BC4AA6B2B6A0759F6EB278'; //us_demo
+            //session = '6B84B11553BC4AA6B2B6A0759F6EB278'; // us_demo
             //session = '1234$undefined$57b4281041e330e716b22a74'; // default test session
             //session = '5721de16eae0e0c543f5234f$undefined$5714e0ccb83ce5066723bf41'; // ecodistrict warsaw
             //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
+            //session = '57b428a6cef25a0a0d6681ac$57f7721a38ddeb850af42d13$57b4281041e330e716b22a74'; // ecodistrict antwerpen alt 1
             //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
             //session = 'ensel';
             //session = 'ensel2';
@@ -163,11 +164,16 @@
             //session = 'sweco';
             //session = "tud";
             //session = 'dtv';
-            //session = '80BD7A788D6B40A4B3608AA95C26E68F'; //us_utrecht2017
-            //session = "sesmi${de087221-5bb1-40ac-90a9-371ca39a399f}$testexpert"; //test expert user
-            //session = "sesmi${d3d55d19-6568-4836-aa00-c2e88fd31fe9}$testuser"; //test guid from db
+            //session = 'juno';
+            //session = '80BD7A788D6B40A4B3608AA95C26E68F'; // us_utrecht2017
+            //session = '7435449FACA0425A88E072CAAC549E2B-Design'; // us_ams_2017 Design
+            //session = '7435449FACA0425A88E072CAAC549E2B-Monitor'; // us_ams_2017 Monitor
+            //session = '7435449FACA0425A88E072CAAC549E2B-Evaluate'; // us_ams_2017 Evaluate
+            //session = "sesmi${DE087221-5BB1-40AC-90A9-371CA39A399F}$testexpert"; // test expert user
+            //session = "sesmi${d3d55d19-6568-4836-aa00-c2e88fd31fe9}$testuser"; // test guid from db
             //session = '9AADAB9F472D4E1EAA1DE7CE202780AB'; // effects
         }
+        var clientType = getParameterByName('clientType', '');
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
         var scenario = '';
         var userid = '';
