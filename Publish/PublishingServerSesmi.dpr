@@ -68,8 +68,8 @@ begin
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), TGUID.Create(GetSetting(ExpertScenarioSwitch, DefaultExpertScenario)));
 
-
-
+          // every project has own listener for clients -> global list not needed anymore
+          {
           // inquire existing session and rebuild internal sessions..
           imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(
             procedure(event: TEventEntry; aInt: Integer; const aString: string)
@@ -97,6 +97,7 @@ begin
 
           // inquire existing sessions
           imbConnection.publish(WS2IMBEventName, False).signalIntString(actionInquire, imbConnection.privateEventName);
+          }
 
           // main loop
           WriteLn('Press return to quit');
