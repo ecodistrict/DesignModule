@@ -42,8 +42,9 @@
         var button = this.form.appendChild(document.createElement('div'));
         button.className = 'crdRadioButton';
         var l = button.appendChild(document.createElement('label'));
-        var i = l.appendChild(document.createElement('input'));
-        i.className = 'crdRadioButtonInput';
+        var i = l.appendChild(L.DomUtil.create('input', 'crdRadioButtonInput'));
+        //var i = l.appendChild(document.createElement('input'));
+        //i.className = 'crdRadioButtonInput';
         i.type = 'radio';
         i.value = aTitle;
         i.name = aGroup;
@@ -51,6 +52,7 @@
         i.crd = this;
         //i.onchange = crd.clickCrd;
         i.addEventListener("change", this.clickCrd);
+        L.DomEvent.disableClickPropagation(i);
         var s = l.appendChild(document.createElement('span'));
         s.className = 'crdRadioButtonSpan';
         s.textContent = aTitle;
@@ -104,6 +106,9 @@
     },
 
     clickCrd: function (e) {
+
+        e.preventDefault();
+        e.stopPropagation();
         // handle switching between current, refference and difference layer
         // todo: only implement for tiles now
         var layer = crd.options.layer;

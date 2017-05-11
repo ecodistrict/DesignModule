@@ -27,7 +27,7 @@
         {
             case "map": this.addMapContext(contextItem)
                 break;
-            case "marker":
+            case "marker": //not used? for now implemented in marker messages
                 break;
         }
     },

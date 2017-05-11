@@ -10,6 +10,7 @@ L.Control.Measures = L.Control.extend({
     initialize: function (measuredefinitions, measuresHistory, options) {
         L.setOptions(this, options);
         this._measuredefinitions = measuredefinitions;
+        this._visiblemeasures = 0;
         this._measuresLookup = {};
         this._measuresHistory = measuresHistory;
     },
@@ -89,6 +90,8 @@ L.Control.Measures = L.Control.extend({
         h.textContent = 'Measures';
         container.appendChild(h);
 
+        this._visiblemeasures = 0;
+
         var catList = document.createElement('ul');
         for (var c = 0; c < this._measuredefinitions.length; c++) {
             var catDefinition = this._measuredefinitions[c];
@@ -119,6 +122,7 @@ L.Control.Measures = L.Control.extend({
                     if (this._checkMeasureEnabled(measureDefinition)) {
                         catDisabled = false;
                         measureLi.className = 'measure-enabled';
+                        this._visiblemeasures++;
                     }
                     else {
                         measureLi.className = 'measure-disabled';
@@ -270,7 +274,8 @@ L.Control.Measures = L.Control.extend({
     },
 
     _expand: function () {
-        if (this.options.selectCategories.length > 0) {
+        this._checkDisabledMeasures();
+        if (this._visiblemeasures > 0) {
             L.DomUtil.addClass(this._container, 'leaflet-control-measures-expanded');
             this._form.style.height = null;
             var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
@@ -280,7 +285,6 @@ L.Control.Measures = L.Control.extend({
             } else {
                 L.DomUtil.removeClass(this._form, 'leaflet-control-measures-scrollbar');
             }
-            this._checkDisabledMeasures();
         }
     },
 
@@ -295,6 +299,7 @@ L.Control.Measures = L.Control.extend({
     },
 
     _checkDisabledMeasures: function () {
+        this._visiblemeasures = 0;
         var containers = this._catList.getElementsByClassName('measures-categories');
         for (var co = 0; co < containers.length; co++) {
             for (var ca = 0; ca < containers[co].childNodes.length; ca++) {
@@ -312,6 +317,7 @@ L.Control.Measures = L.Control.extend({
                                 if (this._checkMeasureEnabled(measure)) {
                                     measureLi.className = 'measure-enabled';
                                     catDisabled = false;
+                                    this._visiblemeasures++;
                                 }
                                 else {
                                     measureLi.className = 'measure-disabled';

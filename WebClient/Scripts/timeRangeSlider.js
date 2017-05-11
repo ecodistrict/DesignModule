@@ -19,8 +19,8 @@
         };
         this.lastUpdate = null;
         this.lastValue = null;
-        this.updateDelta = 100;
-        this.valueDelta = 10; //percentage
+        this.updateDelta = 500;
+        this.valueDelta = 10; // percentage
         this.liveTime = 0;
         this.live = true;
     },
@@ -55,7 +55,7 @@
     containerRightClick: function (e) {
         e.preventDefault(); //prevent showing of contextmenu since we use right-mouse for something else
         e.stopPropagation();
-        DataManager.rangeTimeSlider.goLive();
+        DataManager.timeRangeSlider.goLive();
     },
 
     goLive: function () {
@@ -74,6 +74,7 @@
     },
 
     sliderMove: function () {
+        this.live = false;
         var newValue = this._slider.get();
         var newTime = new Date();
         //Math.abs(newValue - this.lastValue) / (this._slider.options.range.max - this._slider.options.range.min) > this.valueDelta || 
@@ -82,7 +83,6 @@
             this.lastUpdate = newTime;
             this.sliderSet();
         }
-
         this.updateTimeDisplay();
     },
 
@@ -94,7 +94,7 @@
                 payload: {
                     time: this.doubleToDate(this._slider.get())
                 }
-            })
+            });
         }
         this.updateTimeDisplay();
     },

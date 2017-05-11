@@ -193,6 +193,10 @@ function removeAllDomainLayers() {
                 ml.domainLayer.leaflet_id = null;
             ml.domainLayer = null;
         }
+        if (ml.basicLayer) {
+            ml.remove();
+            layerControl.removeLayer(ml);
+        }
     }
 }
 
@@ -317,6 +321,7 @@ function addBasicLayer(layer) {
         thisLayer = L.tileLayer(layer.tiles, { id: layer.name });
     // else.. add other types of layers
     if (thisLayer != null) {
+        thisLayer.basicLayer = true;
         layerControl.addOverlay(thisLayer, layer.name);
         if (layer.default && layer.default == 1) {
             thisLayer.addTo(map);

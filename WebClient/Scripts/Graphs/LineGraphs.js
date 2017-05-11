@@ -94,6 +94,7 @@ function LineBottomLeft(graphObject) {
             this.graphObject.data.push([]);
             this.graphObject.displayData.push([]);
         }
+        this.Update();
     }
 
     this.onsvgclick = function (e) {
@@ -142,7 +143,7 @@ function LineBottomLeft(graphObject) {
     this.onsvgclick = this.onsvgclick.bind(this);
 
     this._UpdatePreview = function () {
-
+        //todo implement update for preview on reset of graph!
         if (this.previewDiv == null || this.graphObject.data == null || this.graphObject.data.length == 0)
             return;
         else {

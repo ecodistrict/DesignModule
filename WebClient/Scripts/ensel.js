@@ -390,6 +390,15 @@ DataManager = {
         return builder;
     },
 
+    PublisherTimeToDate: function(aTimeString) //todo: date conversion functionality is now spread over the project -> move them all to DataManager
+    {
+        //convert publisher date string to javascript datestring
+        var dateString = aTimeString.replace(' ', 'T');
+        dateString += 'Z';
+
+        return new Date(dateString);
+    },
+
     BreakdownTime: function (aTime) {
         var dates = aTime.split(/[ ]+/)[0].split(/[-]+/);
         var times = aTime.split(/[ ]+/)[1].split(/[:]+/);
