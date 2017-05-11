@@ -74,6 +74,7 @@
     },
 
     sliderMove: function () {
+        this.live = false;
         var newValue = this._slider.get();
         var newTime = new Date();
         //Math.abs(newValue - this.lastValue) / (this._slider.options.range.max - this._slider.options.range.min) > this.valueDelta || 
@@ -94,7 +95,7 @@
                 payload: {
                     time: this.doubleToDate(this._slider.get())
                 }
-            })
+            });
         }
         this.updateTimeDisplay();
     },
