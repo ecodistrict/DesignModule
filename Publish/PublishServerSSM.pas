@@ -14,6 +14,7 @@ uses
   TimerPool,
   PublishServerLib,
   ModelControllerLib,
+  PublishServerMCLib,
   CommandQueue,
 
   // US
@@ -69,6 +70,7 @@ const
 
 const
   SSMIdlePrefix = 'USIdle'; // todo: ?
+  SSMDataSource = 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde';
 
 type
   TSSMCar = class(TLayerObject)
@@ -271,21 +273,6 @@ type
     procedure setParameter(const aName: string; aValue: Boolean); overload;
   end;
 
-  TSSMMCControlInterface = class(TMCControlInterface2)
-  constructor Create(
-    aConnection: TIMBConnection; const aFederation, aDataSource: string;
-    aProject: TProject; const aIdleFederation: string=DefaultIdleFederation);
-  private
-    fProject: TProject;
-  public
-    procedure HandleModelChange(aModel: TCIModelEntry2; aChange: TMChange); override;
-  public
-    function jsonModelStatusNew(const aModelID, aModelName, aModelStatus: string; aModelProgress: Integer): string;
-    function jsonModelStatusChange(const aModelID, aModelStatus: string; aModelProgress: Integer): string;
-    function jsonModelStatusDelete(const aModelID: string): string;
-    function jsonModelStatusArray(const aJSONModelStatusArrayContents: string): string;
-  end;
-
   THandleSimulationTask = class
   constructor Create(aClient: TClient; aScenario: TSSMScenario; aSimulationParameters: TSSMSimulationParameterList);
   destructor Destroy; override;
@@ -299,7 +286,7 @@ type
     property simParams: TSSMSimulationParameterList read fSimParams;
   end;
 
-  TSSMProject  = class(TProject)
+  TSSMProject  = class(TMCProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection;
     const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection;
     aAddBasicLayers: Boolean; aSimulationParameters: TSSMSimulationParameterList; const aSimulationSetup: string;
@@ -307,7 +294,6 @@ type
   destructor Destroy; override;
   private
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
-    fControlInterface: TSSMMCControlInterface;
     fSimulationParameters: TSSMSimulationParameterList;
     //fScenarioNewLinkID: Integer;
     fRecordingsEvent: TIMBEventEntry;
@@ -326,7 +312,7 @@ type
 
 
     property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
-    property controlInterface: TSSMMCControlInterface read fControlInterface;
+    property controlInterface: TClientMCControlInterface read fControlInterface;
     property simulationParameters: TSSMSimulationParameterList read fSimulationParameters;
     property USScenario: string read fUSScenario;
   end;
@@ -649,7 +635,7 @@ begin
   legendJSON := BuildRamplLegendJSON(fPalette as TRampPalette);
   fCarLayer := aCarLayer;
   // link
-  fLinkEvent := (scenario.project as TSSMProject).controlInterface.Connection.Subscribe(aScenario.ID+'.Link_GTU');
+  fLinkEvent := (scenario.project as TMCProject).controlInterface.Connection.Subscribe(aScenario.ID+'.Link_GTU');
   fLinkEvent.OnNormalEvent := HandleLinkEvent;
 end;
 
@@ -788,10 +774,10 @@ begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"car"', 'Point', ltObject, aShowInDomains, 0);
   fLinkLayer := aLinkLayer;
   // GTU
-  fGTUEvent := (scenario.project as TSSMProject).controlInterface.Connection.Subscribe(aScenario.ID+'.GTU');
+  fGTUEvent := (scenario.project as TMCProject).controlInterface.Connection.Subscribe(aScenario.ID+'.GTU');
   fGTUEvent.OnNormalEvent := HandleGTUEvent;
   // redirect
-  fRedirectEvent := (scenario.project as TSSMProject).controlInterface.Connection.Publish('OTS_RT'+'.GTU', False);
+  fRedirectEvent := (scenario.project as TMCProject).controlInterface.Connection.Publish('OTS_RT'+'.GTU', False);
   // legend
   SetLength(entries, 6);
 
@@ -1069,17 +1055,17 @@ begin
   inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView, aUseSimulationSetup);
   // statistics
   fStatistics := TObjectDictionary<string, TSSMStatistic>.Create;
-  fGTUStatisticEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.StatisticsGTULane');
+  fGTUStatisticEvent := (project as TMCProject).ControlInterface.Connection.Subscribe(aID+'.StatisticsGTULane');
   fGTUStatisticEvent.OnNormalEvent := HandleGTUStatisticEvent;
 
   // simulation start
-  fSIMStartEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.Sim_Start');
+  fSIMStartEvent := (project as TMCProject).ControlInterface.Connection.Subscribe(aID+'.Sim_Start');
   fSIMStartEvent.OnNormalEvent := HandleSIMStartEvent;
   // simulation stop
-  fSIMStopEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.Sim_Stop');
+  fSIMStopEvent := (project as TMCProject).controlInterface.Connection.Subscribe(aID+'.Sim_Stop');
   fSIMStopEvent.OnNormalEvent := HandleSIMStopEvent;
   // simulation speed
-  fSIMSpeedEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.Sim_Speed');
+  fSIMSpeedEvent := (project as TMCProject).controlInterface.Connection.Subscribe(aID+'.Sim_Speed');
   fSIMSpeedEvent.OnNormalEvent := HandleSimSpeedEvent;
 
   fRecorded := aRecorded;
@@ -1097,7 +1083,7 @@ begin
   AddChart(fAirSSMEmissionsChartFraction);
 
 
-  fAirSSMEmissionsEvent := (project as TSSMProject).controlInterface.Connection.Subscribe(aID+'.Air_ssm_emissions');
+  fAirSSMEmissionsEvent := (project as TMCProject).controlInterface.Connection.Subscribe(aID+'.Air_ssm_emissions');
   fAirSSMEmissionsEvent.OnNormalEvent := HandleAirSSMEmissions;
   EnableControl(startstopControl);
   EnableControl(simulationCloseControl);
@@ -1129,7 +1115,7 @@ end;
 
 function TSSMScenario.HandleClientSubscribe(aClient: TClient): Boolean;
 var
-  ssmMCControlInterface: TSSMMCControlInterface;
+  ssmMCControlInterface: TClientMCControlInterface;
   jsonNewModels: String;
   model: TCIModelEntry2;
 begin
@@ -1141,7 +1127,7 @@ begin
     aClient.signalString('{"simulationControl":{"stop": true}}');
 
   //send the model control information
-  ssmMCControlInterface := (project as TSSMProject).controlInterface;
+  ssmMCControlInterface := (project as TMCProject).controlInterface;
   ssmMCControlInterface.Lock.Acquire;
   try
     jsonNewModels := '';
@@ -1162,14 +1148,14 @@ end;
 
 function TSSMScenario.HandleClientUnsubscribe(aClient: TClient): Boolean;
 var
-  ssmMCControlInterface: TSSMMCControlInterface;
+  ssmMCControlInterface: TClientMCControlInterface;
   jsonDeleteModels: String;
   model: TCIModelEntry2;
 begin
   Result := inherited HandleClientUnsubscribe(aClient);
 
   //delete the models of this scenario from the ModelControlInterface
-  ssmMCControlInterface := (project as TSSMProject).controlInterface;
+  ssmMCControlInterface := (project as TMCProject).controlInterface;
   ssmMCControlInterface.Lock.Acquire;
   try
     jsonDeleteModels := '';
@@ -1204,7 +1190,7 @@ procedure TSSMScenario.HandleFirstSubscriber(aClient: TClient);
     end;
   end;
 var
-  controlInterface : TSSMMCControlInterface;
+  controlInterface : TClientMCControlInterface;
 //  _parameters: TJSONArray;
 //  parameter: TJSONValue;
 //  parameterName: string;
@@ -1233,7 +1219,7 @@ begin
   //claim DataStore Player
   if not useSimulationSetup then
   begin
-    controlInterface := (fProject as TSSMProject).controlInterface;
+    controlInterface := (fProject as TMCProject).controlInterface;
     controlInterface.Federation := ID;
     for cim in controlInterface.Models do
     begin
@@ -1259,7 +1245,7 @@ begin
   begin
     oraSession := TOraSession.Create(nil);
     try
-      oraSession.ConnectString := (project as TSSMProject).controlInterface.DataSource;
+      oraSession.ConnectString := (project as TMCProject).controlInterface.DataSource;
       oraSession.Open;
 
       scenarioName := (project as TSSMProject).usScenario;
@@ -1273,7 +1259,7 @@ begin
 
       sourceProjection := (project as TSSMProject).sourceProjection;
 
-      imb3Connection := (project as TSSMProject).controlInterface.Connection;
+      imb3Connection := (project as TMCProject).controlInterface.Connection;
 
       metaLayer := TDictionary<Integer, TMetaLayerEntry>.Create;
       try
@@ -1594,59 +1580,6 @@ begin
   else setParameter(aName, 'false', 'bool');
 end;
 
-{ TSSMMCControlInterface }
-
-constructor TSSMMCControlInterface.Create(aConnection: TIMBConnection; const aFederation, aDataSource: string; aProject: TProject;
-  const aIdleFederation: string);
-begin
-  fProject := aProject;
-  inherited Create(aConnection, aFederation, aDataSource, aIdleFederation);
-end;
-
-procedure TSSMMCControlInterface.HandleModelChange(aModel: TCIModelEntry2; aChange: TMChange);
-var
-  client: TClient;
-begin
-  if Assigned(fProject.clients) then
-    for client in fProject.clients do
-    begin
-      if Assigned(client.currentScenario) and aModel.IsThisSession(client.currentScenario.ID) then
-      begin
-        case aChange of
-          TMChange.mcNew:
-            client.signalString(jsonModelStatusArray(jsonModelStatusNew(aModel.UID.ToString, aModel.ModelName, aModel.State.ToString, aModel.Progress)));
-          TMChange.mcRemove:
-            client.signalString(jsonModelStatusArray(jsonModelStatusDelete(aModel.UID.ToString)));
-        else
-            client.signalString(jsonModelStatusArray(
-              jsonModelStatusNew(aModel.UID.ToString, aModel.ModelName, aModel.State.ToString, aModel.Progress)
-              //jsonModelStatusChange(aModel.UID.ToString, aModel.State.ToString, aModel.Progress))
-            ));
-        end;
-      end;
-    end;
-end;
-
-function TSSMMCControlInterface.jsonModelStatusNew(const aModelID, aModelName, aModelStatus: string; aModelProgress: Integer): string;
-begin
-  Result := '{"new":{"id":"'+aModelID+'","name":"'+aModelName+'","status":"'+aModelStatus+'","progress":'+aModelProgress.toString+'}}';
-end;
-
-function TSSMMCControlInterface.jsonModelStatusArray(const aJSONModelStatusArrayContents: string): string;
-begin
-  Result := '{"type":"modelcontrol","payload":{"status":['+aJSONModelStatusArrayContents+']}}';
-end;
-
-function TSSMMCControlInterface.jsonModelStatusChange(const aModelID, aModelStatus: string; aModelProgress: Integer): string;
-begin
-  Result := '{"change":{"id":"'+aModelID+'","status":"'+aModelStatus+'","progress":'+aModelProgress.toString+'}}';
-end;
-
-function TSSMMCControlInterface.jsonModelStatusDelete(const aModelID: string): string;
-begin
-  Result := '{"delete":{"id":"'+aModelID+'"}}';
-end;
-
 { THandleSimulationTask }
 
 constructor THandleSimulationTask.Create(aClient: TClient; aScenario: TSSMScenario; aSimulationParameters: TSSMSimulationParameterList);
@@ -1773,34 +1706,41 @@ constructor TSSMProject.Create(aSessionModel: TSessionModel; aConnection: TConne
   aMapView: TMapView; aMaxNearestObjectDistanceInMeters: Integer; const aDataSource, aUSScenario: string);
 var
   prefix: string;
+  imb3Connection: TIMBConnection;
 begin
   //fScenarioNewLinkID := 0;
   fUSScenario := aUSScenario;
+  fSimulationSetup := aSimulationSetup;
   if Assigned(aSimulationParameters)
   then fSimulationParameters := aSimulationParameters
   else fSimulationParameters := TSSMSimulationParameterList.Create;
   prefix := GetSetting('IMB3Prefix-'+aProjectID, aProjectID);
-  fControlInterface := TSSMMCControlInterface.Create(
-    TIMBConnection.Create(
+//  fControlInterface := TClientMCControlInterface.Create(
+//    TIMBConnection.Create(
+//      GetSetting('IMB3RemoteHost', 'vps17642.public.cloudvps.com'),
+//      GetSetting('IMB3RemotePort', 4000),
+//      'PublishingServerSSM-'+aProjectID, 4, ''),
+//    '',
+//    aDataSource, // todo: datasource
+//    Self,
+//    SSMIdlePrefix);
+  imb3Connection := TIMBConnection.Create(
       GetSetting('IMB3RemoteHost', 'vps17642.public.cloudvps.com'),
       GetSetting('IMB3RemotePort', 4000),
-      'PublishingServerSSM-'+aProjectID, 4, ''),
-    '',
-    aDataSource, // todo: datasource
-    Self,
-    SSMIdlePrefix);
-  fSimulationSetup := aSimulationSetup;
-  fRecordingsEvent := fControlInterface.Connection.Subscribe(SSMIdlePrefix+'.recordings', false);
+      'PublishingServerSSM-'+aProjectID, 4, '');
+
+  fRecordingsEvent := imb3Connection.Subscribe(SSMIdlePrefix+'.recordings', false);
   //fRecordingsEvent.OnNormalEvent := handleRecordingsEvent;
 
-  fPrivateEvent := fControlInterface.Connection.Subscribe(SSMIdlePrefix+'.ssmprojects.'+fControlInterface.Connection.UniqueClientID.ToHexString(8), false);
+  fPrivateEvent := imb3Connection.Subscribe(SSMIdlePrefix+'.ssmprojects.'+imb3Connection.UniqueClientID.ToHexString(8), false);
   fPrivateEvent.OnNormalEvent := handleRecordingsEvent;
 
   mapView := aMapView;
   fSourceProjection := CSProjectedCoordinateSystemList.ByWKT(
     GetSetting('Projection', 'Amersfoort_RD_New')); // EPSG: 28992
-  inherited Create(aSessionModel, aConnection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aAddBasicLayers,
-    aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentScenario etc..
+  inherited Create(aSessionModel, aConnection, imb3Connection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, GetSetting('DataSource', SSMDataSource), aDBConnection, aAddBasicLayers,
+    aMaxNearestObjectDistanceInMeters, mapView, nil, nil, GetSetting('IdlePrefix', SSMIdlePrefix)); // todo: check projectCurrentScenario etc..
+
   EnableControl(presenterViewerControl);
   EnableControl(modelControl);
 end;

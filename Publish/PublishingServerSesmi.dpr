@@ -45,9 +45,13 @@ begin
   try
     try
       // todo: change to tls connection
+//      imbConnection := TSocketConnection.Create(
+//        'PublishingServerSesmi', 12,
+//        'ensel2',
+//        GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
       imbConnection := TSocketConnection.Create(
         'PublishingServerSesmi', 12,
-        'ensel2',
+        'EnSel2',
         GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
       try
         imbConnection.onException := HandleException;
@@ -83,7 +87,7 @@ begin
                 projectEventPrefix := p.ProjectEvent.eventName+'.';
                 if aString.StartsWith(projectEventPrefix) then
                 begin
-                  p.AddClient(aString);
+                  p.AddClient(aString.Split(['&'])[0]);
                   Log.WriteLn('linked existing client: '+aString.Substring(projectEventPrefix.Length));
                   Log.WriteLn('to project: '+p.ProjectName, llNormal, 1);
                   exit;

@@ -148,7 +148,7 @@ begin
           projectEventPrefix := p.ProjectEvent.eventName+'.';
           if aString.StartsWith(projectEventPrefix) then
           begin
-            p.AddClient(aString);
+            p.AddClient(aString.Split(['&'])[0]);
             Log.WriteLn('linked existing client: '+aString.Substring(projectEventPrefix.Length));
             Log.WriteLn('to project: '+p.ProjectName, llNormal, 1);
             exit;

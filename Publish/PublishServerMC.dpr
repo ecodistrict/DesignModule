@@ -219,7 +219,7 @@ begin
       GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
       dbConnection,
       mapView,
-      preLoadScenarios,
+      preLoadScenarios, False,
       GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
     fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fProject);

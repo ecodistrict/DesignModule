@@ -25,6 +25,8 @@ uses
   CommandQueue,
   TimerPool,
 
+  ModelControllerLib,
+
   NDWLib,
 
   System.JSON,
@@ -32,7 +34,8 @@ uses
 
   PublishServerLib,
   PublishServerGIS,
-  PublishServerUS;
+  PublishServerUS,
+  PublishServerMCLib;
 
 const
   //hardcoded bounding box zones for the Park & Shuttle measure
@@ -70,6 +73,12 @@ type
     procedure ReadBasicData(); override;
   end;
 
+  TUSDesignScenario = class(TUSScenario)
+  public
+    function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
+  end;
+
 implementation
 
 { TUSDesignProject }
@@ -80,7 +89,7 @@ constructor TUSDesignProject.Create(aSessionModel: TSessionModel;
   aDBConnection: TCustomConnection; aMapView: TMapView;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string);
 begin
-  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, aMaxNearestObjectDistanceInMeters);
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, True, aMaxNearestObjectDistanceInMeters);
   fProjectCurrentScenario := ReadScenario(aStartScenario);
   fUSIMBConnection := TIMBConnection.Create(
       GetSetting('IMB3RemoteHost', 'vps17642.public.cloudvps.com'),
@@ -89,11 +98,13 @@ begin
   EnableControl(selectControl);
   EnableControl(measuresControl);
   EnableControl(measuresHistoryControl);
+  EnableControl(modelControl);
 end;
 
 destructor TUSDesignProject.Destroy;
 begin
   inherited;
+  FreeAndNil(fControlInterface);
 end;
 
 procedure TUSDesignProject.handleClientMessage(aClient: TClient;
@@ -104,12 +115,17 @@ var
   jsonMeasures: TJSONArray;
   jsonMeasure, jsonAction: TJSONValue;
   id: string;
+  objectID: Integer;
+  jsonObjectIDs: TJSONArray;
+  jsonObjectID: TJSONValue;
   measureFactor: Double;
   factorString, inverseString: string;
   queryText1, queryText2, table1, table2: string;
+  table, queryText, value: string;
   publishEventName: string;
   publishEvent: TIMBEventEntry;
 begin
+  oraSession := fDBConnection as TOraSession;
   if Assigned(aScenario) and (aScenario is TUSScenario) then
   begin
     if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
@@ -154,7 +170,6 @@ begin
                     ' where' +
                     ' t_zone.X_CENTROID between ' + xMin + ' and ' + xMax + ' and t_zone.Y_CENTROID between ' + yMin + ' and ' + yMax + ')';
 
-                  oraSession := fDBConnection as TOraSession;
                   oraSession.StartTransaction;
                   try
                     oraSession.ExecSQL(queryText1);
@@ -170,9 +185,133 @@ begin
                     //todo: logging transaction failed
                   end;
                 end
-                else
+                else if (measure.ActionID >= -12) and (measure.ActionID <= -11) then
                 begin
-
+                  table := (aScenario as TUSScenario).Tableprefix + 'GENE_ROAD';
+                  case measure.ActionID of
+                    -11: value := '1';
+                    -12: value := '0';
+                  end;
+                  queryText := 'update ' + table +
+                    ' set' +
+                    ' STATUS_L  = ' + value + ', STATUS_R = ' + value +
+                    ' where OBJECT_ID = :A';
+                  if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
+                  begin
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    try
+                      for jsonObjectID in jsonObjectIDs do
+                      begin
+                        if TryStrToInt(jsonObjectID.Value, objectID) then
+                        begin
+                          //check if this road exists
+                          if aScenario.Layers.ContainsKey('road') and aScenario.Layers['road'].objects.ContainsKey(AnsiString(objectID.ToString)) then
+                          begin
+                            oraSession.ExecSQL(queryText, [objectID]);
+                            oraSession.Commit;
+                            publishEvent.SignalChangeObject(actionChange, objectID, 'STATUS_L');
+                            publishEvent.SignalChangeObject(actionChange, objectID, 'STATUS_R');
+                          end;
+                        end;
+                      end;
+                    finally
+                      publishEvent.UnPublish;
+                    end;
+                  end;
+                end
+                else if (measure.ActionID >= -22) and (measure.ActionID <= -21) then
+                begin
+                  table := (aScenario as TUSScenario).Tableprefix + 'GENE_ROAD';
+                  case measure.ActionID of
+                    -21: value := '0.5';
+                    -22: value := '2';
+                  end;
+                  queryText := 'update ' + table +
+                    ' set' +
+                    ' CAPACITY_L  = CAPACITY_L * ' + value + ', CAPACITY_R = CAPACITY_R * ' + value +
+                    ' where OBJECT_ID = :A';
+                  if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
+                  begin
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    try
+                      for jsonObjectID in jsonObjectIDs do
+                      begin
+                        if TryStrToInt(jsonObjectID.Value, objectID) then
+                        begin
+                          //check if this road exists
+                          if aScenario.Layers.ContainsKey('road') and aScenario.Layers['road'].objects.ContainsKey(AnsiString(objectID.ToString)) then
+                          begin
+                            oraSession.ExecSQL(queryText, [objectID]);
+                            oraSession.Commit;
+                            publishEvent.SignalChangeObject(actionChange, objectID, 'CAPACITY_L');
+                            publishEvent.SignalChangeObject(actionChange, objectID, 'CAPACITY_R');
+                          end;
+                        end;
+                      end;
+                    finally
+                      publishEvent.UnPublish;
+                    end;
+                  end;
+                end
+                else if (measure.ActionID >= -35) and (measure.ActionID <= -31) then
+                begin
+                  table := (aScenario as TUSScenario).Tableprefix + 'GENE_ROAD';
+                  case measure.ActionID of
+                    -31: value := '30';
+                    -32: value := '50';
+                    -33: value := '80';
+                    -34: value := '100';
+                    -35: value := '120';
+                  end;
+                  queryText := 'update ' + table +
+                    ' set' +
+                    ' SPEED_L = (SPEED_L * 0) + ' + value + ', SPEED_R = (SPEED_R * 0) + ' + value + //preserves null values!
+                    ' where OBJECT_ID = :A';
+                  if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
+                  begin
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    try
+                      for jsonObjectID in jsonObjectIDs do
+                      begin
+                        if TryStrToInt(jsonObjectID.Value, objectID) then
+                        begin
+                          //check if this road exists
+                          if aScenario.Layers.ContainsKey('road') and aScenario.Layers['road'].objects.ContainsKey(AnsiString(objectID.ToString)) then
+                          begin
+                            oraSession.ExecSQL(queryText, [objectID]);
+                            oraSession.Commit;
+                            publishEvent.SignalChangeObject(actionChange, objectID, 'SPEED_L');
+                            publishEvent.SignalChangeObject(actionChange, objectID, 'SPEED_R');
+                          end;
+                        end;
+                      end;
+                    finally
+                      publishEvent.UnPublish;
+                    end;
+                  end;
+                end
+                else if (measure.ActionID >= -42) and (measure.ActionID <= -41) then
+                begin
+                  case measure.ActionID of
+                    -41: value := '* 0.7';
+                    -42: value := '/ 0.7';
+                  end;
+                  table := (aScenario as TUSScenario).Tableprefix + 'TRAF_OD';
+                  queryText := 'update ' + table +
+                    ' set' +
+                    ' CAR_TRIPS = CAR_TRIPS ' + value;
+                  publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.TRAF_OD';
+                  publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                  try
+                    oraSession.ExecSQL(queryText);
+                    oraSession.Commit;
+                    publishEvent.SignalChangeObject(actionChange, 0, 'CAR_TRIPS');
+                  finally
+                    publishEvent.UnPublish;
+                  end;
                 end;
               end
             end;
@@ -217,7 +356,7 @@ constructor TUSMonitorProject.Create(aSessionModel: TSessionModel;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
   aStartScenario: string);
 begin
-  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, aMaxNearestObjectDistanceInMeters);
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, False, aMaxNearestObjectDistanceInMeters);
   DisableControl(selectControl);
   DisableControl(measuresControl);
   DisableControl(measuresHistoryControl);
@@ -226,13 +365,12 @@ end;
 
 destructor TUSMonitorProject.Destroy;
 begin
-
   inherited;
 end;
 
 procedure TUSMonitorProject.ReadBasicData;
 begin
-
+  ReadScenarios;
 end;
 
 { TUSEvaluateProject }
@@ -244,7 +382,7 @@ constructor TUSEvaluateProject.Create(aSessionModel: TSessionModel;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
   aStartScenario: string);
 begin
-  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, aMaxNearestObjectDistanceInMeters);
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, False, aMaxNearestObjectDistanceInMeters);
   DisableControl(selectControl);
   DisableControl(measuresControl);
   DisableControl(measuresHistoryControl);
@@ -259,6 +397,64 @@ end;
 
 procedure TUSEvaluateProject.ReadBasicData;
 begin
+end;
+
+{ TUSDesignScenario }
+
+function TUSDesignScenario.HandleClientSubscribe(aClient: TClient): Boolean;
+var
+  clientMCControlInterface: TClientMCControlInterface;
+  jsonNewModels: String;
+  model: TCIModelEntry2;
+begin
+  Result := inherited HandleClientSubscribe(aClient);
+
+  //send the model control information
+  clientMCControlInterface := (project as TUSDesignProject).controlInterface;
+  clientMCControlInterface.Lock.Acquire;
+  try
+    jsonNewModels := '';
+    for model in clientMCControlInterface.Models do
+    begin
+      if model.IsThisSession(aClient.currentScenario.ID) then
+      begin
+        if jsonNewModels<>''
+          then jsonNewModels := jsonNewModels+',';
+        jsonNewModels := jsonNewModels+clientMCControlInterface.jsonModelStatusNew(model.UID.ToString, model.ModelName, model.State.ToString, model.Progress)
+      end;
+    end;
+    aClient.signalString(clientMCControlInterface.jsonModelStatusArray(jsonNewModels));
+  finally
+    clientMCControlInterface.Lock.Release;
+  end;
+end;
+
+function TUSDesignScenario.HandleClientUnsubscribe(aClient: TClient): Boolean;
+var
+  clientMCControlInterface: TClientMCControlInterface;
+  jsonDeleteModels: String;
+  model: TCIModelEntry2;
+begin
+  Result := inherited HandleClientUnsubscribe(aClient);
+
+  //delete the models of this scenario from the ModelControlInterface
+  clientMCControlInterface := (project as TUSDesignProject).controlInterface;
+  clientMCControlInterface.Lock.Acquire;
+  try
+    jsonDeleteModels := '';
+    for model in clientMCControlInterface.Models do
+    begin
+      if model.IsThisSession(aClient.currentScenario.ID) then
+      begin
+        if jsonDeleteModels<>''
+          then jsonDeleteModels := jsonDeleteModels+',';
+        jsonDeleteModels := jsonDeleteModels+clientMCControlInterface.jsonModelStatusDelete(model.UID.ToString);
+      end;
+    end;
+    aClient.signalString(clientMCControlInterface.jsonModelStatusArray(jsonDeleteModels));
+  finally
+    clientMCControlInterface.Lock.Release;
+  end;
 end;
 
 end.

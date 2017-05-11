@@ -1302,7 +1302,7 @@ begin
   //Set Sesmi controls
   SetControl(dateFormControl, '{"data":' + aDateFormData + '}');
   fLinks := TDictionary<TGUID, TWDGeometry>.Create;
-  fPubEvent := aConnection.publish('EnSel2.geometry_roads', False);
+  fPubEvent := aConnection.publish('geometry_roads');
   InquireNetwork;
   fWindData := TSesmiWindData.Create(Self);
 end;
@@ -1350,8 +1350,8 @@ var
   buffer: TByteBuffer;
   returnEventName: string;
 begin
-  //returnEventName := TGuid.NewGuid.ToString + '.networkInquire';
-  returnEventName := 'EnSel2.geometry_roads';
+  returnEventName := TGuid.NewGuid.ToString + '.networkInquire';
+  //returnEventName := 'Ensel2.' + 'geometry_roads'; //todo: dynamically read prefix!
   fNetworkEvent := fConnection.subscribe(returnEventName, False);
   fNetworkEvent.OnEvent.Add(HandleNetworkEvent);
   buffer := TByteBuffer.bb_tag_double(wDatTimeStampLower shr 3, -1.5);
@@ -1904,8 +1904,6 @@ begin
   finally
     TMonitor.Exit(fChart);
   end;
-
-
 end;
 
 constructor TSesmiLinkLayer.Create(aScenario: TScenario; const aDomain, aID,

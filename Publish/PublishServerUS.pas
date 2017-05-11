@@ -28,6 +28,7 @@ uses
   PublishServerLib,
   PublishServerGIS,
   PublishServerOra,
+  PublishServerMCLib,
 
   Vcl.graphics, // TPicture
 
@@ -327,7 +328,7 @@ type
 
   TUSProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
   destructor Destroy; override;
   private
     fUSDBScenarios: TObjectDictionary<string, TUSDBScenario>;
@@ -1771,18 +1772,29 @@ procedure TUSScenario.ReadBasicData;
     end;
   end;
 
+  function GetBasicLayerType(const aGeometryType: string): Integer;
+  begin
+    Result := 99;
+    if aGeometryType.ToLower = 'multipolygon' then
+      Result := 3
+    else if aGeometryType.ToLower = 'linestring' then
+      Result := 4
+    else if aGeometryType.ToLower = 'point' then
+      Result := 11;
+  end;
+
 var
   mlp: TPair<Integer, TMetaLayerEntry>;
   layer: TUSLayer;
   indicTableNames: TAllRowsSingleFieldResult;
-  tableName: string;
-  geneTables: TAllRowsSingleFieldResult;
-  i: Integer;
+//  tableName: string;
+//  geneTables: TAllRowsSingleFieldResult;
+//  i: Integer;
   oraSession: TOraSession;
   metaLayer: TMetaLayer;
   connectString: string;
   sourceProjection: TGIS_CSProjectedCoordinateSystem;
-
+  aID: string;
   layerInfoKey: string;
   layerInfo: string;
   layerInfoParts: TArray<string>;
@@ -1795,85 +1807,86 @@ begin
   sourceProjection := (project as TUSProject).sourceProjection;
 
   // process basic layers
-  if addBasicLayers then
-  begin
-    geneTables := ReturnAllFirstFields(oraSession,
-      'SELECT DISTINCT OBJECT_NAME '+
-      'FROM USER_OBJECTS '+
-      'WHERE OBJECT_TYPE = ''TABLE'' AND OBJECT_NAME LIKE '''+fTablePrefix+'GENE%''');
-    for i := 0 to Length(geneTables)-1 do
-    begin
-      tableName := geneTables[i];
-      if tableName=fTablePrefix.ToUpper+'GENE_ROAD' then
-      begin // always
-        AddBasicLayer(
-          'road', 'roads', 'roads', 'basic structures', 'road', 'LineString',
-          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-          4,
-          connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_ROAD'), sourceProjection);
-      end
-      else if tableName=fTablePrefix.ToUpper+'GENE_PIPELINES' then
-      begin // check count
-        if ReturnRecordCount(oraSession, tableName)>0
-        then AddBasicLayer(
-               'pipeline', 'pipe lines', 'pipe lines', 'basic structures', 'pipe line', 'LineString',
-               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_PIPELINES'), sourceProjection);
-      end
-      else if tableName=fTablePrefix.ToUpper+'GENE_BUILDING' then
-      begin // always
-        AddBasicLayer(
-          'building', 'buildings', 'buildings', 'basic structures', 'building', 'MultiPolygon',
-          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-          3, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_BUILDING'), sourceProjection);
-      end
-      else if tableName=fTablePrefix.ToUpper+'GENE_SCREEN' then
-      begin // always
-        AddBasicLayer(
-          'screen', 'screens', 'screens', 'basic structures', 'screen', 'LineString',
-          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-          4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_SCREEN'), sourceProjection);
-      end
-      else if tableName=fTablePrefix.ToUpper+'GENE_TRAM' then
-      begin // check count
-        if ReturnRecordCount(oraSession, tableName)>0
-        then AddBasicLayer(
-               'tramline', 'tram lines', 'tram lines', 'basic structures', 'tram line', 'LineString',
-               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_TRAM'), sourceProjection);
-      end
-      else if tableName=fTablePrefix.ToUpper+'GENE_BIKEPATH' then
-      begin // check count
-        if ReturnRecordCount(oraSession, tableName)>0
-        then AddBasicLayer(
-               'bikepath', 'bike paths', 'bike paths', 'basic structures', 'bike path', 'LineString',
-               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_BIKEPATH'), sourceProjection);
-      end
-      else if tableName=fTablePrefix.ToUpper+'GENE_RAIL' then
-      begin // check count
-        if ReturnRecordCount(oraSession, tableName)>0
-        then AddBasicLayer(
-               'railline', 'rail lines', 'rail lines', 'basic structures', 'rail line', 'LineString',
-               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_RAIL'), sourceProjection);
-      end
-      else if tableName=fTablePrefix.ToUpper+'GENE_INDUSTRY_SRC' then
-      begin // check count
-        if ReturnRecordCount(oraSession, tableName)>0
-        then AddBasicLayer(
-               'industrysource', 'industry sources', 'industry sources', 'basic structures', 'industry source', 'Point',
-               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-               11, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_INDUSTRY_SRC'), sourceProjection);
-      end;
-      //GENE_NEIGHBORHOOD
-      //GENE_RESIDENCE
-      //GENE_NODE
-      //GENE_DISTRICT
-      //GENE_STUDY_AREA
-      //GENE_BASCOV
-    end;
-  end;
+//  if addBasicLayers then
+//  begin
+//    geneTables := ReturnAllFirstFields(oraSession,
+//      'SELECT DISTINCT OBJECT_NAME '+
+//      'FROM USER_OBJECTS '+
+//      'WHERE OBJECT_TYPE = ''TABLE'' AND OBJECT_NAME LIKE '''+fTablePrefix+'GENE%''');
+//    for i := 0 to Length(geneTables)-1 do
+//    begin
+//      tableName := geneTables[i];
+//      if tableName=fTablePrefix.ToUpper+'GENE_ROAD' then
+//      begin // always
+//        AddBasicLayer(
+//          'road', 'roads', 'roads', 'basic structures', 'road', 'LineString',
+//          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
+//          4,
+//          connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_ROAD'), sourceProjection);
+//      end
+//      else if tableName=fTablePrefix.ToUpper+'GENE_PIPELINES' then
+//      begin // check count
+//        if ReturnRecordCount(oraSession, tableName)>0
+//        then AddBasicLayer(
+//               'pipeline', 'pipe lines', 'pipe lines', 'basic structures', 'pipe line', 'LineString',
+//               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
+//               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_PIPELINES'), sourceProjection);
+//      end
+//      else if tableName=fTablePrefix.ToUpper+'GENE_BUILDING' then
+//      begin // always
+//        AddBasicLayer(
+//          'building', 'buildings', 'buildings', 'basic structures', 'building', 'MultiPolygon',
+//          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
+//          3, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_BUILDING'), sourceProjection);
+//      end
+//      else if tableName=fTablePrefix.ToUpper+'GENE_SCREEN' then
+//      begin // always
+//        AddBasicLayer(
+//          'screen', 'screens', 'screens', 'basic structures', 'screen', 'LineString',
+//          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
+//          4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_SCREEN'), sourceProjection);
+//      end
+//      else if tableName=fTablePrefix.ToUpper+'GENE_TRAM' then
+//      begin // check count
+//        if ReturnRecordCount(oraSession, tableName)>0
+//        then AddBasicLayer(
+//               'tramline', 'tram lines', 'tram lines', 'basic structures', 'tram line', 'LineString',
+//               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
+//               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_TRAM'), sourceProjection);
+//      end
+//      else if tableName=fTablePrefix.ToUpper+'GENE_BIKEPATH' then
+//      begin // check count
+//        if ReturnRecordCount(oraSession, tableName)>0
+//        then AddBasicLayer(
+//               'bikepath', 'bike paths', 'bike paths', 'basic structures', 'bike path', 'LineString',
+//               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
+//               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_BIKEPATH'), sourceProjection);
+//      end
+//      else if tableName=fTablePrefix.ToUpper+'GENE_RAIL' then
+//      begin // check count
+//        if ReturnRecordCount(oraSession, tableName)>0
+//        then AddBasicLayer(
+//               'railline', 'rail lines', 'rail lines', 'basic structures', 'rail line', 'LineString',
+//               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
+//               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_RAIL'), sourceProjection);
+//      end
+//      else if tableName=fTablePrefix.ToUpper+'GENE_INDUSTRY_SRC' then
+//      begin // check count
+//        if ReturnRecordCount(oraSession, tableName)>0
+//        then AddBasicLayer(
+//               'industrysource', 'industry sources', 'industry sources', 'basic structures', 'industry source', 'Point',
+//               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
+//               11, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_INDUSTRY_SRC'), sourceProjection);
+//      end;
+//
+//      //GENE_NEIGHBORHOOD
+//      //GENE_RESIDENCE
+//      //GENE_NODE
+//      //GENE_DISTRICT
+//      //GENE_STUDY_AREA
+//      //GENE_BASCOV
+//    end;
+//  end;
 
   // process meta layer to build list of available layers
   metaLayer := TMetaLayer.Create;
@@ -1884,64 +1897,76 @@ begin
     begin
       if mlp.Value._published>0 then
       begin
-
-        // try tablename-value, legend description-value..
-        layerInfoKey := mlp.Value.LAYER_TABLE.Trim+'-'+mlp.Value.VALUE_EXPR.trim;
-        layerInfo := StandardIni.ReadString('layers', layerInfoKey, '');
-        if layerInfo='' then
+        if (mlp.Value.LAYER_TYPE = 99) and addBasicLayers then
         begin
-          layerInfoKey := mlp.Value.LEGEND_DESC.trim+'-'+mlp.Value.VALUE_EXPR.trim;
-          layerInfo := StandardIni.ReadString('layers', layerInfoKey, '');
-        end;
-        layerInfoParts := layerInfo.Split([',']);
+          aID := mlp.Value.description.ToLower.Replace(' ', '', [rfReplaceAll]);
+          if aID.EndsWith('s') then
+            aID := aID.Remove(aID.Length-1, 1);
 
-        nam := mlp.Value.description;
-        if (nam='') and (length(layerInfoParts)>1)
-        then nam := layerInfoParts[1];
-        if nam=''
-        then nam := mlp.Value.LEGEND_DESC;
-
-        dom := mlp.Value.domain;
-        if (dom='') and (length(layerInfoParts)>0)
-        then dom := standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0]);
-
-
-        {
-        if layerInfo<>'' then
-        begin
-          layerInfoParts := layerInfo.Split([',']);
-          if length(layerInfoParts)<2 then
-          begin
-            setLength(layerInfoParts, 2);
-            layerInfoParts[1] := mlp.Value.LEGEND_DESC;
-          end;
-
-          if mlp.Value.domain<>''
-          then dom := mlp.Value.domain
-          else dom := standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0]);
-          nam := layerInfoParts[1];
+          AddBasicLayer(aID, mlp.Value.description, mlp.Value.description, mlp.Value.domain, mlp.Value.objectType, mlp.Value.geometryType,
+            'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+fTablePrefix.ToUpper+ mlp.Value.LAYER_TABLE + ' t', GetBasicLayerType(mlp.Value.geometryType),
+            connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, mlp.Value.LAYER_TABLE), sourceProjection);
         end
         else
         begin
-          if mlp.Value.domain<>''
-          then dom := mlp.Value.domain
-          else dom := '';
-          nam := mlp.Value.description;
-        end;
-        }
-        if (dom<>'') and (nam<>'') then
-        begin
-          //todo: check if fix from name to nam worked!?
-          layer := mlp.Value.CreateUSLayer(self, fTablePrefix, connectString, SubscribeDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS), sourceProjection, dom, nam);
-          if Assigned(layer) then
+          // try tablename-value, legend description-value..
+          layerInfoKey := mlp.Value.LAYER_TABLE.Trim+'-'+mlp.Value.VALUE_EXPR.trim;
+          layerInfo := StandardIni.ReadString('layers', layerInfoKey, '');
+          if layerInfo='' then
           begin
-            Layers.Add(layer.ID, layer);
-            Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
-            // schedule reading objects and send to tiler
-            //todo: uncomment
-            AddCommandToQueue(oraSession, layer.ReadObjects);
+            layerInfoKey := mlp.Value.LEGEND_DESC.trim+'-'+mlp.Value.VALUE_EXPR.trim;
+            layerInfo := StandardIni.ReadString('layers', layerInfoKey, '');
+          end;
+          layerInfoParts := layerInfo.Split([',']);
+
+          nam := mlp.Value.description;
+          if (nam='') and (length(layerInfoParts)>1)
+          then nam := layerInfoParts[1];
+          if nam=''
+          then nam := mlp.Value.LEGEND_DESC;
+
+          dom := mlp.Value.domain;
+          if (dom='') and (length(layerInfoParts)>0)
+          then dom := standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0]);
+
+
+          {
+          if layerInfo<>'' then
+          begin
+            layerInfoParts := layerInfo.Split([',']);
+            if length(layerInfoParts)<2 then
+            begin
+              setLength(layerInfoParts, 2);
+              layerInfoParts[1] := mlp.Value.LEGEND_DESC;
+            end;
+
+            if mlp.Value.domain<>''
+            then dom := mlp.Value.domain
+            else dom := standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0]);
+            nam := layerInfoParts[1];
           end
-          else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' '+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
+          else
+          begin
+            if mlp.Value.domain<>''
+            then dom := mlp.Value.domain
+            else dom := '';
+            nam := mlp.Value.description;
+          end;
+          }
+          if (dom<>'') and (nam<>'') then
+          begin
+            //todo: check if fix from name to nam worked!?
+            layer := mlp.Value.CreateUSLayer(self, fTablePrefix, connectString, SubscribeDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS), sourceProjection, dom, nam);
+            if Assigned(layer) then
+            begin
+              Layers.Add(layer.ID, layer);
+              Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
+              // schedule reading objects and send to tiler
+              //todo: uncomment
+              AddCommandToQueue(oraSession, layer.ReadObjects);
+            end
+            else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' '+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
+          end;
         end;
       end;
     end;
@@ -2181,7 +2206,7 @@ begin
         begin
           // todo:
           Result :=
-            '{"selectedObjects":{"selectCategories":["'+nearestObjectLayer.ID+'"],'+
+            '{"selectedObjects":{"selectCategories":['+nearestObjectLayer.objectTypes+'],'+
              '"mode":"'+aMode+'",'+
              '"objects":['+nearestObject.JSON2D[nearestObjectLayer.geometryType, '']+']}}';
           Log.WriteLn('found nearest object layer: '+nearestObjectLayer.ID+', object: '+string(nearestObject.ID)+', distance: '+nearestObjectDistanceInMeters.toString);
@@ -2275,7 +2300,7 @@ end;
 
 constructor TUSProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-  aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
+  aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
 var
   SourceEPSGstr: string;
   SourceEPSG: Integer;
@@ -2296,7 +2321,7 @@ begin
   fPreLoadScenarios := aPreLoadScenarios;
   inherited Create(aSessionModel, aConnection, aProjectID, aProjectName,
     aTilerFQDN, aTilerStatusURL,
-    aDBConnection, addBasicLayers,
+    aDBConnection, aAddBasicLayers,
     aMaxNearestObjectDistanceInMeters, mapView, nil, nil);
 end;
 

@@ -50,6 +50,11 @@ const
   IMB4RemoteHostSwitch = 'IMB4RemoteHost';
   IMB4RemotePortSwitch = 'IMB4RemotePort';
 
+  DesignBaseScenarioIDSwitch = 'DesignBaseScenarioID';
+  MonitorBaseScenarioIDSwitch = 'MonitorBaseScenarioID';
+  EvaluateBaseScenarioIDSwitch = 'EvaluateBaseScenarioID';
+    DefaultBaseScenarioID = '0';
+
 //  RecoverySection = 'recovery';
 
 type
@@ -176,6 +181,9 @@ begin
     aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
     aParameters.Add(TModelParameter.Create(ProjectNameSwitch, projectName));
     aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, GetSetting(PreLoadScenariosSwitch, True)));
+    aParameters.Add(TModelParameter.Create(DesignBaseScenarioIDSwitch, GetSetting(DesignBaseScenarioIDSwitch, DefaultBaseScenarioID)));
+    aParameters.Add(TModelParameter.Create(MonitorBaseScenarioIDSwitch, GetSetting(MonitorBaseScenarioIDSwitch, DefaultBaseScenarioID)));
+    aParameters.Add(TModelParameter.Create(EvaluateBaseScenarioIDSwitch, GetSetting(EvaluateBaseScenarioIDSwitch, DefaultBaseScenarioID)));
   except
     on E: Exception
     do log.WriteLn('Exception in TModel.ParameterRequest: '+E.Message, llError);
@@ -233,7 +241,7 @@ begin
       dbConnection,
       mapView,
       preLoadScenarios,
-      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), '10');
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[DesignBaseScenarioIDSwitch].ValueAsString);
     fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fProject);
 
@@ -245,7 +253,7 @@ begin
       dbConnection,
       mapView,
       preLoadScenarios,
-      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), '7');
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[MonitorBaseScenarioIDSwitch].ValueAsString);
     fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fProject);
 
@@ -257,7 +265,7 @@ begin
       dbConnection,
       mapView,
       preLoadScenarios,
-      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), '2');
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[EvaluateBaseScenarioIDSwitch].ValueAsString);
     fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fProject);
 
