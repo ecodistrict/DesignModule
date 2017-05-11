@@ -1,27 +1,39 @@
-program PublishServerMC;
+program PublishingServerDME;
 
 {$APPTYPE CONSOLE}
 
 {$R *.res}
 
 uses
-  MyOraLib, DB, Ora, OraSmart, OraObjects,
-  CmdLin, StdIni, MyStr, MyConsole,
-  IMB3NativeClient, IMB3Core, ByteBuffers,
-  Logger, LogConsole, LogFile, LogIMB,
+  MyOraLib,
+  DB,
+  Ora,
+  OraSmart,
+  OraObjects,
+  CmdLin,
+  StdIni,
+  MyStr,
+  MyConsole,
+  IMB3NativeClient,
+  IMB3Core,
+  ByteBuffers,
+  Logger,
+  LogConsole,
+  LogFile,
+  LogIMB,
   imb4,
   CommandQueue,
   TimerPool,
-
   TilerControl,
-
   PublishServerLib,
   PublishServerDB,
   PublishServerUS,
-
+  PublishServerDME,
   ModelControllerLib,
-
-  System.SyncObjs, System.Classes, System.SysUtils, WinApi.Windows;
+  System.SyncObjs,
+  System.Classes,
+  System.SysUtils,
+  WinApi.Windows;
 
 const
   ConnectStringSwitch = 'ConnectString';
@@ -79,7 +91,7 @@ begin
   fIMBLogger := nil;
   fProject := nil;
   // imb4
-  fIMBConnection := TSocketConnection.Create('PublishingServerUS', 2, 'nl.imb', GetSetting(IMB4RemoteHostSwitch, imb4.imbDefaultRemoteHost), GetSetting(IMB4RemotePortSwitch, imb4.imbDefaultRemoteSocketPort));
+  fIMBConnection := TSocketConnection.Create('PublishingServerDME', 2, 'nl.imb', GetSetting(IMB4RemoteHostSwitch, imb4.imbDefaultRemoteHost), GetSetting(IMB4RemotePortSwitch, imb4.imbDefaultRemoteSocketPort));
   fIMBConnection.onException := HandleException;
   fIMBConnection.onDisconnect := HandleDisconnect;
   fIMBConnection.setHeartbeat(60*1000);
@@ -158,7 +170,7 @@ begin
     else
     begin
       projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
-      projectName := GetSetting(ProjectNameSwitch, 'test project'); //aParameters.ParameterByName[FederationParameterName].ValueAsString
+      projectName := GetSetting(ProjectNameSwitch, 'test ams'); //aParameters.ParameterByName[FederationParameterName].ValueAsString
     end;
     aParameters.Add(TModelParameter.Create(TilerNameSwitch, GetSetting(TilerNameSwitch, DefaultTilerName)));
     aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
@@ -207,20 +219,45 @@ begin
     dbConnection.Open;
     projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
     projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
-    mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
+    mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.31567, 4.90321, 13));
     Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
     preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
     tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
     setUSProjectID(dbConnection, projectID, mapView.lat, mapView.lon, mapView.zoom); // store project properties in database
-    fProject := TUSProject.Create(
+
+    fProject := TUSDesignProject.Create(
       fSessionModel, fSessionModel.Connection, connection,
-      projectID, projectName,
+      projectID + '-Design', projectName + '-Design',
       tilerName,
       GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
       dbConnection,
       mapView,
       preLoadScenarios,
-      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), '10');
+    fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+    fSessionModel.Projects.Add(fProject);
+
+    fProject := TUSMonitorProject.Create(
+      fSessionModel, fSessionModel.Connection, connection,
+      projectID + '-Monitor', projectName + '-Monitor',
+      tilerName,
+      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+      dbConnection,
+      mapView,
+      preLoadScenarios,
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), '7');
+    fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+    fSessionModel.Projects.Add(fProject);
+
+    fProject := TUSEvaluateProject.Create(
+      fSessionModel, fSessionModel.Connection, connection,
+      projectID + '-Evaluate', projectName + '-Evaluate',
+      tilerName,
+      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+      dbConnection,
+      mapView,
+      preLoadScenarios,
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), '2');
     fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fProject);
 

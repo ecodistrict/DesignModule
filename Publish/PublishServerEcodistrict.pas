@@ -215,8 +215,7 @@ type
 
   TEcodistrictProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aDBConnection: TCustomConnection;
-    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean;
+    aDBConnection: TCustomConnection; aAddBasicLayers: Boolean;
     aMaxNearestObjectDistanceInMeters: Integer;
     aKPIList: TObjectList<TEcodistrictKPI>);
   destructor Destroy; override;
@@ -1410,8 +1409,7 @@ begin
 end;
 
 constructor TEcodistrictProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
-  aTilerStatusURL: string; aDBConnection: TCustomConnection; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled,
-  aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aKPIList: TObjectList<TEcodistrictKPI>);
+  aTilerStatusURL: string; aDBConnection: TCustomConnection; aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aKPIList: TObjectList<TEcodistrictKPI>);
 var
   dummyMapView: TMapView;
 begin
@@ -1425,10 +1423,12 @@ begin
   dummyMapView := TMapView.Create(0,0, 1);
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
-    aDBConnection, aTimeSlider, aSelectionEnabled, aMeasuresEnabled,
-    aMeasuresHistoryEnabled, aSimualtionControlEnabled, aAddBasicLayers, '', '',
-    aMaxNearestObjectDistanceInMeters, dummyMapView, nil, nil); // todo: check
+    aDBConnection, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, dummyMapView, nil, nil); // todo: check
   fTiler.onTilerStatus := handleTilerStatus;
+  //set the EcoDistrict controls
+  EnableControl(selectControl);
+  EnableControl(measuresControl);
+  EnableControl(measuresHistoryControl);
 end;
 
 destructor TEcodistrictProject.Destroy;
@@ -1668,7 +1668,7 @@ begin
     		'WHERE cat||id='''+measureId+'''').Replace('{case_id}', scenarioSchema).Replace('{ids}', objectIDs.Replace('"', ''''));
       if sql<>'' then
       begin
-        // todo:
+        // todo: check for sql injection -> fix
         (fDBConnection as TFDConnection).ExecSQL(sql);
         Log.WriteLn('Applied measure '+measureId+' ('+categories+'): '+sql);
         // add measure to history
@@ -2265,7 +2265,7 @@ begin
     InitPG;
     dbConnection := TFDConnection.Create(nil);
     SetPGConnection(dbConnection as TFDConnection, fConnectString);
-    Result := TEcodistrictProject.Create(fSessionModel, fSessionModel.Connection, aCaseID, '', fTilerFQDN, fTilerStatusURL, dbConnection, 0, True, True, True, False, True, fMaxNearestObjectDistanceInMeters, aKPIList);
+    Result := TEcodistrictProject.Create(fSessionModel, fSessionModel.Connection, aCaseID, '', fTilerFQDN, fTilerStatusURL, dbConnection, True, fMaxNearestObjectDistanceInMeters, aKPIList);
     fSessionModel.Projects.Add(Result);
 
     fProjects.Add(aCaseId, Result);

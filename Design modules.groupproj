@@ -45,6 +45,18 @@
         <Projects Include="Publish\PublishingServerSesmi.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Publish\PublishingServerDME.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Publish\TestNDW.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Publish\DumpNDW.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Publish\NDWToUS.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -179,14 +191,50 @@
     <Target Name="PublishingServerSesmi:Make">
         <MSBuild Projects="Publish\PublishingServerSesmi.dproj" Targets="Make"/>
     </Target>
+    <Target Name="PublishingServerDME">
+        <MSBuild Projects="Publish\PublishingServerDME.dproj"/>
+    </Target>
+    <Target Name="PublishingServerDME:Clean">
+        <MSBuild Projects="Publish\PublishingServerDME.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="PublishingServerDME:Make">
+        <MSBuild Projects="Publish\PublishingServerDME.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="TestNDW">
+        <MSBuild Projects="Publish\TestNDW.dproj"/>
+    </Target>
+    <Target Name="TestNDW:Clean">
+        <MSBuild Projects="Publish\TestNDW.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TestNDW:Make">
+        <MSBuild Projects="Publish\TestNDW.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="DumpNDW">
+        <MSBuild Projects="Publish\DumpNDW.dproj"/>
+    </Target>
+    <Target Name="DumpNDW:Clean">
+        <MSBuild Projects="Publish\DumpNDW.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DumpNDW:Make">
+        <MSBuild Projects="Publish\DumpNDW.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="NDWToUS">
+        <MSBuild Projects="Publish\NDWToUS.dproj"/>
+    </Target>
+    <Target Name="NDWToUS:Clean">
+        <MSBuild Projects="Publish\NDWToUS.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="NDWToUS:Make">
+        <MSBuild Projects="Publish\NDWToUS.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="PublishServerCmd;PublishServerMC;PublishServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;PublishingServerEnsel;TestEnselSource;EcoRefresh;PublishGetData;PublishSSMCmd;PublishingServerSesmi"/>
+        <CallTarget Targets="PublishServerCmd;PublishServerMC;PublishServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;PublishingServerEnsel;TestEnselSource;EcoRefresh;PublishGetData;PublishSSMCmd;PublishingServerSesmi;PublishingServerDME;TestNDW;DumpNDW;NDWToUS"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="PublishServerCmd:Clean;PublishServerMC:Clean;PublishServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;PublishingServerEnsel:Clean;TestEnselSource:Clean;EcoRefresh:Clean;PublishGetData:Clean;PublishSSMCmd:Clean;PublishingServerSesmi:Clean"/>
+        <CallTarget Targets="PublishServerCmd:Clean;PublishServerMC:Clean;PublishServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;PublishingServerEnsel:Clean;TestEnselSource:Clean;EcoRefresh:Clean;PublishGetData:Clean;PublishSSMCmd:Clean;PublishingServerSesmi:Clean;PublishingServerDME:Clean;TestNDW:Clean;DumpNDW:Clean;NDWToUS:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="PublishServerCmd:Make;PublishServerMC:Make;PublishServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;PublishingServerEnsel:Make;TestEnselSource:Make;EcoRefresh:Make;PublishGetData:Make;PublishSSMCmd:Make;PublishingServerSesmi:Make"/>
+        <CallTarget Targets="PublishServerCmd:Make;PublishServerMC:Make;PublishServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;PublishingServerEnsel:Make;TestEnselSource:Make;EcoRefresh:Make;PublishGetData:Make;PublishSSMCmd:Make;PublishingServerSesmi:Make;PublishingServerDME:Make;TestNDW:Make;DumpNDW:Make;NDWToUS:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

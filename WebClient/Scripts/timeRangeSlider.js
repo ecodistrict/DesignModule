@@ -19,7 +19,7 @@
         };
         this.lastUpdate = null;
         this.lastValue = null;
-        this.updateDelta = 500;
+        this.updateDelta = 500; // max update time while sliding 1 second
         this.valueDelta = 10; // percentage
         this.liveTime = 0;
         this.live = true;

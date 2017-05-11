@@ -105,8 +105,7 @@ begin
 
         project := TSSMProject.Create(sessionModel, imbConnection,
           'sweco', 'Eindhoven - Smart Traffic with floating car data',
-          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-          nil, 0, false, false, false, True, false,
+          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, false,
           simParameters,
           '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
            '{"formElement":"select","type":"int","required":"y","optionsArray":[["0","0%"],["20","20%"],["40","40%"],["60","60%"],["80","80%"],["100","100%"]],"labelText":"percentage fcd vehicles","idName":"fcd","extraOptions":false}, '+
@@ -136,8 +135,7 @@ begin
         // build dtv project
         project := TSSMProject.Create(sessionModel, imbConnection,
             'dtv', 'Eindhoven - ODYSA INCAR',
-            tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-            nil, 0, false, false, false, True, false,
+            tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, false,
             simParameters,
             '[{"formElement":"input","type":"string","required":"y","optionsArray":false,'+
              '"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
@@ -170,8 +168,7 @@ begin
         // US: V3
         project := TSSMProject.Create(sessionModel, imbConnection,
           'tud', 'A58 - CACC and schockwaves on the A58 between Tilburg and Eindhoven',
-          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-          nil, 0, false, false, false, True, false,
+          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, false,
           simParameters,
           '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
            '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration","idName":"penetration","extraOptions":[1, "%"]},'+
@@ -238,9 +235,9 @@ begin
         simParameters.setParameter('VissimController-compliance rate', '1');
         simParameters.setParameter('VissimController-OD Matrix', 'JUNO N470_3');
         simParameters.setParameter('VissimController-JUNO case', True);
-        simParameters.setParameter('VissimController-Simulation Time Start(hh:mm:ss)', '00:00:00');
+        simParameters.setParameter('VissimController-Simulation Time Start(hh:mm:ss)', '16:45:00');
         simParameters.setParameter('VissimController-Simulation Duration', 3600);
-        simParameters.setParameter('VissimController-Period', 'Etmaal');//todo
+        simParameters.setParameter('VissimController-Period', 'avond');//todo
 
         //simParameters.setParameter('Traffic (SSM)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
         //simParameters.setParameter('Air (SSM <-> US)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
@@ -264,8 +261,7 @@ begin
 
         project := TSSMProject.Create(sessionModel, imbConnection,
           'juno', 'Juno N470 use case',
-          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-          nil, 0, false, false, false, True, false,
+          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, false,
           simParameters,
           '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
           '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration rate","idName":"penetration","extraOptions":[1, "%"]},'+
@@ -289,18 +285,19 @@ begin
 
         project := TSSMProject.Create(sessionModel, imbConnection,
           'a2', 'CACC on the A2 use case',
-          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-          nil, 0, false, false, false, True, false,
+          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, false,
           simParameters,
           '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
           '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration rate","idName":"penetration","extraOptions":[1, "%"]},'+
           '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"random seed","idName":"randomseed","extraOptions":[1, ""]},'+
           '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
-          TMapView.Create(51.64149, 5.4997, 9), 0,
+          TMapView.Create(51.787807, 5.3098297, 12), 0,
           'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde',
           'V6'); //todo: correct US-prefix
         sessionModel.Projects.Add(project);
 
+        // every project has own listener for clients -> global list not needed anymore
+        {
         // inquire existing session and rebuild internal sessions..
         imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(
           procedure(event: TEventEntry; aInt: Integer; const aString: string)
@@ -325,7 +322,7 @@ begin
 
         // inquire existing sessions
         imbConnection.publish(WS2IMBEventName, False).signalIntString(actionInquire, imbConnection.privateEventName);
-
+        }
         // main loop
         WriteLn('Press return to quit');
         ReadLn;

@@ -149,6 +149,7 @@ namespace WS2IMBSvc
         public static string RootEventName = "USIdle.Sessions.WS2IMB";
         public static TConnection connection = null;
         public static Dictionary<object, TEventEntry> channelToEvent = new Dictionary<object, TEventEntry>();
+        public static Dictionary<object, string> channelToClientType = new Dictionary<object, string>();
         public static TEventEntry rootEvent = null;
         const int actionStatus = 4;
 
@@ -172,7 +173,19 @@ namespace WS2IMBSvc
                     try
                     {
                         foreach (var ctep in channelToEvent)
-                            returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName); // answer inquire on root with all event names of channels ie clients
+                        {
+                            string channelEventNamePostfix;
+                            try
+                            {
+                                var clientType = Lookups.channelToClientType[ctep.Key];
+                                channelEventNamePostfix = (clientType != null) && (clientType.Length > 0) ? "&" + clientType : "";
+                            }
+                            catch
+                            {
+                                channelEventNamePostfix = "";
+                            }
+                            returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName + channelEventNamePostfix); // answer inquire on root with all event names of channels ie clients
+                        }
                     }
                     finally
                     {
@@ -273,7 +286,19 @@ namespace WS2IMBSvc
                     foreach (var ctep in Lookups.channelToEvent)
                         // check if channel belongs to session
                         if (ctep.Value.eventName.StartsWith(eventNameFilter))
-                            returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName); // event names of clients on session
+                        {
+                            string channelEventNamePostfix;
+                            try
+                            {
+                                var clientType = Lookups.channelToClientType[ctep.Key];
+                                channelEventNamePostfix = (clientType != null) && (clientType.Length > 0) ? "&" + clientType : "";
+                            }
+                            catch
+                            {
+                                channelEventNamePostfix = "";
+                            }
+                            returnEvent.signalIntString(TEventEntry.actionNew, ctep.Value.eventName + channelEventNamePostfix); // event names of clients on session
+                        }
                 }
                 finally
                 {
@@ -326,14 +351,19 @@ namespace WS2IMBSvc
                 {
                     var queryParameters = HttpUtility.ParseQueryString((OperationContext.Current.IncomingMessageProperties["WebSocketMessageProperty"] as WebSocketMessageProperty).WebSocketContext.RequestUri.Query);
                     var sessionName = queryParameters["session"];
+                    string clientType = "";
+                    try { clientType = queryParameters["clienttype"]; } catch { }
+                    
+
                     if (sessionName == null || sessionName == "") sessionName = "unknown";
                     //var remoteAddress = OperationContext.Current.IncomingMessageHeaders.From;
                     var repmp = OperationContext.Current.IncomingMessageProperties[RemoteEndpointMessageProperty.Name] as RemoteEndpointMessageProperty;
 
                     // signal start of client on session
-                    Debug.WriteLine(DateTime.Now + ": Start of client " + repmp.Address + ":" + repmp.Port.ToString() + " on session: " + sessionName + " (" + channel.SessionId.ToString() + ")");
+                    Debug.WriteLine(DateTime.Now + ": Start of client " + repmp.Address + ":" + repmp.Port.ToString() + " on session: " + sessionName + " (" + channel.SessionId.ToString() + ", " + clientType + ")");
                     try
                     {
+                        Lookups.channelToClientType[channel] = clientType;
                         var sessionEvent = Lookups.connection.publish(Lookups.RootEventName + "." + sessionName, false);
                         // make sure we have a root event
                         Lookups.HookupRoot();
@@ -352,6 +382,7 @@ namespace WS2IMBSvc
                         // setup channel
                         channelEvent = Lookups.connection.subscribe(sessionEvent.eventName + "." + channel.SessionId, false);
                         Lookups.channelToEvent[channel] = channelEvent;
+                        
                         channelEvent.Tag = callback;
                         channelEvent.onString += ChannelEvent_onString;
                         channelEvent.onStreamCreate += ChannelEvent_onStreamCreate;
@@ -359,7 +390,17 @@ namespace WS2IMBSvc
                         // make client event manageable by session module
                         channelEvent.onIntString += ChannelEvent_onIntString;
                         // new channel with event name on session event
-                        sessionEvent.signalIntString(TEventEntry.actionNew, channelEvent.eventName);
+                        string channelEventNamePostfix;
+                        try
+                        {
+                            channelEventNamePostfix = (clientType != null) && (clientType.Length > 0) ? "&" + clientType : "";
+                        }
+                        catch
+                        {
+                            channelEventNamePostfix = "";
+                        }
+
+                        sessionEvent.signalIntString(TEventEntry.actionNew, channelEvent.eventName + channelEventNamePostfix);
                         // todo: signal new client on root event?
                     }
                     catch (Exception e)

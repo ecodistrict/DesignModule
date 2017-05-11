@@ -234,8 +234,7 @@ type
 
   TEnselProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
-    aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
+    aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
   destructor Destroy; override;
   private
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
@@ -1091,8 +1090,7 @@ end;
 { TEnselProject }
 
 constructor TEnselProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
-  aTilerStatusURL: string; aTimeSlider: Integer; aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled, aSimulationControlEnabled, aAddBasicLayers: Boolean;
-  aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
+  aTilerStatusURL: string; aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
 begin
   mapView := aMapView;
   //fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
@@ -1104,10 +1102,12 @@ begin
   //fComplaints := TEnselComplaints.Create(Self);
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
-    aTilerStatusURL, nil, aTimeSlider, aSelectionEnabled, aMeasuresEnabled, aMeasuresHistoryEnabled,
-    aSimulationControlEnabled, aAddBasicLayers, '', '',
+    aTilerStatusURL, nil, aAddBasicLayers,
     aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentProject
   fTiler.onTilerStatus := handleTilerStatus;
+
+  //set EnselControls
+  SetControl(timeSliderControl, '1');
 end;
 
 destructor TEnselProject.Destroy;
@@ -1181,7 +1181,7 @@ begin
   fMaxNearestObjectDistanceInMeters := aMaxNearestObjectDistanceInMeters;
   //InitPG;
   project := TEnselProject.Create(aSessionModel, aConnection, 'ensel2', 'EnSel2', aTilerFQDN, aTilerStatusURL,
-    1, False, False, False, False, False, aMaxNearestObjectDistanceInMeters, TMapView.Create(52.0915, 5.12013, 14));
+    False, aMaxNearestObjectDistanceInMeters, TMapView.Create(52.0915, 5.12013, 14));
   fProjects.Add(project.ProjectID, project);
 end;
 
