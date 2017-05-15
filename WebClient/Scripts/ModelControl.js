@@ -147,7 +147,7 @@
         if (typeof this._models[model.id] !== "undefined") {
             this.UpdateModel(model);
         }
-        else {
+        else if (model.status.toLowerCase() != "idle") {
             this._models[model.id] = model;
             this.FillModelControl();
             if (this._first) {
@@ -198,6 +198,11 @@
             }
 
             if (typeof payload.status !== "undefined") {
+                if (payload.status.toLowerCase() == "idle")
+                {
+                    this.RemoveModel(payload.id); //for now, don't show idle models
+                    return;
+                }
                 model.status = payload.status;
                 if (model.htmlRow)
                     model.htmlRow.children[1].innerText = model.status;
