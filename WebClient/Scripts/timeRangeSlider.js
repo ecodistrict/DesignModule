@@ -119,6 +119,10 @@
     },
 
     update: function (payload) {
+        if (payload.live) {
+            this.goLive();
+        }
+
         if (payload.range) {
             this.sliderOptions.range = {
                 min: this.dateToDouble(payload.range.min),
@@ -135,8 +139,5 @@
                 this.updateTimeDisplay();
             }
         }
-
-        if (payload.live)
-            this.goLive();
     }
 });
