@@ -10,7 +10,6 @@ L.Control.Arrow = L.Control.extend({
     directionBorder: 15, //pixel width of the border where direction will be changed instead of speed
     rotating: false,
     dragging: false,
-    live: true,
     active: false,
     speedLive: true,
     directionLive: true,
@@ -102,8 +101,9 @@ L.Control.Arrow = L.Control.extend({
 
         this.arrow = arrow;
         arrow.id = "windArrow";
+        this._show_live_status();
         L.DomUtil.addClass(arrow, 'windArrowLive');
-        arrow.src = "Content/images/arrow_wind.png";
+        
     },
 
     _windRightClick: function (e) {
@@ -111,9 +111,17 @@ L.Control.Arrow = L.Control.extend({
         e.stopPropagation();
     },
 
+    _show_live_status: function () {
+        if (this.speedLive && this.directionLive)
+            this.arrow.src = "Content/images/arrow_wind.png";
+        else
+            this.arrow.src = "Content/images/arrow_wind_manual.png";
+    },
+
     GoLive: function() {
         this.speedLive = true;
         this.directionLive = true;
+        this._show_live_status();
         this.currentData.direction = typeof this.liveData.direction != "undefined" ? this.liveData.direction : 0;
         this.currentData.speed = typeof this.liveData.speed != "undefined" ? this.liveData.speed : 0;;
         this.rotate(this.currentData.direction, this.currentData.speed);
@@ -158,7 +166,6 @@ L.Control.Arrow = L.Control.extend({
         else
         {
             this.rotating = true;
-            //DataManager.wind.live = false;
 
             var length = this.GetLength(offset);
 
@@ -166,6 +173,7 @@ L.Control.Arrow = L.Control.extend({
             {
                 L.DomUtil.removeClass(this.arrow, 'windArrowLive');
                 this.directionLive = false;
+                this._show_live_status();
                 this.currentData.direction = this.GetDirection(offset);
                 if (is_touch_device()) {
                     window.addEventListener('touchmove', this._directionMove);
@@ -177,8 +185,8 @@ L.Control.Arrow = L.Control.extend({
             }
             else // adjusting speed
             {
-
                 this.speedLive = false;
+                this._show_live_status();
                 this.currentData.speed = this.GetSpeed(offset);
                 if (is_touch_device()) {
                     window.addEventListener('touchmove', this._speedMove);
@@ -390,7 +398,7 @@ L.Control.Arrow = L.Control.extend({
             }
         }
         
-        if (!this.live && data.live)
+        if (!(this.speedLive && this.directionLive) && data.live)
             this.GoLive();
 
         if (changed)
