@@ -100,6 +100,7 @@ function openFormDialog(aTitle, aData) {
         var labelText = arrayItem.labelText;
         var idName = arrayItem.idName;
         var extraOptions = arrayItem.extraOptions;
+        var hidden = typeof arrayItem.hidden !== "undefined" ? arrayItem.hidden : false;
 
 
         // input, select
@@ -108,6 +109,7 @@ function openFormDialog(aTitle, aData) {
             container = document.createElement('div');
             container.id = idName;
             container.style.display = 'flex';
+
         } else if (formElement === 'radio') {
             container = document.createElement('div');
             container.id = idName;
@@ -135,9 +137,10 @@ function openFormDialog(aTitle, aData) {
         }
 
 
-
         label = document.createElement('label');
         label.innerHTML = labelText;
+        if (hidden)
+            label.hidden = true;
         f.appendChild(label);
 
         if (formElement === 'input') {
@@ -354,8 +357,13 @@ function openFormDialog(aTitle, aData) {
             container.appendChild(sliderInput);
         }
 
+        if (hidden)
+            container.hidden = true;
         f.appendChild(container);
-        f.appendChild(document.createElement('br'));
+        var br = document.createElement('br');
+        if (hidden)
+            br.hidden = true;
+        f.appendChild(br);
 
     }
 

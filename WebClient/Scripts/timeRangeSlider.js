@@ -100,7 +100,7 @@
     },
 
     updateTimeDisplay: function () {
-        this.timeTextDiv.innerText = (new Date(Math.round(this._slider.get()))).toLocaleString();
+        this.timeTextDiv.innerText = (new Date(Math.round(this._slider.get()))).toLocaleTimeString; //toLocaleString();
     },
 
     doubleToDate: function (aDouble) {
