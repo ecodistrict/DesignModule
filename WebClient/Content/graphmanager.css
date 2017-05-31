@@ -77,3 +77,34 @@ svg text { }
 .c3-xgrid-focus {
   display: none;
 }
+
+.graph-title-text {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.bar-label-div {
+    position: absolute;
+    background-color: white;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.bar-label-table {
+    margin: 5px;
+}
+
+.bar-label-row {
+
+}
+
+.bar-label-color-td {
+    width: 15px;
+    min-width:15px;
+}
+
+.bar-label-text-td {
+    font-size: 12px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 200px;
+    white-space: nowrap;
+}
