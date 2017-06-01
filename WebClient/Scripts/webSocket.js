@@ -8,6 +8,7 @@ var wsLookup = {
         measuresControl.resetMeasures(payload);
     },
     domains: function (payload) {
+        //var t0 = performance.now();
         // first domains after login
         domainsControl.resetDomains(payload);
         // remove all basic overlay layers from layers control (and with that from map)
@@ -26,8 +27,12 @@ var wsLookup = {
                     addBasicLayer(layer);
             }
         }
+        //var t1 = performance.now();
+        //console.log("Loaded domains in " + (t1 - t0) + " milliseconds");
+        //AddErrorMessage("Loaded domains & details", "succes", 5000);
     },
     updatedomains: function (payload) {
+        //var t0 = performance.now();
         // update of domains (on scenario change)
         removeAllDomainLayers();
         legendControl.clearLegend(true);
@@ -49,6 +54,8 @@ var wsLookup = {
                     addBasicLayer(layer);
             }
         }
+        //var t1 = performance.now();
+        //console.log("Updated domains in " + (t1 - t0) + " milliseconds");
     },
     refresh: function (payload) {
         //console.log(payload);

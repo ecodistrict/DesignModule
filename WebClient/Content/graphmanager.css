@@ -91,6 +91,7 @@ svg text { }
 
 .bar-label-table {
     margin: 5px;
+    pointer-events: none;
 }
 
 .bar-label-row {

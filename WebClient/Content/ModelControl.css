@@ -34,6 +34,7 @@
 
 .mcTitleDiv {
     margin: 5px;
+    cursor:default;
 }
 
 .modelControlDiv {
@@ -56,12 +57,27 @@
     margin-bottom: 5px;
     border-collapse: collapse;
     padding: 5px;
+    pointer-events: none;
 }
 
 .modelControlTD {
     padding: 3px;
 }
 
-.modelControlTR:nth-child(odd) {background-color: #f2f2f2}
+.modelControlTR:nth-child(even) {background-color: #f2f2f2}
 
-.modelControlTR:first-child {background-color: lightblue !important}
+.modelControlSectionTR {
+    background-color: lightblue !important;
+}
+
+.modelControlEmptyTR {
+    background-color: white !important;
+}
+
+.modelControlEmptyTD {
+    text-align: center;
+}
+
+/*.modelControlTR:first-child {
+    background-color: lightblue !important;
+}*/
