@@ -38,7 +38,8 @@ const
 
   sensordata_pm10                  = 1441;              //tag 180
   sensordata_pm25                  = 1601;              //tag 200
-  sensordata_no2                   = 1921;               //tag 240
+  //sensordata_no2                   = 1921;              //tag 240
+  sensordata_no2                   = 961;               //tag 120 -> temporary tag!
   sensordata_pm1                   = 2081;              //tag 260
   sensordata_nh3                   = 2241;              //tag 280
   sensordata_pnc                   = 2401;              //tag 300
@@ -93,7 +94,7 @@ const
   kpi_duration = 3681;             //tag 460
 
   TimeSpanSwitch = 'timespan';
-  DefaultTimeSpan = 1;
+  DefaultTimeSpan = 7;
 
 type
   TSesmiClient = class(TClient)

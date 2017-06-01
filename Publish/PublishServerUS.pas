@@ -273,8 +273,8 @@ type
     function SliceType: Integer; override;
   end;
 
-  TUSScenario = class(TScenario)
-  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddBasicLayers: Boolean; aMapView: TMapView; aIMBConnection: TIMBConnection; const aTablePrefix: string);
+  TUSScenario = class(TMCScenario)
+  constructor Create(aProject: TProject; const aID, aName, aDescription, aFederation: string; aAddBasicLayers: Boolean; aMapView: TMapView; aIMBConnection: TIMBConnection; const aTablePrefix: string);
   destructor Destroy; override;
   private
     fTableprefix: string;
@@ -326,8 +326,8 @@ type
     property _published: Integer read fPublished;
   end;
 
-  TUSProject = class(TProject)
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
+  TUSProject = class(TMCProject)
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
   destructor Destroy; override;
   private
@@ -345,9 +345,9 @@ type
     property USDBScenarios: TObjectDictionary<string, TUSDBScenario> read fUSDBScenarios;
     function FindMeasure(const aActionID: string; out aMeasure: TMeasureAction): Boolean;
     function ReadScenario(const aID: string): TScenario; override;
-    procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
   public
     procedure ReadBasicData(); override;
+    procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
   public
     property OraSession: TOraSession read getOraSession;
     property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
@@ -1711,13 +1711,13 @@ end;
 
 { TUSScenario }
 
-constructor TUSScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddBasicLayers: Boolean; aMapView: TMapView;
+constructor TUSScenario.Create(aProject: TProject; const aID, aName, aDescription, aFederation: string; aAddBasicLayers: Boolean; aMapView: TMapView;
   aIMBConnection: TIMBConnection; const aTablePrefix: string);
 begin
   fTablePrefix := aTablePrefix;
   fIMBConnection := aIMBConnection;
   fUSChartGroups := TObjectList<TUSChartGroup>.Create(True);
-  inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView, false);
+  inherited Create(aProject, aID, aName, aDescription, aFederation, aAddbasicLayers, aMapView, false);
 end;
 
 destructor TUSScenario.Destroy;
@@ -2299,7 +2299,7 @@ end;
 { TUSProject }
 
 constructor TUSProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection;
-  const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
+  const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
   aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
 var
   SourceEPSGstr: string;
@@ -2319,8 +2319,8 @@ begin
   end
   else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   fPreLoadScenarios := aPreLoadScenarios;
-  inherited Create(aSessionModel, aConnection, aProjectID, aProjectName,
-    aTilerFQDN, aTilerStatusURL,
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName,
+    aTilerFQDN, aTilerStatusURL, aDataSource,
     aDBConnection, aAddBasicLayers,
     aMaxNearestObjectDistanceInMeters, mapView, nil, nil);
 end;
@@ -2486,7 +2486,7 @@ begin
       if fUSDBScenarios.TryGetValue(aID, dbScenario) then
       begin
         //StatusInc;
-        Result := TUSScenario.Create(Self, aID, dbScenario.name, dbScenario.description, addBasicLayers, mapView, fIMB3Connection, dbScenario.tablePrefix);
+        Result := TUSScenario.Create(Self, aID, dbScenario.name, dbScenario.description, dbScenario.IMBPrefix, addBasicLayers, mapView, fIMB3Connection, dbScenario.tablePrefix);
         fScenarios.Add(Result.ID, Result);
       end
       else Result := nil;
