@@ -217,6 +217,7 @@ begin
       projectID, projectName,
       tilerName,
       GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+      dbConnection.ConnectString,
       dbConnection,
       mapView,
       preLoadScenarios, False,

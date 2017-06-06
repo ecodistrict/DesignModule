@@ -47,7 +47,7 @@ const
 
 type
   TUSDesignProject = class(TUSProject)
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string);
   destructor Destroy; override;
   private
@@ -58,7 +58,7 @@ type
   end;
 
   TUSMonitorProject = class(TUSProject)
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string{; aSourceEPSG: Integer});
   destructor Destroy; override;
   public
@@ -66,7 +66,7 @@ type
   end;
 
   TUSEvaluateProject = class(TUSProject)
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string{; aSourceEPSG: Integer});
   destructor Destroy; override;
   public
@@ -85,11 +85,11 @@ implementation
 
 constructor TUSDesignProject.Create(aSessionModel: TSessionModel;
   aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID,
-  aProjectName, aTilerFQDN, aTilerStatusURL: string;
+  aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
   aDBConnection: TCustomConnection; aMapView: TMapView;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string);
 begin
-  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, True, aMaxNearestObjectDistanceInMeters);
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, True, aMaxNearestObjectDistanceInMeters);
   fProjectCurrentScenario := ReadScenario(aStartScenario);
   fUSIMBConnection := TIMBConnection.Create(
       GetSetting('IMB3RemoteHost', 'vps17642.public.cloudvps.com'),
@@ -104,7 +104,6 @@ end;
 destructor TUSDesignProject.Destroy;
 begin
   inherited;
-  FreeAndNil(fControlInterface);
 end;
 
 procedure TUSDesignProject.handleClientMessage(aClient: TClient;
@@ -125,6 +124,7 @@ var
   publishEventName: string;
   publishEvent: TIMBEventEntry;
 begin
+  inherited;
   oraSession := fDBConnection as TOraSession;
   if Assigned(aScenario) and (aScenario is TUSScenario) then
   begin
@@ -312,7 +312,43 @@ begin
                   finally
                     publishEvent.UnPublish;
                   end;
-                end;
+                end
+                else if (measure.ActionID >= -54) and (measure.ActionID <= -51) then
+                begin
+                  table := (aScenario as TUSScenario).Tableprefix + 'GENE_BUILDING';
+                  case measure.ActionID of
+                    -51: value := '10';
+                    -52: value := '100';
+                    -53: value := '1000';
+                    -54: value := '10000';
+                  end;
+                  queryText := 'update ' + table +
+                    ' set' +
+                    ' INHABIT = ' + value + //preserves null values!
+                    ' where OBJECT_ID = :A';
+                  if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
+                  begin
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_BUILDING';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    try
+                      for jsonObjectID in jsonObjectIDs do
+                      begin
+                        if TryStrToInt(jsonObjectID.Value, objectID) then
+                        begin
+                          //check if this building exists
+                          if aScenario.Layers.ContainsKey('building') and aScenario.Layers['building'].objects.ContainsKey(AnsiString(objectID.ToString)) then
+                          begin
+                            oraSession.ExecSQL(queryText, [objectID]);
+                            oraSession.Commit;
+                            publishEvent.SignalChangeObject(actionChange, objectID, 'INHABIT');
+                          end;
+                        end;
+                      end;
+                    finally
+                      publishEvent.UnPublish;
+                    end;
+                  end;
+                end
               end
             end;
   end;
@@ -351,12 +387,12 @@ end;
 
 constructor TUSMonitorProject.Create(aSessionModel: TSessionModel;
   aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID,
-  aProjectName, aTilerFQDN, aTilerStatusURL: string;
+  aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
   aDBConnection: TCustomConnection; aMapView: TMapView;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
   aStartScenario: string);
 begin
-  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, False, aMaxNearestObjectDistanceInMeters);
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, False, aMaxNearestObjectDistanceInMeters);
   DisableControl(selectControl);
   DisableControl(measuresControl);
   DisableControl(measuresHistoryControl);
@@ -377,12 +413,12 @@ end;
 
 constructor TUSEvaluateProject.Create(aSessionModel: TSessionModel;
   aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID,
-  aProjectName, aTilerFQDN, aTilerStatusURL: string;
+  aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
   aDBConnection: TCustomConnection; aMapView: TMapView;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
   aStartScenario: string);
 begin
-  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection, aMapView, aPreLoadScenarios, False, aMaxNearestObjectDistanceInMeters);
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, False, aMaxNearestObjectDistanceInMeters);
   DisableControl(selectControl);
   DisableControl(measuresControl);
   DisableControl(measuresHistoryControl);
@@ -410,7 +446,7 @@ begin
   Result := inherited HandleClientSubscribe(aClient);
 
   //send the model control information
-  clientMCControlInterface := (project as TUSDesignProject).controlInterface;
+  clientMCControlInterface := (project as TMCProject).controlInterface;
   clientMCControlInterface.Lock.Acquire;
   try
     jsonNewModels := '';
@@ -438,7 +474,7 @@ begin
   Result := inherited HandleClientUnsubscribe(aClient);
 
   //delete the models of this scenario from the ModelControlInterface
-  clientMCControlInterface := (project as TUSDesignProject).controlInterface;
+  clientMCControlInterface := (project as TMCProject).controlInterface;
   clientMCControlInterface.Lock.Acquire;
   try
     jsonDeleteModels := '';

@@ -213,7 +213,7 @@ type
     function delete(var aPayload: ByteBuffers.TByteBuffer; aSourceProjection: TGIS_CSProjectedCoordinateSystem): string;
   end;
 
-  TSSMScenario = class (TScenario)
+  TSSMScenario = class (TMCScenario)
   constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean; aRecorded: Boolean);
   destructor Destroy; override;
   protected
@@ -1052,7 +1052,7 @@ end;
 constructor TSSMScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean; aRecorded: Boolean);
 begin
   fUSLayersLoaded := False;
-  inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView, aUseSimulationSetup);
+  inherited Create(aProject, aID, aName, aDescription, aID, aAddbasicLayers, aMapView, aUseSimulationSetup);
   // statistics
   fStatistics := TObjectDictionary<string, TSSMStatistic>.Create;
   fGTUStatisticEvent := (project as TMCProject).ControlInterface.Connection.Subscribe(aID+'.StatisticsGTULane');
@@ -1114,10 +1114,10 @@ begin
 end;
 
 function TSSMScenario.HandleClientSubscribe(aClient: TClient): Boolean;
-var
-  ssmMCControlInterface: TClientMCControlInterface;
-  jsonNewModels: String;
-  model: TCIModelEntry2;
+//var
+//  ssmMCControlInterface: TClientMCControlInterface;
+//  jsonNewModels: String;
+//  model: TCIModelEntry2;
 begin
   Result := inherited HandleClientSubscribe(aClient);
   //aClient.signalString('{"type":"session","payload":{"simulationClose":1,"simulationSetup":0}}');
@@ -1127,51 +1127,51 @@ begin
     aClient.signalString('{"simulationControl":{"stop": true}}');
 
   //send the model control information
-  ssmMCControlInterface := (project as TMCProject).controlInterface;
-  ssmMCControlInterface.Lock.Acquire;
-  try
-    jsonNewModels := '';
-    for model in ssmMCControlInterface.Models do
-    begin
-      if model.IsThisSession(aClient.currentScenario.ID) then
-      begin
-        if jsonNewModels<>''
-          then jsonNewModels := jsonNewModels+',';
-        jsonNewModels := jsonNewModels+ssmMCControlInterface.jsonModelStatusNew(model.UID.ToString, model.ModelName, model.State.ToString, model.Progress)
-      end;
-    end;
-    aClient.signalString(ssmMCControlInterface.jsonModelStatusArray(jsonNewModels));
-  finally
-    ssmMCControlInterface.Lock.Release;
-  end;
+//  ssmMCControlInterface := (project as TMCProject).controlInterface;
+//  ssmMCControlInterface.Lock.Acquire;
+//  try
+//    jsonNewModels := '';
+//    for model in ssmMCControlInterface.Models do
+//    begin
+//      if model.IsThisSession(aClient.currentScenario.ID) then
+//      begin
+//        if jsonNewModels<>''
+//          then jsonNewModels := jsonNewModels+',';
+//        jsonNewModels := jsonNewModels+ssmMCControlInterface.jsonModelStatusNew(model.UID.ToString, model.ModelName, model.State.ToString, model.Progress)
+//      end;
+//    end;
+//    aClient.signalString(ssmMCControlInterface.jsonModelStatusArray(jsonNewModels));
+//  finally
+//    ssmMCControlInterface.Lock.Release;
+//  end;
 end;
 
 function TSSMScenario.HandleClientUnsubscribe(aClient: TClient): Boolean;
-var
-  ssmMCControlInterface: TClientMCControlInterface;
-  jsonDeleteModels: String;
-  model: TCIModelEntry2;
+//var
+//  ssmMCControlInterface: TClientMCControlInterface;
+//  jsonDeleteModels: String;
+//  model: TCIModelEntry2;
 begin
   Result := inherited HandleClientUnsubscribe(aClient);
 
   //delete the models of this scenario from the ModelControlInterface
-  ssmMCControlInterface := (project as TMCProject).controlInterface;
-  ssmMCControlInterface.Lock.Acquire;
-  try
-    jsonDeleteModels := '';
-    for model in ssmMCControlInterface.Models do
-    begin
-      if model.IsThisSession(aClient.currentScenario.ID) then
-      begin
-        if jsonDeleteModels<>''
-          then jsonDeleteModels := jsonDeleteModels+',';
-        jsonDeleteModels := jsonDeleteModels+ssmMCControlInterface.jsonModelStatusDelete(model.UID.ToString);
-      end;
-    end;
-    aClient.signalString(ssmMCControlInterface.jsonModelStatusArray(jsonDeleteModels));
-  finally
-    ssmMCControlInterface.Lock.Release;
-  end;
+//  ssmMCControlInterface := (project as TMCProject).controlInterface;
+//  ssmMCControlInterface.Lock.Acquire;
+//  try
+//    jsonDeleteModels := '';
+//    for model in ssmMCControlInterface.Models do
+//    begin
+//      if model.IsThisSession(aClient.currentScenario.ID) then
+//      begin
+//        if jsonDeleteModels<>''
+//          then jsonDeleteModels := jsonDeleteModels+',';
+//        jsonDeleteModels := jsonDeleteModels+ssmMCControlInterface.jsonModelStatusDelete(model.UID.ToString);
+//      end;
+//    end;
+//    aClient.signalString(ssmMCControlInterface.jsonModelStatusArray(jsonDeleteModels));
+//  finally
+//    ssmMCControlInterface.Lock.Release;
+//  end;
 end;
 
 procedure TSSMScenario.HandleFirstSubscriber(aClient: TClient);

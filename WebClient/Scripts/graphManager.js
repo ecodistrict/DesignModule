@@ -359,7 +359,11 @@ var GraphManager = {
                 graph = new LineBottomLeft(graphObject);
                 break;
             case 'bar':
-                graph = new Chart(graphObject);
+                //graph = new Chart(graphObject);
+                graph = new VerticalBarChart(graphObject);
+                break;
+            case 'newbar':
+                graph = new VerticalBarChart(graphObject);
                 break;
             case 'spline':
                 graph = new Chart(graphObject);

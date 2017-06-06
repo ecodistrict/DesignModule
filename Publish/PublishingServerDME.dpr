@@ -51,8 +51,11 @@ const
   IMB4RemotePortSwitch = 'IMB4RemotePort';
 
   DesignBaseScenarioIDSwitch = 'DesignBaseScenarioID';
+    DefaultDesignBaseScenarioID = '13';
   MonitorBaseScenarioIDSwitch = 'MonitorBaseScenarioID';
+   DefaultMonitorBaseScenarioID = '7';
   EvaluateBaseScenarioIDSwitch = 'EvaluateBaseScenarioID';
+    DefaultEvaluateBaseScenarioID = '5';
     DefaultBaseScenarioID = '0';
 
 //  RecoverySection = 'recovery';
@@ -181,9 +184,9 @@ begin
     aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
     aParameters.Add(TModelParameter.Create(ProjectNameSwitch, projectName));
     aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, GetSetting(PreLoadScenariosSwitch, True)));
-    aParameters.Add(TModelParameter.Create(DesignBaseScenarioIDSwitch, GetSetting(DesignBaseScenarioIDSwitch, DefaultBaseScenarioID)));
-    aParameters.Add(TModelParameter.Create(MonitorBaseScenarioIDSwitch, GetSetting(MonitorBaseScenarioIDSwitch, DefaultBaseScenarioID)));
-    aParameters.Add(TModelParameter.Create(EvaluateBaseScenarioIDSwitch, GetSetting(EvaluateBaseScenarioIDSwitch, DefaultBaseScenarioID)));
+    aParameters.Add(TModelParameter.Create(DesignBaseScenarioIDSwitch, mpvtInteger, GetSetting(DesignBaseScenarioIDSwitch, DefaultDesignBaseScenarioID)));
+    aParameters.Add(TModelParameter.Create(MonitorBaseScenarioIDSwitch, mpvtInteger, GetSetting(MonitorBaseScenarioIDSwitch, DefaultMonitorBaseScenarioID)));
+    aParameters.Add(TModelParameter.Create(EvaluateBaseScenarioIDSwitch, mpvtInteger, GetSetting(EvaluateBaseScenarioIDSwitch, DefaultEvaluateBaseScenarioID)));
   except
     on E: Exception
     do log.WriteLn('Exception in TModel.ParameterRequest: '+E.Message, llError);
@@ -225,6 +228,7 @@ begin
     dbConnection := TOraSession.Create(nil);
     dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
     dbConnection.Open;
+
     projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
     projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
     mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.31567, 4.90321, 13));
@@ -238,6 +242,7 @@ begin
       projectID + '-Design', projectName + '-Design',
       tilerName,
       GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+      dbConnection.ConnectString,
       dbConnection,
       mapView,
       preLoadScenarios,
@@ -245,11 +250,16 @@ begin
     fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fProject);
 
+    dbConnection := TOraSession.Create(nil);
+    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
+    dbConnection.Open;
+
     fProject := TUSMonitorProject.Create(
       fSessionModel, fSessionModel.Connection, connection,
       projectID + '-Monitor', projectName + '-Monitor',
       tilerName,
       GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+      dbConnection.ConnectString,
       dbConnection,
       mapView,
       preLoadScenarios,
@@ -257,11 +267,16 @@ begin
     fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fProject);
 
+    dbConnection := TOraSession.Create(nil);
+    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
+    dbConnection.Open;
+
     fProject := TUSEvaluateProject.Create(
       fSessionModel, fSessionModel.Connection, connection,
       projectID + '-Evaluate', projectName + '-Evaluate',
       tilerName,
       GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+      dbConnection.ConnectString,
       dbConnection,
       mapView,
       preLoadScenarios,
@@ -292,6 +307,7 @@ begin
     // erase recovery section to NOT start in recovery mode next time
     //StandardIni.EraseSection(RecoverySection);
     // execute actions needed to stop the model
+    fSessionModel.Projects.Clear;
     System.TMonitor.Enter(Log);
     try
       WriteLn('Stop model');

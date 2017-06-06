@@ -14,6 +14,7 @@
         this._models = {};
         this._first = true;
         this._showing = false;
+        this._lastRefresh = 0;
 
         this.modelControlMouseDown = this.modelControlMouseDown.bind(this);
         this.modelControlDragMove = this.modelControlDragMove.bind(this);
@@ -76,7 +77,7 @@
                 this._modelControl.Div.style.display = "block";
             }
         }
-        this.FillModelControl();
+        //this.FillModelControl();
         this._showing = true;
     },
 
@@ -109,26 +110,40 @@
         titleDiv.style.textAlign = 'center';
         titleDiv.innerHTML = "<strong>ModelControl Info:</strong>";
         titleDiv.className = "mcTitleDiv";
+        titleDiv.addEventListener('contextmenu', (function (e) {
+            if (performance.now() - 1000 > this._lastRefresh)
+            {
+                e.preventDefault();
+                e.stopPropagation();
+                this._lastRefresh = performance.now();
+                wsSend({ modelControl: {refresh: true}});
+            }
+        }).bind(this));
 
         var table = this._modelControl.Table = modelDiv.appendChild(document.createElement('table'));
         table.className = 'modelControlTable';
 
-        //var header = table.appendChild(this.GetTableRow('name:', 'status:', 'progress:', 'header'));
-        //header.id = 'mcTableHeader';
-
+        this.DisplaySection("Session Models", table);
         var empty = true;
         for (var v in this._models) {
-            empty = false;
-            this.DisplayModel(this._models[v]);
+            if (this._models[v].status.toLowerCase() != "idle") {
+                empty = false;
+                this.DisplayModel(this._models[v], table);
+            }
         }
+        if (empty)
+            this.DisplayEmpty("-No session models-", table);
 
-        if (empty) {
-            var textDiv = modelDiv.appendChild(document.createElement('div'))
-            var text = textDiv.appendChild(document.createTextNode('-No models found-'));
-            textDiv.style.textAlign = 'center';
+        this.DisplaySection("Idle Models", table);
+        empty = true;
+        for (var v in this._models) {
+            if (this._models[v].status.toLowerCase() == "idle") {
+                empty = false;
+                this.DisplayModel(this._models[v], table);
+            }
         }
-
-
+        if (empty)
+            this.DisplayEmpty("-No idle models-", table);
     },
 
     AddTableCell: function (row, type, text) {
@@ -147,9 +162,9 @@
         if (typeof this._models[model.id] !== "undefined") {
             this.UpdateModel(model);
         }
-        else if (model.status.toLowerCase() != "idle") {
+        else if (model.status.toLowerCase() != "idle" || true) {
             this._models[model.id] = model;
-            this.FillModelControl();
+            //this.FillModelControl();
             if (this._first) {
                 this._first = false;
                 this.showModelControl();
@@ -157,10 +172,32 @@
         }
     },
 
-    DisplayModel: function (model) {
-        if (this._modelControl && this._modelControl.Table) {
+    DisplayModel: function (model, table) {
+        if (this._modelControl) {
             model.htmlRow = this.GetTableRow(model.name, model.status, model.progress, model.id);
-            this._modelControl.Table.appendChild(model.htmlRow);
+            table.appendChild(model.htmlRow);
+        }
+    },
+
+    DisplaySection: function (section, table) {
+        if (this._modelControl) {
+            var tr = table.appendChild(document.createElement("tr"));
+            tr.className = "modelControlTR modelControlSectionTR";
+            var td = tr.appendChild(document.createElement("td"));
+            td.className = "modelControlTD modelControlSectionTD";
+            td.colSpan = 4;
+            td.appendChild(document.createTextNode(section));
+        }
+    },
+
+    DisplayEmpty: function (empty, table) {
+        if (this._modelControl) {
+            var tr = table.appendChild(document.createElement("tr"));
+            tr.className = "modelControlTR modelControlEmptyTR";
+            var td = tr.appendChild(document.createElement("td"));
+            td.className = "modelControlTD modelControlEmptyTD";
+            td.colSpan = 4;
+            td.appendChild(document.createTextNode(empty));
         }
     },
 
@@ -170,7 +207,7 @@
 
         delete this._models[modelid];
 
-        this.FillModelControl();
+        //this.FillModelControl();
     },
 
     HandleMessages: function (payload) {
@@ -179,10 +216,14 @@
                 if (typeof payload.status[i].new !== "undefined")
                     this.AddModel(payload.status[i].new);
                 else if (typeof payload.status[i].change !== "undefined")
-                    this.UpdateModel(payload.status[i].change)
+                    this.UpdateModel(payload.status[i].change);
                 else if (typeof payload.status[i].delete !== "undefined")
                     this.RemoveModel(payload.status[i].delete.id);
+                else if (typeof payload.status[i].reset !== "undefined")
+                    this.ClearModelControl();
             }
+            if (payload.status.length > 0)
+                this.FillModelControl();
         }
     },
 
@@ -198,11 +239,6 @@
             }
 
             if (typeof payload.status !== "undefined") {
-                if (payload.status.toLowerCase() == "idle")
-                {
-                    this.RemoveModel(payload.id); //for now, don't show idle models
-                    return;
-                }
                 model.status = payload.status;
                 if (model.htmlRow)
                     model.htmlRow.children[1].innerText = model.status;
@@ -217,7 +253,7 @@
     },
 
     ClearModelControl: function () {
-
+        this._models = {};
     },
 
     modelControlMouseDown: function (e) {
