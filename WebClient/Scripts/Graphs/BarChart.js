@@ -97,7 +97,7 @@ VerticalBarChart = function (graphObject) {
     this.colorCounter = 0;
     this.dc20 = d3.scale.category20();
     this.labelDiv = null;
-    this.labelVisible = false;
+    this.labelVisible = true;
     this.converted = false;
 
     //public functions
@@ -374,6 +374,10 @@ VerticalBarChart = function (graphObject) {
 			.attr("fill", function (d) { return seriesToColor(d.series); });
 
         this.labelDiv.style.left = (divWidth + 5) + "px";
+        if (this._seriesCount(data) > 1 && this.labelVisible)
+            this.labelDiv.style.visibility = "inherit";
+        else
+            this.labelDiv.style.visibility = "hidden";
     };
 
     this._closeGraph = function () {
@@ -492,6 +496,12 @@ VerticalBarChart = function (graphObject) {
 
     this._getMinY = function (data) {
         return d3.min(data, function (d) { return d3.min(d.data, function (d) { return d3.min(d.data, function (d) { return Math.min(d.start + d.value, d.start); }); }); });
+    }
+
+    this._seriesCount = function (data) {
+        if (data.length == 0)
+            return 0;
+        return d3.max(data, function (d) { return d.data.length == 0 ? 0 : d3.sum(d.data, function (d) { return d.data.length; }); });
     }
 
     this._getXAxisAmount = function (data) {
@@ -620,18 +630,20 @@ VerticalBarChart = function (graphObject) {
             tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
             while (lineNumber < 2 && letters.length > 0) {
                 letter = letters[0];
-                letters = letters.substr(1);
-                if (context.measureText(line + letter).width > width && line.length > 1) {
+                if (context.measureText(line + letter).width > width /*&& line.length > 1*/) {
                     tspan.text(line);
                     if (lineNumber < 1) {
-                        line = letter;
+                        line = "";
                         tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(line);
                     }
+                    else
+                        return;
                 }
                 else
                 {
                     line = line + letter;
-                    tspan.text(line);
+                    letters = letters.substr(1);
+                    //tspan.text(line);
                 }
             }
         });
