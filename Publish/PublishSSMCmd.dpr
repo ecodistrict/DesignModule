@@ -142,9 +142,9 @@ begin
              '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration rate","idName":"penetration","extraOptions":[1, "%"]},'+
              '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"compliance rate","idName":"compliance rate","extraOptions":[1, "%"]},'+
              '{"formElement":"select", "type":"string", "required":"y", '+
-              '"optionsArray":[["ODYSA basic", "ODYSA basic"], '+
-                              '["ODYSA+primary-second", "ODYSA+primary-second"], '+
-                              '["ODYSA-primary+second", "ODYSA-primary+second"]], '+
+              '"optionsArray":[["odsay", "ODYSA basic"], '+
+                              '["odsay", "ODYSA+primary-second"], '+
+                              '["odsay", "ODYSA-primary+second"]], '+
               '"labelText":"Origin Destination matrix", "idName":"OD Matrix", "extraOptions":false}, ' +
               '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
             TMapView.Create(51.452348852281155, 5.505394935607911, 15), 0,
@@ -167,7 +167,7 @@ begin
 
         // US: V3
         project := TSSMProject.Create(sessionModel, imbConnection,
-          'tud', 'A58 - CACC and schockwaves on the A58 between Tilburg and Eindhoven',
+          'tuuitd', 'A58 - CACC and schockwaves on the A58 between Tilburg and Eindhoven',
           tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, false,
           simParameters,
           '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
