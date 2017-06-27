@@ -310,6 +310,9 @@ type
     procedure HandleCaseVariantManagentEvent(aEventEntry: TEventEntry; const aString: string);
 
     function HandleModuleScenarioRefresh(const aCaseId, aVariantId: string): Boolean;
+
+    // helpers for status
+    function getNumberOfBuildings(const aSchemaName: string): Integer;
   public
     function HandleModuleCase(const aCaseId, aCaseTitle,  aCaseDescription: string; const aMapView: TMapView; aKPIList: TObjectList<TEcodistrictKPI>): TProject;
   end;
@@ -2303,6 +2306,35 @@ begin
   else Result := False;
 end;
 
+function TEcodistrictModule.getNumberOfBuildings(const aSchemaName: string): Integer;
+var
+  query: TFDQuery;
+begin
+  query := TFDQuery.Create(nil);
+  try
+    query.Connection := fDBConnection as TFDConnection;
+    query.SQL.Text :=
+      'SELECT Count(*) '+
+			'FROM '+aSchemaName+'.building ';
+    query.open();
+    query.First;
+    try
+      if not query.Eof
+      then Result := query.Fields[0].AsInteger
+      else Result := -1;
+    except
+      on E: Exception do
+      begin
+        Log.WriteLn('Exception getting number of buildings for status from '+aSchemaName+': '+E.Message, llError);
+        Result := -2;
+      end;
+    end;
+  finally
+    query.Free;
+  end;
+
+end;
+
 procedure TEcodistrictModule.HandleCaseVariantManagentEvent(aEventEntry: TEventEntry; const aString: string);
 var
   jsonObject: TJSONObject;
@@ -2535,6 +2567,8 @@ begin
                 if SchemaExists(EcoDistrictSchemaId(_caseId, _variantId)) then
                 begin
                   _status := 'Success - schema already created before';
+                  // add numer of buildings
+                  _status := _status+' (buildings: '+getNumberOfBuildings(EcoDistrictSchemaId(_caseId, _variantId)).toString+')';
                 end
                 else
                 begin
@@ -2603,6 +2637,8 @@ begin
                 if SchemaExists(EcoDistrictSchemaId(_caseId, _variantId)) then
                 begin
                   _status := 'Success - schema already created before';
+                  // add numer of buildings
+                  _status := _status+' (buildings: '+getNumberOfBuildings(EcoDistrictSchemaId(_caseId, _variantId)).toString+')';
                 end
                 else
                 begin
