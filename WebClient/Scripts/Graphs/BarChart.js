@@ -99,6 +99,7 @@ VerticalBarChart = function (graphObject) {
     this.labelDiv = null;
     this.labelVisible = true;
     this.converted = false;
+    this.titleMargin = 30;
 
     //public functions
     this.Initialize = function (container) {
@@ -141,7 +142,9 @@ VerticalBarChart = function (graphObject) {
 				.style("font-size", "16px")
 				.style("stroke", "rgba(255, 255, 255, 0.6)")
 				.style("stroke-width", "3px")
-				.text(graphObject.title);
+				.text(graphObject.title)
+                .call(this._wrapTitleLetters, graphObject.width - this.titleMargin);
+                
 
             this.titleText = svg.append("text")
 				.attr("x", (graphObject.width / 2))
@@ -151,7 +154,8 @@ VerticalBarChart = function (graphObject) {
 				.attr("pointer-events", "none")
 				.attr("class", "graph-title-text")
 				.style("font-size", "16px")
-				.text(graphObject.title);
+				.text(graphObject.title)
+                .call(this._wrapTitleLetters, graphObject.width - this.titleMargin);
         }
 
         var labelDiv = this.labelDiv = container.appendChild(document.createElement("div"));
@@ -264,10 +268,14 @@ VerticalBarChart = function (graphObject) {
 
         if (typeof this.graphObject.title !== "undefined") {
             this.titleStroke
-				.attr("x", (divWidth / 2));
+				.attr("x", (divWidth / 2))
+                .text(this.graphObject.title)
+                .call(this._wrapTitleLetters, divWidth - this.titleMargin);
 
             this.titleText
-				.attr("x", (divWidth / 2));
+				.attr("x", (divWidth / 2))
+                .text(this.graphObject.title)
+                .call(this._wrapTitleLetters, divWidth - this.titleMargin);
         }
 
         this.graphGroup
@@ -643,7 +651,45 @@ VerticalBarChart = function (graphObject) {
                 {
                     line = line + letter;
                     letters = letters.substr(1);
-                    //tspan.text(line);
+                    tspan.text(line);
+                }
+            }
+        });
+    }
+
+    this._wrapTitleLetters = function (text, width) {
+        text.each(function () {
+            var text = d3.select(this),
+                letters = text.text(),
+                letter,
+                done = false,
+                line = "",
+                lineNumber = 0,
+                lineHeight = 1.1, // ems
+                font = window.getComputedStyle(this, null).getPropertyValue('font-family'),
+                fontSize = window.getComputedStyle(this, null).getPropertyValue('font-size')
+            canvas = document.createElement("canvas"),
+            context = canvas.getContext("2d"),
+            y = text.attr("y"),
+            x = text.attr("x"),
+            dy = parseFloat(text.attr("dy"));
+            context.font = fontSize + " " + font;
+            tspan = text.text(null).append("tspan").attr("x", x).attr("y", y);
+            while (lineNumber < 2 && letters.length > 0) {
+                letter = letters[0];
+                if (context.measureText(line + letter).width > width /*&& line.length > 1*/) {
+                    tspan.text(line);
+                    if (lineNumber < 1) {
+                        line = "";
+                        tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + "em").text(line);
+                    }
+                    else
+                        return;
+                }
+                else {
+                    line = line + letter;
+                    letters = letters.substr(1);
+                    tspan.text(line);
                 }
             }
         });
