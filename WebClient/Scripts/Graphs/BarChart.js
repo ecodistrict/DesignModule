@@ -93,6 +93,7 @@ VerticalBarChart = function (graphObject) {
     this.graphID = graphObject.id;
     this.previewDiv = null;
     this.colors = {};
+    this.setColors = graphObject.colors ? graphObject.colors : {};
     this.seriesNames = [],
     this.colorCounter = 0;
     this.dc20 = d3.scale.category20();
@@ -522,12 +523,19 @@ VerticalBarChart = function (graphObject) {
 
     this._seriesToColor = function (series) {
         if (typeof this.colors[series] == "undefined") {
+            if (typeof this.setColors[series] != "undefined")
+            {
+                this.colors[series] = this.setColors[series];
+            }
+            else
+            {
+                this.colors[series] = this.dc20(this.colorCounter);
+                this.colorCounter++;
+                if (this.colorCounter >= 20)
+                    console.log("more then 20 unique colors asked, using duplicate colors");
+            }
             this.seriesNames.push(series);
-            this.colors[series] = this.dc20(this.colorCounter);
-            this.colorCounter++;
             this._updateLabels();
-            if (this.colorCounter >= 20)
-                console.log("more then 20 unique colors asked, using duplicate colors");
         }
         return this.colors[series];
     }
