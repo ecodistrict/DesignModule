@@ -85,7 +85,14 @@
 //}
 
 VerticalBarChart = function (graphObject) {
-
+    //graphObject.valueColors = {
+    //    type: "discrete",
+    //    entries: [{ min: 0, max: 20, color: "#FF0000" }, { min: 20, max: 50, color: "#FE642E" }, { min: 50, max: 70, color: "#F7FE2E" }, { min: 70, max: 100, color: "#00FF00" }],
+    //    //entries: [{ value: 0, color: "#FF0000" }, { value: 8, color: "#FE642E" }, { value: 17, color: "#F7FE2E" }, { value: 25, color: "#00FF00" }],
+    //    minColor: "#FF0000",
+    //    maxColor: "#00FF00",
+    //    defaultColor: "#666666"
+    //}
     //parameters
     this.graphObject = graphObject;
     this.visible = false;
@@ -101,6 +108,7 @@ VerticalBarChart = function (graphObject) {
     this.labelVisible = true;
     this.converted = false;
     this.titleMargin = 30;
+    this.valueColors = graphObject.valueColors;
 
     //public functions
     this.Initialize = function (container) {
@@ -163,6 +171,8 @@ VerticalBarChart = function (graphObject) {
         labelDiv.className = "bar-label-div";
         labelDiv.style.left = (this.graphObject.width + 5) + "px";
         labelDiv.style.top = "0px";
+
+        this._updateLabels();
 
         this.Update(this.graphObject.data);
 
@@ -352,7 +362,7 @@ VerticalBarChart = function (graphObject) {
         bar.enter().append("g")
 			.attr("transform", function (d, i) { return "translate(" + xScale((i * barWidth)) + ")"; })
 
-        var seriesToColor = this._seriesToColor.bind(this);
+        var getColor = this._getColor.bind(this);
 
         var rect = bar.selectAll("rect")
 			.data(function (d) { return d.data; });
@@ -374,16 +384,16 @@ VerticalBarChart = function (graphObject) {
         rect.attr("y", function (d) { return Math.min(yScale(d.start + d.value), yScale(d.start)); })
 			.attr("height", function (d) { return Math.abs(yScale(d.start + d.value) - yScale(d.start)); })
 			.attr("width", barPixelWidth)
-			.attr("fill", function (d) { return seriesToColor(d.series); });
+			.attr("fill", function (d) { return getColor(d.series, d.start + d.value); });
 
         rect.enter().append("rect")
 			.attr("y", function (d) { return Math.min(yScale(d.start + d.value), yScale(d.start)); })
 			.attr("height", function (d) { return Math.abs(yScale(d.start + d.value) - yScale(d.start)); })
 			.attr("width", barPixelWidth)
-			.attr("fill", function (d) { return seriesToColor(d.series); });
+			.attr("fill", function (d) { return getColor(d.series, d.start + d.value); });
 
         this.labelDiv.style.left = (divWidth + 5) + "px";
-        if (this._seriesCount(data) > 1 && this.labelVisible)
+        if ((this._seriesCount(data) > 1 || typeof this.valueColors != "undefined") && this.labelVisible)
             this.labelDiv.style.visibility = "inherit";
         else
             this.labelDiv.style.visibility = "hidden";
@@ -469,7 +479,7 @@ VerticalBarChart = function (graphObject) {
         bar.enter().append("g")
 			.attr("transform", function (d, i) { return "translate(" + xScale((i * barWidth)) + ")"; })
 
-        var seriesToColor = this._seriesToColor.bind(this);
+        var getColor = this._getColor.bind(this);
 
         var rect = bar.selectAll("rect")
 			.data(function (d) { return d.data; });
@@ -480,13 +490,13 @@ VerticalBarChart = function (graphObject) {
         rect.attr("y", function (d) { return Math.min(yScale(d.start + d.value), yScale(d.start)); })
 			.attr("height", function (d) { return Math.abs(yScale(d.start + d.value) - yScale(d.start)); })
 			.attr("width", barPixelWidth)
-			.attr("fill", function (d) { return seriesToColor(d.series); });
+			.attr("fill", function (d) { return getColor(d.series, d.start + d.value); });
 
         rect.enter().append("rect")
 			.attr("y", function (d) { return Math.min(yScale(d.start + d.value), yScale(d.start)); })
 			.attr("height", function (d) { return Math.abs(yScale(d.start + d.value) - yScale(d.start)); })
 			.attr("width", barPixelWidth)
-			.attr("fill", function (d) { return seriesToColor(d.series); });
+			.attr("fill", function (d) { return getColor(d.series, d.start + d.value); });
     }
 
     this._getWidthInBars = function (categories) {
@@ -540,6 +550,49 @@ VerticalBarChart = function (graphObject) {
         return this.colors[series];
     }
 
+    this._getColor = function (series, value) {
+        if (this.valueColors) 
+            return this._valueToColor(value);
+        return this._seriesToColor(series);
+    }
+
+    this._valueToColor = function (value) {
+        if (this.valueColors.type == "discrete")
+        {
+            for (var i = 0; i < this.valueColors.entries.length; i++)
+                if (value >= this.valueColors.entries[i].min && value <= this.valueColors.entries[i].max)
+                    return this.valueColors.entries[i].color;
+            return this.valueColors.defaultColor;
+        }
+        else //ramp
+        {
+            if (typeof this.colorInterpolations == "undefined")
+            {
+                this.colorInterpolations = [];
+                for (var i = 0; i < this.valueColors.entries.length - 1; i++)
+                {
+                    var value1 = this.valueColors.entries[i].value;
+                    var value2 = this.valueColors.entries[i + 1].value;
+                    var color1 = this.valueColors.entries[i].color;
+                    var color2 = this.valueColors.entries[i + 1].color;
+
+                    this.colorInterpolations.push({ min: value1, max: value2, interpolation: d3.scale.linear().domain([value1, value2]).interpolate(d3.interpolateRgb).range([d3.rgb(color1), d3.rgb(color2)]) });
+                }
+            }
+            if (this.colorInterpolations.length == 0)
+                return this.valueColors.defaultColor;
+
+            if (value < this.colorInterpolations[0].min)
+                return this.valueColors.minColor ? this.valueColors.minColor : this.valueColors.defaultColor;
+
+            for (var i = 0; i < this.colorInterpolations.length; i++)
+                if (value >= this.colorInterpolations[i].min && value <= this.colorInterpolations[i].max)
+                    return this.colorInterpolations[i].interpolation(value);
+            
+            return this.valueColors.maxColor ? this.valueColors.maxColor : this.valueColors.defaultColor;
+        }
+    }
+
     this._clickEvent = (function (e) {
 
         if (this.visible) {
@@ -575,8 +628,43 @@ VerticalBarChart = function (graphObject) {
 
     this._updateLabels = function () {
         this.labelDiv.innerHTML = "";
+        if (this.valueColors)
+        {
+            if (this.valueColors.type == "discrete") {
+                var table = this.labelDiv.appendChild(document.createElement("table"));
+                table.className = "bar-label-table";
+                for (var i = 0; i < this.valueColors.entries.length; i++) {
+                    var row = table.appendChild(document.createElement("tr"));
+                    row.className = "bar-label-row";
 
-        if (this.seriesNames.length > 0)
+                    var colorField = row.appendChild(document.createElement("td"));
+                    colorField.className = "bar-label-color-td";
+                    colorField.style.backgroundColor = this.valueColors.entries[i].color;
+
+                    var textField = row.appendChild(document.createElement("td"));
+                    textField.className = "bar-label-text-td";
+                    textField.innerHTML = this.valueColors.entries[i].min + " - " + this.valueColors.entries[i].max;
+                }
+            }
+            else //ramp
+            {
+                var table = this.labelDiv.appendChild(document.createElement("table"));
+                table.className = "bar-label-table";
+                for (var i = 0; i < this.valueColors.entries.length; i++) {
+                    var row = table.appendChild(document.createElement("tr"));
+                    row.className = "bar-label-row";
+
+                    var colorField = row.appendChild(document.createElement("td"));
+                    colorField.className = "bar-label-color-td";
+                    colorField.style.backgroundColor = this.valueColors.entries[i].color;
+
+                    var textField = row.appendChild(document.createElement("td"));
+                    textField.className = "bar-label-text-td";
+                    textField.innerHTML = this.valueColors.entries[i].value;
+                }
+            }
+        }
+        else if (this.seriesNames.length > 0)
         {
             var table = this.labelDiv.appendChild(document.createElement("table"));
             table.className = "bar-label-table";

@@ -274,6 +274,7 @@ begin
         //CACC on the A2
         simParameters := TSSMSimulationParameterList.Create;
         simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);Noise(RD);SSMAirModule;KPI Model;VissimController');
+        //simParameters.setParameter('models', 'SSMModel');
         //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;KPI Model;VissimController');
         //simParameters.setParameter('models', 'DataStore;'{Traffic (SSM);Air (SSM <-> US);} + 'SSMAirModule;KPI Model;VissimController');
 
