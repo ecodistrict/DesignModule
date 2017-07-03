@@ -296,6 +296,31 @@ begin
           'V6'); //todo: correct US-prefix
         sessionModel.Projects.Add(project);
 
+        //aimsum
+        simParameters := TSSMSimulationParameterList.Create;
+        //simParameters.setParameter('models', 'aimsun');
+
+        //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);Noise(RD);SSMAirModule;KPI Model;VissimController');
+
+        //simParameters.setParameter('DataStore-Description', '<scenarioName>');
+        //simParameters.setParameter('VissimController-penetration', '<penetration>');
+        //simParameters.setParameter('VissimController-randomseed', '<randomseed>');
+        //simParameters.setParameter('VissimController-compliance rate', '1');
+        //simParameters.setParameter('VissimController-A2 case', True);
+
+        project := TSSMProject.Create(sessionModel, imbConnection,
+          'aimsun', 'aimsun test case',
+          tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, false,
+          simParameters,
+          '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
+          '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration rate","idName":"penetration","extraOptions":[1, "%"]},'+
+          '{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"random seed","idName":"randomseed","extraOptions":[1, ""]},'+
+          '{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]',
+          TMapView.Create(41.406076, 2.160037, 11), 0,
+          'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde',
+          'V6'); //todo: correct US-prefix
+        sessionModel.Projects.Add(project);
+
         // every project has own listener for clients -> global list not needed anymore
         {
         // inquire existing session and rebuild internal sessions..

@@ -338,7 +338,8 @@ begin
   // project point always and use offset as an extra option to put a 0 based network in a location
   latlon.X := _x;
   latlon.Y := _y;
-  latlon := aSourceProjection.ToGeocs(latlon);
+  if Assigned(aSourceProjection)
+  then latlon := aSourceProjection.ToGeocs(latlon);
   // check for changes
   if x<>_x then
   begin
@@ -441,7 +442,8 @@ begin
   // project point always and use offset as an extra option to put a 0 based network in a location
   latlon.X := x;
   latlon.Y := y;
-  latlon := aSourceProjection.ToGeocs(latlon);
+  if Assigned(aSourceProjection)
+  then latlon := aSourceProjection.ToGeocs(latlon);
   aPayload.Read(z);
   aPayload.Read(rotZ);
   aPayload.Read(networkId);
@@ -684,7 +686,8 @@ begin
               aPayload.Read(z);
               latlon.X := x;
               latlon.Y := y;
-              latlon := (scenario.project as TSSMProject).sourceProjection.ToGeocs(latlon);
+              if Assigned((scenario.project as TSSMProject).sourceProjection)
+              then latlon := (scenario.project as TSSMProject).sourceProjection.ToGeocs(latlon);
               (lo as TSSMLink).geometry.AddPoint(latlon.X, latlon.Y, z);
             end;
             AddObject(lo);
@@ -1736,8 +1739,8 @@ begin
   fPrivateEvent.OnNormalEvent := handleRecordingsEvent;
 
   mapView := aMapView;
-  fSourceProjection := CSProjectedCoordinateSystemList.ByWKT(
-    GetSetting('Projection', 'Amersfoort_RD_New')); // EPSG: 28992
+  fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(
+    GetSetting('Projection', 28992)); // 'Amersfoort_RD_New')); // EPSG: 28992
   inherited Create(aSessionModel, aConnection, imb3Connection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, GetSetting('DataSource', SSMDataSource), aDBConnection, aAddBasicLayers,
     aMaxNearestObjectDistanceInMeters, mapView, nil, nil, GetSetting('IdlePrefix', SSMIdlePrefix)); // todo: check projectCurrentScenario etc..
 
