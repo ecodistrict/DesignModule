@@ -235,6 +235,8 @@ type
     fAirSSMEmissionsEvent: TIMBEventEntry;
     fAirSSMEmissionsChartTotal: TChartLines;
     fAirSSMEmissionsChartFraction: TChartLines;
+    fSafetyKPIEvent: TIMBEventEntry;
+    fSafetyKPIChart, fSafetyKPIChart2, fSafetyKPIChart3: TChartLines;
   public
     property running: Boolean read fRunning;
     property recording: Boolean read fRecording write fRecording;
@@ -243,6 +245,7 @@ type
     property statistics: TObjectDictionary<string, TSSMStatistic> read fStatistics;
   public
     procedure HandleAirSSMEmissions(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
+    procedure HandleSafetyKPI(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleGTUStatisticEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleFirstSubscriber(aClient: TClient); override;
     procedure HandleLastSubscriber(aClient: TClient); override;
@@ -1085,9 +1088,27 @@ begin
       [TChartAxis.Create('kg NO2/h', 'lightBlue', 'Mass rate', 'kg/h')]);
   AddChart(fAirSSMEmissionsChartFraction);
 
+  //only for testing for now
+//  fSafetyKPIChart := TChartLines.Create(Self, 'Safety', 'sfty', 'Safety Value', '', false, 'line',
+//      TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+//      [TChartAxis.Create('colission chances', 'lightBlue', 'Frequency', '/minute')]);
+//  AddChart(fSafetyKPIChart);
+//  fSafetyKPIChart2 := TChartLines.Create(Self, 'Safety', 'sfty2', 'Safety Value 2', '', false, 'line',
+//      TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+//      [TChartAxis.Create('colission chances', 'lightBlue', 'Frequency', '/minute')]);
+//  AddChart(fSafetyKPIChart2);
+//  fSafetyKPIChart3 := TChartLines.Create(Self, 'Safety', 'sfty3', 'Safety Value 3', '', false, 'line',
+//      TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
+//      [TChartAxis.Create('colission chances', 'lightBlue', 'Frequency', '/minute')]);
+//  AddChart(fSafetyKPIChart3);
+
+
 
   fAirSSMEmissionsEvent := (project as TMCProject).controlInterface.Connection.Subscribe(aID+'.Air_ssm_emissions');
   fAirSSMEmissionsEvent.OnNormalEvent := HandleAirSSMEmissions;
+
+//  fSafetyKPIEvent := (project as TMCProject).controlInterface.Connection.Subscribe(aID+'.SurrogateSafetyKPI');
+//  fSafetyKPIEvent.OnNormalEvent := HandleSafetyKPI;
   EnableControl(startstopControl);
   EnableControl(simulationCloseControl);
 end;
@@ -1471,6 +1492,24 @@ var
 begin
   inherited;
   fSIMStopEvent.SignalEvent(ekNormalEvent, EmptyPayload)
+end;
+
+procedure TSSMScenario.HandleSafetyKPI(aEvent: TIMBEventEntry;
+  var aPayload: ByteBuffers.TByteBuffer);
+var
+  timeStamp: double;
+  safetyKPI1: double;
+  safetyKPI2: double;
+  safetyKPI3: double;
+begin
+  aPayload.Read(timeStamp);
+  aPayload.Read(safetyKPI1);
+  aPayload.Read(safetyKPI2);
+  aPayload.Read(safetyKPI3);
+
+  fSafetyKPIChart.AddValue(timeStamp, [safetyKPI1]);
+  fSafetyKPIChart2.AddValue(timeStamp, [safetyKPI2]);
+  fSafetyKPIChart3.AddValue(timeStamp, [safetyKPI3]);
 end;
 
 procedure TSSMScenario.HandleSimSpeedEvent(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer);

@@ -167,7 +167,7 @@ begin
 
         // US: V3
         project := TSSMProject.Create(sessionModel, imbConnection,
-          'tuuitd', 'A58 - CACC and schockwaves on the A58 between Tilburg and Eindhoven',
+          'tud', 'A58 - CACC and schockwaves on the A58 between Tilburg and Eindhoven',
           tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)), nil, false,
           simParameters,
           '[{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},'+
@@ -274,6 +274,7 @@ begin
         //CACC on the A2
         simParameters := TSSMSimulationParameterList.Create;
         simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);Noise(RD);SSMAirModule;KPI Model;VissimController');
+        //simParameters.setParameter('models', 'SSMModel');
         //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;KPI Model;VissimController');
         //simParameters.setParameter('models', 'DataStore;'{Traffic (SSM);Air (SSM <-> US);} + 'SSMAirModule;KPI Model;VissimController');
 

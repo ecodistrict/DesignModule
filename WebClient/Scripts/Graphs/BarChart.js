@@ -85,7 +85,14 @@
 //}
 
 VerticalBarChart = function (graphObject) {
-
+    //graphObject.valueColors = {
+    //    type: "discrete",
+    //    entries: [{ min: 0, max: 20, color: "#FF0000" }, { min: 20, max: 50, color: "#FE642E" }, { min: 50, max: 70, color: "#F7FE2E" }, { min: 70, max: 100, color: "#00FF00" }],
+    //    //entries: [{ value: 0, color: "#FF0000" }, { value: 8, color: "#FE642E" }, { value: 17, color: "#F7FE2E" }, { value: 25, color: "#00FF00" }],
+    //    minColor: "#FF0000",
+    //    maxColor: "#00FF00",
+    //    defaultColor: "#666666"
+    //}
     //parameters
     this.graphObject = graphObject;
     this.visible = false;
@@ -93,12 +100,15 @@ VerticalBarChart = function (graphObject) {
     this.graphID = graphObject.id;
     this.previewDiv = null;
     this.colors = {};
+    this.setColors = graphObject.colors ? graphObject.colors : {};
     this.seriesNames = [],
     this.colorCounter = 0;
     this.dc20 = d3.scale.category20();
     this.labelDiv = null;
     this.labelVisible = true;
     this.converted = false;
+    this.titleMargin = 30;
+    this.valueColors = graphObject.valueColors;
 
     //public functions
     this.Initialize = function (container) {
@@ -141,7 +151,9 @@ VerticalBarChart = function (graphObject) {
 				.style("font-size", "16px")
 				.style("stroke", "rgba(255, 255, 255, 0.6)")
 				.style("stroke-width", "3px")
-				.text(graphObject.title);
+				.text(graphObject.title)
+                .call(this._wrapTitleLetters, graphObject.width - this.titleMargin);
+                
 
             this.titleText = svg.append("text")
 				.attr("x", (graphObject.width / 2))
@@ -151,13 +163,16 @@ VerticalBarChart = function (graphObject) {
 				.attr("pointer-events", "none")
 				.attr("class", "graph-title-text")
 				.style("font-size", "16px")
-				.text(graphObject.title);
+				.text(graphObject.title)
+                .call(this._wrapTitleLetters, graphObject.width - this.titleMargin);
         }
 
         var labelDiv = this.labelDiv = container.appendChild(document.createElement("div"));
         labelDiv.className = "bar-label-div";
         labelDiv.style.left = (this.graphObject.width + 5) + "px";
         labelDiv.style.top = "0px";
+
+        this._updateLabels();
 
         this.Update(this.graphObject.data);
 
@@ -264,10 +279,14 @@ VerticalBarChart = function (graphObject) {
 
         if (typeof this.graphObject.title !== "undefined") {
             this.titleStroke
-				.attr("x", (divWidth / 2));
+				.attr("x", (divWidth / 2))
+                .text(this.graphObject.title)
+                .call(this._wrapTitleLetters, divWidth - this.titleMargin);
 
             this.titleText
-				.attr("x", (divWidth / 2));
+				.attr("x", (divWidth / 2))
+                .text(this.graphObject.title)
+                .call(this._wrapTitleLetters, divWidth - this.titleMargin);
         }
 
         this.graphGroup
@@ -343,7 +362,7 @@ VerticalBarChart = function (graphObject) {
         bar.enter().append("g")
 			.attr("transform", function (d, i) { return "translate(" + xScale((i * barWidth)) + ")"; })
 
-        var seriesToColor = this._seriesToColor.bind(this);
+        var getColor = this._getColor.bind(this);
 
         var rect = bar.selectAll("rect")
 			.data(function (d) { return d.data; });
@@ -365,16 +384,16 @@ VerticalBarChart = function (graphObject) {
         rect.attr("y", function (d) { return Math.min(yScale(d.start + d.value), yScale(d.start)); })
 			.attr("height", function (d) { return Math.abs(yScale(d.start + d.value) - yScale(d.start)); })
 			.attr("width", barPixelWidth)
-			.attr("fill", function (d) { return seriesToColor(d.series); });
+			.attr("fill", function (d) { return getColor(d.series, d.start + d.value); });
 
         rect.enter().append("rect")
 			.attr("y", function (d) { return Math.min(yScale(d.start + d.value), yScale(d.start)); })
 			.attr("height", function (d) { return Math.abs(yScale(d.start + d.value) - yScale(d.start)); })
 			.attr("width", barPixelWidth)
-			.attr("fill", function (d) { return seriesToColor(d.series); });
+			.attr("fill", function (d) { return getColor(d.series, d.start + d.value); });
 
         this.labelDiv.style.left = (divWidth + 5) + "px";
-        if (this._seriesCount(data) > 1 && this.labelVisible)
+        if ((this._seriesCount(data) > 1 || typeof this.valueColors != "undefined") && this.labelVisible)
             this.labelDiv.style.visibility = "inherit";
         else
             this.labelDiv.style.visibility = "hidden";
@@ -460,7 +479,7 @@ VerticalBarChart = function (graphObject) {
         bar.enter().append("g")
 			.attr("transform", function (d, i) { return "translate(" + xScale((i * barWidth)) + ")"; })
 
-        var seriesToColor = this._seriesToColor.bind(this);
+        var getColor = this._getColor.bind(this);
 
         var rect = bar.selectAll("rect")
 			.data(function (d) { return d.data; });
@@ -471,13 +490,13 @@ VerticalBarChart = function (graphObject) {
         rect.attr("y", function (d) { return Math.min(yScale(d.start + d.value), yScale(d.start)); })
 			.attr("height", function (d) { return Math.abs(yScale(d.start + d.value) - yScale(d.start)); })
 			.attr("width", barPixelWidth)
-			.attr("fill", function (d) { return seriesToColor(d.series); });
+			.attr("fill", function (d) { return getColor(d.series, d.start + d.value); });
 
         rect.enter().append("rect")
 			.attr("y", function (d) { return Math.min(yScale(d.start + d.value), yScale(d.start)); })
 			.attr("height", function (d) { return Math.abs(yScale(d.start + d.value) - yScale(d.start)); })
 			.attr("width", barPixelWidth)
-			.attr("fill", function (d) { return seriesToColor(d.series); });
+			.attr("fill", function (d) { return getColor(d.series, d.start + d.value); });
     }
 
     this._getWidthInBars = function (categories) {
@@ -514,14 +533,64 @@ VerticalBarChart = function (graphObject) {
 
     this._seriesToColor = function (series) {
         if (typeof this.colors[series] == "undefined") {
+            if (typeof this.setColors[series] != "undefined")
+            {
+                this.colors[series] = this.setColors[series];
+            }
+            else
+            {
+                this.colors[series] = this.dc20(this.colorCounter);
+                this.colorCounter++;
+                if (this.colorCounter >= 20)
+                    console.log("more then 20 unique colors asked, using duplicate colors");
+            }
             this.seriesNames.push(series);
-            this.colors[series] = this.dc20(this.colorCounter);
-            this.colorCounter++;
             this._updateLabels();
-            if (this.colorCounter >= 20)
-                console.log("more then 20 unique colors asked, using duplicate colors");
         }
         return this.colors[series];
+    }
+
+    this._getColor = function (series, value) {
+        if (this.valueColors) 
+            return this._valueToColor(value);
+        return this._seriesToColor(series);
+    }
+
+    this._valueToColor = function (value) {
+        if (this.valueColors.type == "discrete")
+        {
+            for (var i = 0; i < this.valueColors.entries.length; i++)
+                if (value >= this.valueColors.entries[i].min && value <= this.valueColors.entries[i].max)
+                    return this.valueColors.entries[i].color;
+            return this.valueColors.defaultColor;
+        }
+        else //ramp
+        {
+            if (typeof this.colorInterpolations == "undefined")
+            {
+                this.colorInterpolations = [];
+                for (var i = 0; i < this.valueColors.entries.length - 1; i++)
+                {
+                    var value1 = this.valueColors.entries[i].value;
+                    var value2 = this.valueColors.entries[i + 1].value;
+                    var color1 = this.valueColors.entries[i].color;
+                    var color2 = this.valueColors.entries[i + 1].color;
+
+                    this.colorInterpolations.push({ min: value1, max: value2, interpolation: d3.scale.linear().domain([value1, value2]).interpolate(d3.interpolateRgb).range([d3.rgb(color1), d3.rgb(color2)]) });
+                }
+            }
+            if (this.colorInterpolations.length == 0)
+                return this.valueColors.defaultColor;
+
+            if (value < this.colorInterpolations[0].min)
+                return this.valueColors.minColor ? this.valueColors.minColor : this.valueColors.defaultColor;
+
+            for (var i = 0; i < this.colorInterpolations.length; i++)
+                if (value >= this.colorInterpolations[i].min && value <= this.colorInterpolations[i].max)
+                    return this.colorInterpolations[i].interpolation(value);
+            
+            return this.valueColors.maxColor ? this.valueColors.maxColor : this.valueColors.defaultColor;
+        }
     }
 
     this._clickEvent = (function (e) {
@@ -559,8 +628,43 @@ VerticalBarChart = function (graphObject) {
 
     this._updateLabels = function () {
         this.labelDiv.innerHTML = "";
+        if (this.valueColors)
+        {
+            if (this.valueColors.type == "discrete") {
+                var table = this.labelDiv.appendChild(document.createElement("table"));
+                table.className = "bar-label-table";
+                for (var i = 0; i < this.valueColors.entries.length; i++) {
+                    var row = table.appendChild(document.createElement("tr"));
+                    row.className = "bar-label-row";
 
-        if (this.seriesNames.length > 0)
+                    var colorField = row.appendChild(document.createElement("td"));
+                    colorField.className = "bar-label-color-td";
+                    colorField.style.backgroundColor = this.valueColors.entries[i].color;
+
+                    var textField = row.appendChild(document.createElement("td"));
+                    textField.className = "bar-label-text-td";
+                    textField.innerHTML = this.valueColors.entries[i].min + " - " + this.valueColors.entries[i].max;
+                }
+            }
+            else //ramp
+            {
+                var table = this.labelDiv.appendChild(document.createElement("table"));
+                table.className = "bar-label-table";
+                for (var i = 0; i < this.valueColors.entries.length; i++) {
+                    var row = table.appendChild(document.createElement("tr"));
+                    row.className = "bar-label-row";
+
+                    var colorField = row.appendChild(document.createElement("td"));
+                    colorField.className = "bar-label-color-td";
+                    colorField.style.backgroundColor = this.valueColors.entries[i].color;
+
+                    var textField = row.appendChild(document.createElement("td"));
+                    textField.className = "bar-label-text-td";
+                    textField.innerHTML = this.valueColors.entries[i].value;
+                }
+            }
+        }
+        else if (this.seriesNames.length > 0)
         {
             var table = this.labelDiv.appendChild(document.createElement("table"));
             table.className = "bar-label-table";
@@ -643,7 +747,45 @@ VerticalBarChart = function (graphObject) {
                 {
                     line = line + letter;
                     letters = letters.substr(1);
-                    //tspan.text(line);
+                    tspan.text(line);
+                }
+            }
+        });
+    }
+
+    this._wrapTitleLetters = function (text, width) {
+        text.each(function () {
+            var text = d3.select(this),
+                letters = text.text(),
+                letter,
+                done = false,
+                line = "",
+                lineNumber = 0,
+                lineHeight = 1.1, // ems
+                font = window.getComputedStyle(this, null).getPropertyValue('font-family'),
+                fontSize = window.getComputedStyle(this, null).getPropertyValue('font-size')
+            canvas = document.createElement("canvas"),
+            context = canvas.getContext("2d"),
+            y = text.attr("y"),
+            x = text.attr("x"),
+            dy = parseFloat(text.attr("dy"));
+            context.font = fontSize + " " + font;
+            tspan = text.text(null).append("tspan").attr("x", x).attr("y", y);
+            while (lineNumber < 2 && letters.length > 0) {
+                letter = letters[0];
+                if (context.measureText(line + letter).width > width /*&& line.length > 1*/) {
+                    tspan.text(line);
+                    if (lineNumber < 1) {
+                        line = "";
+                        tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + "em").text(line);
+                    }
+                    else
+                        return;
+                }
+                else {
+                    line = line + letter;
+                    letters = letters.substr(1);
+                    tspan.text(line);
                 }
             }
         });

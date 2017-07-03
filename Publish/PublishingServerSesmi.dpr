@@ -49,14 +49,14 @@ begin
 //        'PublishingServerSesmi', 12,
 //        'ensel2',
 //        GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
-      imbConnection := TSocketConnection.Create(
-        'PublishingServerSesmi', 12,
-        'EnSel2',
-        GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
 //      imbConnection := TSocketConnection.Create(
-//        'PublishingServerSesmiUtrecht', 12,
-//        'ensel_utrecht',
+//        'PublishingServerSesmi', 12,
+//        'EnSel2',
 //        GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
+      imbConnection := TSocketConnection.Create(
+        'PublishingServerSesmiUtrecht', 12,
+        'ensel_utrecht',
+        GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
       try
         imbConnection.onException := HandleException;
         imbConnection.onDisconnect := HandleDisconnect;
