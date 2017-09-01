@@ -1,0 +1,204 @@
+/* .leaflet-control-files derived from .leaflet--control-layers (leaflet.css) */
+
+.leaflet-control-files {
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    background: #fff;
+    border-radius: 5px;
+}
+
+.leaflet-control-files-toggle {
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    display: block;
+}
+
+/* files control */
+.leaflet-control-files-toggle {
+  background-image: url('images/files.png');
+  width: 36px;
+  height: 36px;
+}
+.leaflet-retina .leaflet-control-files-toggle {
+  background-image: url('images/files-2x.png');
+  background-size: 26px 26px;
+}
+.leaflet-touch .leaflet-control-files-toggle {
+  width: 44px;
+  height: 44px;
+}
+.leaflet-control-files-expanded {
+  max-width:340px;
+}
+.leaflet-control-files .leaflet-control-files-list,
+.leaflet-control-files-expanded .leaflet-control-files-toggle {  display: none }
+.leaflet-control-files-expanded .leaflet-control-files-list {
+  display: block;
+  position: relative;
+}
+.leaflet-control-files-expanded {
+  padding: 6px 10px 6px 6px;
+  color: #333;
+  background: #fff;
+}
+.leaflet-control-files-scrollbar {
+    padding-right: 5px;
+    width: 100% !important;
+    box-sizing: border-box;
+    min-height: 10px;
+    overflow-y: scroll !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+.leaflet-control-files-selector {
+  margin-top: 2px;
+  position: relative;
+  top: 1px;
+}
+.leaflet-control-files label {  display: block }
+.leaflet-control-files-separator {
+  height: 0;
+  border-top: 1px solid #ddd;
+  margin: 5px -10px 5px -6px;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  clear:both;
+}
+.leaflet-control-files h4 {
+  margin: 0;
+  padding: 0;
+}
+.leaflet-control-files ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+.leaflet-control-files li {  padding-left: 10px }
+.leaflet-control-files li ul li {
+  padding-left: 20px;
+  padding-right: 10px;
+  line-height: 22px;
+}
+.leaflet-control-files li ul li:hover {  background: #f0f0f0 }
+.leaflet-control-files li a:link,
+.leaflet-control-files li a:visited {
+  /*: ;
+  background-color: white;
+  color: white;
+  text-decoration: none;
+  display: inline-block;*/
+  text-decoration: none;
+  color: #000;
+  display: block;
+  font-size: 16px;
+}
+
+.files-remove-button {  background-image: url(images/filesremove.png) }
+
+.files-icon-button {
+  background-repeat: no-repeat;
+  width: 16px;
+  height: 16px;
+  margin-left: 10px;
+  margin-right: 4px;
+  opacity: 0.7;
+  float: right;
+}
+
+.files-add-button {  background-image: url(images/domainadd.png) }
+.files-remove-button:hover {
+  opacity: 1.0;
+  cursor: pointer;
+}
+.files-add-button:hover {
+  opacity: 1.0;
+  cursor: pointer;
+}
+.files-remove-line {  line-height: 20px }
+.files-remove-line > div {
+  position:relative;
+}
+
+.files-empty-line {
+    margin: auto;
+}
+.files-empty-name {
+  display: table;
+  margin: auto;
+  opacity: 0.7;
+}
+.files-name {  
+    cursor: pointer;
+}
+.files-name-inactive {
+  /*opacity: 0.5;*/
+  cursor: pointer;
+}
+
+.leaflet-control-files-scrollbar
+.leaflet-control-files-upload {
+  position: fixed;
+  background-color: #fff;
+  padding: 4px;
+  box-sizing: border-box;
+}
+.files-button {
+  display: block;
+  float:right;
+}
+
+.leaflet-oldie .leaflet-control-files {  border: 1px solid #999 }
+
+
+#phone .files-remove-line, .files-remove-line {
+  position: relative;
+  width:auto;
+}
+
+.files-remove-line > div {
+  float:left;
+  width:100%;
+  position: relative;
+  margin-bottom:5px;
+}
+
+#phone .files-add-button, #phone .files-remove-button, .files-add-button, .files-remove-button {
+  position: absolute;
+  right: 0;
+  top: 2px;
+}
+
+#phone .files-remove-line, #phone .files-remove-line > div {
+  position: relative;
+  float:left;
+  width:100%;
+}
+span[class^="files-name"]:hover {
+  border:1px solid rgba(173, 216, 230, 0.4);
+  color:#000;
+  background: rgba(173, 216, 230, 0.1);
+}
+#phone span[class^="files-name"], span[class^="files-name"] {
+  width:100%;
+  padding-right:25px;
+  padding-left:5px;
+  box-sizing: border-box;
+  display:block;
+  float:left;
+  position: relative;
+  border-radius: 3px;
+  border:1px solid lightblue;
+  background: rgba(173, 216, 230, 0);
+  opacity: 0.5;
+}
+#phone .files-name, .files-name {
+  background: rgba(173, 216, 230, 0.8) !important;
+  color:#000;
+  opacity: 1 !important;
+}
+.files-name:hover {
+  opacity: 0.8 !important;
+}
+#phone .files-name-inactive, .files-name-inactive {
+  background: rgba(173, 216, 230, 1);
+  color:#000;
+}

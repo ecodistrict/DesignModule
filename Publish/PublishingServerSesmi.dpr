@@ -74,7 +74,10 @@ begin
             imbConnection,
             tilerFQDN,
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), TGUID.Create(GetSetting(ExpertScenarioSwitch, DefaultExpertScenario)));
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+            TGUID.Create(GetSetting(ExpertScenarioSwitch, DefaultExpertScenario)),
+            //'Fietsproject Eindhoven', TMapView.Create(51.4475, 5.4808, 13));
+            'Fietsproject Utrecht Uithof', TMapView.Create(52.0915, 5.12013, 13));
 
           // every project has own listener for clients -> global list not needed anymore
           {

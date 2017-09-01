@@ -38,8 +38,8 @@ const
 
   sensordata_pm10                  = 1441;              //tag 180
   sensordata_pm25                  = 1601;              //tag 200
-  //sensordata_no2                   = 1921;              //tag 240
-  sensordata_no2                   = 961;               //tag 120 -> temporary tag!
+  sensordata_no2                   = 1921;              //tag 240
+  //sensordata_no2                   = 961;               //tag 120 -> temporary tag!
   sensordata_pm1                   = 2081;              //tag 260
   sensordata_nh3                   = 2241;              //tag 280
   sensordata_pnc                   = 2401;              //tag 300
@@ -139,7 +139,7 @@ type
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
   end;
-{
+  {
   TSesmiTrackLayer  = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean);
   private
@@ -155,7 +155,7 @@ type
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
   end;
- }
+  }
   TSesmiMobileSensorLayer  = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
   destructor Destroy; override;
@@ -298,7 +298,8 @@ type
 
   TSesmiModule = class
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aTilerFQDN, aTilerStatusURL: string;
-    aMaxNearestObjectDistanceInMeters: Integer; const aExpertScenarioGUID: TGUID);
+    aMaxNearestObjectDistanceInMeters: Integer; const aExpertScenarioGUID: TGUID;
+    const aProjectName: string; aMapView: TMapView);
   destructor Destroy; override;
   private
     fSessionModel: TSessionModel;
@@ -647,6 +648,7 @@ begin
 end;
 *)
 
+
 (*
 { TSesmiSensorsLayer }
 
@@ -778,80 +780,78 @@ end;
 *)
 
 { TSesmiTrackLayer }
-//
-//constructor TSesmiTrackLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad,
-//  aShowInDomains: Boolean);
-////var
-////  entries: TPaletteDiscreteEntryArray;
-//begin
-//  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"track"', 'Point', ltObject, aShowInDomains, 0);
-//  // Track
-//  fEvent := scenario.project.connection.Subscribe('track');
-//  fEventHandler := HandleEvent;
-//  fEvent.OnEvent.Add(fEventHandler);
-//end;
-//
-//
-//
-//function TSesmiTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
+(*
+constructor TSesmiTrackLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad, aShowInDomains: Boolean);
 //var
-//  iop: TPair<TWDID, TLayerObject>;
-//  _json: string;
-//  sclo: TSVGCircleLayerObject;
-//begin
-//  result := inherited;
-//  // send new track points
-//  _json := '';
-//  for iop in objects do
-//  begin
-//    if iop.Value is TSVGCircleLayerObject then
-//    begin
-//      sclo := iop.Value as TSVGCircleLayerObject;
-//      (*
-//      if _json<>''
-//      then _json  := _json+',';
-//      _json  := _json+
-//        '{"newobject":'+
-//          '{"id":"'+string(UTF8String(car.ID))+'",'+
-//           '"lng":'+DoubleToJSON(car.latlon.x)+','+
-//           '"lat":'+DoubleToJSON(car.latlon.y)+','+
-//           '"fillColor":"'+ColorToJSON(car.baseColor)+'"}}';
-//      *)
-//    end;
-//  end;
-//  if _json<>'' then
-//  begin
-//    aClient.signalString('{"type":"updatelayer","payload":{"id":"'+ElementID+'","data":['+_json+']}}');
-//  end;
-//end;
-//
-//function TSesmiTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
-//begin
-//  // todo: option to clear objects
-//
-//  Result := inherited;
-//end;
-//
-//procedure TSesmiTrackLayer.HandleEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
-//begin
-//  // todo: build track
-//
-//end;
-//
-//procedure TSesmiTrackLayer.RegisterLayer;
-//begin
-//  RegisterOnTiler(False, SliceType, name, 2500);
-//end;
-//
-//procedure TSesmiTrackLayer.RegisterSlice;
-//begin
-//  tilerLayer.signalAddSlice(nil);
-//end;
-//
-//function TSesmiTrackLayer.SliceType: Integer;
-//begin
-//  Result := stLocation;
-//end;
+//  entries: TPaletteDiscreteEntryArray;
+begin
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"track"', 'Point', ltObject, aShowInDomains, 0);
+  // Track
+  fEvent := scenario.project.connection.Subscribe('track');
+  fEventHandler := HandleEvent;
+  fEvent.OnEvent.Add(fEventHandler);
+end;
+
+function TSesmiTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
+var
+  iop: TPair<TWDID, TLayerObject>;
+  _json: string;
+  sclo: TSVGCircleLayerObject;
+begin
+  result := inherited;
+  // send new track points
+  _json := '';
+  for iop in objects do
+  begin
+    if iop.Value is TSVGCircleLayerObject then
+    begin
+      sclo := iop.Value as TSVGCircleLayerObject;
+      {
+      if _json<>''
+      then _json  := _json+',';
+      _json  := _json+
+        '{"newobject":'+
+          '{"id":"'+string(UTF8String(car.ID))+'",'+
+           '"lng":'+DoubleToJSON(car.latlon.x)+','+
+           '"lat":'+DoubleToJSON(car.latlon.y)+','+
+           '"fillColor":"'+ColorToJSON(car.baseColor)+'"}}';
+      }
+    end;
+  end;
+  if _json<>'' then
+  begin
+    aClient.signalString('{"type":"updatelayer","payload":{"id":"'+ElementID+'","data":['+_json+']}}');
+  end;
+end;
+
+function TSesmiTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
+begin
+  // todo: option to clear objects
+
+  Result := inherited;
+end;
+
+procedure TSesmiTrackLayer.HandleEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
+begin
+  // todo: build track
+
+end;
+
+procedure TSesmiTrackLayer.RegisterLayer;
+begin
+  RegisterOnTiler(False, SliceType, name, 2500);
+end;
+
+procedure TSesmiTrackLayer.RegisterSlice;
+begin
+  tilerLayer.signalAddSlice(nil);
+end;
+
+function TSesmiTrackLayer.SliceType: Integer;
+begin
+  Result := stLocation;
+end;
+*)
 
 { TSesmiWindData }
 
@@ -1006,13 +1006,13 @@ procedure TSesmiScenario.AddLink(const aGuid: TGUID; const aGeometry: TWDGeometr
 var
   linkLayer: TSesmiLinkLayer;
 begin
-      TMonitor.Enter(fLinkLayers);
-      try
-        for linkLayer in fLinkLayers.Values do
-          linkLayer.AddLink(GuidToTWDID(aGuid), aGeometry);
-      finally
-        TMonitor.Exit(fLinkLayers);
-      end;
+  TMonitor.Enter(fLinkLayers);
+  try
+    for linkLayer in fLinkLayers.Values do
+      linkLayer.AddLink(GuidToTWDID(aGuid), aGeometry);
+  finally
+    TMonitor.Exit(fLinkLayers);
+  end;
 end;
 
 procedure TSesmiScenario.AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette: TWDPalette; const aLegendJSON: string);
@@ -1115,33 +1115,33 @@ begin
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
     case fieldInfo of
-    wdatTimeStamp:
-    begin
-      timestamp := aPayload.bb_read_double(aCursor);
-    end;
-    (icehObjectID shl 3) or wtLengthDelimited:
-    begin
-      sensorid := aPayload.bb_read_guid(aCursor);
-      if (fGUID <> (project as TSesmiProject).ExpertScenarioGUID) and (fGUID <> sensorid)  then //filter: only accept live events that match our id
-       exit; //todo: mag dit, of moeten we de buffer leeg lezen? Wordt id altijd verstuurd voor de data?
-    end;
-    sensordata_no2, sensordata_pm10, sensordata_pm25:
-    begin
-      value := aPayload.bb_read_double(aCursor);
-      if fLinkLayers.TryGetValue(fieldInfo, layer) then
-        layer.AddValue(timestamp, value);
-    end;
-    sensordata_linkid:
-    begin
-      id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
-      TMonitor.Enter(fLinkLayers);
-      try
-        for layer in fLinkLayers.Values do
-          layer.AddLinkID(timestamp, id);
-      finally
-        TMonitor.Exit(fLinkLayers);
-      end;
-    end;
+      wdatTimeStamp:
+        begin
+          timestamp := aPayload.bb_read_double(aCursor);
+        end;
+      (icehObjectID shl 3) or wtLengthDelimited:
+        begin
+          sensorid := aPayload.bb_read_guid(aCursor);
+          if (fGUID <> (project as TSesmiProject).ExpertScenarioGUID) and (fGUID <> sensorid)  then //filter: only accept live events that match our id
+           exit; //todo: mag dit, of moeten we de buffer leeg lezen? Wordt id altijd verstuurd voor de data?
+        end;
+      sensordata_no2, sensordata_pm10, sensordata_pm25:
+        begin
+          value := aPayload.bb_read_double(aCursor);
+          if fLinkLayers.TryGetValue(fieldInfo, layer) then
+            layer.AddValue(timestamp, value);
+        end;
+      sensordata_linkid:
+        begin
+          id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
+          TMonitor.Enter(fLinkLayers);
+          try
+            for layer in fLinkLayers.Values do
+              layer.AddLinkID(timestamp, id);
+          finally
+            TMonitor.Exit(fLinkLayers);
+          end;
+        end;
     else
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
     end;
@@ -1161,27 +1161,27 @@ begin
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
     case fieldInfo of
-    wdatTimeStamp:
-    begin
-      timestamp := aPayload.bb_read_double(aCursor);
-    end;
-    sensordata_no2, sensordata_pm10, sensordata_pm25:
-    begin
-      value := aPayload.bb_read_double(aCursor);
-      if fLinkLayers.TryGetValue(fieldInfo, layer) then
-        layer.AddValue(timestamp, value);
-    end;
-    sensordata_linkid:
-    begin
-      id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
-      TMonitor.Enter(fLinkLayers);
-      try
-        for layer in fLinkLayers.Values do
-          layer.AddLinkID(timestamp, id);
-      finally
-        TMonitor.Exit(fLinkLayers);
-      end;
-    end;
+      wdatTimeStamp:
+        begin
+          timestamp := aPayload.bb_read_double(aCursor);
+        end;
+      sensordata_no2, sensordata_pm10, sensordata_pm25:
+        begin
+          value := aPayload.bb_read_double(aCursor);
+          if fLinkLayers.TryGetValue(fieldInfo, layer) then
+            layer.AddValue(timestamp, value);
+        end;
+      sensordata_linkid:
+        begin
+          id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
+          TMonitor.Enter(fLinkLayers);
+          try
+            for layer in fLinkLayers.Values do
+              layer.AddLinkID(timestamp, id);
+          finally
+            TMonitor.Exit(fLinkLayers);
+          end;
+        end;
     else
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
     end;
@@ -1313,15 +1313,26 @@ function TSesmiProject.CreateSesmiScenario(
 var
   guid: TGUID;
   scenario: TSesmiScenario;
+  palette: TWDPalette;
 begin
   scenario := TSesmiScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView, False);
   TMonitor.Enter(fLinks);
   try
-  for guid in fLinks.Keys do
-    scenario.AddLink(guid, fLinks[guid]);
+    for guid in fLinks.Keys
+    do scenario.AddLink(guid, fLinks[guid]);
   finally
     TMonitor.Exit(fLinks);
   end;
+
+  //AddSesmiLinkLayer(sensordata_no2, 'Personal exposure', 'NO2', 'NO2', 'Personal NO2', palette, BuildLegendJSON(palette));
+
+  // todo: remove when ready tested; should show links but for testing show track also
+  palette := CreateNiekPalette('NO2');
+  scenario.AddLayer(
+    TSesmiMobileSensorLayer.Create(
+      scenario, 'sensor', 'mobilesensor', 'Mobile sensor', 'Mobile sensor',
+      False, True, palette, BuildLegendJSON(palette), nil));
+
   scenarios.Add(aScenarioID, scenario);
   scenario.GoLive(True);
   Result := scenario;
@@ -1443,6 +1454,7 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
       Result := False;
     end;
   end;
+
   function ParseDate(const aParameterValue: string; out aDate: TDateTime) : Boolean;
   var
     day, month, year: string;
@@ -1622,13 +1634,15 @@ end;
 
 function TSesmiProject.ReadScenario(const aID: string): TScenario;
 begin
+  // todo: dependent on project? Utrecht <> Eindhven..
   Result := TSesmiScenario.Create(Self, aID, 'Eindhoven', 'Luchtkwaliteit in Eindhoven - Geen persoonlijke data', false, Self.mapView, False); // todo:
 end;
 
 { TSesmiModule }
 
 constructor TSesmiModule.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aTilerFQDN, aTilerStatusURL: string;
-  aMaxNearestObjectDistanceInMeters: Integer; const aExpertScenarioGUID: TGUID);
+  aMaxNearestObjectDistanceInMeters: Integer; const aExpertScenarioGUID: TGUID;
+  const aProjectName: string; aMapView: TMapView);
 var
   project: TProject;
   dateFormData: string;
@@ -1647,8 +1661,8 @@ begin
             '{"formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Tot en met datum [dd-mm-jjjj]", "idName": "toDate", "extraOptions": {"defaultValue": "28-05-2017"}}'+
             ']';
   //InitPG;
-  project := TSesmiProject.Create(aSessionModel, aConnection, 'Sesmi', 'Fietsproject Eindhoven', aTilerFQDN, aTilerStatusURL,
-    False, dateFormData, aMaxNearestObjectDistanceInMeters, TMapView.Create(51.4475, 5.4808, 13), aExpertScenarioGUID);
+  project := TSesmiProject.Create(aSessionModel, aConnection, 'Sesmi', aProjectName, aTilerFQDN, aTilerStatusURL,
+    False, dateFormData, aMaxNearestObjectDistanceInMeters, aMapView, aExpertScenarioGUID);
   fProjects.Add(project.ProjectID, project);
 end;
 
@@ -1716,7 +1730,8 @@ begin
   geometryPoint.y := aLat;
   AddObject(TGeometryPointLayerObject.Create(Self, wdid, geometryPoint, aValue));
   //Log.WriteLn('ms: '+aLat.ToString()+' x '+aLon.ToString()+': '+aSubstance.ToString()+': '+aValue.ToString());
-  fChart.AddValue(aTimeStamp, [aValue]);
+  if Assigned(fChart)
+  then fChart.AddValue(aTimeStamp, [aValue]);
 //  end
 //  else
 //  begin
@@ -1833,7 +1848,7 @@ begin
   userID := aJSONObject.GetValue<string>('userid');
   if not fProject.scenarios.TryGetValue(scenarioID, scenario) then
   begin
-      scenario := (fProject as TSesmiProject).CreateSesmiScenario(scenarioID);
+    scenario := (fProject as TSesmiProject).CreateSesmiScenario(scenarioID);
   end;
   removeClient(fCurrentScenario);
   fCurrentScenario := scenario;

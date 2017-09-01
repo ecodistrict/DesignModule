@@ -364,8 +364,8 @@ function Chart(graphObject) {
         //data = graphObject.data;
 
         var svg = d3.select(container).append("div")
-        .attr("width", width)
-        .attr("height", height);
+            .attr("width", width)
+            .attr("height", height);
 
         svg.className = "graph-svg";
 
@@ -377,7 +377,7 @@ function Chart(graphObject) {
 
         this.Update();
 
-    }
+    };
     this._UpdatePreview = function () {
         if (this.previewDiv == null || this.graphObject.data == null || this.graphObject.data.length == 0)
             return;
@@ -396,7 +396,7 @@ function Chart(graphObject) {
             }
         });
 
-    }
+    };
     this.GetPreview = function (container) {
 
         var graph = this.graphObject;
@@ -425,8 +425,8 @@ function Chart(graphObject) {
         svgContainer.style.height = DataManager.detailsInfo.chartHeight + "px";
 
         var svg = d3.select(svgContainer).append("svg")
-        .attr("width", DataManager.detailsInfo.chartWidth)
-        .attr("height", DataManager.detailsInfo.chartHeight);
+            .attr("width", DataManager.detailsInfo.chartWidth)
+            .attr("height", DataManager.detailsInfo.chartHeight);
 
         svg.className = "graph-svg-preview";
         graph.preview.container = previewContainer;
@@ -467,7 +467,7 @@ function Chart(graphObject) {
             case 'gauge':
                 graph.preview.chart.internal.config.gauge_label_format = function (value, ratio) {
                     return ''; //returning here the value and not the ratio
-                }
+                };
                 break;
             default:
         }
@@ -475,7 +475,7 @@ function Chart(graphObject) {
 
         this._UpdatePreview();
         container.appendChild(previewContainer);
-    }
+    };
     this.Update = function (data) {
 
         if (data && data.columns)
@@ -512,7 +512,7 @@ function Chart(graphObject) {
         graph.svg.attr("width", width - (marginLeft + marginRight));
         graph.svg.attr("height", height - (marginTop + marginBottom));
         this._UpdatePreview();
-    }
+    };
 
     this._clickEvent = function (e) {
         var graph = e.currentTarget.graph;
@@ -521,21 +521,21 @@ function Chart(graphObject) {
         } else {
             graph._openGraph();
         }
-    }
+    };
     this.ShowGraph = function () {
         this._openGraph();
-    }
+    };
     this.HideGraph = function () {
         this._closeGraph();
-    }
+    };
     this._closeGraph = function () {
         this.visible = false;
-        GraphManager.RemoveGraph(this.graphID)
+        GraphManager.RemoveGraph(this.graphID);
         L.DomUtil.removeClass(this.previewDiv, "chartPreviewActive");
         this.graphObject.chart.internal.config.legend_show = false;
         this.graphObject.chart.legend.show = false;
         this.Update();
-    }
+    };
 
     this._openGraph = function () {
         this.visible = true;
@@ -544,10 +544,10 @@ function Chart(graphObject) {
         L.DomUtil.addClass(this.previewDiv, "chartPreviewActive");
         this.graphObject.chart.internal.config.legend_show = true;
         this.graphObject.chart.legend.show = true;
-    }
+    };
 
     this._resetSize = function () {
-        var changed = false
+        var changed = false;
         if (parseInt(this.graphObject.container.style.width) != this.graphObject.width) {
             this.graphObject.container.style.width = this.graphObject.width + "px";
             changed = true;
@@ -564,7 +564,7 @@ function Chart(graphObject) {
         }
 
         this.Update();
-    }
+    };
 
     this._fillCharts = function (graph) {
         // d3.select(graph.container).select('svg').remove();
@@ -574,5 +574,5 @@ function Chart(graphObject) {
             type: graph.type
         });
 
-    }
+    };
 }

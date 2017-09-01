@@ -225,12 +225,17 @@ var GraphManager = {
         //graphDiv.style.position = "absolute";
         //graphDiv.style.backgroundColor = "rgba(" + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", 1)";
 
+        /*
         if (is_touch_device()) {
-
             graphDiv.addEventListener("touchstart", GraphManager._startDrag);
         } else {
             graphDiv.addEventListener("mousedown", GraphManager._startDrag);
         }
+        */
+
+        graphDiv.addEventListener("touchstart", GraphManager._startDrag);
+        graphDiv.addEventListener("mousedown", GraphManager._startDrag);
+
         graphDiv.graphID = graphObject.id;
 
         var div = graphDiv.appendChild(document.createElement('div'));
@@ -238,6 +243,7 @@ var GraphManager = {
         div.innerHTML = '&#x2715;';
         div.graphID = graphDiv.graphID;
 
+        /*
         if (is_touch_device()) {
             div.addEventListener("touchstart", function (e) {
                 var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
@@ -249,6 +255,15 @@ var GraphManager = {
                 graphDiv.graph._closeGraph();
             });
         }
+        */
+        div.addEventListener("touchstart", function (e) {
+            var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
+            graphDiv.graph._closeGraph();
+        });
+        div.addEventListener("click", function (e) {
+            var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
+            graphDiv.graph._closeGraph();
+        });
         //var infoDiv = graphDiv.appendChild(document.createElement("div"));
         //infoDiv.className = "graph-info";
         //infoDiv.graphID = graphDiv.graphID;
@@ -265,11 +280,15 @@ var GraphManager = {
         var resizeDiv = graphDiv.appendChild(document.createElement("div"));
         resizeDiv.className = "graph-resize";
         resizeDiv.graphID = graphDiv.graphID;
+        /*
         if (is_touch_device()) {
             resizeDiv.addEventListener("touchstart", GraphManager._startGraphResize);
         } else {
             resizeDiv.addEventListener("mousedown", GraphManager._startGraphResize);
         }
+        */
+        resizeDiv.addEventListener("touchstart", GraphManager._startGraphResize);
+        resizeDiv.addEventListener("mousedown", GraphManager._startGraphResize);
 
         //graphObject =
         GraphManager.SetGraphParameters(graphObject);
@@ -391,6 +410,10 @@ var GraphManager = {
                 break;
             case 'gauge':
                 graph = new Chart(graphObject);
+                break;
+
+            case 'table':
+                graph = new TableGraph(graphObject);
                 break;
 
             default: console.log("Graph type not yet supported");
@@ -605,6 +628,8 @@ var GraphManager = {
         if (data == null)
             return;
 
+
+
         var maxX = null
 
         for (var x = 0; x < graph.data.length ; x++) {
@@ -705,7 +730,7 @@ var GraphManager = {
         }
 
         graphDiv.style.opacity = "0.5";
-
+        /*
         if (is_touch_device()) {
             window.addEventListener('touchmove', GraphManager._resizeGraphMove);
             window.addEventListener('touchend', GraphManager._endGraphResize);
@@ -713,6 +738,13 @@ var GraphManager = {
             window.addEventListener("mousemove", GraphManager._resizeGraphMove);
             window.addEventListener("mouseup", GraphManager._endGraphResize);
         }
+        */
+
+        window.addEventListener('touchmove', GraphManager._resizeGraphMove);
+        window.addEventListener('touchend', GraphManager._endGraphResize);
+        window.addEventListener("mousemove", GraphManager._resizeGraphMove);
+        window.addEventListener("mouseup", GraphManager._endGraphResize);
+
         GraphManager.dragObject.resizing = true;
     },
 
@@ -754,7 +786,7 @@ var GraphManager = {
     _endGraphResize: function (e) {
         e.preventDefault();
         e.stopPropagation();
-
+        /*
         if (is_touch_device()) {
             window.removeEventListener("touchmove", GraphManager._resizeGraphMove);
             window.removeEventListener("touchend", GraphManager._endGraphResize);
@@ -762,8 +794,11 @@ var GraphManager = {
             window.removeEventListener("mousemove", GraphManager._resizeGraphMove);
             window.removeEventListener("mouseup", GraphManager._endGraphResize);
         }
-
-
+        */
+        window.removeEventListener("touchmove", GraphManager._resizeGraphMove);
+        window.removeEventListener("touchend", GraphManager._endGraphResize);
+        window.removeEventListener("mousemove", GraphManager._resizeGraphMove);
+        window.removeEventListener("mouseup", GraphManager._endGraphResize);
 
 
         GraphManager.resizeObject.resizeDiv.style.opacity = "1";
@@ -838,6 +873,7 @@ var GraphManager = {
         GraphManager.dragObject.startDivX = parseInt(graphDiv.style[GraphManager.dragObject.hAlign]);
         GraphManager.dragObject.startDivY = parseInt(graphDiv.style[GraphManager.dragObject.vAlign]);
 
+        /*
         if (is_touch_device()) {
             window.addEventListener('touchmove', GraphManager._dragMove);
             window.addEventListener('touchend', GraphManager._endDrag);
@@ -845,6 +881,12 @@ var GraphManager = {
             window.addEventListener("mousemove", GraphManager._dragMove);
             window.addEventListener("mouseup", GraphManager._endDrag);
         }
+        */
+
+        window.addEventListener('touchmove', GraphManager._dragMove);
+        window.addEventListener('touchend', GraphManager._endDrag);
+        window.addEventListener("mousemove", GraphManager._dragMove);
+        window.addEventListener("mouseup", GraphManager._endDrag);
 
         GraphManager.dragObject.dragging = true;
     },
@@ -902,6 +944,7 @@ var GraphManager = {
         GraphManager.dragObject.dragging = false;
         e.preventDefault();
         e.stopPropagation();
+        /*
         if (is_touch_device()) {
             window.removeEventListener('touchmove', GraphManager._dragMove);
             window.removeEventListener('touchend', GraphManager._endDrag);
@@ -909,8 +952,11 @@ var GraphManager = {
             window.removeEventListener("mousemove", GraphManager._dragMove);
             window.removeEventListener("mouseup", GraphManager._endDrag);
         }
-
-
+        */
+        window.removeEventListener('touchmove', GraphManager._dragMove);
+        window.removeEventListener('touchend', GraphManager._endDrag);
+        window.removeEventListener("mousemove", GraphManager._dragMove);
+        window.removeEventListener("mouseup", GraphManager._endDrag);
 
         if (GraphManager.defaultValues.snapping) {
             var snapped = false;

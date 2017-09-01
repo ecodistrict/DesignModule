@@ -150,6 +150,7 @@ namespace WS2IMBSvc
         public static TConnection connection = null;
         public static Dictionary<object, TEventEntry> channelToEvent = new Dictionary<object, TEventEntry>();
         public static Dictionary<object, string> channelToClientType = new Dictionary<object, string>();
+        public static Dictionary<object, string> channelToRemoteAddress = new Dictionary<object, string>();
         public static TEventEntry rootEvent = null;
         const int actionStatus = 4;
 
@@ -255,6 +256,8 @@ namespace WS2IMBSvc
                 channelEvent.unSubscribe();
                 channelEvent.Tag = null;
                 Lookups.channelToEvent.Remove(sender);
+                //Lookups.channelToClientType.Remove(sender);
+                //Lookups.channelToRemoteAddress.Remove(sender);
 
                 lock (Lookups.rootEvent)
                 {
@@ -358,12 +361,14 @@ namespace WS2IMBSvc
                     if (sessionName == null || sessionName == "") sessionName = "unknown";
                     //var remoteAddress = OperationContext.Current.IncomingMessageHeaders.From;
                     var repmp = OperationContext.Current.IncomingMessageProperties[RemoteEndpointMessageProperty.Name] as RemoteEndpointMessageProperty;
+                    var remoteAddress = repmp.Address + ":" + repmp.Port.ToString();
 
                     // signal start of client on session
-                    Debug.WriteLine(DateTime.Now + ": Start of client " + repmp.Address + ":" + repmp.Port.ToString() + " on session: " + sessionName + " (" + channel.SessionId.ToString() + ", " + clientType + ")");
+                    Debug.WriteLine(DateTime.Now + ": Start of client " + remoteAddress + " on session: " + sessionName + " (" + channel.SessionId.ToString() + ", " + clientType + ")");
                     try
                     {
                         Lookups.channelToClientType[channel] = clientType;
+                        Lookups.channelToRemoteAddress[channel] = remoteAddress;
                         var sessionEvent = Lookups.connection.publish(Lookups.RootEventName + "." + sessionName, false);
                         // make sure we have a root event
                         Lookups.HookupRoot();

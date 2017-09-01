@@ -397,6 +397,7 @@ begin
   DisableControl(measuresControl);
   DisableControl(measuresHistoryControl);
   fProjectCurrentScenario := ReadScenario(aStartScenario);
+  EnableControl(modelControl);
 end;
 
 destructor TUSMonitorProject.Destroy;
@@ -422,6 +423,7 @@ begin
   DisableControl(selectControl);
   DisableControl(measuresControl);
   DisableControl(measuresHistoryControl);
+  EnableControl(modelControl);
   fProjectCurrentScenario := ReadScenario(aStartScenario);
 end;
 

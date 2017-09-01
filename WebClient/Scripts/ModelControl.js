@@ -125,10 +125,10 @@
 
         this.DisplaySection("Session Models", table);
         var empty = true;
-        for (var v in this._models) {
-            if (this._models[v].status.toLowerCase() != "idle") {
+        for (var v1 in this._models) {
+            if (this._models[v1].status.toLowerCase() != "idle") {
                 empty = false;
-                this.DisplayModel(this._models[v], table);
+                this.DisplayModel(this._models[v1], table);
             }
         }
         if (empty)
@@ -136,10 +136,10 @@
 
         this.DisplaySection("Idle Models", table);
         empty = true;
-        for (var v in this._models) {
-            if (this._models[v].status.toLowerCase() == "idle") {
+        for (var v2 in this._models) {
+            if (this._models[v2].status.toLowerCase() == "idle") {
                 empty = false;
-                this.DisplayModel(this._models[v], table);
+                this.DisplayModel(this._models[v2], table);
             }
         }
         if (empty)
@@ -260,20 +260,20 @@
         e.preventDefault();
         e.stopPropagation();
 
-        if (typeof (e.clientX) === 'undefined') {
+        if (typeof e.clientX === 'undefined') {
             this.dragInfo = {
                 startX: parseInt(this._modelControl.Div.style.right),
                 startY: parseInt(this._modelControl.Div.style.bottom),
                 mouseX: e.changedTouches[0].clientX,
                 mouseY: e.changedTouches[0].clientY
-            }
+            };
         } else {
             this.dragInfo = {
                 startX: parseInt(this._modelControl.Div.style.right),
                 startY: parseInt(this._modelControl.Div.style.bottom),
                 mouseX: e.clientX,
                 mouseY: e.clientY
-            }
+            };
         }
         if (is_touch_device()) {
             window.addEventListener('touchmove', this.modelControlDragMove);

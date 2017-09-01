@@ -1521,55 +1521,41 @@ begin
         end;
         if localQueue.Count>0 then
         begin
-            newCount := 0;
-            newIDs := '';
-            ChangeCount := 0;
-              for entry in localQueue do
-              try
+          newCount := 0;
+          newIDs := '';
+          ChangeCount := 0;
+          for entry in localQueue do
+          try
+            begin
+              wdid := AnsiString(entry.objectID.ToString);
+              // process entries
+              if entry.action=actionDelete then
+              begin
+                if FindObject(wdid, o)
+                then RemoveObject(o);
+              end
+              else if entry.action=actionNew then
+              begin
+                newCount := newCount+1;
+                if not FindObject(wdid, o) then
                 begin
-                  wdid := AnsiString(entry.objectID.ToString);
-                  // process entries
-                  if entry.action=actionDelete then
-                    begin
-                            if FindObject(wdid, o)
-                            then RemoveObject(o);
-                          end
-                  else if entry.action=actionNew then
-                    begin
-                      newCount := newCount+1;
-                      if not FindObject(wdid, o) then
-                      begin
-                        ChangeStack.Push(entry.objectID.ToString);
-//                          fNewQuery.ParamByName('OBJECT_ID').AsInteger := entry.objectID;
-//                          fNewQuery.Execute;
-//                          if not fNewQuery.Eof
-//                          then AddObject(UpdateObject(fNewQuery, wdid, nil))
-//                          else Log.WriteLn('TUSLayer.handleChangeObject: no result on new object ('+entry.objectID.toString+') query '+fNewQuery.SQL.Text, llWarning);
-                      end;
-                    end
-                  else if entry.action=actionChange then
-                    begin
-                      changeCount := changeCount+1;
-//                      if ((changeCount mod 1000) = 0) then
-//                        Log.WriteLn('Calculating changes...' + changeCount.ToString);
-                      if FindObject(wdid, o) then
-                      begin
-//                          fChangeQuery.ParamByName('OBJECT_ID').AsInteger := entry.objectID;
-//                          fChangeQuery.Execute;
-//                          if not fChangeQuery.Eof then
-//                            begin
-//                              UpdateObject(fChangeQuery, wdid, o);
-//                              signalObject(o);
-//                            end
-                        ChangeStack.Push(entry.objectID.ToString);
-                      end
-                else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+entry.objectID.toString+') query', llWarning);
-                    end;
+                  ChangeStack.Push(entry.objectID.ToString);
                 end;
-              except
+              end
+              else if entry.action=actionChange then
+              begin
+                changeCount := changeCount+1;
+                if FindObject(wdid, o) then
+                begin
+                  ChangeStack.Push(entry.objectID.ToString);
+                end
+                else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+entry.objectID.toString+') query', llWarning);
+              end;
+            end;
+          except
             on e: Exception
             do Log.WriteLn('Exception in handleChangeObject: '+e.Message, llError);
-              end;
+          end;
           //Log.WriteLn('Objects in queue: ' + localQueue.Count.ToString);
           //Log.WriteLn('New Objects: ' + newCount.ToString + ', changed objects: ' + ChangeCount.ToString);
           //ReadMultipleObjects(ChangeStack, oraSession);

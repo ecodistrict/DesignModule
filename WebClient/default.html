@@ -28,6 +28,8 @@
     <link rel="stylesheet" href="Content/select.css" />
     <link rel="stylesheet" href="Content/timeslider.css" />
     <link rel="stylesheet" href="Content/windDirection.css" />
+    <link rel="stylesheet" href="Content/files.css" />
+    <link rel="stylesheet" href="Content/tablegraphs.css" />
 
     <link rel="stylesheet" href="Content/map.css" />
     <link rel="stylesheet" href="Content/ensel.css" />
@@ -43,7 +45,7 @@
     <link rel="stylesheet" href="Content/noUiSlider.css" />
     <link rel="stylesheet" href="Content/nouislider.pips.css" />
     <link rel="stylesheet" href="Content/nouislider.tooltips.css" />
-    <link rel="stylesheet" href="Content/c3.css" />
+    <!--<link rel="stylesheet" href="Content/c3.css" />-->
     <link rel="stylesheet" href="Content/timeRangeSlider.css" />
     <link rel="stylesheet" href="Content/layermanager.css" />
 
@@ -134,6 +136,8 @@
     <script src="Scripts/LayerManager.js"></script>
     <script src="Scripts/ModelControl.js"></script>
     <script src="Scripts/contextManager.js"></script>
+    <script src="Scripts/FileSaver.js"></script>
+    <script src="Scripts/files.js"></script>
     <!-- charts -->
     <script src="Scripts/d3.js"></script>
     <script src="Scripts/c3.js"></script>
@@ -143,6 +147,7 @@
     <script src="Scripts/Graphs/spiderChart.js"></script>
     <script src="Scripts/Graphs/Charts.js"></script>
     <script src="Scripts/Graphs/BarChart.js"></script>
+    <script src="Scripts/Graphs/tablegraphs.js"></script>
     <!-- local scripts -->
     <script>
         wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
@@ -162,9 +167,10 @@
             //session = 'ssm';
             //session = 'ssm2';
             //session = 'sweco';
-            //session = "tud";
+            session = "tud";
             //session = 'dtv';
             //session = 'juno';
+            //session = 'a2';
             //session = '80BD7A788D6B40A4B3608AA95C26E68F'; // us_utrecht2017
             //session = '7435449FACA0425A88E072CAAC549E2B-Design'; // us_ams_2017 Design
             //session = '7435449FACA0425A88E072CAAC549E2B-Monitor'; // us_ams_2017 Monitor
@@ -175,6 +181,8 @@
             //session = '9AADAB9F472D4E1EAA1DE7CE202780AB'; // response production
             //session = '5904DD8ACDD54E15A3A8AA8EA55C0C64'; // response test
             //session = '5904DD8ACDD54E15A3A8AA8EA55C0C64';
+
+            //session = 'OmniTransConnectorA642109';
         }
         var clientType = getParameterByName('clientType', '');
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
@@ -243,29 +251,31 @@
 
         //dateForm
         DataManager.DateFormControl = L.control.dateForm();
-        //DataManager.formData = [{ "formElement": "checkbox", "type": "string", "required": "y", "optionsArray": ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"], "labelText": "Dagen van de week", "idName": "daysSelect", "extraOptions": false },
-        //    {
-        //          "formElement":"slider",
-        //          "type":"int",
-        //          "required":"y",
-        //          "optionsArray":['0', '23'],
-        //          "labelText":"Vanaf (tijd):",
-        //          "idName":"fromHour",
-        //          "extraOptions":[1, 'uur']
-        //    },
-        //    {
-        //        "formElement": "slider",
-        //        "type": "int",
-        //        "required": "y",
-        //        "optionsArray": ['1', '24'],
-        //        "labelText": "Tot (tijd):",
-        //        "idName": "toHour",
-        //        "extraOptions": [1, 'uur']
-        //    },
-        //    { "formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Van datum [dd-mm-jjjj]", "idName": "fromDate", "extraOptions": {defaultValue: "01-05-2017"} },
-        //    { "formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Tot en met datum [dd-mm-jjjj]", "idName": "toDate", "extraOptions": { defaultValue: "28-05-2017" } }
-        //];
-        //map.addControl(DataManager.DateFormControl);
+        /*
+        DataManager.formData = [{ "formElement": "checkbox", "type": "string", "required": "y", "optionsArray": ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"], "labelText": "Dagen van de week", "idName": "daysSelect", "extraOptions": false },
+            {
+                  "formElement":"slider",
+                  "type":"int",
+                  "required":"y",
+                  "optionsArray":['0', '23'],
+                  "labelText":"Vanaf (tijd):",
+                  "idName":"fromHour",
+                  "extraOptions":[1, 'uur']
+            },
+            {
+                "formElement": "slider",
+                "type": "int",
+                "required": "y",
+                "optionsArray": ['1', '24'],
+                "labelText": "Tot (tijd):",
+                "idName": "toHour",
+                "extraOptions": [1, 'uur']
+            },
+            { "formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Van datum [dd-mm-jjjj]", "idName": "fromDate", "extraOptions": {defaultValue: "01-05-2017"} },
+            { "formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Tot en met datum [dd-mm-jjjj]", "idName": "toDate", "extraOptions": { defaultValue: "28-05-2017" } }
+        ];
+        map.addControl(DataManager.DateFormControl);
+        */
 
         //simulation
         var simulationControl = L.control.simulation(); // todo (NK): why pass baseLayers as options?
@@ -336,6 +346,10 @@
         var legendControl = L.control.legend;
         map.addControl(legendControl);
 
+        // files
+        var filesControl = L.control.files();
+        DataManager.filesControl = filesControl;
+        
         // other
 
         // project description
@@ -344,6 +358,18 @@
         map.addControl(projectDescription);
 
         GraphManager.Initialize();
+        
+        // test graph
+        testGraph = {};
+        testGraph.id = 'tg';
+        testGraph.name = 'tg name';
+        testGraph.type = 'table';
+        testGraph.data = { header: { a: 'Option', b: 'Value' }, data: [{ a: 'Heel belangrijke waarde', b: 2.4 }, { a: 'Ook heel belangrijk', b: '7.456 MW' }] };
+
+
+        GraphManager.MakeGraph(testGraph);
+        testGraph.container.graph.ShowGraph();
+        
 
         // link up connection control
         var connectionStatus = document.getElementById('connectionStatus');

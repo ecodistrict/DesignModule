@@ -75,7 +75,9 @@ type
     fSessionModel: TSessionModel;
     fIMBConnection: TConnection; // imb connection to websocket etc.
     fIMBLogger: TIMBLogger;
-    fProject: TProject; // ref
+    fProjectDesign: TProject; // ref
+    fProjectMonitor: TProject; // ref
+    fProjectEvaluate: TProject; // ref
   protected
     procedure HandleException(aConnection: TConnection; aException: Exception);
     procedure HandleDisconnect(aConnection: TConnection);
@@ -97,7 +99,9 @@ constructor TModel.Create;
 begin
   inherited Create('Publishing');
   fIMBLogger := nil;
-  fProject := nil;
+  fProjectDesign := nil;
+  fProjectMonitor := nil;
+  fProjectEvaluate := nil;
   // imb4
   fIMBConnection := TSocketConnection.Create('PublishingServerDME', 2, 'nl.imb', GetSetting(IMB4RemoteHostSwitch, imb4.imbDefaultRemoteHost), GetSetting(IMB4RemotePortSwitch, imb4.imbDefaultRemoteSocketPort));
   fIMBConnection.onException := HandleException;
@@ -108,7 +112,9 @@ end;
 
 destructor TModel.Destroy;
 begin
-  fProject := nil;
+  fProjectDesign := nil;
+  fProjectMonitor := nil;
+  fProjectEvaluate := nil;
   FreeAndNil(fSessionModel);
   FreeAndNil(fIMBLogger);
   FreeAndNil(fIMBConnection);
@@ -195,8 +201,8 @@ end;
 
 procedure TModel.ProgressTimerTick(aTimer: TTimer; aTime: THighResTicks);
 begin
-  // report progress to MC about length of command queue
-  if Assigned(fProject)
+  // report progress to MC about length of command queue (= shared queue)
+  if Assigned(fProjectDesign) // if any project is not null report progress
   then SignalModelProgress(CommandQueueLength); //Connection.UpdateStatus();
 end;
 
@@ -237,7 +243,7 @@ begin
     tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
     setUSProjectID(dbConnection, projectID, mapView.lat, mapView.lon, mapView.zoom); // store project properties in database
 
-    fProject := TUSDesignProject.Create(
+    fProjectDesign := TUSDesignProject.Create(
       fSessionModel, fSessionModel.Connection, connection,
       projectID + '-Design', projectName + '-Design',
       tilerName,
@@ -247,42 +253,42 @@ begin
       mapView,
       preLoadScenarios,
       GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[DesignBaseScenarioIDSwitch].ValueAsString);
-    fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-    fSessionModel.Projects.Add(fProject);
+    fProjectDesign.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+    fSessionModel.Projects.Add(fProjectDesign);
 
-//    dbConnection := TOraSession.Create(nil);
-//    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-//    dbConnection.Open;
-//
-//    fProject := TUSMonitorProject.Create(
-//      fSessionModel, fSessionModel.Connection, connection,
-//      projectID + '-Monitor', projectName + '-Monitor',
-//      tilerName,
-//      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-//      dbConnection.ConnectString,
-//      dbConnection,
-//      mapView,
-//      preLoadScenarios,
-//      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[MonitorBaseScenarioIDSwitch].ValueAsString);
-//    fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-//    fSessionModel.Projects.Add(fProject);
-//
-//    dbConnection := TOraSession.Create(nil);
-//    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-//    dbConnection.Open;
-//
-//    fProject := TUSEvaluateProject.Create(
-//      fSessionModel, fSessionModel.Connection, connection,
-//      projectID + '-Evaluate', projectName + '-Evaluate',
-//      tilerName,
-//      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-//      dbConnection.ConnectString,
-//      dbConnection,
-//      mapView,
-//      preLoadScenarios,
-//      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[EvaluateBaseScenarioIDSwitch].ValueAsString);
-//    fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-//    fSessionModel.Projects.Add(fProject);
+    dbConnection := TOraSession.Create(nil);
+    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
+    dbConnection.Open;
+
+    fProjectMonitor := TUSMonitorProject.Create(
+      fSessionModel, fSessionModel.Connection, connection,
+      projectID + '-Monitor', projectName + '-Monitor',
+      tilerName,
+      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+      dbConnection.ConnectString,
+      dbConnection,
+      mapView,
+      preLoadScenarios,
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[MonitorBaseScenarioIDSwitch].ValueAsString);
+    fProjectMonitor.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+    fSessionModel.Projects.Add(fProjectMonitor);
+
+    dbConnection := TOraSession.Create(nil);
+    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
+    dbConnection.Open;
+
+    fProjectEvaluate := TUSEvaluateProject.Create(
+      fSessionModel, fSessionModel.Connection, connection,
+      projectID + '-Evaluate', projectName + '-Evaluate',
+      tilerName,
+      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+      dbConnection.ConnectString,
+      dbConnection,
+      mapView,
+      preLoadScenarios,
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[EvaluateBaseScenarioIDSwitch].ValueAsString);
+    fProjectEvaluate.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+    fSessionModel.Projects.Add(fProjectEvaluate);
 
     // todo: relink existing clients
 
@@ -302,7 +308,9 @@ end;
 procedure TModel.StopModel;
 begin
   try
-    fProject := nil;
+    fProjectDesign := nil;
+    fProjectMonitor := nil;
+    fProjectEvaluate := nil;
     FreeAndNil(fIMBLogger);
     // erase recovery section to NOT start in recovery mode next time
     //StandardIni.EraseSection(RecoverySection);

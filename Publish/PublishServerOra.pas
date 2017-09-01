@@ -10,8 +10,9 @@ uses
   WorldDataCode,
   SysUtils;
 
-
 function ConnectStringFromSession(aOraSession: TOraSession): string;
+
+function TablePrefixFromFederation(const aFederation: string): string;
 
 function CreateWDGeometryFromSDOShape(aQuery: TOraQuery; const aFieldName: string): TWDGeometry;
 function CreateWDGeometryPointFromSDOShape(aQuery: TOraQuery; const aFieldName: string): TWDGeometryPoint;
@@ -23,6 +24,16 @@ function ConnectStringFromSession(aOraSession: TOraSession): string;
 begin
   with aOraSession
   do Result := userName+'/'+password+'@'+server;
+end;
+
+function TablePrefixFromFederation(const aFederation: string): string;
+var
+  s: TArray<string>;
+begin
+  s := aFederation.Split(['#']);
+  if length(s)>1
+  then Result := s[1]+'#'
+  else Result := '';
 end;
 
 function CreateWDGeometryFromSDOShape(aQuery: TOraQuery; const aFieldName: string): TWDGeometry;

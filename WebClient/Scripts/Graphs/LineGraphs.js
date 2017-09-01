@@ -14,8 +14,8 @@ function LineBottomLeft(graphObject) {
         //var svgHolder = container.appendChild(document.createElement('div'));
 
         var svg = d3.select(container).append("svg")
-        .attr("width", width)
-        .attr("height", height);
+            .attr("width", width)
+            .attr("height", height);
         //.on(click, this.onsvgclick);
 
         svg.className = "graph-svg";
@@ -31,35 +31,35 @@ function LineBottomLeft(graphObject) {
 
         if (typeof this.graphObject.name !== "undefined") {
             text = svg.append("text")
-            .attr("x", (width / 2))
-            .attr("y", marginTop)
-            .attr("dy", 20 - GraphManager.defaultValues.graphPadding.top)
-            .attr("text-anchor", "middle")
-            .attr("pointer-events", "none")
-            .attr("class", "graph-title-text")
-            .style("font-size", "16px")
-            .text(this.graphObject.name);
+                .attr("x", width / 2)
+                .attr("y", marginTop)
+                .attr("dy", 20 - GraphManager.defaultValues.graphPadding.top)
+                .attr("text-anchor", "middle")
+                .attr("pointer-events", "none")
+                .attr("class", "graph-title-text")
+                .style("font-size", "16px")
+                .text(this.graphObject.name);
         }
 
         //generate x axis;
         var axisX = svg.append("g")
-        .attr("class", "axis xAxis");
+            .attr("class", "axis xAxis");
         this.graphObject.axisX = axisX;
         if (this.graphObject.x.label != "") {
             var axisXLabel = svg.append("text")
-            .attr("class", "axisLabel xAxisLabel")
-            .text(this.graphObject.x.label);
+                .attr("class", "axisLabel xAxisLabel")
+                .text(this.graphObject.x.label);
             this.graphObject.axisXLabel = axisXLabel;
         }
 
         //generate y axis
         var axisY = svg.append("g")
-        .attr("class", "axis yAxis");
+            .attr("class", "axis yAxis");
         this.graphObject.axisY = axisY;
         if (this.graphObject.y[0].label != "") { //todo check to see if there are different labels -> label lines instead of axis!
             var axisYLabel = svg.append("text")
-            .attr("class", "axisLabel yAxisLabel")
-            .text(this.graphObject.y[0].label);
+                .attr("class", "axisLabel yAxisLabel")
+                .text(this.graphObject.y[0].label);
             this.graphObject.axisYLabel = axisYLabel;
         }
 
@@ -85,7 +85,7 @@ function LineBottomLeft(graphObject) {
         container.style.visibility = "hidden";
         container.graph = this;
         this.Update();
-    }
+    };
 
     this.Reset = function () {
         this.graphObject.data = [];
@@ -95,7 +95,7 @@ function LineBottomLeft(graphObject) {
             this.graphObject.displayData.push([]);
         }
         this.Update();
-    }
+    };
 
     this.onsvgclick = function (e) {
         var xScale = this.graphObject.Scales.x;
@@ -201,21 +201,21 @@ function LineBottomLeft(graphObject) {
         graph.preview.lineG.selectAll("path").remove();
 
         var lineFunction = d3.svg.line()
-                .defined(function (d) { return d; })
-                .x(function (d) { return xScale(d.x.GetDisplayValue()); }) //d.x.GetDisplayValue()
-                .y(function (d) { return yScale(d.y.GetDisplayValue()); }) //d.y.GetDisplayValue()
-        .interpolate(graph.interpolation);
+            .defined(function (d) { return d; })
+            .x(function (d) { return xScale(d.x.GetDisplayValue()); }) //d.x.GetDisplayValue()
+            .y(function (d) { return yScale(d.y.GetDisplayValue()); }) //d.y.GetDisplayValue()
+            .interpolate(graph.interpolation);
 
-        for (var i = 0; i < graph.y.length; i++) {
+        for (var g = 0; g < graph.y.length; g++) {
 
             graph.preview.lineG.append("path")
-            .attr("d", lineFunction(graph.displayData[i]))
-            .attr("class", "graphLine")
-            .attr("stroke", graph.y[i].color)
-            .attr('stroke-width', 2)
-            .attr("fill", "none");
+                .attr("d", lineFunction(graph.displayData[g]))
+                .attr("class", "graphLine")
+                .attr("stroke", graph.y[g].color)
+                .attr('stroke-width', 2)
+                .attr("fill", "none");
         }
-    }
+    };
 
     this.GetPreview = function (container) {
 
@@ -246,8 +246,8 @@ function LineBottomLeft(graphObject) {
         svgContainer.style.height = DataManager.detailsInfo.chartHeight + "px";
 
         var svg = d3.select(svgContainer).append("svg")
-        .attr("width", DataManager.detailsInfo.chartWidth)
-        .attr("height", DataManager.detailsInfo.chartHeight);
+            .attr("width", DataManager.detailsInfo.chartWidth)
+            .attr("height", DataManager.detailsInfo.chartHeight);
 
         svg.className = "graph-svg-preview";
 
@@ -260,7 +260,7 @@ function LineBottomLeft(graphObject) {
 
         this._UpdatePreview();
 
-    }
+    };
     this.Update = function (data) {
         var graph = this.graphObject;
 
@@ -273,7 +273,7 @@ function LineBottomLeft(graphObject) {
         var marginLeft = GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.axisMargin.y;
         var marginTop = GraphManager.defaultValues.graphPadding.top;
         var marginRight = GraphManager.defaultValues.graphPadding.right;
-        var marginBottom = GraphManager.defaultValues.graphPadding.bottom + GraphManager.defaultValues.axisMargin.x;;
+        var marginBottom = GraphManager.defaultValues.graphPadding.bottom + GraphManager.defaultValues.axisMargin.x;
 
 
         graph.axisX.attr("transform", "translate(" + 0 + ", " + (height - marginBottom) + ")");
@@ -285,14 +285,14 @@ function LineBottomLeft(graphObject) {
             var yTransform = height - (marginBottom + GraphManager.defaultValues.axisTextPadding);
 
             graph.axisXLabel.attr("text-anchor", "end");
-            graph.axisXLabel.attr("x", (width - marginRight));
+            graph.axisXLabel.attr("x", width - marginRight);
             graph.axisXLabel.attr("y", yTransform);
         }
         if (typeof graph.axisYLabel !== "undefined") {
             var xTransform = marginLeft + GraphManager.defaultValues.axisTextPadding;
             var rotation = 90;
 
-            graph.axisYLabel.attr("text-anchor", "start")
+            graph.axisYLabel.attr("text-anchor", "start");
             graph.axisYLabel.attr("x", xTransform);
             graph.axisYLabel.attr("y", marginTop);
             graph.axisYLabel.attr("transform", "rotate(" + rotation + "," + xTransform + "," + marginTop + ")");
@@ -302,7 +302,7 @@ function LineBottomLeft(graphObject) {
         graph.svg.attr("height", height);
 
         if (graph.text != null)
-            graph.text.attr("x", (width / 2));
+            graph.text.attr("x", width / 2);
 
         //gets the data to display
         var displayData = graph.displayData;
@@ -325,37 +325,38 @@ function LineBottomLeft(graphObject) {
                 if (p)
                     return p.x.GetDisplayValue();
                 return null;
-            })
+            });
         }) : graph.minX;
         var maxX = (typeof graph.maxX === "undefined") ? d3.max(displayData, function (d) {
             return d3.max(d, function (p) {
                 if (p)
                     return p.x.GetDisplayValue();
                 return null;
-            })
+            });
         }) : graph.maxX;
         var minY = (typeof graph.minY === "undefined") ? d3.min(displayData, function (d) {
             return d3.min(d, function (p) {
                 if (p)
                     return p.y.GetDisplayValue();
                 return null;
-            })
+            });
         }) : graph.minY;
         var maxY = (typeof graph.maxY === "undefined") ? d3.max(displayData, function (d) {
             return d3.max(d, function (p) {
                 if (p)
                     return p.y.GetDisplayValue();
                 return null;
-            })
+            });
         }) : graph.maxY;
 
 
         if (graph.holdminmax) {
-            if (typeof graph.holdvalues === "undefined") //todo fix possible missed values when new data.length > maxPoints
+            if (typeof graph.holdvalues === "undefined") { //todo fix possible missed values when new data.length > maxPoints
                 graph.holdvalues = {
                     minY: minY,
                     maxY: maxY
-                }
+                };
+            }
             else {
                 minY = (minY > graph.holdvalues.minY) ? graph.holdvalues.minY : minY;
                 maxY = (maxY < graph.holdvalues.maxY) ? graph.holdvalues.maxY : maxY;
@@ -376,7 +377,7 @@ function LineBottomLeft(graphObject) {
             maxX: maxX,
             minY: minY,
             maxY: maxY
-        }
+        };
 
         var xScale;
         var yScale;
@@ -427,14 +428,14 @@ function LineBottomLeft(graphObject) {
         });
 
         var lineFunction = d3.svg.line()
-                .defined(function (d) { return d; })
-        .x(function (d) {
-            return xScale(d.x.GetDisplayValue()); //d.x.GetDisplayValue()
-        })
-        .y(function (d) {
-            return yScale(d.y.GetDisplayValue()); //d.y.GetDisplayValue()
-        })
-        .interpolate(graph.interpolation);
+            .defined(function (d) { return d; })
+            .x(function (d) {
+                return xScale(d.x.GetDisplayValue()); //d.x.GetDisplayValue()
+            })
+            .y(function (d) {
+                return yScale(d.y.GetDisplayValue()); //d.y.GetDisplayValue()
+            })
+            .interpolate(graph.interpolation);
 
         for (var i = 0; i < graph.y.length; i++) {
             var name;
@@ -445,47 +446,49 @@ function LineBottomLeft(graphObject) {
             }
 
             graph.lineG.append("path")
-            .attr("d", lineFunction(displayData[i]))
-            .attr("class", "graphLine")
-            .attr("stroke", graph.y[i].color)
-            .attr("stroke-width", 3)
-            .attr("fill", "none")
-            .attr("name", name);
+                .attr("d", lineFunction(displayData[i]))
+                .attr("class", "graphLine")
+                .attr("stroke", graph.y[i].color)
+                .attr("stroke-width", 3)
+                .attr("fill", "none")
+                .attr("name", name);
 
         }
 
         d3.select(graph.container).select('svg').select('g').selectAll('path').on('mousemove', mMove);
         function mMove() {
+            var tooltipContainer;
+            var tooltip;
             if (d3.select('.tooltipcontainer').empty()) {
-                var tooltipContainer = d3.select(graph.container).select('svg').select('g').append("rect").attr("class", "tooltipcontainer").style("opacity", 1);
-                var tooltip = d3.select(graph.container).select('svg').select('g').append("text").attr("class", "tooltip").style("opacity", 1);
+                tooltipContainer = d3.select(graph.container).select('svg').select('g').append("rect").attr("class", "tooltipcontainer").style("opacity", 1);
+                tooltip = d3.select(graph.container).select('svg').select('g').append("text").attr("class", "tooltip").style("opacity", 1);
             } else {
-                var tooltipContainer = d3.select('.tooltipcontainer');
-                var tooltip = d3.select('.tooltip');
+                tooltipContainer = d3.select('.tooltipcontainer');
+                tooltip = d3.select('.tooltip');
             }
             var m = d3.mouse(this);
             tooltip
-            .attr('x', event.offsetX)
-            .attr('y', event.offsetY)
-            .style("fill", "#fff")
-            .style("font-size", "10px")
-            .text(this.attributes.name.value)
-            .style('cursor', 'pointer')
-            .style("text-anchor", "end");
+                .attr('x', event.offsetX)
+                .attr('y', event.offsetY)
+                .style("fill", "#fff")
+                .style("font-size", "10px")
+                .text(this.attributes.name.value)
+                .style('cursor', 'pointer')
+                .style("text-anchor", "end");
             tooltipContainer
-            .style('opacity', 1)
-            .style('border-radius', '5')
-            .style("fill", this.attributes.stroke.value)
-            .attr('width', tooltip[0][0].getBoundingClientRect().width + 20)
-            .attr('height', tooltip[0][0].getBoundingClientRect().height + 8)
-            .attr('x', event.offsetX - (tooltip[0][0].getBoundingClientRect().width + 10))
-            .attr('y', event.offsetY - (tooltip[0][0].getBoundingClientRect().height));
+                .style('opacity', 1)
+                .style('border-radius', '5')
+                .style("fill", this.attributes.stroke.value)
+                .attr('width', tooltip[0][0].getBoundingClientRect().width + 20)
+                .attr('height', tooltip[0][0].getBoundingClientRect().height + 8)
+                .attr('x', event.offsetX - (tooltip[0][0].getBoundingClientRect().width + 10))
+                .attr('y', event.offsetY - tooltip[0][0].getBoundingClientRect().height);
 
         }
 
 
         this._UpdatePreview();
-    }
+    };
 
     this._clickEvent = function (e) {
         var graph = e.currentTarget.graph;
@@ -496,31 +499,31 @@ function LineBottomLeft(graphObject) {
         else {
             graph._openGraph();
         }
-    }
+    };
 
     this.ShowGraph = function () {
         this._openGraph();
-    }
+    };
 
     this.HideGraph = function () {
         this._closeGraph();
-    }
+    };
 
     this._closeGraph = function () {
         this.visible = false;
-        GraphManager.RemoveGraph(this.graphID)
+        GraphManager.RemoveGraph(this.graphID);
         L.DomUtil.removeClass(this.previewDiv, "chartPreviewActive");
-    }
+    };
 
     this._openGraph = function () {
         this.visible = true;
         this._resetSize();
         GraphManager.AddGraph(this.graphObject.container);
         L.DomUtil.addClass(this.previewDiv, "chartPreviewActive");
-    }
+    };
 
     this._resetSize = function () {
-        var changed = false
+        var changed = false;
         if (parseInt(this.graphObject.container.style.width) != this.graphObject.width) {
             this.graphObject.container.style.width = this.graphObject.width + "px";
             changed = true;
@@ -532,5 +535,5 @@ function LineBottomLeft(graphObject) {
 
         if (changed)
             this.Update();
-    }
+    };
 }

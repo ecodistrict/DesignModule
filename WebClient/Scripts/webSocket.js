@@ -275,6 +275,17 @@ var wsLookup = {
             }
         }
 
+        if (typeof payload.filesControlEnabled !== "undefined") {
+            if (payload.filesControlEnabled) {
+                map.addControl(DataManager.filesControl);
+                InfoTextControl['leaflet-control-files'] = { description: 'Upload/download files', active: true, iconPosition: 'right' };
+            }
+            else {
+                map.removeControl(DataManager.filesControl);
+                InfoTextControl['leaflet-control-files'] = { active: false };
+            }
+        }
+
         // basic controls
         InfoTextControl['leaflet-control-zoom'] = { description: 'Zoom', active: true, iconPosition: 'right' };
         InfoTextControl['leaflet-control-layers-toggle'] = { description: 'Selecteer de basis kaart', active: true, iconPosition: 'left' };
@@ -387,6 +398,9 @@ var wsLookup = {
     },
     timerangeslider: function (payload) {
         DataManager.NewRangeTimeSliderData(payload);
+    },
+    fileDownload: function (payload) {
+        DataManager.filesControl.HandleFileDownloadMessage(payload);
     }
 };
 
@@ -415,6 +429,7 @@ function wsConnect() {
 
             //check if message is of the new type, if so direct call otherwise
             if (typeof message.type !== "undefined") {
+                // { type: "type", payload: xx }
                 if (typeof wsLookup[message.type] !== "undefined") //only access functions that are defined!
                     wsLookup[message.type](message.payload);
             }

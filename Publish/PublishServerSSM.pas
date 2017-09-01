@@ -1088,6 +1088,7 @@ begin
       [TChartAxis.Create('kg NO2/h', 'lightBlue', 'Mass rate', 'kg/h')]);
   AddChart(fAirSSMEmissionsChartFraction);
 
+  // todo: lucie
   //only for testing for now
 //  fSafetyKPIChart := TChartLines.Create(Self, 'Safety', 'sfty', 'Safety Value', '', false, 'line',
 //      TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
@@ -1107,6 +1108,7 @@ begin
   fAirSSMEmissionsEvent := (project as TMCProject).controlInterface.Connection.Subscribe(aID+'.Air_ssm_emissions');
   fAirSSMEmissionsEvent.OnNormalEvent := HandleAirSSMEmissions;
 
+  // todo: lucie
 //  fSafetyKPIEvent := (project as TMCProject).controlInterface.Connection.Subscribe(aID+'.SurrogateSafetyKPI');
 //  fSafetyKPIEvent.OnNormalEvent := HandleSafetyKPI;
   EnableControl(startstopControl);
@@ -1785,6 +1787,7 @@ begin
 
   EnableControl(presenterViewerControl);
   EnableControl(modelControl);
+  EnableControl(filesControl);
 end;
 
 function TSSMProject.createSSMScenario(const aID, aName, aDescription: string; aUseSimulationSetup, aRecorded: Boolean): TSSMScenario;
@@ -2161,6 +2164,8 @@ begin
   payload.Clear();
   payload.Write(fPrivateEvent.EventName);
   fRecordingsEvent.SignalEvent(ekNormalEvent, payload);
+
+  //scenario.AddChart(TTableChart.Create(scenario, 'domain', 'id', 'name', 'description', true, 'table'));
 end;
 
 end.
