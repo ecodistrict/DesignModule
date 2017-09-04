@@ -18,6 +18,7 @@ uses
   PublishServerGIS,
   PublishServerSSM,
 
+  System.Classes,
   System.SysUtils;
 
 procedure HandleException(aConnection: TConnection; aException: Exception);
@@ -30,6 +31,19 @@ begin
   Log.WriteLn('DISCONNECT from IMB4 connection', llWarning);
 end;
 
+
+(*procedure sendFileEen(aProject: TProject; aClient: TClient; const aName: string);
+var
+  stream: TFileStream;
+begin
+  stream := TFileStream.Create('C:\Temp\Ecodistrict Bart L uploads\5e henk TDBP_14122016_PGN_GeoJSON2.csv', fmOpenRead);
+  try
+    aCLient.SendDownloadableFileStream({aName, }ExtractFileName(stream.FileName), stream);
+  finally
+    stream.Free;
+  end;
+end;
+*)
 
 var
   imbConnection: TConnection;
@@ -296,6 +310,9 @@ begin
           'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde',
           'V6'); //todo: correct US-prefix
         sessionModel.Projects.Add(project);
+
+//        project.addDownloadableFile('file een', sendFileEen);
+//        project.addDownloadableFile('file twee', nil);
 
         //aimsum
         simParameters := TSSMSimulationParameterList.Create;
