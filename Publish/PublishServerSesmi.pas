@@ -18,7 +18,7 @@ uses
   PublishServerLib,
   PublishServerGIS,
 
-  GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
+  GisCsSystems,
 
   System.Classes,
   System.JSON,
@@ -1571,7 +1571,7 @@ begin
     begin
       geometry := TWDGeometry.Create;
       len := aPayload.bb_read_uint64(aCursor);
-      geometry.Decode(aPayload, aCursor, aCursor + len);
+      geometry.Decode(aPayload, aCursor, aCursor + Integer(len));
       TMonitor.Enter(scenarios);
       try
       begin

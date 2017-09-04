@@ -32,7 +32,9 @@ uses
 
   Vcl.graphics, // TPicture
 
-  GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
+  //GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
+  GisTypes,
+  GisCsSystems,
 
   WinApi.Windows,
   System.SyncObjs,
@@ -1490,9 +1492,9 @@ var
   localQueue: TList<TUSUpdateQueueEntry>;
   tempQueue: TList<TUSUpdateQueueEntry>;
   entry: TUSUpdateQueueEntry;
-  newCount: Integer;
+//  newCount: Integer;
   newIDs: string;
-  ChangeCount: Integer;
+//  ChangeCount: Integer;
   ChangeStack: TStack<string>;
   ChangeString: string;
   i: Integer;
@@ -1521,9 +1523,9 @@ begin
         end;
         if localQueue.Count>0 then
         begin
-          newCount := 0;
+//          newCount := 0;
           newIDs := '';
-          ChangeCount := 0;
+//          ChangeCount := 0;
           for entry in localQueue do
           try
             begin
@@ -1536,7 +1538,7 @@ begin
               end
               else if entry.action=actionNew then
               begin
-                newCount := newCount+1;
+//                newCount := newCount+1;
                 if not FindObject(wdid, o) then
                 begin
                   ChangeStack.Push(entry.objectID.ToString);
@@ -1544,7 +1546,7 @@ begin
               end
               else if entry.action=actionChange then
               begin
-                changeCount := changeCount+1;
+//                changeCount := changeCount+1;
                 if FindObject(wdid, o) then
                 begin
                   ChangeStack.Push(entry.objectID.ToString);

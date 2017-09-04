@@ -12,7 +12,7 @@ uses
   // geometries
   WorldDataCode, // world
   Points2D, Polygons, // effects
-  GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector, // tatuk
+  //GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector, // tatuk
   ProjectionLib,
 
   // weather

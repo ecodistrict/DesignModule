@@ -16,7 +16,9 @@ uses
   PublishServerLib,
   PublishServerGIS,
 
-  GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
+  //GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
+  GisTypes,
+  GisCsSystems,
 
   System.Classes,
   System.JSON,

@@ -10,7 +10,10 @@ uses
   Data.DB,
   StdIni,
 
-  GisDefs, GisCsSystems,
+  //GisDefs, GisCsSystems,
+  GisTypes,
+  GisCsSystems,
+
   TimerPool,
   PublishServerLib,
   ModelControllerLib,
@@ -26,6 +29,7 @@ uses
   WinApi.Windows,
 
   System.JSON,
+  system.variants,
   System.Generics.Collections, System.Generics.Defaults,
   System.SysUtils, System.Classes;
 
@@ -280,11 +284,11 @@ type
   constructor Create(aClient: TClient; aScenario: TSSMScenario; aSimulationParameters: TSSMSimulationParameterList);
   destructor Destroy; override;
   private
-    fClient: TClient; // ref
+    //fClient: TClient; // ref
     fScenario: TSSMScenario; //  ref
     fSimParams: TSSMSimulationParameterList; // owned!
   public
-    property client: TClient read fClient;
+    //property client: TClient read fClient;
     property scenario: TSSMScenario read fScenario;
     property simParams: TSSMSimulationParameterList read fSimParams;
   end;
@@ -1585,7 +1589,7 @@ begin
   then Result := Boolean(value<>'false')
   else if _type='string'
   then Result := value
-  else Result := NullVar;
+  else Result := system.variants.null;
 end;
 
 { TSSMSimulationParameterList }
@@ -1628,7 +1632,7 @@ end;
 
 constructor THandleSimulationTask.Create(aClient: TClient; aScenario: TSSMScenario; aSimulationParameters: TSSMSimulationParameterList);
 begin
-  fClient := aClient;
+  //fClient := aClient;
   fScenario := aScenario;
   fSimParams := aSimulationParameters;
 end;
@@ -1995,7 +1999,7 @@ end;
 
 procedure TSSMProject.handleSetupSimulation(aSender: TObject);
 var
-  _client: TClient;
+//  _client: TClient;
   _scenario: TSSMScenario;
   _simParams: TSSMSimulationParameterList;
   sp: TSSMSimulationParameter;
@@ -2010,13 +2014,8 @@ var
   index: Integer;
 begin
   try
-    //_client := aSender as TClient;
-    with aSender as THandleSimulationTask do
-    begin
-      _client := client;
-      _scenario := scenario;
-      _simParams := simParams;
-    end;
+    _scenario := (aSender as THandleSimulationTask).scenario;
+    _simParams := (aSender as THandleSimulationTask).simParams;
 
     // todo: switch to correct prefix
     if _simParams.ContainsKey('datasource')

@@ -58,7 +58,7 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
-        <DCC_UnitSearchPath>imb;logger;odac;avl;delaunay;oracleTools;tatukGIS;tatukGIS\Lib;us;..\TilerServer;world;imb3;mc;publisher-core;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>imb;logger;odac;avl;delaunay;oracleTools;us;..\TilerServer;world;imb3;mc;publisher-core;TatukGIS_11\$(Platform);TatukGIS_11\License;TatukGIS_11\Resources;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Locale>1043</VerInfo_Locale>
         <DCC_Define>NONET;GIS_NODB;$(DCC_Define)</DCC_Define>
@@ -76,14 +76,12 @@
         <DCC_ConsoleTarget>true</DCC_ConsoleTarget>
         <Manifest_File>None</Manifest_File>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <DCC_UnitSearchPath>tatukGIS\LibSrc\DX10.1\VCL\WIN32;tatukGIS\Lib\DX10.1\VCL\WIN32;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_UsePackage>DBXSqliteDriver;IndyIPCommon;RESTComponents;DBXInterBaseDriver;vcl;IndyIPServer;vclactnband;TeeImage923;vclFireDAC;IndySystem;TeeUI923;TeeImport923;TeeDB923;tethering;TeeLanguage923;FireDACADSDriver;FireDACMSAccDriver;fmxFireDAC;vclimg;Jcl;FireDAC;vcltouch;JvCore;JvBands;vcldb;FireDACSqliteDriver;FireDACPgDriver;FireDACASADriver;FMXTee;DbxCommonDriver;FmxTeeUI;FireDACIBDriver;fmx;fmxdae;xmlrtl;fmxobj;vclwinx;TeePro923;rtl;TeeGL923;Tee923;dbexpress;IndyCore;vclx;appanalytics;dsnap;TeeWorld923;JvPageComps;FireDACCommon;IndyIPClient;RESTBackendComponents;VCLRESTComponents;vclribbon;adortl;FireDACODBCDriver;JvDocking;JclVcl;vclie;DBXMySQLDriver;dsnapxml;FireDACMySQLDriver;dbrtl;IndyProtocols;FireDACCommonDriver;fmxase;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UnitSearchPath>tatukGIS\LibSrc\DX10.1\VCL\WIN64;tatukGIS\Lib\DX10.1\VCL\WIN64;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <Manifest_File>None</Manifest_File>
         <DCC_ConsoleTarget>true</DCC_ConsoleTarget>
         <DCC_UsePackage>DBXSqliteDriver;IndyIPCommon;RESTComponents;DBXInterBaseDriver;vcl;IndyIPServer;vclactnband;vclFireDAC;IndySystem;tethering;FireDACADSDriver;FireDACMSAccDriver;fmxFireDAC;vclimg;FireDAC;vcltouch;vcldb;FireDACSqliteDriver;FireDACPgDriver;FireDACASADriver;FMXTee;DbxCommonDriver;FmxTeeUI;FireDACIBDriver;fmx;fmxdae;xmlrtl;fmxobj;vclwinx;rtl;dbexpress;IndyCore;vclx;appanalytics;dsnap;FireDACCommon;IndyIPClient;RESTBackendComponents;VCLRESTComponents;vclribbon;adortl;FireDACODBCDriver;vclie;DBXMySQLDriver;dsnapxml;FireDACMySQLDriver;dbrtl;IndyProtocols;FireDACCommonDriver;fmxase;$(DCC_UsePackage)</DCC_UsePackage>
@@ -140,8 +138,8 @@
                     <Source Name="MainSource">PublishServerMC.dpr</Source>
                 </Source>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k240.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp240.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">
