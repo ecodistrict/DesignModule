@@ -1567,33 +1567,32 @@ begin
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
     case fieldInfo of
-    (icehTilerGeometry shl 3) or wtLengthDelimited:
-    begin
-      geometry := TWDGeometry.Create;
-      len := aPayload.bb_read_uint64(aCursor);
-      geometry.Decode(aPayload, aCursor, aCursor + Integer(len));
-      TMonitor.Enter(scenarios);
-      try
-      begin
-        for scenario in scenarios.Values do
-          if scenario is TSesmiScenario then
-            (scenario as TSesmiScenario).AddLink(guid, geometry);
-      end;
-      finally
-        TMonitor.Exit(scenarios);
-      end;
-      TMonitor.Enter(fLinks);
-      try
-        fLinks.Add(guid, geometry);
-      finally
-        TMonitor.Exit(fLinks);
-      end;
-
-    end;
-    (icehObjectID shl 3) or wtLengthDelimited:
-    begin
-      guid := aPayload.bb_read_guid(aCursor);
-    end;
+      (icehTilerGeometry shl 3) or wtLengthDelimited:
+        begin
+          geometry := TWDGeometry.Create;
+          len := aPayload.bb_read_uint64(aCursor);
+          geometry.Decode(aPayload, aCursor, aCursor + Integer(len));
+          TMonitor.Enter(scenarios);
+          try
+            begin
+              for scenario in scenarios.Values do
+                if scenario is TSesmiScenario then
+                  (scenario as TSesmiScenario).AddLink(guid, geometry);
+            end;
+          finally
+            TMonitor.Exit(scenarios);
+          end;
+          TMonitor.Enter(fLinks);
+          try
+            fLinks.Add(guid, geometry);
+          finally
+            TMonitor.Exit(fLinks);
+          end;
+        end;
+      (icehObjectID shl 3) or wtLengthDelimited:
+        begin
+          guid := aPayload.bb_read_guid(aCursor);
+        end;
     else
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
     end;
@@ -1690,9 +1689,9 @@ begin
   fPrivateDataEvent := scenario.project.connection.Subscribe(scenario.project.Connection.privateEventName+'.'+'mobilesensordata', false);
   fPrivateDataEvent.OnEvent.Add(fDataEventHandler);
   // inquire
-  fDataEvent.signalEvent(
-    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateDataEvent.eventName)+
-    TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, 'ORDER BY ts')); //'ts>=42700 ORDER BY ts'));
+//  fDataEvent.signalEvent(
+//    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateDataEvent.eventName)+
+//    TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, ''));
 end;
 
 destructor TSesmiMobileSensorLayer.Destroy;
@@ -1765,9 +1764,9 @@ begin
         fLastLat := aPayload.bb_read_double(aCursor);
       sensordata_no2:
         begin
+          no2 := aPayload.bb_read_double(aCursor);
           if ((fScenario.project is TSesmiProject) and (fScenario is TSesmiScenario) and ((fScenario.project as TSesmiProject).ExpertScenarioGUID = (fScenario as TSesmiScenario).fGUID)) or (objectID.ToString = fScenario.ID) then //check if we need to add this point
           begin
-            no2 := aPayload.bb_read_double(aCursor);
             if (fLastLat<>0) and (fLastLon<>0)
             then AddPoint(objectID, timestamp, fLastLat, fLastLon, sensordata_no2, no2);
             // todo: ignoring values on 0,0 for now
@@ -1881,7 +1880,7 @@ begin
   end
   else //add to list so we can match later
   begin
-    linkidList.Add(aTimeStamp, aID);
+    linkidList.AddOrSetValue(aTimeStamp, aID);
   end;
 end;
 
