@@ -139,7 +139,7 @@ type
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
   end;
-  {
+{
   TSesmiTrackLayer  = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean);
   private
@@ -155,7 +155,7 @@ type
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
   end;
-  }
+ }
   TSesmiMobileSensorLayer  = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
   destructor Destroy; override;
@@ -806,7 +806,6 @@ begin
     if iop.Value is TSVGCircleLayerObject then
     begin
       sclo := iop.Value as TSVGCircleLayerObject;
-      {
       if _json<>''
       then _json  := _json+',';
       _json  := _json+
@@ -815,7 +814,6 @@ begin
            '"lng":'+DoubleToJSON(car.latlon.x)+','+
            '"lat":'+DoubleToJSON(car.latlon.y)+','+
            '"fillColor":"'+ColorToJSON(car.baseColor)+'"}}';
-      }
     end;
   end;
   if _json<>'' then
@@ -823,6 +821,7 @@ begin
     aClient.signalString('{"type":"updatelayer","payload":{"id":"'+ElementID+'","data":['+_json+']}}');
   end;
 end;
+
 
 function TSesmiTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
 begin
@@ -852,7 +851,6 @@ begin
   Result := stLocation;
 end;
 *)
-
 { TSesmiWindData }
 
 constructor TSesmiWindData.Create(aProject: TProject);
@@ -1220,6 +1218,7 @@ end;
 procedure TSesmiScenario.ReadBasicData;
 var
   palette: TWDPalette;
+  layer: TSesmiLinkLayer;
 begin
 
   // Group exposure
@@ -1256,10 +1255,10 @@ begin
   AddSesmiLinkLayer(sensordata_pm10, 'Personal exposure', 'PM10', 'PM10', 'Personal PM10', palette, BuildLegendJSON(palette));
   palette := CreateHansPalette('PM25');
   AddSesmiLinkLayer(sensordata_pm25, 'Personal exposure', 'PM25', 'PM25', 'Personal PM25', palette, BuildLegendJSON(palette));
-//  layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'personal-no2', 'Personal NO2', 'NO2', False, True, palette, BuildLegendJSON(palette), mobilechart);
-//  fLinkLayers.Add(sensordata_no2, layer);
-//  AddLayer(layer);
-//  layer.RegisterLayer;
+  //layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'personal-no2', 'Personal NO2', 'NO2', False, True, palette, BuildLegendJSON(palette), mobilechart);
+  //fLinkLayers.Add(sensordata_no2, layer);
+  //AddLayer(layer);
+  //layer.RegisterLayer;
 end;
 
 procedure TSesmiScenario.Reset;
@@ -1314,6 +1313,7 @@ var
   guid: TGUID;
   scenario: TSesmiScenario;
   palette: TWDPalette;
+  layer: TSesmiMobileSensorLayer;
 begin
   scenario := TSesmiScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView, False);
   TMonitor.Enter(fLinks);
@@ -1327,11 +1327,13 @@ begin
   //AddSesmiLinkLayer(sensordata_no2, 'Personal exposure', 'NO2', 'NO2', 'Personal NO2', palette, BuildLegendJSON(palette));
 
   // todo: remove when ready tested; should show links but for testing show track also
+
   palette := CreateNiekPalette('NO2');
-  scenario.AddLayer(
-    TSesmiMobileSensorLayer.Create(
+  layer := TSesmiMobileSensorLayer.Create(
       scenario, 'sensor', 'mobilesensor', 'Mobile sensor', 'Mobile sensor',
-      False, True, palette, BuildLegendJSON(palette), nil));
+      False, True, palette, BuildLegendJSON(palette), nil);
+  scenario.AddLayer(layer);
+  layer.RegisterLayer;
 
   scenarios.Add(aScenarioID, scenario);
   scenario.GoLive(True);
@@ -1673,7 +1675,6 @@ begin
   inherited;
 end;
 
-
 { TSesmiMobileSensorLayer }
 
 constructor TSesmiMobileSensorLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad,
@@ -1765,10 +1766,10 @@ begin
         fLastLat := aPayload.bb_read_double(aCursor);
       sensordata_no2:
         begin
+          no2 := aPayload.bb_read_double(aCursor);
           if ((fScenario.project is TSesmiProject) and (fScenario is TSesmiScenario) and ((fScenario.project as TSesmiProject).ExpertScenarioGUID = (fScenario as TSesmiScenario).fGUID)) or (objectID.ToString = fScenario.ID) then //check if we need to add this point
           begin
-            no2 := aPayload.bb_read_double(aCursor);
-            if (fLastLat<>0) and (fLastLon<>0)
+            if (fLastLat<>0) and (fLastLon<>0) and (timestamp > Now-1)
             then AddPoint(objectID, timestamp, fLastLat, fLastLon, sensordata_no2, no2);
             // todo: ignoring values on 0,0 for now
           end;
