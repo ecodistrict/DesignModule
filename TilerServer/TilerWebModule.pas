@@ -85,10 +85,12 @@ uses
   // canvas class implementations (different on hardware and VPS machine)
   //FMX.Canvas.GDIP,
 
-  // theming problem on server where profile is loaded and D2D canvas is availble only test fails in orginal unit
-  // Delphi 10.1 version
-  FMX.Canvas.D2D.my10_1,
-  // Delphi 10 version
+//   theming problem on server where profile is loaded and D2D canvas is availble only test fails in orginal unit
+//   Delphi 10.2 version
+  FMX.Canvas.D2D.my10_2,
+//  Delphi 10.1 version
+//  FMX.Canvas.D2D.my10_1,
+//  Delphi 10 version
 //  FMX.Canvas.D2D.my,
 
   // TPolygon
@@ -1445,7 +1447,7 @@ var
   status: TGenerateTileStatus;
 begin
   Result := NaN; // sentinel
-  status  := gtsRestart; // sentinel
+  //status  := gtsRestart; // sentinel
   repeat
     // pre calc phase, potentially write lock of tile -> only when not avoidable
     if doGenerateTilePreCalc then
@@ -1686,7 +1688,7 @@ begin
         (icehTilerGeometryPoint shl 3) or wtLengthDelimited:
           begin
             len := aBuffer.bb_read_uint64(aCursor);
-            point.Decode(aBuffer, aCursor, aCursor+len);
+            point.Decode(aBuffer, aCursor, aCursor+Integer(len));
             if fMaxExtent.IsEmpty
             then fMaxExtent.Init(point.x, point.y)
             else fMaxExtent.Expand(point.x, point.y);
@@ -1918,7 +1920,7 @@ begin
             geometry.Free;
             geometry := TWDGeometry.Create;
             len := aBuffer.bb_read_uint64(aCursor);
-            geometry.Decode(aBuffer, aCursor, aCursor+len);
+            geometry.Decode(aBuffer, aCursor, aCursor+Integer(len));
           end;
         (icehNoObjectID shl 3) or wtLengthDelimited:
           begin
@@ -1958,7 +1960,8 @@ begin
             if Assigned(fPalette)
             then aBitmap.Canvas.Stroke.Color := fPalette.ValueToColors(isgop.Value.value).mainColor
             else aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Blue or TAlphaColorRec.Alpha;
-            aBitmap.Canvas.StrokeThickness := 2; // todo: default width?
+            //aBitmap.Canvas.StrokeThickness := 2; // todo: default width?
+            aBitmap.Canvas.Stroke.Thickness := 2;
             aBitmap.Canvas.DrawPath(path, 1);
           finally
             path.Free;
@@ -2028,7 +2031,8 @@ begin
             path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
               try
                 aBitmap.Canvas.Stroke.Color := colors.mainColor;
-                aBitmap.Canvas.StrokeThickness := isgop.Value.value*capacityFactor;
+                //aBitmap.Canvas.StrokeThickness := isgop.Value.value*capacityFactor;
+                aBitmap.Canvas.Stroke.Thickness := isgop.Value.value*capacityFactor;
                 aBitmap.Canvas.DrawPath(path, 1);
               finally
                 path.Free;
@@ -2126,7 +2130,7 @@ begin
             geometry.Free;
             geometry := TWDGeometry.Create;
             len := aBuffer.bb_read_uint64(aCursor);
-            geometry.Decode(aBuffer, aCursor, aCursor+len);
+            geometry.Decode(aBuffer, aCursor, aCursor+Integer(len));
           end;
         (icehNoObjectID shl 3) or wtLengthDelimited:
           begin
@@ -2198,7 +2202,8 @@ begin
               path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
               try
                 aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
-                aBitmap.Canvas.StrokeThickness := 1;
+                //aBitmap.Canvas.StrokeThickness := 1;
+                aBitmap.Canvas.Stroke.Thickness := 1;
                 aBitmap.Canvas.DrawPath(path, 1);
               finally
                 path.Free;
@@ -2222,6 +2227,7 @@ begin
               for part in isgop.Value.fGeometry.parts do
               begin
                 x := NaN;
+                y := NaN;
                 for point in part.points do
                 begin
                   // recalc coordinates relative to extent
@@ -2449,7 +2455,7 @@ begin
             geometry.Free;
             geometry := TWDGeometry.Create;
             len := aBuffer.bb_read_uint64(aCursor);
-            geometry.Decode(aBuffer, aCursor, aCursor+len);
+            geometry.Decode(aBuffer, aCursor, aCursor+Integer(len));
           end;
         (icehNoObjectID shl 3) or wtLengthDelimited:
           begin
@@ -2639,7 +2645,8 @@ begin
           if colors.outlineColor<>0 then
           begin
             aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-            aBitmap.Canvas.StrokeThickness := 1; // todo: default width?
+            //aBitmap.Canvas.StrokeThickness := 1; // todo: default width?
+            aBitmap.Canvas.Stroke.Thickness := 1; // todo: default width?
             aBitmap.Canvas.DrawEllipse(rect, 1);
           end;
         end;
@@ -2755,7 +2762,7 @@ begin
             geometry.Free;
             geometry := TWDGeometryPoint.Create;
             len := aBuffer.bb_read_uint64(aCursor);
-            geometry.Decode(aBuffer, aCursor, aCursor+len);
+            geometry.Decode(aBuffer, aCursor, aCursor+Integer(len));
           end;
         (icehNoObjectID shl 3) or wtLengthDelimited:
           begin
@@ -3103,7 +3110,7 @@ var
   refObj: TSliceGeometryObject;
   path: TPathData;
 begin
-  Result := gtsFailed;
+  //Result := gtsFailed;
   aBitmap.Canvas.BeginScene;
   try
     aBitmap.Canvas.Clear(0);
@@ -3126,7 +3133,8 @@ begin
             begin
               aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
             end;
-            aBitmap.Canvas.StrokeThickness := 2; // todo: default width?
+            //aBitmap.Canvas.StrokeThickness := 2; // todo: default width?
+            aBitmap.Canvas.Stroke.Thickness := 2; // todo: default width?
             aBitmap.Canvas.DrawPath(path, 1);
           finally
             path.Free;
@@ -3207,7 +3215,8 @@ begin
               path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
               try
                 aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
-                aBitmap.Canvas.StrokeThickness := 1;
+                //aBitmap.Canvas.StrokeThickness := 1;
+                aBitmap.Canvas.Stroke.Thickness := 1;
                 aBitmap.Canvas.DrawPath(path, 1);
               finally
                 path.Free;
@@ -3218,7 +3227,8 @@ begin
               path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
               try
                 aBitmap.Canvas.Stroke.Color := colors.mainColor;
-                aBitmap.Canvas.StrokeThickness := width*capacityFactor;
+                //aBitmap.Canvas.StrokeThickness := width*capacityFactor;
+                aBitmap.Canvas.Stroke.Thickness := width*capacityFactor;
                 aBitmap.Canvas.DrawPath(path, 1);
               finally
                 path.Free;
@@ -3346,7 +3356,8 @@ begin
               path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
               try
                 aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
-                aBitmap.Canvas.StrokeThickness := 1;
+                //aBitmap.Canvas.StrokeThickness := 1;
+                aBitmap.Canvas.Stroke.Thickness := 1;
                 aBitmap.Canvas.DrawPath(path, 1);
               finally
                 path.Free;
@@ -3358,6 +3369,7 @@ begin
               for part in isgop.Value.fGeometry.parts do
               begin
                 x := NaN;
+                y := NaN;
                 for point in part.points do
                 begin
                   // recalc coordinates relative to extent
@@ -3860,7 +3872,7 @@ var
   res: Integer;
 begin
   try
-    timeStamp := 0;
+    //timeStamp := 0;
     palette :=  nil;
     poiImages := TObjectList<FMX.Graphics.TBitmap>.Create;
     pngExtent := TExtent.Create;
@@ -3982,7 +3994,7 @@ begin
               (icehTilerPNGExtent shl 3) or wtLengthDelimited:
                 begin
                   size := aBuffer.bb_read_uint64(aCursor);
-                  pngExtent.Decode(aBuffer, aCursor, aCursor+size);
+                  pngExtent.Decode(aBuffer, aCursor, aCursor+Integer(size));
                 end;
               (icehTilerPNGImage shl 3) or wtLengthDelimited:
                 begin
@@ -4021,14 +4033,14 @@ begin
                   size := aBuffer.bb_read_uint64(aCursor);
                   palette.Free;
                   palette := TDiscretePalette.Create();
-                  palette.Decode(aBuffer, aCursor, aCursor+size);
+                  palette.Decode(aBuffer, aCursor, aCursor+Integer(size));
                 end;
               (icehRampPalette shl 3) or wtLengthDelimited:
                 begin
                   size := aBuffer.bb_read_uint64(aCursor);
                   palette.Free;
                   palette := TRampPalette.Create;
-                  palette.Decode(aBuffer, aCursor, aCursor+size);
+                  palette.Decode(aBuffer, aCursor, aCursor+Integer(size));
                 end;
               (icehTilerRequestPreviewImage shl 3) or wtVarInt:
                 begin
