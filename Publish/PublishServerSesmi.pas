@@ -1386,18 +1386,10 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
     try
       selection := False;
       if aParameterValue.Contains('Zo') then
-        aDays := aDays + '0'
+        aDays := aDays + '1'
       else
         selection := True;
       if aParameterValue.Contains('Ma') then
-      begin
-        if aDays <> '' then
-          aDays := aDays + ', ';
-        aDays := aDays + '1';
-      end
-      else
-        selection := True;
-      if aParameterValue.Contains('Di') then
       begin
         if aDays <> '' then
           aDays := aDays + ', ';
@@ -1405,7 +1397,7 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
       end
       else
         selection := True;
-      if aParameterValue.Contains('Wo') then
+      if aParameterValue.Contains('Di') then
       begin
         if aDays <> '' then
           aDays := aDays + ', ';
@@ -1413,7 +1405,7 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
       end
       else
         selection := True;
-      if aParameterValue.Contains('Do') then
+      if aParameterValue.Contains('Wo') then
       begin
         if aDays <> '' then
           aDays := aDays + ', ';
@@ -1421,7 +1413,7 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
       end
       else
         selection := True;
-      if aParameterValue.Contains('Vr') then
+      if aParameterValue.Contains('Do') then
       begin
         if aDays <> '' then
           aDays := aDays + ', ';
@@ -1429,11 +1421,19 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
       end
       else
         selection := True;
-      if aParameterValue.Contains('Za') then
+      if aParameterValue.Contains('Vr') then
       begin
         if aDays <> '' then
           aDays := aDays + ', ';
         aDays := aDays + '6';
+      end
+      else
+        selection := True;
+      if aParameterValue.Contains('Za') then
+      begin
+        if aDays <> '' then
+          aDays := aDays + ', ';
+        aDays := aDays + '0';
       end
       else
         selection := True;
