@@ -1313,7 +1313,7 @@ function TSesmiProject.CreateSesmiScenario(
 var
   guid: TGUID;
   scenario: TSesmiScenario;
-  palette: TWDPalette;
+//  palette: TWDPalette;
 begin
   scenario := TSesmiScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView, False);
   TMonitor.Enter(fLinks);
@@ -1327,6 +1327,7 @@ begin
   //AddSesmiLinkLayer(sensordata_no2, 'Personal exposure', 'NO2', 'NO2', 'Personal NO2', palette, BuildLegendJSON(palette));
 
   // todo: remove when ready tested; should show links but for testing show track also
+  {
   palette := CreateNiekPalette('NO2');
   scenario.AddLayer(
     TSesmiMobileSensorLayer.Create(
@@ -1334,7 +1335,8 @@ begin
       False, True, palette, BuildLegendJSON(palette), nil));
 
   scenarios.Add(aScenarioID, scenario);
-  scenario.GoLive(True);
+  }
+  // ???? scenario.GoLive(True);
   Result := scenario;
 end;
 
