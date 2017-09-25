@@ -1883,7 +1883,7 @@ begin
   end
   else //add to list so we can match later
   begin
-    linkidList.Add(aTimeStamp, aID);
+    linkidList.AddOrSetValue(aTimeStamp, aID);
   end;
 end;
 
