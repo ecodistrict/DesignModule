@@ -399,6 +399,11 @@ DataManager = {
         return new Date(dateString);
     },
 
+    PublisherDateTimeToDate: function (aDateTime)
+    {
+        return new Date((aDateTime - 25569) * 86400 * 1000);
+    },
+
     BreakdownTime: function (aTime) {
         var dates = aTime.split(/[ ]+/)[0].split(/[-]+/);
         var times = aTime.split(/[ ]+/)[1].split(/[:]+/);

@@ -188,6 +188,9 @@ type
     fPalette: TWDPalette;
     fChart: TChartLines; //used to lock fChart and fTotalChart
     fTotalChart: TChartLines;
+    fTotalValue: Double;
+    fPrevTime: Double;
+    fPrevValue: Double;
     procedure ProcessMatch(const aTimeStamp, aValue: Double; aID: TWDID);
   protected
   public
@@ -325,6 +328,7 @@ end;
 function CreateHansPalette(const aTitle: string): TWDPalette;
 begin
   Result := TDiscretePalette.Create(aTitle, [
+    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff000000), -40000, 0, '<0'),
     TDiscretePaletteEntry.Create(TGeoColors.Create($Ff0047ba), 0, 25, '0-25'),
     TDiscretePaletteEntry.Create(TGeoColors.Create($Ff6da5ff), 25, 30, '25-30'),
     TDiscretePaletteEntry.Create(TGeoColors.Create($Ffffff00), 30, 45, '30-45'),
@@ -1019,13 +1023,13 @@ var
   mobileChart, totalChart: TChartLines;
 begin
   mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + aID, aName, aDescription, False, 'line',
-    TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-    [TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')]);
+    TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
+    [TChartAxis.Create('concentratie', 'lightBlue', 'Concentration', 'mg/m3')], 'time');
   AddChart(mobileChart);
 
   totalChart := TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + aID + 'total', aName + '-total', aDescription + ' Total', False, 'line',
-    TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-    [TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')]);
+    TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
+    [TChartAxis.Create('concentratie', 'lightBlue', 'Concentration', 'mg/m3')], 'time');
   AddChart(totalChart);
 
   layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'personal-' + aName, 'Personal ' + aName, aName, False, True, aPalette, BuildLegendJSON(aPalette), mobilechart, totalChart);
@@ -1080,6 +1084,7 @@ end;
 procedure TSesmiScenario.GoDB(const aInquire: string; const aLowerTimestamp,
   aUpperTimestamp: Double);
 begin
+  EnableControl(goLiveControl);
   fLive := False;
   Reset;
   InquireDB(aInquire, aLowerTimestamp, aUpperTimestamp);
@@ -1089,6 +1094,7 @@ procedure TSesmiScenario.GoLive(const first: Boolean = False);
 var
   currentTime: TDateTime;
 begin
+  DisableControl(goLiveControl);
   fLive := True;
   if not first then
     Reset;
@@ -1139,6 +1145,10 @@ begin
           finally
             TMonitor.Exit(fLinkLayers);
           end;
+        end;
+      sensordata_latitude:
+        begin
+          value := aPayload.bb_read_double(aCursor);
         end;
     else
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
@@ -1337,7 +1347,7 @@ begin
 
   scenarios.Add(aScenarioID, scenario);
   }
-  // ???? scenario.GoLive(True);
+  scenario.GoLive(True);
   Result := scenario;
 end;
 
@@ -1389,18 +1399,10 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
     try
       selection := False;
       if aParameterValue.Contains('Zo') then
-        aDays := aDays + '0'
+        aDays := aDays + '1'
       else
         selection := True;
       if aParameterValue.Contains('Ma') then
-      begin
-        if aDays <> '' then
-          aDays := aDays + ', ';
-        aDays := aDays + '1';
-      end
-      else
-        selection := True;
-      if aParameterValue.Contains('Di') then
       begin
         if aDays <> '' then
           aDays := aDays + ', ';
@@ -1408,7 +1410,7 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
       end
       else
         selection := True;
-      if aParameterValue.Contains('Wo') then
+      if aParameterValue.Contains('Di') then
       begin
         if aDays <> '' then
           aDays := aDays + ', ';
@@ -1416,7 +1418,7 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
       end
       else
         selection := True;
-      if aParameterValue.Contains('Do') then
+      if aParameterValue.Contains('Wo') then
       begin
         if aDays <> '' then
           aDays := aDays + ', ';
@@ -1424,7 +1426,7 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
       end
       else
         selection := True;
-      if aParameterValue.Contains('Vr') then
+      if aParameterValue.Contains('Do') then
       begin
         if aDays <> '' then
           aDays := aDays + ', ';
@@ -1432,11 +1434,19 @@ procedure TSesmiProject.handleClientMessage(aClient: TClient;
       end
       else
         selection := True;
-      if aParameterValue.Contains('Za') then
+      if aParameterValue.Contains('Vr') then
       begin
         if aDays <> '' then
           aDays := aDays + ', ';
         aDays := aDays + '6';
+      end
+      else
+        selection := True;
+      if aParameterValue.Contains('Za') then
+      begin
+        if aDays <> '' then
+          aDays := aDays + ', ';
+        aDays := aDays + '0';
       end
       else
         selection := True;
@@ -1552,6 +1562,10 @@ begin
           (aClient.currentScenario as TSesmiScenario).GoDB(queryString, fromDate, toDate);
         end;
       end;
+    end
+    else if aJSONObject.TryGetValue<TJSONValue>('goLive', jsonValue) then
+    begin
+      (aClient.currentScenario as TSesmiScenario).GoLive;
     end;
   end;
 end;
@@ -1908,17 +1922,26 @@ begin
   //always add value to charts
   TMonitor.Enter(fChart);
   try
-    if fChart.values.Count > 0 then
+//    if fChart.values.Count > 0 then
+//    begin
+//      lastValue := fChart.values[fChart.values.Count - 1];
+//      average := (aValue + lastValue.y[0]) / 2;
+//      delta := aTimeStamp - lastValue.x;
+//      total := average * delta * 24 * 60;
+//      if fTotalChart.values.Count > 0 then
+//        total := total + fTotalChart.values[fTotalChart.values.Count -1].y[0];
+//      fTotalChart.AddValue(aTimeStamp, [total]);
+//    end;
+    if not Double.IsNaN(fPrevValue) then
     begin
-      lastValue := fChart.values[fChart.values.Count - 1];
-      average := (aValue + lastValue.y[0]) / 2;
-      delta := aTimeStamp - lastValue.x;
-      total := average * delta * 24 * 60;
-      if fTotalChart.values.Count > 0 then
-        total := total + fTotalChart.values[fTotalChart.values.Count -1].y[0];
-      fTotalChart.AddValue(aTimeStamp, [total]);
+      average := (aValue + fPrevValue) / 2;
+      delta := aTimestamp - fPrevTime;
+      fTotalValue := fTotalValue + (average * delta * 24 * 60);
+      fTotalChart.AddValue(aTimeStamp, [fTotalValue]);
     end;
-    fChart.AddValue(aTimeStamp, [aValue])
+    fPrevValue := aValue;
+    fPrevTime := aTimeStamp;
+    fChart.AddValue(aTimeStamp, [aValue]);
   finally
     TMonitor.Exit(fChart);
   end;
@@ -1935,6 +1958,9 @@ begin
   fLegendJSON := aLegendJSON;
   fChart := aChart;
   fTotalChart := aTotalChart;
+  fTotalValue := 0;
+  fPrevTime := Double.NaN;
+  fPrevValue := Double.NaN;
 end;
 
 destructor TSesmiLinkLayer.Destroy;

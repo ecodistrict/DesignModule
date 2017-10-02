@@ -119,10 +119,13 @@ var
   jsonObjectID: TJSONValue;
   measureFactor: Double;
   factorString, inverseString: string;
-  queryText1, queryText2, table1, table2: string;
+  queryText1, queryText2, queryText3, table1, table2, table3, value1, value2: string;
+  queryResult: TAllRowsResults;
+  rowResult: TSingleRowResult;
   table, queryText, value: string;
   publishEventName: string;
   publishEvent: TIMBEventEntry;
+  succeeded: Boolean;
 begin
   inherited;
   oraSession := fDBConnection as TOraSession;
@@ -172,17 +175,21 @@ begin
 
                   oraSession.StartTransaction;
                   try
+                    succeeded := True;
                     oraSession.ExecSQL(queryText1);
                     oraSession.ExecSQL(queryText2);
                     oraSession.Commit;
-
+                  except
+                    succeeded := False;
+                    oraSession.Rollback;
+                    //todo: logging transaction failed
+                  end;
+                  if succeeded then
+                  begin
                     publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.TRAF_OD';
                     publishEvent := fUSIMBConnection.publish(publishEventName, false);
                     publishEvent.SignalChangeObject(actionChange, 0, 'CAR_TRIPS'); //todo: send object id = 0 in case of everything?
                     publishEvent.UnPublish;
-                  except
-                    oraSession.Rollback;
-                    //todo: logging transaction failed
                   end;
                 end
                 else if (measure.ActionID >= -12) and (measure.ActionID <= -11) then
@@ -347,6 +354,72 @@ begin
                     finally
                       publishEvent.UnPublish;
                     end;
+                  end;
+                end
+                else if (measure.ActionID >= -56) and (measure.ActionID <= -55) then
+                begin
+                  table1 := (aScenario as TUSScenario).Tableprefix + 'GENE_INDUSTRY_SRC';
+                  table2 := (aScenario as TUSScenario).Tableprefix + 'OPS_SOURCES';
+                  table3 := (aScenario as TUSScenario).Tableprefix + 'GENE_BUILDING';
+
+                  case measure.ActionID of
+                    -55:
+                      begin
+                         value1 := '1';
+                         value2 := '5000';
+                      end;
+                    -56:
+                      begin
+                         value1 := '0';
+                         value2 := '1';
+                      end;
+                  end;
+
+                  queryText1 := 'update ' + table1 +
+                    ' set' +
+                    ' ACTIVE = ' + value1 +
+                    ' where groupname =  ''HSM Steel''';
+
+                  queryText2 := 'update ' + table2 +
+                    ' set' +
+                    ' FACTOR = ' + value1 +
+                    ' where OBJECT_ID =  30042';
+
+                  queryText3 := 'update ' + table3 +
+                    ' set' +
+                    ' INHABIT = ' + value2 +
+                    ' where OBJECT_ID =  15928';
+
+                  oraSession.StartTransaction;
+                  try
+                    succeeded := True;
+                    oraSession.ExecSQL(queryText1);
+                    oraSession.ExecSQL(queryText2);
+                    oraSession.ExecSQL(queryText3);
+                    oraSession.Commit;
+                  except
+                    succeeded := False;
+                    oraSession.Rollback;
+                    //todo: logging transaction failed
+                  end;
+                  if succeeded then
+                  begin
+                    queryResult := ReturnAllResults(oraSession, 'SELECT OBJECT_ID FROM ' + table1 + ' WHERE groupname =  ''HSM Steel''');
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_INDUSTRY_SRC';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    for rowResult in queryResult do
+                      publishEvent.SignalChangeObject(actionChange, StrToIntDef(rowResult[0], -1), 'ACTIVE'); //todo: send object id = 0 in case of everything?
+                    publishEvent.UnPublish;
+
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.OPS_SOURCES';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    publishEvent.SignalChangeObject(actionChange, 30042, 'FACTOR'); //todo: send object id = 0 in case of everything?
+                    publishEvent.UnPublish;
+
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_BUILDING';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    publishEvent.SignalChangeObject(actionChange, 15928, 'INHABIT'); //todo: send object id = 0 in case of everything?
+                    publishEvent.UnPublish;
                   end;
                 end
               end

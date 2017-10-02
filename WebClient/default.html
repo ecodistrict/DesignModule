@@ -33,6 +33,7 @@
 
     <link rel="stylesheet" href="Content/map.css" />
     <link rel="stylesheet" href="Content/ensel.css" />
+    <link rel="stylesheet" href="Content/golive.css" />
     <link rel="stylesheet" href="Content/startstop.css" />
     <link rel="stylesheet" href="Content/graphmanager.css" />
     <link rel="stylesheet" href="Content/syncmanager.css" />
@@ -130,6 +131,7 @@
     <script src="Scripts/timeRangeSlider.js"></script>
     <script src="Scripts/windDirection.js"></script>
     <script src="Scripts/start-stop.js"></script>
+    <script src="Scripts/go-live.js"></script>
     <script src="Scripts/webSocket.js"></script>
     <script src="Scripts/syncManager.js"></script>
     <script src="Scripts/UnitConverter.js"></script>
@@ -154,6 +156,7 @@
         // determine parameters and config
         var wsBaseURL = wsp + '://vps17642.public.cloudvps.com';
         //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
+        //var wsBaseURL = wsp + '://enselsrv.westeurope.cloudapp.azure.com';
         var session = getParameterByName('session', '');
         if (session == '') {
             //session = '6B84B11553BC4AA6B2B6A0759F6EB278'; // us_demo
@@ -167,7 +170,7 @@
             //session = 'ssm';
             //session = 'ssm2';
             //session = 'sweco';
-            session = "tud";
+            //session = "tud";
             //session = 'dtv';
             //session = 'juno';
             //session = 'a2';
@@ -178,6 +181,7 @@
             //session = "sesmi${DE087221-5BB1-40AC-90A9-371CA39A399F}$testexpert"; // test expert user
             //session = "sesmi${d3d55d19-6568-4836-aa00-c2e88fd31fe9}$testuser"; // test guid from db
             //session = "sesmi${6051026f-3b94-4291-88fd-f4c26d5804dd}$testuser"; //test sensa-guid
+            //session = "sesmi${9F180B74-FE6A-4D66-9736-F6C9C59E87DD}$fietsuser"; //sensor box
             //session = '9AADAB9F472D4E1EAA1DE7CE202780AB'; // response production
             //session = '5904DD8ACDD54E15A3A8AA8EA55C0C64'; // response test
             //session = '5904DD8ACDD54E15A3A8AA8EA55C0C64';
@@ -277,6 +281,9 @@
         map.addControl(DataManager.DateFormControl);
         */
 
+        DataManager.goLiveControl = L.control.golive();
+        //map.addControl(DataManager.GoLiveControl);
+
         //simulation
         var simulationControl = L.control.simulation(); // todo (NK): why pass baseLayers as options?
         map.addControl(simulationControl);
@@ -360,15 +367,15 @@
         GraphManager.Initialize();
         
         // test graph
-        testGraph = {};
-        testGraph.id = 'tg';
-        testGraph.name = 'tg name';
-        testGraph.type = 'table';
-        testGraph.data = { header: { a: 'Option', b: 'Value' }, data: [{ a: 'Heel belangrijke waarde', b: 2.4 }, { a: 'Ook heel belangrijk', b: '7.456 MW' }] };
+        //testGraph = {};
+        //testGraph.id = 'tg';
+        //testGraph.name = 'tg name';
+        //testGraph.type = 'table';
+        //testGraph.data = { header: { a: 'Option', b: 'Value' }, data: [{ a: 'Heel belangrijke waarde', b: 2.4 }, { a: 'Ook heel belangrijk', b: '7.456 MW' }] };
 
 
-        GraphManager.MakeGraph(testGraph);
-        testGraph.container.graph.ShowGraph();
+        //GraphManager.MakeGraph(testGraph);
+        //testGraph.container.graph.ShowGraph();
         
 
         // link up connection control

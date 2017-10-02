@@ -1,0 +1,22 @@
+﻿
+.leaflet-control-golive {
+    border-radius: 5px;
+    background-size: 26px 26px;
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+}
+
+.leaflet-touch .leaflet-control-golive {
+    width: 44px;
+    height: 44px;
+}
+
+.leaflet-control-golive-button {
+    cursor: auto;
+    background-image: url('images/simClose-2x.png');
+    display: block;
+}

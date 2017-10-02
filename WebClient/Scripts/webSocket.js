@@ -286,6 +286,17 @@ var wsLookup = {
             }
         }
 
+        if (typeof payload.goLiveControlEnabled !== "undefined") {
+            if (payload.goLiveControlEnabled) {
+                map.addControl(DataManager.goLiveControl);
+                InfoTextControl['leaflet-control-golive'] = { description: 'Go back to live data', active: true, iconPosition: 'right' };
+            }
+            else {
+                map.removeControl(DataManager.goLiveControl);
+                InfoTextControl['leaflet-control-golive'] = { active: false };
+            }
+        }
+
         // basic controls
         InfoTextControl['leaflet-control-zoom'] = { description: 'Zoom', active: true, iconPosition: 'right' };
         InfoTextControl['leaflet-control-layers-toggle'] = { description: 'Selecteer de basis kaart', active: true, iconPosition: 'left' };

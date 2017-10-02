@@ -449,7 +449,7 @@ var GraphManager = {
         for (var i = 0; i < dataArray.length; i++)
         {
             graph = GraphManager._getGraph(dataArray[i]);
-            if (graph.graph.Reset)
+            if (graph && graph.graph.Reset)
                 graph.graph.Reset();
             else
                 console.log("Graph does not support Reset, id: " + dataArray[i]);
@@ -610,7 +610,7 @@ var GraphManager = {
     {
         if (aScaleType == "time")
         {
-            var result = DataManager.PublisherTimeToDate(aValue);
+            var result = DataManager.PublisherDateTimeToDate(aValue);
             result.value = result.getTime();
             result.GetDisplayValue = (function () { return this; }).bind(result);
             return result;
