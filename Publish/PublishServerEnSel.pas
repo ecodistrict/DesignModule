@@ -369,11 +369,11 @@ begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, Double.NaN, aBasicLayer);
   fLegendJSON := aLegendJSON; // property of TLayer
   fHandleDataHandlerRef :=  handleDataEvent;
-  fDataEvent := scenario.project.Connection.subscribe(fEventName);
+  fDataEvent := scenario.project.Connection.eventEntry(fEventName).subscribe;
   if not fDataEvent.OnEvent.Contains(fHandleDataHandlerRef)
   then fDataEvent.OnEvent.Add(fHandleDataHandlerRef);
 
-  fPrivateDataEvent := scenario.project.Connection.subscribe(scenario.project.Connection.privateEventName+'.'+fEventName, False);
+  fPrivateDataEvent := scenario.project.Connection.eventEntry(scenario.project.Connection.privateEventName+'.'+fEventName, False).subscribe;
   if not fPrivateDataEvent.OnEvent.Contains(fHandleDataHandlerRef)
   then fPrivateDataEvent.OnEvent.Add(fHandleDataHandlerRef);
 end;
@@ -388,7 +388,7 @@ procedure TEnselTileLayer.handleDataEvent(aEventEntry: TEventEntry; const aPaylo
 var
   fieldInfo: UInt32;
   id: TWDID;
-  timestamp: TDateTime;
+//  timestamp: TDateTime;
   lat: Double;
   lon: double;
   value: Double;
@@ -428,7 +428,7 @@ begin
   lat := Double.NaN;
   lon := Double.NaN;
   value := Double.NaN;
-  timestamp := double.NaN;
+//  timestamp := double.NaN;
   while aCursor<aLimit do
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
@@ -444,8 +444,8 @@ begin
             then addLayerObject(prevID, lat, lon, value);
             prevID := id;
           end;
-        ((icehWorldCommandBase+2) shl 3) or wt64Bit:
-          timestamp := aPayload.bb_read_double(aCursor);
+//        ((icehWorldCommandBase+2) shl 3) or wt64Bit:
+//          timestamp := aPayload.bb_read_double(aCursor);
         sensordata_longitude:
           lon := aPayload.bb_read_double(aCursor);
         sensordata_latitude:
@@ -726,7 +726,7 @@ constructor TEnselTrackLayer.Create(aScenario: TScenario; const aDomain, aID, aN
 begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"track"', 'Point', ltObject, aShowInDomains, 0);
   // Track
-  fEvent := scenario.project.connection.Subscribe('track');
+  fEvent := scenario.project.connection.eventEntry('track').Subscribe;
   fEventHandler := HandleEvent;
   fEvent.OnEvent.Add(fEventHandler);
   {
@@ -751,7 +751,7 @@ function TEnselTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
 var
   iop: TPair<TWDID, TLayerObject>;
   _json: string;
-  sclo: TSVGCircleLayerObject;
+//  sclo: TSVGCircleLayerObject;
 begin
   result := inherited;
   // send new track points
@@ -760,7 +760,7 @@ begin
   begin
     if iop.Value is TSVGCircleLayerObject then
     begin
-      sclo := iop.Value as TSVGCircleLayerObject;
+//      sclo := iop.Value as TSVGCircleLayerObject;
       (*
       if _json<>''
       then _json  := _json+',';
@@ -813,7 +813,7 @@ constructor TEnselWindData.Create(aProject: TProject);
 begin
   inherited Create;
   fProject := aProject;
-  fDataEvent := project.Connection.subscribe('meteodata');
+  fDataEvent := project.Connection.eventEntry('meteodata').subscribe;
   fDataEvent.OnEvent.Add(handleMeteoDataEvent);
 end;
 
@@ -859,8 +859,8 @@ end;
 procedure TEnselSpiderChart.handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
 var
   fieldInfo: UInt32;
-  timestamp: Double;
-  roadSegementID: Integer;
+//  timestamp: Double;
+//  roadSegementID: Integer;
   transportMode: string;
   componentName: string;
   TimeCategory: string;
@@ -870,17 +870,16 @@ var
   sd: TSpiderDataValue;
 begin
   duration := 0;
-  AvgConcentration := 0;
   while aCursor<aLimit do
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
     case fieldInfo of
       (icehObjectID shl 3) or wtLengthDelimited:
         objectID := aPayload.bb_read_guid(aCursor);
-      ((icehWorldCommandBase+2) shl 3) or wt64Bit: // time stamp
-        timestamp := aPayload.bb_read_double(aCursor);
-      kpi_road_segment_id:
-        roadSegementID := aPayload.bb_read_int32(aCursor);
+//      ((icehWorldCommandBase+2) shl 3) or wt64Bit: // time stamp
+//        timestamp := aPayload.bb_read_double(aCursor);
+//      kpi_road_segment_id:
+//        roadSegementID := aPayload.bb_read_int32(aCursor);
       kpi_TransportMode:
         transportMode :=  aPayload.bb_read_string(aCursor);
       kpi_ComponentName:
@@ -1024,13 +1023,13 @@ begin
   //  project.Connection.subscribe('ensel_kpi_group_segments'), 1, 'no2'); // per segment
 
   spider := TEnselSpiderChart.Create(Self, 'Group exposure', 'spiderNO2', 'Group NO2 exposure by mode of transport (MOT)', '', False,
-    project.Connection.subscribe('ensel_kpi_group'), -1, 'no2'); // all
+    project.Connection.eventEntry('ensel_kpi_group').subscribe, -1, 'no2'); // all
   AddChart(spider);
   //spider := TEnselSpiderChart.Create(Self, 'Group exposure per segment', 'spiderseg', 'Group NO2 exposure by mode of transport (MOT) per segment', '', False,
   //  project.Connection.subscribe('ensel_kpi_group_segments'), 1, 'no2'); // per segment
 
   spider := TEnselSpiderChart.Create(Self, 'Group exposure', 'spiderPM10', 'Group PM10 exposure by mode of transport (MOT)', '', False,
-    project.Connection.subscribe('ensel_kpi_group'), -1, 'pm10'); // all
+    project.Connection.eventEntry('ensel_kpi_group').subscribe, -1, 'pm10'); // all
   AddChart(spider);
 
   mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts', 'Mobile sensors', '', False, 'line',
@@ -1206,9 +1205,9 @@ begin
   fPalette :=  aPalette;
   fLegendJSON := aLegendJSON;
   fDataEventHandler := HandleEvent;
-  fDataEvent := scenario.project.connection.Subscribe('mobilesensordata');
+  fDataEvent := scenario.project.connection.eventEntry('mobilesensordata').Subscribe;
   fDataEvent.OnEvent.Add(fDataEventHandler);
-  fPrivateDataEvent := scenario.project.connection.Subscribe(scenario.project.Connection.privateEventName+'.'+'mobilesensordata', false);
+  fPrivateDataEvent := scenario.project.connection.eventEntry(scenario.project.Connection.privateEventName+'.'+'mobilesensordata', false).Subscribe;
   fPrivateDataEvent.OnEvent.Add(fDataEventHandler);
   // inquire
   fDataEvent.signalEvent(

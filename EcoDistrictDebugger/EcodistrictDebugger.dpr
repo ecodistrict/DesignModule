@@ -24,7 +24,7 @@ end;
 
 function Subscribe(aConnection: TConnection; const aEventName: string): TEventEntry;
 begin
-  Result := aConnection.subscribe(aEventName);
+  Result := aConnection.eventEntry(aEventName).subscribe;
   if Result.OnString.Count=0 then
   begin
     // no handlers: add new

@@ -45,7 +45,7 @@ procedure TMainForm.buttonApplyClick(Sender: TObject);
 var
   event: TEventEntry;
 begin
-  event := fConnection.publish(comboEventName.Text);
+  event := fConnection.eventEntry(comboEventName.Text).publish;
   event.signalString(memoJSON.Text);
   labelEventsSend.Tag := labelEventsSend.Tag+1;
   labelEventsSend.Caption := labelEventsSend.Tag.ToString();

@@ -434,11 +434,11 @@ begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, Double.NaN, aBasicLayer);
   fLegendJSON := aLegendJSON; // property of TLayer
   fHandleDataHandlerRef :=  handleDataEvent;
-  fDataEvent := scenario.project.Connection.subscribe(fEventName);
+  fDataEvent := scenario.project.Connection.eventEntry(fEventName).subscribe;
   if not fDataEvent.OnEvent.Contains(fHandleDataHandlerRef)
   then fDataEvent.OnEvent.Add(fHandleDataHandlerRef);
 
-  fPrivateDataEvent := scenario.project.Connection.subscribe(scenario.project.Connection.privateEventName+'.'+fEventName, False);
+  fPrivateDataEvent := scenario.project.Connection.eventEntry(scenario.project.Connection.privateEventName+'.'+fEventName, False).subscribe;
   if not fPrivateDataEvent.OnEvent.Contains(fHandleDataHandlerRef)
   then fPrivateDataEvent.OnEvent.Add(fHandleDataHandlerRef);
 end;
@@ -453,7 +453,7 @@ procedure TSesmiTileLayer.handleDataEvent(aEventEntry: TEventEntry; const aPaylo
 var
   fieldInfo: UInt32;
   id: TWDID;
-  timestamp: TDateTime;
+//  timestamp: TDateTime;
   lat: Double;
   lon: double;
   value: Double;
@@ -493,7 +493,7 @@ begin
   lat := Double.NaN;
   lon := Double.NaN;
   value := Double.NaN;
-  timestamp := double.NaN;
+//  timestamp := double.NaN;
   while aCursor<aLimit do
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
@@ -509,8 +509,8 @@ begin
             then addLayerObject(prevID, lat, lon, value);
             prevID := id;
           end;
-        ((icehWorldCommandBase+2) shl 3) or wt64Bit:
-          timestamp := aPayload.bb_read_double(aCursor);
+//        ((icehWorldCommandBase+2) shl 3) or wt64Bit:
+//          timestamp := aPayload.bb_read_double(aCursor);
         sensordata_longitude:
           lon := aPayload.bb_read_double(aCursor);
         sensordata_latitude:
@@ -861,7 +861,7 @@ constructor TSesmiWindData.Create(aProject: TProject);
 begin
   inherited Create;
   fProject := aProject;
-  fDataEvent := project.Connection.subscribe('meteodata');
+  fDataEvent := project.Connection.eventEntry('meteodata').subscribe;
   fDataEvent.OnEvent.Add(handleMeteoDataEvent);
 end;
 
@@ -907,8 +907,8 @@ end;
 procedure TSesmiSpiderChart.handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
 var
   fieldInfo: UInt32;
-  timestamp: Double;
-  roadSegementID: Integer;
+//  timestamp: Double;
+//  roadSegementID: Integer;
   transportMode: string;
   componentName: string;
   TimeCategory: string;
@@ -918,17 +918,17 @@ var
   sd: TSpiderDataValue;
 begin
   duration := 0;
-  AvgConcentration := 0;
+//  AvgConcentration := 0;
   while aCursor<aLimit do
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
     case fieldInfo of
       (icehObjectID shl 3) or wtLengthDelimited:
         objectID := aPayload.bb_read_guid(aCursor);
-      ((icehWorldCommandBase+2) shl 3) or wt64Bit: // time stamp
-        timestamp := aPayload.bb_read_double(aCursor);
-      kpi_road_segment_id:
-        roadSegementID := aPayload.bb_read_int32(aCursor);
+//      ((icehWorldCommandBase+2) shl 3) or wt64Bit: // time stamp
+//        timestamp := aPayload.bb_read_double(aCursor);
+//      kpi_road_segment_id:
+//        roadSegementID := aPayload.bb_read_int32(aCursor);
       kpi_TransportMode:
         transportMode :=  aPayload.bb_read_string(aCursor);
       kpi_ComponentName:
@@ -1061,8 +1061,8 @@ begin
   fQueryEventHandler := handleQueryEvent;
   fLinkLayers := TDictionary<Integer, TSesmiLinkLayer>.Create;
   inherited;
-  fPubEvent := project.Connection.publish('mobilesensordata');
-  fLiveEvent := project.Connection.subscribe('mobilesensordata');
+  fPubEvent := project.Connection.eventEntry('mobilesensordata').publish;
+  fLiveEvent := project.Connection.eventEntry('mobilesensordata').subscribe;
   fLiveEventHandler := handleLiveEvent;
   fLiveEvent.OnEvent.Add(fLiveEventHandler);
 end;
@@ -1107,7 +1107,8 @@ procedure TSesmiScenario.handleLiveEvent(aEventEntry: TEventEntry;
 var
   layer: TSesmiLinkLayer;
   fieldInfo: UInt32;
-  value, timestamp: Double;
+  value: Double;
+  timestamp: Double;
   id: TWDID;
   sensorid: TGUID;
 begin
@@ -1146,10 +1147,10 @@ begin
             TMonitor.Exit(fLinkLayers);
           end;
         end;
-      sensordata_latitude:
-        begin
-          value := aPayload.bb_read_double(aCursor);
-        end;
+//      sensordata_latitude:
+//        begin
+//          value := aPayload.bb_read_double(aCursor);
+//        end;
     else
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
     end;
@@ -1209,7 +1210,7 @@ begin
   //subscribe to the returnEvent
   returnString := ID + '-' + fQueryCounter.ToString();
   fQueryCounter := fQueryCounter+1;
-  fQueryEvent := project.Connection.subscribe(returnString, False);
+  fQueryEvent := project.Connection.eventEntry(returnString, False).subscribe;
   fQueryEvent.OnEvent.Add(fQueryEventHandler);
   fQuerySubscribed := True;
   if (fProject is TSesmiProject) and (fGUID = (fProject as TSesmiProject).ExpertScenarioGUID) then
@@ -1228,7 +1229,7 @@ end;
 procedure TSesmiScenario.ReadBasicData;
 var
   palette: TWDPalette;
-  layer: TSesmiLinkLayer;
+//  layer: TSesmiLinkLayer;
 begin
 
   // Group exposure
@@ -1312,7 +1313,7 @@ begin
   //Set Sesmi controls
   SetControl(dateFormControl, '{"data":' + aDateFormData + '}');
   fLinks := TDictionary<TGUID, TWDGeometry>.Create;
-  fPubEvent := aConnection.publish('geometry_roads');
+  fPubEvent := aConnection.eventEntry('geometry_roads').publish;
   InquireNetwork;
   fWindData := TSesmiWindData.Create(Self);
 end;
@@ -1323,7 +1324,7 @@ var
   guid: TGUID;
   scenario: TSesmiScenario;
 //  palette: TWDPalette;
-  layer: TSesmiMobileSensorLayer;
+//  layer: TSesmiMobileSensorLayer;
 begin
   scenario := TSesmiScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView, False);
   TMonitor.Enter(fLinks);
@@ -1377,7 +1378,7 @@ var
 begin
   returnEventName := TGuid.NewGuid.ToString + '.networkInquire';
   //returnEventName := 'Ensel2.' + 'geometry_roads'; //todo: dynamically read prefix!
-  fNetworkEvent := fConnection.subscribe(returnEventName, False);
+  fNetworkEvent := fConnection.eventEntry(returnEventName, False).subscribe;
   fNetworkEvent.OnEvent.Add(HandleNetworkEvent);
   buffer := TByteBuffer.bb_tag_double(wDatTimeStampLower shr 3, -1.5);
   buffer := buffer + TByteBuffer.bb_tag_double(wDatTimeStampUpper shr 3, -0.5);
@@ -1701,9 +1702,9 @@ begin
   fPalette :=  aPalette;
   fLegendJSON := aLegendJSON;
   fDataEventHandler := HandleEvent;
-  fDataEvent := scenario.project.connection.Subscribe('mobilesensordata');
+  fDataEvent := scenario.project.connection.eventEntry('mobilesensordata').Subscribe;
   fDataEvent.OnEvent.Add(fDataEventHandler);
-  fPrivateDataEvent := scenario.project.connection.Subscribe(scenario.project.Connection.privateEventName+'.'+'mobilesensordata', false);
+  fPrivateDataEvent := scenario.project.connection.eventEntry(scenario.project.Connection.privateEventName+'.'+'mobilesensordata', false).Subscribe;
   fPrivateDataEvent.OnEvent.Add(fDataEventHandler);
   // inquire
   fDataEvent.signalEvent(
@@ -1904,8 +1905,9 @@ end;
 procedure TSesmiLinkLayer.AddValue(const aTimeStamp, aValue: Double);
 var
   linkID: TWDID;
-  lastValue: TChartValue;
-  average, delta, total: Double;
+//  lastValue: TChartValue;
+  average, delta: Double;
+//  total: Double;
 begin
   //check if we can make a match
   if linkidList.ContainsKey(aTimeStamp) then //match

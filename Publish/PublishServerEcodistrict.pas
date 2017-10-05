@@ -2160,23 +2160,23 @@ begin
   InitPG;
   fDBConnection := TFDConnection.Create(nil);
   SetPGConnection(fDBConnection as TFDConnection, fConnectString);
-  fDashboardEvent := fConnection.publish('ecodistrict.dashboard', False);
+  fDashboardEvent := fConnection.eventEntry('ecodistrict.dashboard', False).publish;
 
   if not aDoNotListenToDataEvents then
   begin
-    fDataEvent := fConnection.subscribe('ecodistrict.data', False); // auto publish
+    fDataEvent := fConnection.eventEntry('ecodistrict.data', False).subscribe; // auto publish
     fDataEvent.OnString.Add(HandleDataEvent);
   end;
 
   if not aDoNotListenToModuleEvents then
   begin
-    fModuleEvent := fConnection.subscribe('ecodistrict.modules', False);
+    fModuleEvent := fConnection.eventEntry('ecodistrict.modules', False).subscribe;
     fModuleEvent.OnString.Add(HandleModuleEvent);
   end;
 
   if not aDoNotListenToCaseVariantManagementEvents then
   begin
-    fCaseVariantManagementEvent := fConnection.subscribe('ecodistrict.'+CaseVariantManagementReturnEventName, False);
+    fCaseVariantManagementEvent := fConnection.eventEntry('ecodistrict.'+CaseVariantManagementReturnEventName, False).subscribe;
     fCaseVariantManagementEvent.OnString.Add(HandleCaseVariantManagentEvent);
   end;
 end;
@@ -2555,7 +2555,7 @@ begin
           else _eventId := 'ecodistrict.data-to-dashboard';
           if _eventId='' then _eventId:='data-to-dashboard';
           jsonResponse.AddPair('eventId', _eventId);
-          DataEvent:=fConnection.publish('ecodistrict.' + _eventId, false);
+          DataEvent:=fConnection.eventEntry('ecodistrict.' + _eventId, false).publish;
           jsonResponse.AddPair('status','<undefined>');
           // process all 'method's
           if _method='createCase' then

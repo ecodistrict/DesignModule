@@ -75,7 +75,7 @@ begin
 
           //"c07a7ac6-0d91-45e1-aa66-9fe1b96d44b5";219;454550;140350;;"2016-09-16 12:20:00";1;1;0.25;0.25
           WriteLn('low');
-          imbConnection.publish('sources').signalEvent(
+          imbConnection.eventEntry('sources').signalEvent(
             TByteBuffer.bb_tag_double(sources_emission_strength_analysis shr 3, valueLow)+
             TByteBuffer.bb_tag_double(sources_latitude shr 3, lat)+
             TByteBuffer.bb_tag_double(sources_longitude shr 3, lon)+
@@ -86,7 +86,7 @@ begin
         else
         begin
           WriteLn('high');
-          imbConnection.publish('sources').signalEvent(
+          imbConnection.eventEntry('sources').signalEvent(
             TByteBuffer.bb_tag_double(sources_emission_strength_analysis shr 3, valueHigh)+
             TByteBuffer.bb_tag_double(sources_latitude shr 3, lat)+
             TByteBuffer.bb_tag_double(sources_longitude shr 3, lon)+

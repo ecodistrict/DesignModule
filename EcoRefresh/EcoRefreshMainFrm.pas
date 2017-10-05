@@ -61,8 +61,8 @@ begin
   fConnection := TSocketConnection.Create('EcoRefresh', 94, 'ecodistrict', editIMBRemoteHost.Text, string(editIMBRemotePort.Text).toInteger());
   fConnection.onDisconnect := HandleIMBConnectionDisconnect;
   fConnection.onException := HandleIMBConnectionException;
-  fDataEvent := fConnection.publish('data');
-  fPrivateEvent := fConnection.subscribe(fConnection.UniqueClientID.ToString);
+  fDataEvent := fConnection.eventEntry('data').publish;
+  fPrivateEvent := fConnection.eventEntry(fConnection.UniqueClientID.ToString).subscribe;
   fPrivateEvent.OnString.Add(HandlePrivateEventOnString);
   labelConnectionStatus.Font.Color := clBlack;
   if fConnection.connected

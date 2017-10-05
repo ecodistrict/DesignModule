@@ -94,7 +94,7 @@ begin
   if aInt=actionNew then
   begin
     Log.WriteLn(aEventEntry.eventName+': link to '+aString);
-    clientEvent := aEventEntry.connection.subscribe(aString, False);
+    clientEvent := aEventEntry.connection.eventEntry(aString, False).subscribe;
     clientEvent.OnString.Add(HandleClientStringEvent);
     clientEvent.OnIntString.Add(HandleClientIntStringEvent);
     clientEvent.OnStreamCreate := HandleClientStreamCreate;
@@ -115,7 +115,7 @@ begin
       connection.onDisconnect := HandleDisconnect;
       connection.onException := HandleException;
       projectID := GetSetting(ProjectIDSwitch, DefaultProjectID);
-      sessionsEvent := connection.subscribe(ProjectEventNamePrefix+'.'+projectID);
+      sessionsEvent := connection.eventEntry(ProjectEventNamePrefix+'.'+projectID).subscribe;
       sessionsEvent.OnIntString.Add(HandleIntString);
       Log.WriteLn('Listening on '+sessionsEvent.eventName);
 

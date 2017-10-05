@@ -279,7 +279,7 @@ begin
             sliceType := aBuffer.bb_read_int32(aCursor);
             if eventName<>'' then
             begin
-              layerEvent := aEventEntry.connection.subscribe(eventName, False);
+              layerEvent := aEventEntry.connection.eventEntry(eventName, False).subscribe;
               if layerEvent.OnEvent.Count=0
               then layerEvent.OnEvent.Add(handleLayerEvent);
               log.WriteLn('register new layer '+eventName);
@@ -329,7 +329,7 @@ begin
       begin
         Log.WriteLn('Tiler status request, answer to '+aString);
         if aString<>''
-        then e := aEventEntry.connection.subscribe(aString, False)
+        then e := aEventEntry.connection.eventEntry(aString, False).subscribe
         else e := aEventEntry;
         // start listening for status replies on specified event entry
         if e.OnString.Count=0
@@ -355,7 +355,7 @@ begin
     try
       connection.onDisconnect := HandleDisconnect;
       connection.onException := HandleException;
-      tilerEvent := connection.subscribe('USIdle.Tilers.'+tilerFQDN.Replace('.', '_'), False);
+      tilerEvent := connection.eventEntry('USIdle.Tilers.'+tilerFQDN.Replace('.', '_'), False).subscribe;
       tilerEvent.OnEvent.Add(handleTilerEvent);
       tilerEvent.OnIntString.Add(handleTilerStatus);
       tilerEvent.OnString.Add(handleTilerStatusReply);

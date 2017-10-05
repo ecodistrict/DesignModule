@@ -336,6 +336,7 @@ type
     procedure AddParent(aParent: TDiffSlice);
     procedure RemoveParent(aParent: TDiffSlice);
     function UpdatePalette(aPalette: TWDPalette): Boolean; virtual;
+    function ClearSlice(): Boolean; virtual;
   protected
     // queue
     fQueue: TList<TQueueBuffer>;
@@ -363,6 +364,7 @@ type
   public
     // for updating data
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
+    function ClearSlice(): Boolean; override;
   end;
 
   TSliceOutLineFill = class(TSlice)
@@ -381,6 +383,7 @@ type
   public
     // for updating data
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
+    function ClearSlice(): Boolean; override;
   end;
 
   TSliceGeometryI = class(TSliceGeometry)
@@ -403,6 +406,7 @@ type
   public
     // for updating data
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
+    function ClearSlice(): Boolean; override;
   end;
 
   TSliceGeometryICLR = class(TSliceOutLineFill)
@@ -418,6 +422,7 @@ type
   public
     // for updating data
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
+    function ClearSlice(): Boolean; override;
   end;
 
   TPOI = record
@@ -442,6 +447,7 @@ type
     // no PointValue
     // for updating data
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
+    function ClearSlice(): Boolean; override;
   end;
 
   TSlicePNG = class(TSlice)
@@ -459,6 +465,7 @@ type
     // no PointValue
     // for updating data
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
+    function ClearSlice(): Boolean; override;
   end;
 
   TSliceLocation  = class(TSliceOutLineFill)
@@ -474,6 +481,7 @@ type
   public
     // for updating data
     function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
+    function ClearSlice(): Boolean; override;
   end;
 
   TDiffSlice = class(TSlice)
@@ -1193,6 +1201,21 @@ begin
   fQueueFilled.SetEvent;
 end;
 
+function TSlice.ClearSlice: Boolean;
+begin
+  TMonitor.Enter(fQueueFilled);
+  try
+    if fQueue.Count>0 then
+    begin
+      fQueue.Clear;
+      Result := True;
+    end
+    else Result := False;
+  finally
+    TMonitor.Exit(fQueueFilled);
+  end;
+end;
+
 constructor TSlice.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime);
 begin
   fQueue := TList<TQueueBuffer>.Create;
@@ -1566,6 +1589,16 @@ begin
   end;
 end;
 
+function TSliceReceptor.ClearSlice: Boolean;
+begin
+  Result := Inherited ClearSlice;
+  if fNet.Points.Count>0 then
+  begin
+    fNet.Clear;
+    Result := True;
+  end;
+end;
+
 constructor TSliceReceptor.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
 begin
   Create(aLayer, nil, 0);
@@ -1773,6 +1806,16 @@ constructor TSliceGeometry.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeSta
 begin
   inherited Create(aLayer, aPalette, aTimeStamp);
   fGeometries := TObjectDictionary<TWDID, TSliceGeometryObject>.Create([doOwnsValues]);
+end;
+
+function TSliceGeometry.ClearSlice: Boolean;
+begin
+  Result := Inherited ClearSlice;
+  if fGeometries.Count>0 then
+  begin
+    fGeometries.Clear;
+    Result := True;
+  end;
 end;
 
 constructor TSliceGeometry.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
@@ -1991,6 +2034,16 @@ begin
   fGeometries := TObjectDictionary<TWDID, TSliceGeometryICObject>.Create([doOwnsValues]);
 end;
 
+function TSliceGeometryIC.ClearSlice: Boolean;
+begin
+  Result := Inherited ClearSlice;
+  if fGeometries.Count>0 then
+  begin
+    fGeometries.Clear;
+    Result := True;
+  end;
+end;
+
 constructor TSliceGeometryIC.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
 begin
   Create(aLayer, nil, 0);
@@ -2152,6 +2205,16 @@ constructor TSliceGeometryICLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTim
 begin
   inherited Create(aLayer, aPalette, aTimeStamp);
   fGeometries := TObjectDictionary<TWDID, TSliceGeometryICLRObject>.Create([doOwnsValues]);
+end;
+
+function TSliceGeometryICLR.ClearSlice: Boolean;
+begin
+  Result := Inherited ClearSlice;
+  if fGeometries.Count>0 then
+  begin
+    fGeometries.Clear;
+    Result := True;
+  end;
 end;
 
 constructor TSliceGeometryICLR.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
@@ -2484,6 +2547,16 @@ begin
 
 end;
 
+function TSlicePOI.ClearSlice: Boolean;
+begin
+  Result := Inherited ClearSlice;
+  if fPOIs.Count>0 then
+  begin
+    fPOIs.Clear;
+    Result := True;
+  end;
+end;
+
 constructor TSlicePOI.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
 begin
   Create(aLayer, nil, 0);
@@ -2522,6 +2595,13 @@ begin
   fImage := FMX.Graphics.TBitmap.Create(0, 0); // aImage.Width, aImage.Height);
   fImage.Assign(aImage);
   fDiscreteColorsOnStretch := aDiscreteColorsOnStretch;
+end;
+
+function TSlicePNG.ClearSlice: Boolean;
+begin
+  Inherited ClearSlice;
+  fImage.Clear(TAlphaColorRec.Null);
+  Result := True;
 end;
 
 constructor TSlicePNG.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
@@ -2599,6 +2679,16 @@ constructor TSliceLocation.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeSta
 begin
   inherited Create(aLayer, aPalette, aTimeStamp);
   fLocations := TObjectDictionary<TWDID, TSliceLocationObject>.Create([doOwnsValues]);
+end;
+
+function TSliceLocation.ClearSlice: Boolean;
+begin
+  Result := Inherited ClearSlice;
+  if fLocations.Count>0 then
+  begin
+    fLocations.Clear;
+    Result := True;
+  end;
 end;
 
 constructor TSliceLocation.Create(aLayer: TLayer; aByteBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer);
@@ -3714,7 +3804,7 @@ begin
       else
         Result := 0;
     end));
-  fDataEvent := fModel.Connection.subscribe(aEventName, False);
+  fDataEvent := fModel.Connection.eventEntry(aEventName, False).subscribe;
   fDataEvent.OnEvent.Add(handleDataEvent);
 end;
 
@@ -3870,6 +3960,8 @@ var
   _layerID: Integer;
   width: UInt32;
   res: Integer;
+  action: UInt32;
+  clear: Boolean;
 begin
   try
     //timeStamp := 0;
@@ -3893,6 +3985,7 @@ begin
         if Assigned(DataEvent) then
         begin
           slice := nil;
+          timeStamp := 0;
           while aCursor<aLimit do
           begin
             fieldInfo := aBuffer.bb_read_UInt32(aCursor);
@@ -4055,6 +4148,26 @@ begin
                     stream.Free;
                   end;
                 end;
+              (icehTilerSliceAction shl 3) or wtVarInt:
+                begin
+                  action := aBuffer.bb_read_uint32(aCursor);
+                  case action of
+                    tsaClearSlice:
+                      begin
+                        if Assigned(slice) then
+                        begin
+                          slice.fDataLock.BeginWrite;
+                          try
+                            clear := slice.ClearSlice();
+                          finally
+                            slice.fDataLock.EndWrite;
+                          end;
+                          if clear
+                          then signalRefresh(timeStamp);
+                        end;
+                      end;
+                  end;
+                end
             else
               Log.WriteLn('unknown fields in layer ('+LayerID.ToString+') data: '+fieldInfo.toString, llWarning);
               aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
@@ -4192,8 +4305,8 @@ begin
     // clear cache except for persistent layers
     ClearCache;
     Log.WriteLn('Cleared non-persistent cache');
-    fWS2IMBEvent := fConnection.publish('Sessions.WS2IMB'); // for gettings status from ws2imb services
-    fTilerEvent := fConnection.subscribe('Tilers.'+GetStdIniSetting(TilerEventNameSwitch, GetFQDN.Replace('.', '_')));
+    fWS2IMBEvent := fConnection.eventEntry('Sessions.WS2IMB').publish; // for gettings status from ws2imb services
+    fTilerEvent := fConnection.eventEntry('Tilers.'+GetStdIniSetting(TilerEventNameSwitch, GetFQDN.Replace('.', '_'))).subscribe;
     fTilerEvent.OnEvent.Add(HandleTilerEvent);
     fTilerEvent.OnString.Add(HandleTilerStatus);
     fTilerEvent.OnIntString.Add(HandleTilerStatusRequest);
@@ -4423,7 +4536,7 @@ begin
     actionStatus:
       begin
         if aString<>''
-        then e := aEventEntry.connection.publish(aString, False)
+        then e := aEventEntry.connection.eventEntry(aString, False).publish
         else e := aEventEntry;
         try
           if e.connection.connected
