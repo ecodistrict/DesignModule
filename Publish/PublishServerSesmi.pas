@@ -156,6 +156,26 @@ type
     function SliceType: Integer; override;
   end;
  }
+
+  TSesmiTrackLayer = class(TLayer)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean; aPallette: TWDPalette; aLegendJSON: string);
+  destructor Destroy; override;
+  private
+    fLastLats: TDictionary<TGUID, Double>;
+    fLastLons: TDictionary<TGUID, Double>;
+  protected
+  public
+    procedure AddPoint(aObjectID: TGUID; aLat, aLon, aValue: Double);
+    procedure AddLat(aSensorId: TGUID; aLat: Double);
+    procedure AddLon(aSensorId: TGUID; aLon: Double);
+    procedure AddValue(aSensorId: TGUID; aValue: Double);//value is always last
+    procedure Reset;
+    procedure RegisterLayer; override;
+    procedure RegisterSlice; override;
+    function SliceType: Integer; override;
+  end;
+
+
   TSesmiMobileSensorLayer  = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
   destructor Destroy; override;
@@ -233,6 +253,7 @@ type
   destructor Destroy; override;
   private
     fLinkLayers: TDictionary<Integer, TSesmiLinkLayer>;
+    fTrackLayers: TDictionary<Integer, TSesmiTrackLayer>;
   protected
     fGUID: TGUID;
     fLive: Boolean;
@@ -1011,7 +1032,9 @@ begin
   TMonitor.Enter(fLinkLayers);
   try
     for linkLayer in fLinkLayers.Values do
-      linkLayer.AddLink(GuidToTWDID(aGuid), aGeometry);
+    begin
+      //linkLayer.AddLink(GuidToTWDID(aGuid), aGeometry);
+    end;
   finally
     TMonitor.Exit(fLinkLayers);
   end;
@@ -1020,6 +1043,7 @@ end;
 procedure TSesmiScenario.AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette: TWDPalette; const aLegendJSON: string);
 var
   layer: TSesmiLinkLayer;
+  trackLayer: TSesmiTrackLayer;
   mobileChart, totalChart: TChartLines;
 begin
   mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + aID, aName, aDescription, False, 'line',
@@ -1043,6 +1067,18 @@ begin
   end;
   AddLayer(layer);
   layer.RegisterLayer;
+
+  trackLayer := TSesmiTrackLayer.Create(Self, 'Personal exposure', fID + 'personal-' + aName, 'Personal Track ' + aName, aName, False, True, aPalette, BuildLegendJSON(aPalette));
+  TMonitor.Enter(fTrackLayers);
+  try
+    begin
+      fTrackLayers.AddOrSetValue(aKey, trackLayer);
+    end
+  finally
+    TMonitor.Exit(fTrackLayers);
+  end;
+  AddLayer(trackLayer);
+  trackLayer.RegisterLayer;
 end;
 
 constructor TSesmiScenario.Create(aProject: TProject; const aID, aName,
@@ -1060,6 +1096,7 @@ begin
   fQuerySubscribed := False;
   fQueryEventHandler := handleQueryEvent;
   fLinkLayers := TDictionary<Integer, TSesmiLinkLayer>.Create;
+  fTrackLayers := TDictionary<Integer, TSesmiTrackLayer>.Create;
   inherited;
   fPubEvent := project.Connection.eventEntry('mobilesensordata').publish;
   fLiveEvent := project.Connection.eventEntry('mobilesensordata').subscribe;
@@ -1078,6 +1115,7 @@ begin
   project.Connection.unSubscribe(fLiveEvent);
   project.Connection.unPublish(fPubEvent);
   FreeAndNil(fLinkLayers);
+  FreeAndNil(fTrackLayers);
   inherited;
 end;
 
@@ -1106,6 +1144,7 @@ procedure TSesmiScenario.handleLiveEvent(aEventEntry: TEventEntry;
   const aPayload: TByteBuffer; aCursor, aLimit: Integer);
 var
   layer: TSesmiLinkLayer;
+  trackLayer: TSesmiTrackLayer;
   fieldInfo: UInt32;
   value: Double;
   timestamp: Double;
@@ -1116,6 +1155,72 @@ begin
     exit;
   timestamp := 0;
   sensorid := TGUID.Empty;
+  while aCursor<aLimit do
+  begin
+    fieldInfo := aPayload.bb_read_uint32(aCursor);
+    case fieldInfo of
+      wdatTimeStamp:
+        begin
+          timestamp := aPayload.bb_read_double(aCursor);
+        end;
+      (icehObjectID shl 3) or wtLengthDelimited:
+        begin
+          sensorid := aPayload.bb_read_guid(aCursor);
+          if (fGUID <> (project as TSesmiProject).ExpertScenarioGUID) and (fGUID <> sensorid)  then //filter: only accept live events that match our id
+           exit; //todo: mag dit, of moeten we de buffer leeg lezen? Wordt id altijd verstuurd voor de data?
+        end;
+      sensordata_no2, sensordata_pm10, sensordata_pm25:
+        begin
+          value := aPayload.bb_read_double(aCursor);
+          if fLinkLayers.TryGetValue(fieldInfo, layer) then
+            layer.AddValue(timestamp, value);
+          if fTrackLayers.TryGetValue(fieldInfo, trackLayer) then
+            trackLayer.AddValue(sensorid, value);
+        end;
+      sensordata_linkid:
+        begin
+          id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
+          TMonitor.Enter(fLinkLayers);
+          try
+            for layer in fLinkLayers.Values do
+              layer.AddLinkID(timestamp, id);
+          finally
+            TMonitor.Exit(fLinkLayers);
+          end;
+        end;
+      sensordata_latitude:
+        begin
+          value := aPayload.bb_read_double(aCursor);
+          for trackLayer in fTrackLayers.Values do
+            begin
+              trackLayer.AddLat(sensorid, value);
+            end;
+        end;
+      sensordata_longitude:
+        begin
+          value := aPayload.bb_read_double(aCursor);
+          for trackLayer in fTrackLayers.Values do
+            begin
+              trackLayer.AddLon(sensorid, value);
+            end;
+        end;
+    else
+      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
+    end;
+  end;
+end;
+
+procedure TSesmiScenario.handleQueryEvent(aEventEntry: TEventEntry;
+  const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+var
+  layer: TSesmiLinkLayer;
+  trackLayer: TSesmiTrackLayer;
+  fieldInfo: UInt32;
+  value, timestamp: Double;
+  id: TWDID;
+  sensorid: TGUID;
+begin
+  timestamp := 0;
   while aCursor<aLimit do
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
@@ -1147,49 +1252,21 @@ begin
             TMonitor.Exit(fLinkLayers);
           end;
         end;
-//      sensordata_latitude:
-//        begin
-//          value := aPayload.bb_read_double(aCursor);
-//        end;
-    else
-      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
-    end;
-  end;
-end;
-
-procedure TSesmiScenario.handleQueryEvent(aEventEntry: TEventEntry;
-  const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-var
-  layer: TSesmiLinkLayer;
-  fieldInfo: UInt32;
-  value, timestamp: Double;
-  id: TWDID;
-begin
-  timestamp := 0;
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aPayload.bb_read_uint32(aCursor);
-    case fieldInfo of
-      wdatTimeStamp:
-        begin
-          timestamp := aPayload.bb_read_double(aCursor);
-        end;
-      sensordata_no2, sensordata_pm10, sensordata_pm25:
+      sensordata_latitude:
         begin
           value := aPayload.bb_read_double(aCursor);
-          if fLinkLayers.TryGetValue(fieldInfo, layer) then
-            layer.AddValue(timestamp, value);
+          for trackLayer in fTrackLayers.Values do
+            begin
+              trackLayer.AddLat(sensorid, value);
+            end;
         end;
-      sensordata_linkid:
+      sensordata_longitude:
         begin
-          id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
-          TMonitor.Enter(fLinkLayers);
-          try
-            for layer in fLinkLayers.Values do
-              layer.AddLinkID(timestamp, id);
-          finally
-            TMonitor.Exit(fLinkLayers);
-          end;
+          value := aPayload.bb_read_double(aCursor);
+          for trackLayer in fTrackLayers.Values do
+            begin
+              trackLayer.AddLon(sensorid, value);
+            end;
         end;
     else
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
@@ -2075,4 +2152,76 @@ begin
     end;
 end;
 
+{ TSesmiTrackLayer }
+
+procedure TSesmiTrackLayer.AddLat(aSensorId: TGUID; aLat: Double);
+begin
+  fLastLats.AddOrSetValue(aSensorId, aLat);
+end;
+
+procedure TSesmiTrackLayer.AddLon(aSensorId: TGUID; aLon: Double);
+begin
+  fLastLons.AddOrSetValue(aSensorId, aLon);
+end;
+
+procedure TSesmiTrackLayer.AddPoint(aObjectID: TGUID; aLat, aLon,
+  aValue: Double);
+var
+  wdid: TWDID;
+  geometryPoint: TWDGeometryPoint;
+//  o: TLayerObject;
+begin
+  //wdid := TWDID(aObjectID.ToString());
+  wdid := TWDID(TGUID.NewGuid.ToString);
+  //if not objects.TryGetValue(wdid, o) then
+  //begin
+  geometryPoint := TWDGeometryPoint.Create;
+  geometryPoint.x := aLon;
+  geometryPoint.y := aLat;
+  AddObject(TGeometryPointLayerObject.Create(Self, wdid, geometryPoint, aValue));
+end;
+
+procedure TSesmiTrackLayer.AddValue(aSensorId: TGUID; aValue: Double);
+var
+  lastLon, lastLat: Double;
+begin
+  if fLastLons.TryGetValue(aSensorId, lastLon) and fLastLats.TryGetValue(aSensorId, lastLat) then
+    AddPoint(aSensorId, lastLat, lastLon, aValue);
+end;
+
+constructor TSesmiTrackLayer.Create(aScenario: TScenario; const aDomain, aID,
+  aName, aDescription: string; aDefaultLoad, aShowInDomains: Boolean;
+  aPallette: TWDPalette; aLegendJSON: string);
+begin
+  fLastLats := TDictionary<TGUID, Double>.Create;
+  fLastLons := TDictionary<TGUID, Double>.Create;
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"mobilesensor"', 'Point', ltTile, aShowInDomains, 0);
+end;
+
+destructor TSesmiTrackLayer.Destroy;
+begin
+  FreeAndNil(fLastLons);
+  FreeAndNil(fLastLats);
+  inherited;
+end;
+
+procedure TSesmiTrackLayer.RegisterLayer;
+begin
+  RegisterOnTiler(False, SliceType, name, 2500, fPalette);
+end;
+
+procedure TSesmiTrackLayer.RegisterSlice;
+begin
+  tilerLayer.signalAddSlice(nil);
+end;
+
+procedure TSesmiTrackLayer.Reset;
+begin
+  //todo: implement reset!
+end;
+
+function TSesmiTrackLayer.SliceType: Integer;
+begin
+  Result := stLocation;
+end;
 end.
