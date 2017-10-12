@@ -264,9 +264,11 @@ type
     fLiveEvent: TEventEntry;
     fQueryEventHandler: TOnEvent;
     fLiveEventHandler: TOnEvent;
+    fLiveCounter: Integer;
+    fDBCounter: Integer;
     procedure handleLiveEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleQueryEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-    procedure AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette: TWDPalette; const aLegendJSON: string);
+    procedure AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette, aTrackPalette: TWDPalette; const aLegendJSON: string);
   public
     procedure InquireDB(const aInquire: string; const aLowerTimestamp, aUpperTimestamp: Double);
     procedure ReadBasicData(); override;
@@ -360,33 +362,36 @@ begin
 end;
 
 function CreateNiekPalette(const aTitle: string): TWDPalette;
+var
+  factor: Double;
 begin
+  factor := 1 / 1000000000;
   Result := TRampPalette.Create(aTitle, [
-    TRampPaletteEntry.Create($Ff00AF00, 0, '0'),
+    TRampPaletteEntry.Create($Ff00AF00, 0 * factor, '0'),
     //TRampPaletteEntry.Create($FF00C800, 5, '5'),
-    TRampPaletteEntry.Create($FF00E100, 10, '10'),
+    TRampPaletteEntry.Create($FF00E100, 10 * factor, '10'),
     //TRampPaletteEntry.Create($FF32FF32, 15, '15'),
-    TRampPaletteEntry.Create($FF7DFF4B, 20, '20'),
+    TRampPaletteEntry.Create($FF7DFF4B, 20 * factor, '20'),
     //TRampPaletteEntry.Create($FFC8FF4B, 25, '25'),
-    TRampPaletteEntry.Create($FFF2FF4B, 30, '30'),
+    TRampPaletteEntry.Create($FFF2FF4B, 30 * factor, '30'),
     //TRampPaletteEntry.Create($FFFFFA01, 35, '35'),
-    TRampPaletteEntry.Create($FFFFE101, 40, '40'),
+    TRampPaletteEntry.Create($FFFFE101, 40 * factor, '40'),
     //TRampPaletteEntry.Create($FFFFC801, 45, '45'),
-    TRampPaletteEntry.Create($FFFFAF01, 50, '50'),
+    TRampPaletteEntry.Create($FFFFAF01, 50 * factor, '50'),
     //TRampPaletteEntry.Create($FFFF9601, 55, '55'),
-    TRampPaletteEntry.Create($FFFF7D01, 60, '60'),
+    TRampPaletteEntry.Create($FFFF7D01, 60 * factor, '60'),
     //TRampPaletteEntry.Create($FFFF6401, 65, '65'),
-    TRampPaletteEntry.Create($FFFF4B01, 70, '70'),
+    TRampPaletteEntry.Create($FFFF4B01, 70 * factor, '70'),
     //TRampPaletteEntry.Create($FFFF0000, 75, '75'),
-    TRampPaletteEntry.Create($FFE10000, 80, '80'),
+    TRampPaletteEntry.Create($FFE10000, 80 * factor, '80'),
     //TRampPaletteEntry.Create($FFC80000, 85, '85'),
-    TRampPaletteEntry.Create($FFAF0000, 90, '90'),
+    TRampPaletteEntry.Create($FFAF0000, 90 * factor, '90'),
     //TRampPaletteEntry.Create($FF960019, 95, '95'),
-    TRampPaletteEntry.Create($FF7D0032, 100, '100'),
+    TRampPaletteEntry.Create($FF7D0032, 100 * factor, '100'),
     //TRampPaletteEntry.Create($FF6E004B, 105, '105'),
-    TRampPaletteEntry.Create($FF640064, 110, '110'),
+    TRampPaletteEntry.Create($FF640064, 110 * factor, '110'),
     //TRampPaletteEntry.Create($FF500073, 115, '115'),
-    TRampPaletteEntry.Create($FF37005C, 120, '120')],
+    TRampPaletteEntry.Create($FF37005C, 120 * factor, '120')],
       $FF00AF00,
       $00000000,
       $FF37005C);
@@ -1040,7 +1045,7 @@ begin
   end;
 end;
 
-procedure TSesmiScenario.AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette: TWDPalette; const aLegendJSON: string);
+procedure TSesmiScenario.AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette, aTrackPalette: TWDPalette; const aLegendJSON: string);
 var
   layer: TSesmiLinkLayer;
   trackLayer: TSesmiTrackLayer;
@@ -1068,7 +1073,7 @@ begin
   AddLayer(layer);
   layer.RegisterLayer;
 
-  trackLayer := TSesmiTrackLayer.Create(Self, 'Personal exposure', fID + 'personal-' + aName, 'Personal Track ' + aName, aName, False, True, aPalette, BuildLegendJSON(aPalette));
+  trackLayer := TSesmiTrackLayer.Create(Self, 'Personal exposure', fID + 'personal-track-' + aName, 'Personal Track ' + aName, aName, True, True, aTrackPalette, BuildLegendJSON(aTrackPalette));
   TMonitor.Enter(fTrackLayers);
   try
     begin
@@ -1095,6 +1100,8 @@ begin
   fQueryCounter := 0;
   fQuerySubscribed := False;
   fQueryEventHandler := handleQueryEvent;
+  fLiveCounter := 0;
+  fDBCounter := 0;
   fLinkLayers := TDictionary<Integer, TSesmiLinkLayer>.Create;
   fTrackLayers := TDictionary<Integer, TSesmiTrackLayer>.Create;
   inherited;
@@ -1151,6 +1158,7 @@ var
   id: TWDID;
   sensorid: TGUID;
 begin
+  fLiveCounter := fLiveCounter + 1;
   if not Live then
     exit;
   timestamp := 0;
@@ -1220,6 +1228,7 @@ var
   id: TWDID;
   sensorid: TGUID;
 begin
+  fDBCounter := fDBCounter + 1;
   timestamp := 0;
   while aCursor<aLimit do
   begin
@@ -1240,6 +1249,8 @@ begin
           value := aPayload.bb_read_double(aCursor);
           if fLinkLayers.TryGetValue(fieldInfo, layer) then
             layer.AddValue(timestamp, value);
+          if fTrackLayers.TryGetValue(fieldInfo, trackLayer) then
+            trackLayer.AddValue(sensorid, value);
         end;
       sensordata_linkid:
         begin
@@ -1305,7 +1316,7 @@ end;
 
 procedure TSesmiScenario.ReadBasicData;
 var
-  palette: TWDPalette;
+  palette, trackpalette: TWDPalette;
 //  layer: TSesmiLinkLayer;
 begin
 
@@ -1315,20 +1326,20 @@ begin
     'Group exposure', 'no2', 'NO2', 'Total exposure to NO2', false,
     sensordata_no2_total, 'receptordata', palette, BuildLegendJSON(palette));
 
-  palette := CreateNiekPalette('PM10'); // CreatePM10Palette;
-  addConcentrationLayer(
-    'Group exposure', 'pm10', 'PM10', 'Total exposure to PM10', false,
-    sensordata_pm10_total, 'receptordata', palette, BuildLegendJSON(palette));
+  //palette := CreateNiekPalette('PM10'); // CreatePM10Palette;
+  //addConcentrationLayer(
+  //  'Group exposure', 'pm10', 'PM10', 'Total exposure to PM10', false,
+  //  sensordata_pm10_total, 'receptordata', palette, BuildLegendJSON(palette));
 
   palette := CreateNiekPalette('NO2'); // CreateNO2Palette;
   addConcentrationLayer(
     'Group exposure',  'no2assim', 'NO2 assim', 'Total assimilated exposure to NO2', false,
     sensordata_assim_no2_total, 'receptordata', palette, BuildLegendJSON(palette));
 
-  palette := CreateNiekPalette('PM10'); // CreatePM10Palette;
-  addConcentrationLayer(
-    'Group exposure', 'pm10assim', 'PM10 assim', 'Total assimilated exposure to PM10', false,
-    sensordata_assim_pm10_total, 'receptordata', palette, BuildLegendJSON(palette));
+  //palette := CreateNiekPalette('PM10'); // CreatePM10Palette;
+  //addConcentrationLayer(
+  //  'Group exposure', 'pm10assim', 'PM10 assim', 'Total assimilated exposure to PM10', false,
+  //  sensordata_assim_pm10_total, 'receptordata', palette, BuildLegendJSON(palette));
 
   // Personal exposure
 //  mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts', 'Mobile sensors', '', False, 'line',
@@ -1338,11 +1349,14 @@ begin
 //  AddChart(mobileChart);
 
   palette := CreateHansPalette('NO2');
-  AddSesmiLinkLayer(sensordata_no2, 'Personal exposure', 'NO2', 'NO2', 'Personal NO2', palette, BuildLegendJSON(palette));
-  palette := CreateHansPalette('PM10');
-  AddSesmiLinkLayer(sensordata_pm10, 'Personal exposure', 'PM10', 'PM10', 'Personal PM10', palette, BuildLegendJSON(palette));
-  palette := CreateHansPalette('PM25');
-  AddSesmiLinkLayer(sensordata_pm25, 'Personal exposure', 'PM25', 'PM25', 'Personal PM25', palette, BuildLegendJSON(palette));
+  trackpalette := CreateNiekPalette('Track NO2');
+  AddSesmiLinkLayer(sensordata_no2, 'Personal exposure', 'NO2', 'NO2', 'Personal NO2', palette, trackpalette, BuildLegendJSON(palette));
+  //palette := CreateHansPalette('PM10');
+  //trackpalette := CreateNiekPalette('Track PM10');
+  //AddSesmiLinkLayer(sensordata_pm10, 'Personal exposure', 'PM10', 'PM10', 'Personal PM10', palette, trackpalette, BuildLegendJSON(palette));
+  //palette := CreateHansPalette('PM25');
+  //trackpalette := CreateNiekPalette('Track PM25');
+  //AddSesmiLinkLayer(sensordata_pm25, 'Personal exposure', 'PM25', 'PM25', 'Personal PM25', palette, trackpalette, BuildLegendJSON(palette));
   //layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'personal-no2', 'Personal NO2', 'NO2', False, True, palette, BuildLegendJSON(palette), mobilechart);
   //fLinkLayers.Add(sensordata_no2, layer);
   //AddLayer(layer);
@@ -1352,14 +1366,22 @@ end;
 procedure TSesmiScenario.Reset;
 var
   linkLayer: TSesmiLinkLayer;
+  trackLayer: TSesmiTrackLayer;
 begin
   TMonitor.Enter(fLinkLayers);
-      try
-        for linkLayer in fLinkLayers.Values do
-          linkLayer.Reset;
-      finally
-        TMonitor.Exit(fLinkLayers);
-      end;
+  try
+    for linkLayer in fLinkLayers.Values do
+      linkLayer.Reset;
+  finally
+    TMonitor.Exit(fLinkLayers);
+  end;
+  TMonitor.Enter(fTrackLayers);
+  try
+    for trackLayer in fTrackLayers.Values do
+      trackLayer.Reset;
+  finally
+    TMonitor.Exit(fTrackLayers);
+  end;
 end;
 
 { TSesmiProject }
@@ -1626,10 +1648,10 @@ begin
           queryString := '';
           if daysSelect.Length > 0 then
             queryString := queryString + '(mod(floor(ts)::Integer, 7) in (' + daysSelect + '))';
-          if (fromHour <> 0) or (toHour <> 1) then
+          if (fromHour <> toHour) then
           begin
             if queryString.Length > 0 then
-              queryString := queryString + ' AND ';
+            queryString := queryString + ' AND ';
             queryString := queryString + '(ts - floor(ts) > ' + fromHour.ToString(formatSettings);
             if fromHour < toHour then
               queryString := queryString + ' AND '
@@ -1750,10 +1772,10 @@ begin
   fProjects := TDictionary<string, TProject>.Create;
   fMaxNearestObjectDistanceInMeters := aMaxNearestObjectDistanceInMeters;
   dateFormData := '[{ "formElement": "checkbox", "type": "string", "required": "y", "optionsArray": ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"], "labelText": "Dagen van de week", "idName": "daysSelect", "extraOptions": false },'+
-            '{"formElement":"slider", "type":"int", "required":"y", "optionsArray":["0", "23"], "labelText":"Vanaf (tijd):", "idName":"fromHour", "extraOptions":[1, "uur"]},'+
-            '{"formElement": "slider", "type": "int", "required": "y", "optionsArray": ["1", "24"], "labelText": "Tot (tijd):", "idName": "toHour", "extraOptions": [1, "uur"]},'+
-            '{"formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Van datum [dd-mm-jjjj]", "idName": "fromDate", "extraOptions": {"defaultValue": "01-05-2017"} },'+
-            '{"formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Tot en met datum [dd-mm-jjjj]", "idName": "toDate", "extraOptions": {"defaultValue": "28-05-2017"}}'+
+            '{"formElement":"slider", "type":"int", "required":"y", "optionsArray":["0", "24"], "labelText":"Vanaf (tijd):", "idName":"fromHour", "extraOptions":[1, "uur"]},'+
+            '{"formElement": "slider", "type": "int", "required": "y", "optionsArray": ["0", "24"], "labelText": "Tot (tijd):", "idName": "toHour", "extraOptions": [1, "uur"]},'+
+            '{"formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Van datum [dd-mm-jjjj]", "idName": "fromDate", "extraOptions": {"defaultValue": "13-10-2017"} },'+
+            '{"formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Tot en met datum [dd-mm-jjjj]", "idName": "toDate", "extraOptions": {"defaultValue": "20-10-2017"}}'+
             ']';
   //InitPG;
   project := TSesmiProject.Create(aSessionModel, aConnection, 'Sesmi', aProjectName, aTilerFQDN, aTilerStatusURL,
@@ -1910,6 +1932,7 @@ end;
 procedure TSesmiMobileSensorLayer.RegisterLayer;
 begin
   RegisterOnTiler(False, SliceType, name, 2500, fPalette);
+  fTilerLayer.signalSliceAction();
 end;
 
 procedure TSesmiMobileSensorLayer.RegisterSlice;
@@ -2196,6 +2219,8 @@ begin
   fLastLats := TDictionary<TGUID, Double>.Create;
   fLastLons := TDictionary<TGUID, Double>.Create;
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"mobilesensor"', 'Point', ltTile, aShowInDomains, 0);
+  fPalette := aPallette;
+  fLegendJSON := aLegendJSON;
 end;
 
 destructor TSesmiTrackLayer.Destroy;
@@ -2217,7 +2242,7 @@ end;
 
 procedure TSesmiTrackLayer.Reset;
 begin
-  //todo: implement reset!
+  tilerLayer.signalSliceAction();
 end;
 
 function TSesmiTrackLayer.SliceType: Integer;
