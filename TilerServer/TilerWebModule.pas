@@ -4162,8 +4162,10 @@ begin
                           finally
                             slice.fDataLock.EndWrite;
                           end;
-                          if clear
-                          then signalRefresh(timeStamp);
+//                          if clear
+//                          then
+                          // todo: now always send refresh (although should only be necessary on change..)
+                          signalRefresh(timeStamp);
                         end;
                       end;
                   end;
