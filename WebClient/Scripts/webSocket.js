@@ -428,7 +428,7 @@ function wsConnect() {
     ws.onmessage = function (evt) {
 
         var message = JSON.parse(evt.data);
-
+        
         var messages = message;
 
         if (!(Object.prototype.toString.call(message) === '[object Array]')) {

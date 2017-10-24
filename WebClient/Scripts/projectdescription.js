@@ -1,6 +1,8 @@
 // create project description control
 L.control.projectDescription = L.control();
 
+L.control.projectDescription.showInfo = true;
+
 L.control.projectDescription.showOptions = function (e) {
     //stop the leaflet and default context menu's from appearing
     e.preventDefault();
@@ -13,10 +15,19 @@ L.control.projectDescription.showOptions = function (e) {
 
     modelDialogAddButton(container, 'Refresh', function () { wsSend({ scenarioRefresh: DataManager.sessionInfo.scenario }); });
 
+    modelDialogAddButton(container, 'Scenario Overzicht', function () {
+        modalDialogClose();
+        ScenarioControlsManager.showScenarios(options);
+    });
+
+    modelDialogAddButton(container, 'Scenario Planning', function () {
+        modalDialogClose();
+        ScenarioControlsManager.showScenario(options);
+    });
+
 }
 
 L.control.projectDescription.showScenarios = function () {
-
     // show modal dialog with all available scenarios
     if (options.scenarios && options.scenarios.length > 0) {
         var div = modalDialogCreate('Scenarios', 'choose the active and the reference scenario');
@@ -43,13 +54,13 @@ L.control.projectDescription.showScenarios = function () {
         ul.id = "list";
 
         // add active|reference text
-        AddActiveReference(ul);
+        L.control.projectDescription.AddActiveReference(ul);
 
         // adds the no reference scenario option
-        AddNoReference(ul);
+        L.control.projectDescription.AddNoReference(ul);
 
         // adds the scenarios
-        AddScenarios(Scenarios, ul);
+        L.control.projectDescription.AddScenarios(Scenarios, ul);
 
         f.appendChild(document.createElement('br'));
         f.appendChild(document.createElement('hr'));
@@ -72,7 +83,7 @@ L.control.projectDescription.showScenarios = function () {
             modalDialogClose();
         });
 
-        CheckCurrentScenarios(options);
+        L.control.projectDescription.CheckCurrentScenarios(options);
     }
     if (f) {
         L.DomEvent.addListener(f, 'touchmove', L.DomEvent.stopPropagation);
@@ -161,11 +172,11 @@ function ResizeProjectDescription() {
     projectDescriptionH2.style.width = "" + (window.innerWidth - 165) + "px";
 }
 
-function AddActiveReference(ul) {
+L.control.projectDescription.AddActiveReference = function (ul) {
     var li = ul.appendChild(document.createElement("li"));
     li.className = "listItem";
 
-    var table = CreateTable(false);
+    var table = L.control.projectDescription.CreateTable(false);
 
     var activeTextSpan = table[2].appendChild(document.createElement("span"));
     activeTextSpan.id = "activeTextSpan";
@@ -182,11 +193,11 @@ function AddActiveReference(ul) {
     li.appendChild(table[0]);
 }
 
-function AddNoReference(ul) {
+L.control.projectDescription.AddNoReference = function (ul) {
     var li = ul.appendChild(document.createElement("li"));
     li.className = "listItem";
 
-    var table = CreateTable(false);
+    var table = L.control.projectDescription.CreateTable(false);
 
     var textSpan = table[2].appendChild(document.createElement("span"));
     textSpan.id = "noRefSpan";
@@ -199,7 +210,7 @@ function AddNoReference(ul) {
     table[3].id = "noRefRightRadio";
     table[3].value = "noreference";
     rightRadioSpan.value = "noreference";
-    table[3].addEventListener("click", RightMouseClick);
+    table[3].addEventListener("click", L.control.projectDescription.RightMouseClick);
     var rightRadio = rightRadioSpan.appendChild(document.createElement("input"));
     rightRadio.type = "radio";
     rightRadio.className = "rightRadio";
@@ -209,22 +220,22 @@ function AddNoReference(ul) {
     li.appendChild(table[0]);
 }
 
-function AddScenarios(list, ul) {
+L.control.projectDescription.AddScenarios = function (list, ul) {
 
     for (var i = 0; i < list.length; i++) {
         var li = ul.appendChild(document.createElement("li"));
         li.className = "listItem";
-        FillTable(Scenarios[i], li);
+        L.control.projectDescription.FillTable(list[i], li);
 
         if (list[i].children.length > 0) {
-            var subUL = ul.appendChild(document.createElement("ul"));
+            var subUL = ul.appendChild(document.createElement("li")).appendChild(document.createElement("ul"));
             subUL.className = "subList";
-            AddScenarios(list[i].children, subUL);
+            L.control.projectDescription.AddScenarios(list[i].children, subUL);
         }
     }
 }
 
-function CheckCurrentScenarios(aOptions) {
+L.control.projectDescription.CheckCurrentScenarios = function (aOptions) {
     var leftRadioButtons = document.getElementsByClassName("leftRadio");
     var rightRadioButtons = document.getElementsByClassName("rightRadio");
 
@@ -254,10 +265,10 @@ function CheckCurrentScenarios(aOptions) {
     }
 }
 
-function FillTable(aScenario, li) {
+L.control.projectDescription.FillTable = function (aScenario, li) {
 
 
-    var table = CreateTable();
+    var table = L.control.projectDescription.CreateTable();
 
     var textSpan = table[1].appendChild(document.createElement("span"));
     table[1].value = aScenario.id;
@@ -295,6 +306,17 @@ function FillTable(aScenario, li) {
     rightRadio.value = aScenario.id;
     rightRadio.name = "referenceScenario";
 
+    if (L.control.projectDescription.showInfo)
+    {
+        var infoText = table[4].appendChild(document.createElement("span"));
+        infoText.className = "infoText";
+        infoText.scenario = aScenario;
+        infoText.innerHTML = "i";
+        table[4].addEventListener("click", L.control.projectDescription.clickInfo.bind(aScenario));
+        table[4].className += " cell4Filled";
+        table[4].scenario = aScenario;
+    }
+
     aScenario.span = textSpan;
     aScenario.leftRadio = leftRadio;
     aScenario.rightRadio = rightRadio;
@@ -302,8 +324,8 @@ function FillTable(aScenario, li) {
     li.appendChild(table[0]);
 }
 
-function CreateTable(triggers) {
-
+L.control.projectDescription.CreateTable = function (triggers) {
+    
     if (arguments.length == 0) {
         triggers = true;
     }
@@ -316,69 +338,83 @@ function CreateTable(triggers) {
     var cell1 = row.appendChild(document.createElement("td"));
     cell1.className = "cell1";
     if (triggers) {
-        cell1.addEventListener("mouseenter", TextMouseEnter);
-        cell1.addEventListener("mouseleave", TextMouseLeave);
-        cell1.addEventListener("click", TextMouseClick);
+        cell1.addEventListener("mouseenter", L.control.projectDescription.TextMouseEnter);
+        cell1.addEventListener("mouseleave", L.control.projectDescription.TextMouseLeave);
+        cell1.addEventListener("click", L.control.projectDescription.TextMouseClick);
     }
 
     var cell2 = row.appendChild(document.createElement("td"));
     cell2.className = "cell2";
     if (triggers) {
-        cell2.addEventListener("mouseenter", LeftMouseEnter);
-        cell2.addEventListener("mouseleave", LeftMouseLeave);
-        cell2.addEventListener("click", LeftMouseClick);
+        cell2.addEventListener("mouseenter", L.control.projectDescription.LeftMouseEnter);
+        cell2.addEventListener("mouseleave", L.control.projectDescription.LeftMouseLeave);
+        cell2.addEventListener("click", L.control.projectDescription.LeftMouseClick);
     }
 
     var cell3 = row.appendChild(document.createElement("td"));
     cell3.className = "cell3";
     if (triggers) {
-        cell3.addEventListener("mouseenter", RightMouseEnter);
-        cell3.addEventListener("mouseleave", RightMouseLeave);
-        cell3.addEventListener("click", RightMouseClick);
+        cell3.addEventListener("mouseenter", L.control.projectDescription.RightMouseEnter);
+        cell3.addEventListener("mouseleave", L.control.projectDescription.RightMouseLeave);
+        cell3.addEventListener("click", L.control.projectDescription.RightMouseClick);
     }
 
-    return [table, cell1, cell2, cell3];
+
+    var returnArray = [table, cell1, cell2, cell3];
+
+    if (L.control.projectDescription.showInfo)
+    {
+        var cell4 = row.appendChild(document.createElement("td"));
+        cell4.className = "cell4";
+        returnArray.push(cell4);
+    }
+
+    return returnArray;
 }
 
-function TextMouseEnter(event) {
+L.control.projectDescription.clickInfo = function (event) {
+    L.control.projectDescription.showInfoPopup(event.target.scenario);
+}
+
+L.control.projectDescription.TextMouseEnter = function (event) {
     target = event.target;
-    AdjustRadioColor(target, "LightBlue");
+    L.control.projectDescription.AdjustRadioColor(target, "LightBlue");
 }
 
-function TextMouseLeave(event) {
+L.control.projectDescription.TextMouseLeave = function (event) {
     target = event.target;
-    AdjustRadioColor(target, "White");
+    L.control.projectDescription.AdjustRadioColor(target, "White");
 }
 
-function TextMouseClick(event) {
-    ActiveClick(event.target.value);
+L.control.projectDescription.TextMouseClick = function (event) {
+    L.control.projectDescription.ActiveClick(event.target.value);
 }
 
-function LeftMouseEnter(event) {
+L.control.projectDescription.LeftMouseEnter = function (event) {
     target = event.target;
-    AdjustColor(target, "LightBlue");
+    L.control.projectDescription.AdjustColor(target, "LightBlue");
 }
 
-function LeftMouseLeave(event) {
+L.control.projectDescription.LeftMouseLeave = function (event) {
     target = event.target;
-    AdjustColor(target, "white");
+    L.control.projectDescription.AdjustColor(target, "white");
 }
 
-function LeftMouseClick(event) {
-    ActiveClick(event.target.value);
+L.control.projectDescription.LeftMouseClick = function (event) {
+    L.control.projectDescription.ActiveClick(event.target.value);
 }
 
-function RightMouseEnter(event) {
+L.control.projectDescription.RightMouseEnter = function (event) {
     target = event.target;
-    AdjustColor(target, "#d6adeb");
+    L.control.projectDescription.AdjustColor(target, "#d6adeb");
 }
 
-function RightMouseLeave(event) {
+L.control.projectDescription.RightMouseLeave = function (event) {
     target = event.target;
-    AdjustColor(target, "white");
+    L.control.projectDescription.AdjustColor(target, "white");
 }
 
-function RightMouseClick(event) {
+L.control.projectDescription.RightMouseClick = function (event) {
     var rightRadioButtons = document.getElementsByClassName("rightRadio");
     for (var i = 0; i < rightRadioButtons.length; i++) {
         if (rightRadioButtons[i].value == event.target.value) {
@@ -391,13 +427,13 @@ function RightMouseClick(event) {
 
 }
 
-function FindScenario(scenarioID, list) {
+L.control.projectDescription.FindScenario = function (scenarioID, list) {
     for (var i = 0; i < list.length; i++) {
         if (list[i].id == scenarioID) {
             return [true, list[i]];
         }
         else if (list[i].children.length > 0) {
-            var temp = FindScenario(scenarioID, list[i].children);
+            var temp = L.control.projectDescription.FindScenario(scenarioID, list[i].children);
             if (temp[0]) {
                 return temp;
             }
@@ -406,7 +442,7 @@ function FindScenario(scenarioID, list) {
     return [false, null];
 }
 
-function ActiveClick(scenarioID) {
+L.control.projectDescription.ActiveClick = function (scenarioID) {
     var leftRadioButtons = document.getElementsByClassName("leftRadio");
     var rightRadioButtons = document.getElementsByClassName("rightRadio");
     var scenario;
@@ -415,7 +451,7 @@ function ActiveClick(scenarioID) {
             scenario = Scenarios[i];
         }
     }
-    scenario = FindScenario(scenarioID, Scenarios)[1];
+    scenario = L.control.projectDescription.FindScenario(scenarioID, Scenarios)[1];
 
 
     for (var i = 0; i < leftRadioButtons.length; i++) {
@@ -451,7 +487,7 @@ function ActiveClick(scenarioID) {
     }
 }
 
-function AdjustColor(target, color) {
+L.control.projectDescription.AdjustColor = function (target, color) {
     target.style.backgroundColor = color;
 
     var radioButton = target.children[0].children[0];
@@ -466,7 +502,7 @@ function AdjustColor(target, color) {
     }
 }
 
-function AdjustRadioColor(target, color) {
+L.control.projectDescription.AdjustRadioColor = function (target, color) {
     target.style.backgroundColor = color;
 
     var textSpan = target.children[0];
@@ -479,4 +515,29 @@ function AdjustRadioColor(target, color) {
             leftButtonList[i].parentNode.parentNode.style.backgroundColor = color;
         }
     }
+}
+
+L.control.projectDescription.showInfoPopup = function (scenario) {
+    var popUpContainer;
+
+    if (typeof L.control.projectDescription.popUpContainer === "undefined") {
+        popUpContainer = L.control.projectDescription.popUpContainer = document.body.appendChild(document.createElement("div"));
+        popUpContainer.id = "description-popup-container";
+    }
+    else
+        popUpContainer = L.control.projectDescription.popUpContainer;
+
+    popUpContainer.innerHTML = "";
+    popUpContainer.style.display = "block";
+
+    var popUpDiv = popUpContainer.appendChild(document.createElement("div"));
+    popUpDiv.id = "description-popup-div";
+
+    var textDiv = popUpDiv.appendChild(document.createElement("div"));
+    textDiv.className = "description-popup-textspan";
+    textDiv.innerHTML = "Hier komt dan iets van text enzo, <BR>scenario: <BR>" + scenario.description;
+
+    var closeButton = popUpDiv.appendChild(document.createElement("button"));
+    closeButton.addEventListener("click", function (e) { popUpContainer.style.display = "none"; });
+    closeButton.innerText = "Close";
 }

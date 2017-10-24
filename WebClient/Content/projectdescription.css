@@ -90,6 +90,21 @@
   border-left: 3px solid LightGrey;
   cursor: default;
 }
+.cell4 {
+    width: 20px;
+    border-left: 3px solid LightGrey;
+    text-align: center;
+}
+.cell4Filled {
+    cursor: pointer;
+}
+.rightRadioSpan {
+    padding-left: 4px;
+}
+.leftRadioSpan {
+    padding-right: 2px;
+}
+
 #noRefRightRadio:hover {  background-color: #d6adeb }
 #refTextCell {
   width: 30px;
@@ -103,4 +118,32 @@
 #noRefSpan {
   margin-right: 3px;
   white-space: nowrap;
+}
+.infoText {
+    display:block;
+    border-radius:3px;
+    background-color: rgb(173,216,230);
+    margin: 2px;
+}
+
+#description-popup-container {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100000;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+
+#description-popup-div {
+    max-width: 50%;
+    position: relative;
+    margin: 50px auto;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0px, 0px, 5px;
 }
