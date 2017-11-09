@@ -62,8 +62,9 @@ begin
   Log.WriteLn('DISCONNECT from IMB4 connection', llWarning);
 end;
 
-function GetEnvVarValue(const aVarName: string): string;
-var
+
+function GetEnvVarValue(const aVarName: string): string;
+var
   BufSize: Integer;
 begin
   BufSize := GetEnvironmentVariable(PChar(aVarName), nil, 0);
@@ -160,7 +161,7 @@ begin
 
     // inquire existing sessions
     fIMBConnection.publish(WS2IMBEventName, False).signalIntString(actionInquire, fIMBConnection.privateEventName);
-    }
+    }
     Log.WriteLn('Publishing server start');
     started := True;
   except

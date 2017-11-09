@@ -2763,10 +2763,10 @@ begin
                                     end
                                     else if dataquery.ReturnType='LIST' then // specific for citygml structure, see: TABLE
                                     begin
-                                      jsonList:=TJSONObject.Create;
-                                      try
-                                        dataguid:='';
-                                        //we expect the query to return: attr_gml_id, attr_name, string_value, double_value, int_value
+                                      jsonList:=TJSONObject.Create;
+                                      try
+                                        dataguid:='';
+                                        //we expect the query to return: attr_gml_id, attr_name, string_value, double_value, int_value
                                         while not query.Eof do
                                         begin
                                           thisguid:=query.FieldByName('attr_gml_id').AsString;
@@ -2792,10 +2792,10 @@ begin
                                     end
                                     else if dataquery.ReturnType='TABLE' then // specific for flat tables, see: LIST
                                     begin
-                                      jsonArray := TJSONArray.Create;
-                                      try
-                                        while not query.Eof do
-                                        begin
+                                      jsonArray := TJSONArray.Create;
+                                      try
+                                        while not query.Eof do
+                                        begin
                                           rowObject := TJSONObject.Create;
                                           try
                                             // convert all fields to json object
@@ -2837,8 +2837,8 @@ begin
                                     begin // geojson as string
                                       jsonArray := TJSONArray.Create;
                                       try
-                                        while not query.Eof do
-                                        begin
+                                        while not query.Eof do
+                                        begin
                                           propertiesObject := TJSONObject.Create;
                                           geometryObject := nil;
                                           try

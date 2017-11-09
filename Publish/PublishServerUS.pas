@@ -675,7 +675,7 @@ function TMetaLayerEntry.CreateUSLayer(aScenario: TScenario; const aTablePrefix:
 
   function defaultValue(const aValue, aDefault: string): string; overload;
   begin
-    if aValue<>''
+    if aValue<>''
     then Result := aValue
     else Result := aDefault;
   end;
@@ -1721,8 +1721,8 @@ procedure TUSScenario.ReadBasicData;
   var
     layer: TUSLayer;
   begin
-    layer := TUSLayer.Create(Self,
-      standardIni.ReadString('domains', aObjectType, aDefaultDomain), //  domain
+    layer := TUSLayer.Create(Self,
+      standardIni.ReadString('domains', aObjectType, aDefaultDomain), //  domain
       aID, aName, aDescription, false,
        '"'+aObjectType+'"', aGeometryType , aLayerType, NaN,
        aConnectString,
@@ -2550,7 +2550,7 @@ function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapV
 var
   table: TOraTable;
 begin
-  if not TableExists(aOraSession, PROJECT_TABLE_NAME) then
+  if TableExists(aOraSession, PROJECT_TABLE_NAME) then
   begin
     // try to read view from database
     table := TOraTable.Create(nil);
