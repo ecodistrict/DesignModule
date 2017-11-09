@@ -2795,6 +2795,7 @@ begin
                                       jsonArray := TJSONArray.Create;
                                       try
                                         while not query.Eof do
+
                                         begin
                                           rowObject := TJSONObject.Create;
                                           try
@@ -2837,7 +2838,9 @@ begin
                                     begin // geojson as string
                                       jsonArray := TJSONArray.Create;
                                       try
+
                                         while not query.Eof do
+
                                         begin
                                           propertiesObject := TJSONObject.Create;
                                           geometryObject := nil;

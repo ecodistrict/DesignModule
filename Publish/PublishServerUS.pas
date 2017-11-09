@@ -330,7 +330,7 @@ type
 
   TUSProject = class(TMCProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
-    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer=-1);
   destructor Destroy; override;
   private
     fUSDBScenarios: TObjectDictionary<string, TUSDBScenario>;
@@ -358,6 +358,7 @@ type
 
 function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapView;
 function getUSProjectID(aOraSession: TOraSession; const aDefault: string): string;
+function getUSSourceESPG(aOraSession: TOraSession; const aDefault: Integer): Integer;
 procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon, aZoomLevel: Double);
 function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer): Integer;
 
@@ -675,6 +676,7 @@ function TMetaLayerEntry.CreateUSLayer(aScenario: TScenario; const aTablePrefix:
 
   function defaultValue(const aValue, aDefault: string): string; overload;
   begin
+
     if aValue<>''
     then Result := aValue
     else Result := aDefault;
@@ -1622,9 +1624,17 @@ begin
       query.First;
         while not query.Eof do
         begin
-          oid := AnsiString(query.Fields[0].AsInteger.ToString);
-          objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
-          query.Next;
+          try
+          begin
+            oid := AnsiString(query.Fields[0].AsInteger.ToString);
+            objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
+            if (objects.Count mod 10000) = 0 then
+              Log.WriteLn('Busy reading objects: ' + objects.Count.ToString + ' for ' + name);
+            query.Next;
+          end
+          except
+            Log.WriteLn('Error reading object ' + elementID + ' in layer ' + name, llError, 1);
+          end;
         end;
     finally
       query.Free;
@@ -1721,7 +1731,9 @@ procedure TUSScenario.ReadBasicData;
   var
     layer: TUSLayer;
   begin
+
     layer := TUSLayer.Create(Self,
+
       standardIni.ReadString('domains', aObjectType, aDefaultDomain), //  domain
       aID, aName, aDescription, false,
        '"'+aObjectType+'"', aGeometryType , aLayerType, NaN,
@@ -2288,7 +2300,8 @@ end;
 
 constructor TUSProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
-  aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
+  aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
+  aSourceEPSG: Integer);
 var
   SourceEPSGstr: string;
   SourceEPSG: Integer;
@@ -2297,15 +2310,20 @@ begin
   fUSDBScenarios := TObjectDictionary<string, TUSDBScenario>.Create;
   mapView := aMapView;
 
-  SourceEPSGstr := GetSetting(SourceEPSGSwitch, 'Amersfoort_RD_New');
-  if SourceEPSGstr<>'' then
+  if aSourceEPSG>0
+  then fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(aSourceEPSG)
+  else
   begin
-    SourceEPSG := StrToIntDef(SourceEPSGstr, -1);
-    if SourceEPSG>0
-    then fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(SourceEPSG)
-    else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT(SourceEPSGstr);
-  end
-  else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
+    SourceEPSGstr := GetSetting(SourceEPSGSwitch, 'Amersfoort_RD_New');
+    if SourceEPSGstr<>'' then
+    begin
+      SourceEPSG := StrToIntDef(SourceEPSGstr, -1);
+      if SourceEPSG>0
+      then fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(SourceEPSG)
+      else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT(SourceEPSGstr);
+    end
+    else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
+  end;
   fPreLoadScenarios := aPreLoadScenarios;
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName,
     aTilerFQDN, aTilerStatusURL, aDataSource,
@@ -2578,6 +2596,47 @@ begin
   else Result := aDefault;
 end;
 
+function getUSSourceESPG(aOraSession: TOraSession; const aDefault: Integer): Integer;
+var
+  table: TOraTable;
+begin
+  if TableExists(aOraSession, PROJECT_Table_NAME) then
+  begin
+    if not FieldExists(aOraSession, PROJECT_TABLE_NAME, 'SOURCE_EPSG') then
+    begin
+      aOraSession.ExecSQL(
+        'ALTER TABLE '+PROJECT_TABLE_NAME+ ' ' +
+          'ADD SOURCE_EPSG INTEGER');
+      aOraSession.Commit;
+      Log.WriteLn('Alter table '+PROJECT_TABLE_NAME + ' Added SOURCE_EPSG', llWarning);
+    end;
+    table := TORaTable.Create(nil);
+    try
+      table.Session := aOraSession;
+      table.SQL.Text := 'SELECT SOURCE_EPSG FROM '+PROJECT_TABLE_NAME;
+      try
+        table.Execute;
+        try
+          if table.FindFirst then
+          begin
+            if not table.Fields[0].IsNull
+            then Result := table.Fields[0].AsInteger
+            else Result := aDefault;
+          end
+          else Result := aDefault;
+        finally
+          table.Close;
+        end;
+      except
+        Result := aDefault;
+      end;
+    finally
+      table.Free;
+    end;
+  end
+  else Result := aDefault;
+end;
+
 function getUSProjectID(aOraSession: TOraSession; const aDefault: string): string;
 var
   table: TOraTable;
@@ -2629,6 +2688,7 @@ begin
         'LON NUMBER,'+
         'ZOOM INTEGER,'+
         'STARTPUBLISHEDSCENARIOID INTEGER,'+
+        'SOURCE_EPSG INTEGER,'+
         'CONSTRAINT '+PROJECT_TABLE_NAME+'_PK PRIMARY KEY (PROJECTID))');
     aOraSession.Commit;
     Log.WriteLn('Create table '+PROJECT_TABLE_NAME, llWarning);

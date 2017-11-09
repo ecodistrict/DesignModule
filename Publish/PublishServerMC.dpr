@@ -29,6 +29,7 @@ const
 
   ProjectIDSwitch = 'ProjectID';
   ProjectNameSwitch = 'ProjectName';
+  SourceEPSGIntSwitch = 'SourceEPSGInt';
 
   PreLoadScenariosSwitch = 'PreLoadScenarios';
 
@@ -114,6 +115,7 @@ var
   p: Integer;
   projectID: string;
   projectName: string;
+  sourceESPG: Integer;
   i: Integer;
   dbConnection: TOraSession;
 begin
@@ -141,6 +143,7 @@ begin
         projectID := getUSProjectID(dbConnection, '');
         if projectID=''
         then projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
+        sourceESPG := getUSSourceESPG(dbConnection, -1);
       finally
         dbConnection.Free;
       end;
@@ -159,10 +162,12 @@ begin
     begin
       projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
       projectName := GetSetting(ProjectNameSwitch, 'test project'); //aParameters.ParameterByName[FederationParameterName].ValueAsString
+      sourceESPG := GetSetting(SourceEPSGIntSwitch, -1);
     end;
     aParameters.Add(TModelParameter.Create(TilerNameSwitch, GetSetting(TilerNameSwitch, DefaultTilerName)));
     aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
     aParameters.Add(TModelParameter.Create(ProjectNameSwitch, projectName));
+    aParameters.Add(TModelParameter.Create(SourceEPSGIntSwitch, sourceESPG));
     aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, GetSetting(PreLoadScenariosSwitch, True)));
   except
     on E: Exception
@@ -186,6 +191,7 @@ var
   mapView: TMapView;
   preLoadScenarios: Boolean;
   tilerName: string;
+  sourceEPSG: Integer;
 begin
   try
     // execute actions needed to stop the model
@@ -207,6 +213,9 @@ begin
     dbConnection.Open;
     projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
     projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
+    if aParameters.ParameterExists(SourceEPSGIntSwitch)
+    then sourceEPSG := StrToInt(aParameters.ParameterByName[SourceEPSGIntSwitch].ValueAsString)
+    else sourceEPSG := -1;
     mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
     Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
     preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
@@ -221,7 +230,8 @@ begin
       dbConnection,
       mapView,
       preLoadScenarios, False,
-      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+      sourceEPSG);
     fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fProject);
 

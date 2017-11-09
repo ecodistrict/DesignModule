@@ -1,0 +1,47 @@
+﻿#scenarioControlsTable {
+    table-layout: fixed;
+    border-spacing: 0;
+}
+
+#scenarioControlsTable th {
+    padding: 5px;
+}
+
+#scenarioControlsTable .clickableHeader {
+    cursor: pointer;
+}
+
+#scenarioControlsTable .clickableHeader:hover {
+    background-color: darkgrey;
+}
+
+#scenarioControlsTable .thActive {
+    background-color: lightgreen;
+}
+
+#scenarioControlsTable .tdActive {
+    background-color: lightgreen;
+}
+
+#scenarioControlsTable .tdActive .scenarioTableInput {
+    cursor: pointer;
+}
+
+#scenarioControlsTable tbody tr:hover {
+    background-color: darkgrey;
+}
+
+#scenarioControlsTable td {
+    text-align: center;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+#scenarioControlsTable .scenarioTableControlText {
+    text-align: right;
+}
+
+.scenarioTableInput {
+    margin-left: auto;
+    margin-right: auto;
+}
