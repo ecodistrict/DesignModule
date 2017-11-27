@@ -15,6 +15,7 @@
         this._first = true;
         this._showing = false;
         this._lastRefresh = 0;
+        this._enabled = false;
 
         this.modelControlMouseDown = this.modelControlMouseDown.bind(this);
         this.modelControlDragMove = this.modelControlDragMove.bind(this);
@@ -24,7 +25,12 @@
     onAdd: function (map) {
         this._initLayout();
         this._map = map;
+        this._enabled = true;
         return this._container;
+    },
+
+    onRemove: function (map) {
+        this._enabled = false;
     },
 
     _initLayout: function () {
@@ -65,6 +71,8 @@
     },
 
     showModelControl: function () {
+        if (!this._enabled)
+            return;
         if (this._modelControl.Div == null) {
             var modelDiv = this._modelControl.Div = document.body.appendChild(document.createElement("div"));
             modelDiv.className = 'modelControlDiv';

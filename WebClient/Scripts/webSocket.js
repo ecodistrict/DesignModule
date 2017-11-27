@@ -412,6 +412,12 @@ var wsLookup = {
     },
     fileDownload: function (payload) {
         DataManager.filesControl.HandleFileDownloadMessage(payload);
+    },
+    dialogDataResponse: function (payload) {
+        handleDataResponse(payload);
+    },
+    scenarioControlsMessage: function (payload) {
+        ScenarioControlsManager.handleMessage(payload);
     }
 };
 
@@ -580,7 +586,7 @@ function wsConnect() {
                 }
                 else if (message.groupcontrol) {
                     messageBuilder.type = "groupcontrol";
-                    messageBuilder.payload = messave.groupcontrol;
+                    messageBuilder.payload = message.groupcontrol;
                 }
                 else {
                     console.log("unknown message:");
