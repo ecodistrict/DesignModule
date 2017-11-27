@@ -64,7 +64,6 @@ end;
 
 
 function GetEnvVarValue(const aVarName: string): string;
-
 var
   BufSize: Integer;
 begin
@@ -162,7 +161,6 @@ begin
 
     // inquire existing sessions
     fIMBConnection.publish(WS2IMBEventName, False).signalIntString(actionInquire, fIMBConnection.privateEventName);
-
     }
     Log.WriteLn('Publishing server start');
     started := True;

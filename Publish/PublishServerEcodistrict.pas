@@ -2763,13 +2763,9 @@ begin
                                     end
                                     else if dataquery.ReturnType='LIST' then // specific for citygml structure, see: TABLE
                                     begin
-
                                       jsonList:=TJSONObject.Create;
-
                                       try
-
                                         dataguid:='';
-
                                         //we expect the query to return: attr_gml_id, attr_name, string_value, double_value, int_value
                                         while not query.Eof do
                                         begin
@@ -2796,11 +2792,8 @@ begin
                                     end
                                     else if dataquery.ReturnType='TABLE' then // specific for flat tables, see: LIST
                                     begin
-
                                       jsonArray := TJSONArray.Create;
-
                                       try
-
                                         while not query.Eof do
 
                                         begin

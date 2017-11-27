@@ -34,12 +34,9 @@ end;
 
 (*
 procedure sendFileEen(aProject: TProject; aClient: TClient; const aName: string);
-
 var
   stream: TFileStream;
-
 begin
-
   stream := TFileStream.Create('C:\Temp\Ecodistrict Bart L uploads\5e henk TDBP_14122016_PGN_GeoJSON2.csv', fmOpenRead);
   try
     aCLient.SendDownloadableFileStream({aName, }ExtractFileName(stream.FileName), stream);
@@ -175,16 +172,12 @@ begin
         simParameters := TSSMSimulationParameterList.Create;
         //simParameters.setParameter('models', 'DataStore;SSMAirModule;A58 model');
         //simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);SSMAirModule;A58 model');
-
         simParameters.setParameter('models', 'DataStore;Traffic (SSM);Air (SSM <-> US);Noise(RD);SSMAirModule;A58 model');
-
         simParameters.setParameter('DataStore-Description', '<scenarioName>');
-
         simParameters.setParameter('A58 model-penetration', '<penetration>');
 
 
         //simParameters.setParameter('Traffic (SSM)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
-
         //simParameters.setParameter('Air (SSM <-> US)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
 
 
@@ -262,9 +255,7 @@ begin
         simParameters.setParameter('VissimController-Simulation Duration', 3600);
         simParameters.setParameter('VissimController-Period', 'avond');//todo
 
-
         //simParameters.setParameter('Traffic (SSM)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
-
         //simParameters.setParameter('Air (SSM <-> US)-DataSource', 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde');
 
 
