@@ -75,7 +75,7 @@
 
         removeHooks: function () {
             L.DomEvent
-                .off(document, (L.Browser.touch ? this._touchstart : 'mousedown'), this._onMouseDown, this)
+                .off(document, L.Browser.touch ? this._touchstart : 'mousedown', this._onMouseDown, this)
                 .off(document, 'keydown', this._onKeyDown, this);
 
             this._map.off({
@@ -211,7 +211,7 @@
             }
 
             var itemCls = L.Map.ContextMenu.BASE_CLS + '-item',
-                cls = options.disabled ? (itemCls + ' ' + itemCls + '-disabled') : itemCls,
+                cls = options.disabled ? itemCls + ' ' + itemCls + '-disabled' : itemCls,
                 el = this._insertElementAt('a', cls, container, index),
                 callback = this._createEventHandler(el, options.callback, options.context, options.hideOnSelect),
                 html = '';
@@ -280,14 +280,14 @@
             var me = this,
                 map = this._map,
                 disabledCls = L.Map.ContextMenu.BASE_CLS + '-item-disabled',
-                hideOnSelect = (hideOnSelect !== undefined) ? hideOnSelect : true;
+                _hideOnSelect = hideOnSelect !== undefined ? hideOnSelect : true;
 
             return function (e) {
                 if (L.DomUtil.hasClass(el, disabledCls)) {
                     return;
                 }
 
-                if (hideOnSelect) {
+                if (_hideOnSelect) {
                     me._hide();
                 }
 
@@ -335,11 +335,11 @@
                 if (data) {
                     event = L.extend(data, event);
                 }
-
                 this._showLocation = {
                     latlng: latlng,
                     layerPoint: layerPoint,
-                    containerPoint: pt
+                    containerPoint: pt,
+                    srcElement: window.event.srcElement
                 };
 
                 if (data && data.relatedTarget) {
@@ -465,23 +465,67 @@
 
         _showContextMenu: function (e) {
             var itemOptions,
+                itemOptionsSeparator,
                 pt, i, l;
 
             if (this._map.contextmenu) {
+                // delete context
+                delete this._showLocation;
+
                 pt = this._map.mouseEventToContainerPoint(e.originalEvent);
+                var addSeparator = false;
+                var addSeparatorGroup = false;
 
                 if (!this.options.contextmenuInheritItems) {
                     this._map.contextmenu.hideAllItems();
                 }
+                else {
+                    addSeparator = this._map.contextmenu._items.length>0;
+                }
+
+                var tl = this;
+                var tlid = this._leaflet_id;
+
+                // mod: insert menu items from parent, works only 1 level deep (for now..)
+                if (this.options.contextmenuInheritItems) {
+                    this._map.eachLayer(function (layer) {
+                        if (layer.getLayer && layer.options.contextmenu) {
+                            var l = layer.getLayer(tlid);
+                            if (l) {
+                                // layer is now the LayerGroup that contains this layer
+                                for (i = 0, l = layer.options.contextmenuItems.length; i < l; i++) {
+                                    itemOptions = layer.options.contextmenuItems[i];
+                                    if (addSeparator) {
+                                        itemOptionsSeparator = { separator: true, index: itemOptions.index };
+                                        tl._items.push(tl._map.contextmenu.insertItem(itemOptionsSeparator, itemOptionsSeparator.index));
+                                        addSeparator = false;
+                                    }
+                                    tl._items.push(tl._map.contextmenu.insertItem(itemOptions, itemOptions.index));
+                                    addSeparatorGroup = true;
+                                }
+                            }
+                        }
+                    });
+                }
+
+                addSeparator = addSeparator || addSeparatorGroup;
 
                 for (i = 0, l = this.options.contextmenuItems.length; i < l; i++) {
                     itemOptions = this.options.contextmenuItems[i];
+                    if (addSeparator) {
+                        itemOptionsSeparator = { separator: true, index: itemOptions.index };
+                        this._items.push(this._map.contextmenu.insertItem(itemOptionsSeparator, itemOptionsSeparator.index));
+                        addSeparator = false;
+                    }
                     this._items.push(this._map.contextmenu.insertItem(itemOptions, itemOptions.index));
                 }
 
                 this._map.once('contextmenu.hide', this._hideContextMenu, this);
 
                 this._map.contextmenu.showAt(pt, { relatedTarget: this });
+                //window.event.cancelBubble = true;
+                //e.originalEvent._stopped = true;
+                L.DomEvent.stopPropagation(e);
             }
         },
 
@@ -490,10 +534,8 @@
             if (this._map.contextmenu) {
                 for (i = 0, l = this._items.length; i < l; i++) {
                     this._map.contextmenu.removeItem(this._items[i]);
-                    //map.CoL.Map.ContextMenu.removeItem(this._items[i]);
                 }
                 this._items.length = 0;
-
                 if (!this.options.contextmenuInheritItems) {
                     this._map.contextmenu.showAllItems();
                 }

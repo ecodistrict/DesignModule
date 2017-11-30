@@ -1,78 +1,20 @@
 // create legend control
+
 L.control.legend = L.control();
 
-// handle onAdd and addTo
 L.control.legend.onAdd = function (map) {
     // main div
     this._div = L.DomUtil.create('div', 'legend');
-    this._div.addEventListener('mousedown', this._startmove);
-    this._div.addEventListener('touchstart', this._startmove);
+    this._draggable = new L.Draggable(this._div);
+    this._draggable.enable();
     L.DomEvent.disableClickPropagation(this._div);
-    //this.update();
     return this._div;
-};
-
-var legend = null;
-
-
-L.control.legend._moveit = function (e) {
-
-    if (e.type === 'touchmove') {
-        if (legend) {
-            legend.style.left = (legend._mdx + e.changedTouches[0].clientX) + 'px';
-            legend.style.top = (legend._mdy + e.changedTouches[0].clientY) + 'px';
-            legend.style.bottom = 'auto';
-        }
-    } else {
-        if (legend) {
-            legend.style.left = (legend._mdx + e.clientX) + 'px';
-            legend.style.top = (legend._mdy + e.clientY) + 'px';
-            legend.style.bottom = 'auto';
-        }
-    }
-
-};
-
-L.control.legend._endmove = function (e) {
-
-    window.removeEventListener('mouseup', L.control.legend._endmove, true);
-    window.removeEventListener('touchend', L.control.legend._endmove, true);
-
-    window.removeEventListener('mousemove', L.control.legend._moveit, true);
-    window.removeEventListener('touchmove', L.control.legend._moveit, true);
-
-    legend = null;
-};
-
-L.control.legend._startmove = function (e) {
-
-
-    legend = e.target;
-
-    while (legend && !legend.classList.contains('legend'))
-        legend = legend.parentNode;
-    if (legend) {
-
-        window.addEventListener('mouseup', L.control.legend._endmove, true);
-        window.addEventListener('touchend', L.control.legend._endmove, true);
-
-        window.addEventListener('mousemove', L.control.legend._moveit, true);
-        window.addEventListener('touchmove', L.control.legend._moveit, true);
-
-        if (typeof (e.clientX) === 'undefined') {
-            legend._mdx = legend.offsetLeft - e.changedTouches[0].clientX;
-            legend._mdy = legend.offsetTop - e.changedTouches[0].clientY;
-        } else {
-            legend._mdx = legend.offsetLeft - e.clientX;
-            legend._mdy = legend.offsetTop - e.clientY;
-        }
-
-    }
 };
 
 L.control.legend._checkDisabledLayers = function () {
 };
 
+// replace default addTo to avoid position setting on controls corner of map (the legend floats over the map)
 L.control.legend.addTo = function (map) {
     this.remove();
     this._map = map;
@@ -131,6 +73,7 @@ L.control.legend._createRow = function (elements) {
     return row;
 };
 
+// todo: add as method?
 function createGradientLegend(definition) {
     var legendDiv = document.createElement('div');
     var title = document.createElement('div');
@@ -155,14 +98,14 @@ function createGradientLegend(definition) {
     var def = '';
     var filt = '';
     var style =
-    'width: ' + definition.width + ';' +
-    'background: ' + definition.gradients[0].color + ';' + /* Old browsers */
-    'background: -moz-linear-gradient(left, ' + clrs + ');' + /* FF3.6-15 */
-    'background: -webkit-linear-gradient(left, ' + clrs + ');' + /* Chrome10-25,Safari5.1-6 */
-    'background: linear-gradient(to right,  ' + clrs + ');' + /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-    'filter: progid:DXImageTransform.Microsoft.gradient(' +
-    'startColorstr=\'' + definition.gradients[0].color + '\', ' +
-    'endColorstr=\'' + definition.gradients[definition.gradients.length - 1].color + '\',GradientType=1);'; /* IE6-9 */
+        'width: ' + definition.width + ';' +
+        'background: ' + definition.gradients[0].color + ';' + /* Old browsers */
+        'background: -moz-linear-gradient(left, ' + clrs + ');' + /* FF3.6-15 */
+        'background: -webkit-linear-gradient(left, ' + clrs + ');' + /* Chrome10-25,Safari5.1-6 */
+        'background: linear-gradient(to right,  ' + clrs + ');' + /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+        'filter: progid:DXImageTransform.Microsoft.gradient(' +
+        'startColorstr=\'' + definition.gradients[0].color + '\', ' +
+        'endColorstr=\'' + definition.gradients[definition.gradients.length - 1].color + '\',GradientType=1);'; /* IE6-9 */
     upper.style.cssText = style;
     var middle = document.createElement('div');
     middle.className = 'legend-gradient-middle';
@@ -272,6 +215,9 @@ L.control.legend.clearLegend = function (aClearPosition, aLegendLayer) {
         if (aClearPosition) {
             // was closed before: reset position
             this._div.removeAttribute('style');
+            //this._div.removeAttribute('_leaflet_pos');
+            this._div._leaflet_pos = null;
+            
         }
         // clear previous contents
         while (this._div.firstChild) {
@@ -280,80 +226,3 @@ L.control.legend.clearLegend = function (aClearPosition, aLegendLayer) {
     }
 };
 
-L.control.legend.update = function (props) {
-    /*
-    var definition1 = {
-    scale: {
-    width: '300px',
-    title: 'a value that was never seen before',
-    logScale: 1,
-    tickFontSize: '11px',
-    gradients: [
-    { color: '#2ECCFA', position: 1 },
-    { color: '#F3F781', position: 10 },
-    { color: '#FA58D0', position: 100 },
-    { color: '#82FA58', position: 1000 }
-  ],
-  labels: [
-  { description: '1', position: 1 },
-  { description: 'zo 2', position: 20 },
-  { position: 40 },
-  { description: '75', position: 75 },
-  { description: '150', position: 150 },
-  { position: 1000 }
-  ]
-  }
-  };
-  
-  var definition2 = {
-  grid: [
-  {
-  'Wilderness Areas': 'LightSeaGreen',
-  'Bureau of Land Management, National Monument': 'LightSalmon'
-  },
-  {
-  'Indian Reservation': 'LightYellow',
-  'Fish and Wildlife Service': 'SteelBlue'
-  },
-  {
-  'National Park Service': 'Sienna',
-  'National Forests & Grasslands': 'LightGreen'
-  }
-  ]
-  };
-  */
-
-    //if (typeof this.definition !== 'undefined') {
-    //    this.createLegend(this.definition);
-    //}
-};
-
-
-
-if (is_touch_device()) {
-    document.addEventListener('touchstart', function (event) {
-        this.allowUp = (this.scrollTop > 0);
-        this.allowDown = (this.scrollTop < this.scrollHeight - this.clientHeight);
-        this.slideBeginY = event.pageY;
-    });
-
-    document.addEventListener('touchmove', function (event) {
-        var up = (event.pageY > this.slideBeginY);
-        var down = (event.pageY < this.slideBeginY);
-        this.slideBeginY = event.pageY;
-        if ((up && this.allowUp) || (down && this.allowDown)) {
-            event.stopPropagation();
-        }
-        else {
-            event.preventDefault();
-        }
-    });
-}
-function is_touch_device() {
-    try {
-        document.createEvent("TouchEvent");
-        return true;
-    } catch (e) {
-        return false;
-    }
-}

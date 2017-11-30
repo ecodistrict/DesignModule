@@ -188,7 +188,7 @@ DataManager = {
             color: aCar.fill,
             opacity: 1,
             fillColor: aCar.fill,
-            fillOpacity: 0.8,
+            fillOpacity: 0.8
         }).addTo(DataManager.drawLayer);
 
         circle.setStyle({ color: aCar.fill, opacity: 1 });
@@ -236,13 +236,13 @@ DataManager = {
 
         if (lightChange) {
             if (aCarData.bl) {
-                car.circle.setStyle({ color: "#ff0000", opacity: 1 })
+                car.circle.setStyle({ color: "#ff0000", opacity: 1 });
             }
             else if (aCarData.tis == "LEFT" || aCarData.tis == "RIGHT" || aCarData.tis == "HAZARD") {
-                car.circle.setStyle({ color: "#ffcc00", opacity: 1 })
+                car.circle.setStyle({ color: "#ffcc00", opacity: 1 });
             }
             else {
-                car.circle.setStyle({ color: car.fill, opacity: 1 })
+                car.circle.setStyle({ color: car.fill, opacity: 1 });
             }
         }
 
@@ -290,7 +290,7 @@ DataManager = {
                 latitude: aComplaint.latitude,
                 longitude: aComplaint.longitude,
                 text: aComplaint.text
-            }
+            };
 
             let scale = 0.375;
             let orr = 128;
@@ -348,7 +348,7 @@ DataManager = {
         if (time.year != systemTime.getFullYear()) {
             builder += utcTime.getDay() + "/" + (utcTime.getMonth() + 1) + "/" + utcTime.getYear();
         }
-        else if (utcTime.getDay() != systemTime.getDate() || utcTime.getMonth() != (systemTime.getMonth())) {
+        else if (utcTime.getDay() != systemTime.getDate() || utcTime.getMonth() != systemTime.getMonth()) {
             builder += time.day;
             switch (parseInt(utcTime.getMonth()) + 1) {
                 case 1: builder += " Jan.";
@@ -390,7 +390,7 @@ DataManager = {
         return builder;
     },
 
-    PublisherTimeToDate: function(aTimeString) //todo: date conversion functionality is now spread over the project -> move them all to DataManager
+    PublisherTimeToDate: function (aTimeString) //todo: date conversion functionality is now spread over the project -> move them all to DataManager
     {
         //convert publisher date string to javascript datestring
         var dateString = aTimeString.replace(' ', 'T');
@@ -399,8 +399,7 @@ DataManager = {
         return new Date(dateString);
     },
 
-    PublisherDateTimeToDate: function (aDateTime)
-    {
+    PublisherDateTimeToDate: function (aDateTime) {
         return new Date((aDateTime - 25569) * 86400 * 1000);
     },
 
@@ -415,7 +414,7 @@ DataManager = {
             hours: times[0],
             minutes: times[1],
             seconds: times[2]
-        }
+        };
     },
 
     GetTimeObject: function (obj) {
@@ -527,7 +526,7 @@ DataManager = {
                 measuredsubstance: aSensor.measuredsubstance,
                 mobile: aSensor.mobile,
                 data: []
-            }
+            };
 
             DataManager._addSensor(sensor);
         }
@@ -575,12 +574,12 @@ DataManager = {
                 time: "Hier mag je nog kiezen wat je stuurt!",
                 text: "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa."
             }
-        }
+        };
 
         console.log(JSON.stringify(object));
     }
 
-}
+};
 
 function AddComplaint(complaint) {
     DataManager._addComplaint(complaint);
@@ -610,7 +609,7 @@ function StopDancingCars() {
 }
 
 function ChangeRandomCar() {
-    var index = Math.floor(Math.random() * DataManager.cars.length)
+    var index = Math.floor(Math.random() * DataManager.cars.length);
 
     var newpos = getRandomLatLng();
 
@@ -655,7 +654,7 @@ function CreateRandomSensor() {
         measuredsubstance: "benzeen",
         mobile: false,
         data: []
-    }
+    };
 }
 
 function CreateRandomCar() {
@@ -670,7 +669,7 @@ function CreateRandomCar() {
         lat: latLng.lat,
         lng: latLng.lng,
         fill: getRandomColor()
-    }
+    };
 }
 
 function getRandomColor() {
@@ -736,5 +735,5 @@ function NewCarPosition(car, latlng) {
 }
 
 function CountDOM() {
-    return document.getElementsByTagName('*').length
+    return document.getElementsByTagName('*').length;
 }

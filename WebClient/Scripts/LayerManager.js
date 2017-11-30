@@ -147,12 +147,6 @@ var LayerManager = {
         {
             LayerManager.UpdateSubscribedLayer(payload);
         }
-        //else //old system
-        //{
-        //    var layer = LayerManager.GetLayerById(payload.id);
-        //    if (layer != null)
-        //        layer.updateData(payload);
-        //}
     },
 
     updateDomains: function (activelayers)
@@ -362,6 +356,128 @@ LayerManager.Circle = function (data, layergroup) {
     };
 };
 
+// find function based on name
+var stringToFunction = function (str) {
+    var arr = str.split(".");
+    var fn = (window || this);
+    for (var i = 0, len = arr.length; i < len; i++)
+        fn = fn[arr[i]];
+    if (typeof fn !== "function")
+        throw new Error("function not found");
+    return fn;
+};
+
+LayerManager.SimpleObject = function (data, layergroup) {
+    this.layergroup = layergroup;
+    //LayerManager.Object.call(this, data, layergroup);
+
+    // give class as text to create object from (leaflet dependency!) 
+    // merge partial object with existing one like style? or just resend complete style..
+    // use options of leaflet object and do not duplicate in data object
+
+    // handle special fields in options that have to be create like icon etc..
+    this.fixupOptions = function (options) {
+        // icon
+        if (typeof options.icon !== 'undefined') {
+            var icon = L.icon(data.options.icon);
+            options.icon = icon;
+        }
+        if (typeof options.contextmenuItems !== 'undefined') {
+            for (var i = 0; i < options.contextmenuItems.length; i++) {
+                //var itemText = options.contextmenuItems[i].text;
+                options.contextmenuItems[i].callback = (
+                    function (contextmenu, e) {
+                        wsSend({
+                            type: "updatelayerobject",
+                            payload: {
+                                layerid: this.object.layerid,
+                                objectid: this.object.objectid,
+                                contextmenuClick: contextmenu
+                            }
+                        });
+                    }
+                ).bind(this, options.contextmenuItems[i]);
+            }
+        }
+    }
+
+    // extra features like popup etc..
+    this.fixupOtherProperties = function (data) {
+        // fixup handler for end of drag to signal bck to interface
+        if (data.options && data.options.draggable) {
+            this.object.on('dragend', function (e) {
+                wsSend({
+                    type: "updatelayerobject",
+                    payload: {
+                        layerid: e.target.layerid,
+                        objectid: e.target.objectid,
+                        moveto: {
+                            lat: e.target._latlng.lat,
+                            lon: e.target._latlng.lng
+                        }
+                    }
+                });
+            });
+        }
+        // fixup tooltip
+        if (typeof data.tooltip !== 'undefined') {
+            if (typeof data.tooltip.options !== 'undefined') {
+                this.object.bindTooltip(data.tooltip.content, data.tooltip.options);
+            }
+            else {
+                this.object.bindTooltip(data.tooltip, {}); // pass empty options as work-a-round for not correcly initializing tooltip
+            }
+        }
+        if (typeof data.notooltip !== 'undefined') {
+            this.object.unbindTooltip();
+        }
+        if (typeof data.popup !== 'undefined') {
+            if (typeof data.popup.options !== 'undefined') {
+                this.object.bindPopup(data.popup.content, data.popup.options);
+            }
+            else {
+                this.object.bindTooltip(data.popup, {}); // pass empty options as work-a-round for not correcly initializing popup
+            }
+        }
+        if (typeof data.nopopup !== 'undefined') {
+            this.object.unbindPopup();
+        }
+    }
+
+    // fixup options ie create objects from definitions
+    this.fixupOptions(data.options);
+
+    // create map object of specified type, name of constructor called set by data.objectType
+    this.object = stringToFunction(data.objectType)(data.latlng, data.options).addTo(layergroup);
+    this.object.objectid = data.id;
+    this.object.layerid = layergroup.idShowing;
+
+    // fix up other properties
+    this.fixupOtherProperties(data);
+
+    // handle update
+    this.update = function (data) {
+        // geometry
+        if (typeof data.latlng !== 'undefined') {
+            this.object.setLatLng(data.latlng);
+        }
+        // options
+        if (typeof data.options !== 'undefined') {
+            // first fixup
+            this.fixupOptions(data.options);
+            // apply new options
+            this.object.setStyle(data.options);
+        }
+        // other properties
+        this.fixupOtherProperties(data);
+    };
+
+    // handle remove
+    this.remove = function () {
+        this.layergroup.removeLayer(this.object);
+    };
+};
+
 
 LayerManager.Marker = function (data, layergroup, markerlayer) {
     LayerManager.Object.call(this, data, layergroup);
@@ -373,7 +489,9 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
         alt: data.alt ? data.alt : '',
         draggable: data.draggable ? data.draggable : false,
         riseOnHover: data.riseOnHover ? data.riseOnHover : false,
-        riseOffset: data.riseOffset ? data.riseOffset : 250
+        riseOffset: data.riseOffset ? data.riseOffset : 250 /*,
+        markerType: data.markerType ? data.markerType : 'marker',
+        radius: data.radius ? data.readius : 10*/
     };
 
     data.contextmenu = data.contextmenu ? data.contextmenu : {items: []};
@@ -428,12 +546,21 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
     }
 
     this.markerlayer = markerlayer;
-
+    /*
+    switch (this.style.markerType) {
+        case 'Circle':
+            this.marker = L.circleMarker(this.latlng, this.style);
+            break;
+        default:
+            this.marker = L.marker(this.latlng, this.style);
+            break;
+    }
+    */
     this.marker = L.marker(this.latlng, this.style);
 
     if (data.draggable) {
         this.marker.on('dragend', function (e) {
-            message = {
+            wsSend({
                 type: "updatelayerobject",
                 payload: {
                     layerid: e.target.options.layer.id,
@@ -443,11 +570,9 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
                         lon: e.target._latlng.lng
                     }
                 }
-            };
-            wsSend(message);
+            });
         });
     }
-
     if (data.popup && data.popup.options) {
         this.popupDiv = L.DomUtil.create('div', 'markerPopupDiv');
         for (var i = 0; i < data.popup.options.length; i++)
@@ -470,6 +595,9 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
         }
         this.marker.bindPopup(this.popupDiv);
     }
+    
+    if (data.tooltip)
+        this.bindTooltip(data.tooltip), {};
 
     this.changeIcon = function (data) {
         if (!data.default) {
@@ -570,6 +698,7 @@ function createLayerOfType(data, detailsLayer, crd) {
         case "marker": return new LayerManager.MarkerLayer(data, detailsLayer, crd);
         case "geo": return new LayerManager.GeoJSONLayer(data, detailsLayer, crd);
         case "switch": return new LayerManager.SwitchLayer(data, detailsLayer, crd);
+        case "simple": return new LayerManager.SimpleLayer(data, detailsLayer, crd);
         default:
             console.log("## Encountered unknown " + crd + " layer type: " + data.type);
             return null;
@@ -1000,6 +1129,132 @@ LayerManager.ObjectLayer = function (layer, detailsLayer, crd) {
     };
 };
 
+LayerManager.SimpleLayer = function (layer, detailsLayer, crd) {
+    LayerManager.BaseLayer.call(this, layer, detailsLayer, crd);
+    this.objects = {};
+
+    // LayerGroup does not support options in constructor so context menu options do not work -> explicit init
+    this.updateOptions = function (options) {
+        if (options) {
+            this.options = options; // todo: merge ?
+            // fixup options
+            // context menu, hook handlers
+            if (this.options.contextmenuItems) {
+                for (var i = 0; i < this.options.contextmenuItems.length; i++) {
+                    this.options.contextmenuItems[i].callback =
+                        (function (contextmenuItem, e) {
+                            wsSend({
+                                type: "updatelayerobject",
+                                payload: {
+                                    layerid: e.relatedTarget.layerid,
+                                    objectid: e.relatedTarget.objectid,
+                                    contextmenuClick: contextmenuItem
+                                }
+                            });
+                        }
+                        ).bind(this, options.contextmenuItems[i]);
+                }
+            }
+            if (this.maplayer) {
+                this.maplayer.options = this.options;
+                // context menu
+                if (this.maplayer.options.contextmenu) {
+                    // todo: this.maplayer._initContextMenu();
+                }
+            }
+        }
+    }
+
+    this.updateOptions(layer.options);
+
+    this.showLayer = function (leafletlayer) {
+        if (legendControl.legendLayer == this.detailsLayer.id)
+            legendControl.createLegend(this.legend, this.detailsLayer.id);
+        this.objects = {}; //reset objects
+        if (leafletlayer) {
+            if (leafletlayer.type == "simple") {
+                leafletlayer.clearLayers();
+                this.subscribe();
+                return leafletlayer;
+            }
+            else {
+                map.removeLayer(leafletlayer);
+            }
+        }
+        this.maplayer = L.layerGroup().addTo(map);
+        this.updateOptions(this.options);
+        this.maplayer.idShowing = this.id;
+        this.maplayer.id = this.name;
+        this.maplayer.type = "simple";
+        this.subscribe(); //subscribe, then wait for objects!
+        return this.maplayer;
+    };
+
+    this.hideLayer = function () {
+        this.unsubscribe();
+        this.maplayer.clearLayers(); //clear all leaflet layers
+        this.objects = {}; //clear objects from memory
+        this.maplayer = null;
+    };
+
+    this.updateData = function (payload) {
+        if (payload.legend) {
+            this.legend = payload.legend;
+            if (this.maplayer && legendControl.legendLayer == this.detailsLayer.id)
+                legendControl.createLegend(this.legend, this.detailsLayer.id);
+        }
+        if (payload.preview) {
+            this.updatePreview(payload.preview);
+        }
+        if (payload.data) {
+            payload = payload.data;
+            for (var i = 0; i < payload.length; i++) {
+                if (payload[i].newobject) {
+                    this.newObject(payload[i].newobject);
+                }
+                else if (payload[i].updateobject) {
+                    this.updateObject(payload[i].updateobject);
+                }
+                else if (payload[i].removeobject) {
+                    this.removeObject(payload[i].removeobject);
+                }
+                if (payload[i].preview) {
+                    this.updatePreview(payload[i].preview);
+                }
+                if (payload[i].legend) {
+                    this.legend = payload[i].legend;
+                    if (this.maplayer && legendControl.legendLayer == this.detailsLayer.id)
+                        legendControl.createLegend(this.legend, this.detailsLayer.id);
+                }
+                if (payload[i].options) {
+                    this.updateOptions(payload[i].options);
+                }
+            }
+        }
+    };
+
+    this.newObject = function (object) {
+        if (typeof this.objects[object.id] !== "undefined") {
+            return;
+        }
+        this.objects[object.id] = new LayerManager.SimpleObject(object, this.maplayer); // todo:
+    };
+
+    this.updateObject = function (object) {
+        if (typeof this.objects[object.id] === "undefined") {
+            return;
+        }
+        this.objects[object.id].update(object);
+    };
+
+    this.removeObject = function (object) {
+        if (typeof this.objects[object.id] === "undefined") {
+            return;
+        }
+        this.objects[object.id].remove();
+        delete this.objects[object.id];
+    };
+};
 
 LayerManager.MarkerLayer = function (layer, detailsLayer, crd) {
     LayerManager.ObjectLayer.call(this, layer, detailsLayer, crd);

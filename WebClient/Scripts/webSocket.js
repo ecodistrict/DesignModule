@@ -412,6 +412,9 @@ var wsLookup = {
     },
     fileDownload: function (payload) {
         DataManager.filesControl.HandleFileDownloadMessage(payload);
+    },
+    timesliderEvents: function (payload) {
+        timeslider.HandleEvents(payload);
     }
 };
 

@@ -225,14 +225,6 @@ var GraphManager = {
         //graphDiv.style.position = "absolute";
         //graphDiv.style.backgroundColor = "rgba(" + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", 1)";
 
-        /*
-        if (is_touch_device()) {
-            graphDiv.addEventListener("touchstart", GraphManager._startDrag);
-        } else {
-            graphDiv.addEventListener("mousedown", GraphManager._startDrag);
-        }
-        */
-
         graphDiv.addEventListener("touchstart", GraphManager._startDrag);
         graphDiv.addEventListener("mousedown", GraphManager._startDrag);
 
@@ -1000,14 +992,14 @@ var GraphManager = {
 }
 
 
-function is_touch_device() {
-    try {
-        document.createEvent("TouchEvent");
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
+//function is_touch_device() {
+//    try {
+//        document.createEvent("TouchEvent");
+//        return true;
+//    } catch (e) {
+//        return false;
+//    }
+//}
 
 //UpdateGraph: function (graph, data)
 //{

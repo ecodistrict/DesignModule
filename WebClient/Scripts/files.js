@@ -264,11 +264,10 @@ L.Control.Files = L.Control.extend({
     _downloadFile: function (e) {
         // always single file
         var item = e.currentTarget.item;
-        var message = {};
-        message.type = "downloadFile";
-        message.payload = {};
-        message.payload.fileName = item.fileName;
-        wsSend(message);
+        wsSend({
+            type: "downloadFile",
+            payload: { fileName: item.fileName }
+        });
     },
 
     _uploadFiles: function (files) {

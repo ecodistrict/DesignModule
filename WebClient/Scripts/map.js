@@ -33,24 +33,20 @@ var map = L.map('map', {
     minZoom: 2,
     layers: [baseMapLayerStreets],
     contextmenu: true,
-    //contextmenuWidth: 250,
-    contextmenuItems: [
-        
-        /*{
-            text: 'Show coordinates',
-            callback: showCoordinates
-        },
-        
-        {
-            text: 'Deselect objects',
-            callback: deselectObjects
-        }*/]
+    contextmenuItems:
+    getParameterByName('debug', 0) ?
+        [
+            { text: 'Show coordinates', callback: showCoordinates },
+            { text: 'Deselect objects', callback: deselectObjects }
+        ]
+        :
+        []
 });
 
 // set default icon path
 // todo: test with and without default.html in url!
 
-L.Icon.Default.imagePath = location.href.substring(0, location.href.lastIndexOf('/') + 1) + 'Content/images';
+L.Icon.Default.imagePath = location.href.substring(0, location.href.lastIndexOf('/') + 1) + 'Content/images/';
 
 function showCoordinates(e) {
     alert(e.latlng + " (zoom:" + map._zoom + ")"); // todo: change to nicer view? or remove

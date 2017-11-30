@@ -3,7 +3,9 @@
   border-radius: 5px;
   border: 2px solid rgba(0, 0, 0, 0.2);
   animation-duration: 10s;
-  /*top: -30px;*/
+  /* compensation for topleft control */
+  margin-right: 10px;
+  margin-bottom: 10px;
 }
 .leaflet-control-windDirection-animation {  animation-name: sensorFade }
 /* Chrome, Safari, Opera */
@@ -24,84 +26,57 @@
    transition: 1s ease-in-out;
 }
 
-
-.selectedArrow {
-  left:5px;
-  top:5px;
-  position: absolute;
-  pointer-events: none;
-}
 .windDirectionDiv {
-  padding:5px;
-  position:relative;
-  /*zoom: 0.75;*/
-  /*-moz-transform: scale(0.5);*/
-}
-
-.windMoveDiv {
-    right: 0px;
-    bottom: 0px;
-    position: absolute;
-    background-image: url('images/move.png');
-    background-size: 100% 100%;
+    padding: 5px;
+    position: relative;
+    background-image: url('images/wind_points.png');
+    background-repeat: no-repeat;
+    background-position-x:50%;
+    background-position-y:50%;
+    background-size:95%;
 }
 
 .north, .east, .south, .west {
-  position: absolute;
-  text-align: center;
-  /*background-color: blue;*/
-  line-height: 30px;
-}
-.arrowImage {
-  position: absolute;
-  width:120px;
-  height:120px;
-  left:45px;
-  top:45px;
+    position: absolute;
+    transform: translate(-50%, -50%);
 }
 
 .north {
-  left:90px;
-  top:5px;
-  width:30px;
-  height:30px;
-}
-.east {
-  left:175px;
-  top:90px;
-  width:30px;
-  height:30px;
-}
-.south {
-  left:90px;
-  top:175px;
-  width:30px;
-  height:30px;
-}
-.west {
-  left:5px;
-  top:90px;
-  width:30px;
-  height:30px;
-}
-.windDirectionText {
-  top:125px;
-  font-size:10px;
-  left:0px;
-  right:0px;
-  position: absolute;
-  text-align: center;
-  -webkit-transition: 1s ease-in-out;
-   -moz-transition: 1s ease-in-out;
-   -o-transition: 1s ease-in-out;
-   transition: 1s ease-in-out;
+    top: 10%;
+    left: 50%;
 }
 
-.windArrowDiv {
+.east {
+    top: 50%;
+    left: 90%;
+}
+
+.south {
+    left: 50%;
+    top: 90%;
+}
+
+.west {
+    left: 10%;
+    top: 50%;
+}
+
+.arrowImage {
   position: absolute;
-  width: 120px;
-  height: 120px;
-  left: 45px;
-  top: 45px;
-  /*overflow*/
+  width:70%;
+  height:70%;
+  left:15%;
+  top:15%;
+}
+
+.windDirectionText {
+    font-size: 10px;
+    left: 0px;
+    right: 0px;
+    position: absolute;
+    text-align: center;
+    -webkit-transition: 1s ease-in-out;
+    -moz-transition: 1s ease-in-out;
+    -o-transition: 1s ease-in-out;
+    transition: 1s ease-in-out;
 }

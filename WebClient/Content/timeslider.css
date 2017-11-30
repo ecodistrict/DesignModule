@@ -1,3 +1,5 @@
+/* timeslider */
+
 /* D3 override */
 .domain {
   fill: none;
@@ -80,4 +82,121 @@ text {  color: black }
 }
 .timeslider-editor button.closeButton {
   width:20%;
+}
+
+/* timeslider settings*/
+
+.settings {
+    position: absolute;
+    bottom: 70px;
+    left: 50%;
+    background-color: white;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    background: #fff;
+    border-radius: 4px;
+    opacity: 0.8;
+    z-index: 600;
+    width: 300px;
+    height: auto;
+}
+
+.settings-entry-text {
+    float: left;
+    margin: 2px 6px 2px 3px;
+    max-width: 160px;
+}
+
+.settings-close {
+    position: absolute;
+    right: 6px;
+    top: 1px;
+    cursor: pointer;
+    font-size: 20px;
+}
+
+.settings-title {
+    left: 10px;
+    top: 10px;
+    position: absolute;
+    font-weight: bold;
+}
+
+.settings-content {
+    padding: 30px 7px 10px 7px;
+    margin: 2px 6px 2px 3px;
+    display: inline-block;
+    width: 282px;
+    text-align: center;
+}
+
+.settings-row.changeDate input, .settings-row.changeDate button {
+    box-sizing: border-box;
+    padding: 3px;
+    border-radius: 3px;
+    border: 1px solid #888;
+}
+
+.settings-row.changeDate input {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+}
+
+.settings-row.changeDate button {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border-left: 0px solid #fff;
+}
+
+    .settings-row.changeDate button:hover {
+        background-color: #0678ff;
+        color: #fff;
+        cursor: pointer;
+    }
+
+.settings-row.controls {
+    margin-top: 4px;
+    display: inline-block;
+    height: auto;
+    width: auto;
+}
+
+    .settings-row.controls button:hover {
+        background-color: #0678ff;
+        color: #fff;
+        cursor: pointer;
+    }
+
+.settings-row input:focus, .settings-row button:focus {
+    outline: 0;
+}
+
+.settings-row.controls button:focus {
+    outline: 0;
+}
+
+.settings-row.controls button {
+    padding-bottom: 4px;
+    border: 1px solid #eee;
+    border-radius: 5px;
+    margin: 0px 5px 0px 0px;
+}
+
+.settings-row button {
+    font-size: 16px;
+    line-height: 16px;
+    height: 20px;
+}
+
+.settings-row button, .settings-row input {
+    float: left;
+    box-sizing: border-box;
+    min-height: 25px;
+}
+
+.symbolButton {
+    font-family: 'Segoe UI Symbol';
+}
+
+.settings-close:hover {
+    opacity: 0.75
 }
