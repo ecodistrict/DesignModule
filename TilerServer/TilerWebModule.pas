@@ -3956,7 +3956,7 @@ var
   width: UInt32;
   res: Integer;
   action: UInt32;
-  clear: Boolean;
+//  clear: Boolean;
 begin
   try
     //timeStamp := 0;
@@ -4153,7 +4153,8 @@ begin
                         begin
                           slice.fDataLock.BeginWrite;
                           try
-                            clear := slice.ClearSlice();
+//                            clear :=
+                            slice.ClearSlice();
                           finally
                             slice.fDataLock.EndWrite;
                           end;
