@@ -1650,7 +1650,7 @@ var
   cim: TCIModelEntry2;
   genericScenario: TScenario;
   scenario: TSSMScenario;
-  layer: TLayer;
+  layer: TLayerBase;
   link: TScenarioLink;
   chart: TChart;
   scenarioClients: TList<TClient>;
@@ -1728,9 +1728,9 @@ begin
       end;
 
       for layer in scenario.fLayers.Values do
-        begin
-          layer.objects.Clear();
-        end;
+      begin
+        (layer as TLayer).objects.Clear();
+      end;
 
       if scenario.Recording then
       begin

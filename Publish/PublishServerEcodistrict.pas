@@ -544,7 +544,7 @@ var
   legendJSON: string;
   iqp: TPair<string, TDIQuery>;
   jsonPalette: TJSONValue;
-  layer: TLayer;
+  layer: TLayerBase;
   ikpip: TPair<string, TEcodistrictKpi>;
 begin
   // read ecodistrict data
@@ -592,11 +592,11 @@ begin
       (layer as TEcodistrictLayer).fPalette.Free;
       (layer as TEcodistrictLayer).fPalette := palette;
       layer.legendJSON := legendJSON;
-      layer.RegisterSlice;
-      ReadObjectFromQuery(layer);
+      (layer as TEcodistrictLayer).RegisterSlice;
+      ReadObjectFromQuery(layer as TEcodistrictLayer);
       // assume that on update the registration on the tiler already succeeded so we can just start signaling objects
       // todo: maybe check if already registered on tiler?
-      layer.signalObjects(nil);
+      (layer as TEcodistrictLayer).signalObjects(nil);
     end
     else
     begin
@@ -660,11 +660,11 @@ begin
           (layer as TEcodistrictLayer).fPalette := palette;
           (layer as TEcodistrictLayer).description := ikpip.Value.name+' (bad '+ikpip.Value.bad.ToString+', sufficient '+ikpip.Value.sufficient.tostring+', '+'excellent '+ikpip.Value.excellent.ToString+')';
           layer.legendJSON := legendJSON;
-          layer.RegisterSlice;
-          ReadObjectFromQuery(layer);
+          (layer as TEcodistrictLayer).RegisterSlice;
+          ReadObjectFromQuery(layer as TEcodistrictLayer);
           // assume that on update the registration on the tiler already succeeded so we can just start signaling objects
           // todo: maybe check if already registered on tiler?
-          layer.signalObjects(nil);
+          (layer as TEcodistrictLayer).signalObjects(nil);
         end
         else
         begin
@@ -983,7 +983,7 @@ end;
 //select from query
 function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string;
 var
-  layers: TList<TLayer>;
+  layers: TList<TLayerBase>;
   q: TJSONValue;
   field: TJSONObject;
   fieldName: string;
@@ -995,7 +995,7 @@ var
 //  tableName: string;
 //  keyFieldName: string;
   sql: string;
-  layer: TLayer;
+  layer: TLayerBase;
   scenarioSchema: string;
   query: TFDQuery;
   objectID: TWDID;
@@ -1003,7 +1003,7 @@ var
   objectsGeoJSON: string;
 begin
   Result := '';
-  layers := TList<TLayer>.Create;
+  layers := TList<TLayerBase>.Create;
   try
     if fID=fProject.ProjectID
     then scenarioSchema := EcoDistrictSchemaId(fID)
@@ -1054,9 +1054,9 @@ begin
               layer := layers.First;
 
               // todo: not fool prooof
-              if layer.query.ToUpper.IndexOf('WHERE')>=0
-              then sql := layer.query+' AND '+fieldName+operStr+valueStr
-              else sql := layer.query+' WHERE '+fieldName+operStr+valueStr;
+              if (layer as TLayer).query.ToUpper.IndexOf('WHERE')>=0
+              then sql := (layer as TLayer).query+' AND '+fieldName+operStr+valueStr
+              else sql := (layer as TLayer).query+' WHERE '+fieldName+operStr+valueStr;
 
               Log.WriteLn('select by query: '+sql);
 
@@ -1072,11 +1072,11 @@ begin
                   while not query.Eof do
                   begin
                     objectID := query.Fields[0].AsAnsiString;
-                    if layer.FindObject(objectID, layerObject) then
+                    if (layer as TLayer).FindObject(objectID, layerObject) then
                     begin
                       if objectsGeoJSON<>''
                       then objectsGeoJSON := objectsGeoJSON+',';
-                      objectsGeoJSON := objectsGeoJSON+layerObject.JSON2D[layer.geometryType, ''];
+                      objectsGeoJSON := objectsGeoJSON+layerObject.JSON2D[(layer as TLayer).geometryType, ''];
                     end;
                     query.Next();
                   end;
@@ -1266,12 +1266,12 @@ end;
 
 function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aSelectedIDs: TArray<string>): string;
 var
-  layers: TList<TLayer>;
+  layers: TList<TLayerBase>;
   categories: string;
   catList: TDictionary<string, integer>;
   objectsGeoJSON: string;
   totalObjectCount: Integer;
-  l: TLayer;
+  l: TLayerBase;
   //o: TPair<TWDID, TLayerObject>;
   oi: string;
   lo: TLayerObject;
@@ -1279,7 +1279,7 @@ var
   cat: string;
 begin
   Result := '';
-  layers := TList<TLayer>.Create;
+  layers := TList<TLayerBase>.Create;
   try
     if selectLayersOnCategories(aSelectCategories, layers) then
     begin
@@ -1304,14 +1304,14 @@ begin
         begin
           for oi in aSelectedIDs do
           begin
-            if l.objects.TryGetValue(TWDID(oi), lo) then
+            if (l as TLayer).objects.TryGetValue(TWDID(oi), lo) then
             begin
               if catList.TryGetValue(l.ID, c)
               then catList[l.ID] := c+1
               else catList.AddOrSetValue(l.ID, 1);
               if objectsGeoJSON<>''
               then objectsGeoJSON := objectsGeoJSON+',';
-              objectsGeoJSON := objectsGeoJSON+lo.JSON2D[l.geometryType, ''];
+              objectsGeoJSON := objectsGeoJSON+lo.JSON2D[(l as TLayer).geometryType, ''];
               totalObjectCount := totalObjectCount+1;
             end;
           end;

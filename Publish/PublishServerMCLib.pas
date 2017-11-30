@@ -401,7 +401,6 @@ end;
 
 procedure TMCProjectModelManager.ReadModelsFromFile(const aFilename: string);
 var
-  filename : string;
   fileObject: TJSONValue;
   models, constParameters, varParameters: TJSONArray;
   model, parameter: TJSONValue;

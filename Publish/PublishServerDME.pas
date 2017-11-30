@@ -213,7 +213,7 @@ begin
                         if TryStrToInt(jsonObjectID.Value, objectID) then
                         begin
                           //check if this road exists
-                          if aScenario.Layers.ContainsKey('road') and aScenario.Layers['road'].objects.ContainsKey(AnsiString(objectID.ToString)) then
+                          if aScenario.Layers.ContainsKey('road') and (aScenario.Layers['road'] as TLayer).objects.ContainsKey(AnsiString(objectID.ToString)) then
                           begin
                             oraSession.ExecSQL(queryText, [objectID]);
                             oraSession.Commit;
@@ -255,7 +255,7 @@ begin
                         if TryStrToInt(jsonObjectID.Value, objectID) then
                         begin
                           //check if this road exists
-                          if aScenario.Layers.ContainsKey('road') and aScenario.Layers['road'].objects.ContainsKey(AnsiString(objectID.ToString)) then
+                          if aScenario.Layers.ContainsKey('road') and (aScenario.Layers['road'] as TLayer).objects.ContainsKey(AnsiString(objectID.ToString)) then
                           begin
                             oraSession.ExecSQL(queryText, [objectID]);
                             oraSession.Commit;
@@ -293,7 +293,7 @@ begin
                         if TryStrToInt(jsonObjectID.Value, objectID) then
                         begin
                           //check if this road exists
-                          if aScenario.Layers.ContainsKey('road') and aScenario.Layers['road'].objects.ContainsKey(AnsiString(objectID.ToString)) then
+                          if aScenario.Layers.ContainsKey('road') and (aScenario.Layers['road'] as TLayer).objects.ContainsKey(AnsiString(objectID.ToString)) then
                           begin
                             oraSession.ExecSQL(queryText, [objectID]);
                             oraSession.Commit;
@@ -350,7 +350,7 @@ begin
                         if TryStrToInt(jsonObjectID.Value, objectID) then
                         begin
                           //check if this building exists
-                          if aScenario.Layers.ContainsKey('building') and aScenario.Layers['building'].objects.ContainsKey(AnsiString(objectID.ToString)) then
+                          if aScenario.Layers.ContainsKey('building') and (aScenario.Layers['building'] as TLayer).objects.ContainsKey(AnsiString(objectID.ToString)) then
                           begin
                             oraSession.ExecSQL(queryText, [objectID]);
                             oraSession.Commit;

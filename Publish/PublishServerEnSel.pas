@@ -758,7 +758,7 @@ begin
   _json := '';
   for iop in objects do
   begin
-    if iop.Value is TSVGCircleLayerObject then
+//    if iop.Value is TSVGCircleLayerObject then
     begin
 //      sclo := iop.Value as TSVGCircleLayerObject;
       (*

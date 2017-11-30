@@ -1821,7 +1821,6 @@ procedure TUSScenario.HandleControlsQueueEvent;
    query: TOraQuery;
    active, id: Integer;
    controlStatus: TUSControlStatus;
-   o: TLayerObject;
   begin
     query := TOraQuery.Create(nil);
     try
