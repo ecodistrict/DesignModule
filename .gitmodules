@@ -39,6 +39,9 @@
 	url =  https://cornelissenja@bitbucket.org/imbclients/publisher-core.git
 	branch = master
 [submodule "DataConverter/logger"]
+	
 	path = DataConverter/logger
+
 	url = https://cornelissenja@bitbucket.org/imbclients/logger-delphi.git
+
 	branch = master
