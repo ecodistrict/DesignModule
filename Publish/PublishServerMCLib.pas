@@ -10,9 +10,12 @@ uses
   IMB3NativeClient,
   ModelControllerLib,
 
-  System.JSON, System.SysConst, System.Math,
+  System.JSON, System.SysConst, System.Math, System.Variants,
   System.Generics.Collections, System.Generics.Defaults,
-  System.Classes, System.SysUtils;
+  System.Classes, System.SysUtils, System.IOUtils;
+
+const
+  ModelFilenameSwitch = 'ModelsFilename';
 
 type
   TClientMCControlInterface = class(TMCControlInterface2)
@@ -29,6 +32,58 @@ type
     function jsonModelStatusDelete(const aModelID: string): string;
     function jsonModelStatusArray(const aJSONModelStatusArrayContents: string): string;
     function jsonStatusReset: string;
+  end;
+
+  TMCProjectModelConstParameter = class
+  constructor Create(const aName, aValue, aParameterType: string);
+  private
+    fName, fValue, fParameterType: string;
+  protected
+  public
+    function ValueAsVariant: Variant;
+    property Name: string read fName;
+    property ParemeterType: string read fParameterType;
+  end;
+
+  TMCProjectModelVarParameter = class
+  constructor Create(const aName, aParameterType, aDefaultValue: string);
+  private
+    fName, fParameterType, fDefaultValue: string;
+  protected
+  public
+    function DefaultValueAsVariant: Variant;
+    property Name: string read fName;
+    property ParemeterType: string read fParameterType;
+  end;
+
+  TMCProjectModel = class
+  constructor Create(const aName: string; const aOptional: Boolean);
+  destructor Destory;
+  private
+    fName: string;
+    fOptional: Boolean;
+    fConstParameters: TObjectDictionary<string, TMCProjectModelConstParameter>; //locks with TMonitor
+    fVarParameters: TObjectDictionary<string, TMCProjectModelVarParameter>; //locks with TMonitor
+  public
+    property Name: string read fName;
+    property Optional: Boolean read fOptional;
+    property ConstParameters: TObjectDictionary<string, TMCProjectModelConstParameter> read fConstParameters;
+    property VarParameters: TObjectDictionary<string, TMCProjectModelVarParameter> read fVarParameters;
+    procedure AddOrSetConstParameter(aConstParameter: TMCProjectModelConstParameter);
+    procedure AddOrSetVarParameter(aVarParameter: TMCProjectModelVarParameter);
+  end;
+
+  TMCProjectModelManager = class
+  constructor Create;
+  destructor Destroy; override;
+  private
+    fMCProjectModels: TObjectList<TMCProjectModel>; //owns, locks with TMonitor
+  public
+    procedure AddModel(const aName: string; const aOptional: Boolean = False); overload;
+    procedure AddModel(const aModel: TMCProjectModel); overload;
+    procedure ClaimModels(models: TObjectList<TMCProjectModel>); overload; //claims with any model list, no locking!
+    procedure ClaimModels; overload; //locks and claims with own models
+    procedure ReadModelsFromFile(const aFilename: string);
   end;
 
   TMCScenario = class(TScenario)
@@ -52,6 +107,7 @@ type
     aProjectCurrentScenario, aProjectRefScenario: TScenario; aMCIdlePrefix: string=DefaultIdleFederation);
   destructor Destroy; override;
   private
+    fModelManager: TMCProjectModelManager;
   protected
     fControlInterface: TClientMCControlInterface;
     fIMB3Connection: TIMBConnection; //ref
@@ -152,6 +208,9 @@ begin
     aMCIdlePrefix);
   inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
     aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView, aProjectCurrentScenario, aProjectRefScenario);
+  fModelManager := TMCProjectModelManager.Create;
+  if (GetSettingExists(ModelFilenameSwitch)) then //check if we need to read a model jsonString from file
+    fModelManager.ReadModelsFromFile(GetSetting(ModelFilenameSwitch));
 end;
 
 destructor TMCProject.Destroy;
@@ -293,6 +352,171 @@ begin
   finally
     TMonitor.Exit(clients);
   end;
+end;
+
+{ TMCProjectModelManager }
+
+procedure TMCProjectModelManager.AddModel(const aName: string;
+  const aOptional: Boolean = False);
+begin
+  AddModel(TMCProjectModel.Create(aName, aOptional));
+end;
+
+procedure TMCProjectModelManager.AddModel(const aModel: TMCProjectModel);
+begin
+  TMonitor.Enter(fMCProjectModels);
+  try
+    fMCProjectModels.Add(aModel);
+  finally
+    TMonitor.Exit(fMCProjectModels);
+  end;
+end;
+
+procedure TMCProjectModelManager.ClaimModels(
+  models: TObjectList<TMCProjectModel>);
+begin
+  //TODO: implement
+end;
+
+procedure TMCProjectModelManager.ClaimModels;
+begin
+  TMonitor.Enter(fMCProjectModels);
+  try
+    ClaimModels(fMCProjectModels);
+  finally
+    TMonitor.Exit(fMCProjectModels);
+  end;
+end;
+
+constructor TMCProjectModelManager.Create;
+begin
+  fMCProjectModels := TObjectList<TMCProjectModel>.Create; //owns by default
+end;
+
+destructor TMCProjectModelManager.Destroy;
+begin
+  FreeAndNil(fMCProjectModels);
+  inherited;
+end;
+
+procedure TMCProjectModelManager.ReadModelsFromFile(const aFilename: string);
+var
+  filename : string;
+  fileObject: TJSONValue;
+  models, constParameters, varParameters: TJSONArray;
+  model, parameter: TJSONValue;
+  modelName : string;
+  optional: Boolean;
+  parameterName, parameterType, value: string;
+  projectModel: TMCProjectModel;
+  constParameter: TMCProjectModelConstParameter;
+  varParameter: TMCProjectModelVarParameter;
+begin
+  fileObject := TJSONObject.ParseJSONValue(TFile.ReadAllText(aFilename));
+  if (fileObject.TryGetValue<TJSONArray>('models', models)) then
+    for model in models do
+      if model.TryGetValue<string>('name', modelName) and model.TryGetValue<TJSONArray>('constParameters', constParameters) and model.TryGetValue<TJSONArray>('varParameters', varParameters) then
+      begin
+        optional := False;
+        model.TryGetValue<Boolean>('optional', optional);
+        projectModel := TMCProjectModel.Create(modelName, optional);
+        for parameter in constParameters do
+          if parameter.TryGetValue<string>('name', parameterName) and parameter.TryGetValue<string>('type', parameterType) and parameter.TryGetValue<string>('value', value) then
+          begin
+            constParameter := TMCProjectModelConstParameter.Create(parameterName, value, parameterType);
+            projectModel.AddOrSetConstParameter(constParameter);
+          end;
+        for parameter in varParameters do
+          if parameter.TryGetValue<string>('name', parameterName) and parameter.TryGetValue<string>('type', parameterType) and parameter.TryGetValue<string>('defaultValue', value) then
+          begin
+            varParameter := TMCProjectModelVarParameter.Create(parameterName, parameterType, value);
+            projectModel.AddOrSetVarParameter(varParameter);
+          end;
+        AddModel(projectModel);
+      end;
+end;
+
+{ TMCProjectModel }
+
+procedure TMCProjectModel.AddOrSetConstParameter(
+  aConstParameter: TMCProjectModelConstParameter);
+begin
+  TMonitor.Enter(fConstParameters);
+  try
+    fConstParameters.AddOrSetValue(aConstParameter.Name, aConstParameter);
+  finally
+    TMonitor.Exit(fConstParameters);
+  end;
+end;
+
+procedure TMCProjectModel.AddOrSetVarParameter(
+  aVarParameter: TMCProjectModelVarParameter);
+begin
+  TMonitor.Enter(fVarParameters);
+  try
+    fVarParameters.AddOrSetValue(aVarParameter.Name, aVarParameter);
+  finally
+    TMonitor.Exit(fVarParameters);
+  end;
+end;
+
+constructor TMCProjectModel.Create(const aName: string; const aOptional: Boolean);
+begin
+  fName := aName;
+  fOptional := aOptional;
+  fConstParameters := TObjectDictionary<string, TMCProjectModelConstParameter>.Create([doOwnsValues]);
+  fVarParameters := TObjectDictionary<string, TMCProjectModelVarParameter>.Create([doOwnsValues]);
+end;
+
+destructor TMCProjectModel.Destory;
+begin
+  FreeAndNil(fConstParameters);
+  FreeAndNil(fVarParameters);
+end;
+
+{ TMCProjectModelConstParameter }
+
+constructor TMCProjectModelConstParameter.Create(const aName, aValue,
+  aParameterType: string);
+begin
+  fName := aName;
+  fValue := aValue;
+  fParameterType := aParameterType;
+end;
+
+function TMCProjectModelConstParameter.ValueAsVariant: Variant;
+begin
+  if fParameterType='int'
+  then Result := fValue.ToInteger
+  else if fParameterType='float'
+  then Result := Double.Parse(fValue, dotFormat)
+  else if fParameterType='bool'
+  then Result := Boolean(fValue.ToLower<>'false')
+  else if fParameterType='string'
+  then Result := fValue
+  else Result := System.Variants.null;
+end;
+
+{ TMCProjectModelVarParameter }
+
+constructor TMCProjectModelVarParameter.Create(const aName, aParameterType, aDefaultValue: string);
+begin
+  fName := aName;
+  fParameterType := aParameterType;
+  fDefaultValue := aDefaultValue;
+end;
+
+function TMCProjectModelVarParameter.DefaultValueAsVariant: Variant;
+begin
+   if fParameterType='int'
+  then Result := fDefaultValue.ToInteger
+  else if fParameterType='float'
+  then Result := Double.Parse(fDefaultValue, dotFormat)
+  else if fParameterType='bool'
+  then Result := Boolean(fDefaultValue.ToLower<>'false')
+  else if fParameterType='string'
+  then Result := fDefaultValue
+  else Result := System.Variants.null;
 end;
 
 end.

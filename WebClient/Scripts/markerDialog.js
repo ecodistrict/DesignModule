@@ -14,7 +14,7 @@
     timeLI.innerText = "Time: " + DataManager.GetDisplayTime(complaint.time);
 
     var locationLI = L.DomUtil.create("li", "informationLI", informationList);
-    locationLI.innerText = "long: " + complaint.marker.getLatLng().lng + ", lat: " + complaint.marker.getLatLng().lat
+    locationLI.innerText = "long: " + complaint.marker.getLatLng().lng + ", lat: " + complaint.marker.getLatLng().lat;
 
     var typeLI = L.DomUtil.create("li", "informationLI", informationList);
     typeLI.innerText = "Type: " + complaint.type;
@@ -31,7 +31,7 @@
         map.removeLayer(complaint.marker);
     });
     modelDialogAddButton(div, 'Close', modalDialogClose);
-}
+};
 
 showSensorDialog = function (e) {
     var div = modalDialogCreate('Sensor Information');
@@ -72,7 +72,7 @@ showSensorDialog = function (e) {
         timeLI.innerText = "Time: " + data.time;
 
         var concentrationLI = L.DomUtil.create("li", "informationLI", dataList);
-        concentrationLI.innerText = "Concentration: " + (data.concentration) + " µg/m3";
+        concentrationLI.innerText = "Concentration: " + data.concentration + " µg/m3";
 
         var windSpeedLI = L.DomUtil.create("li", "informationLI", dataList);
         windSpeedLI.innerText = "Wind speed: " + data.windSpeed;
@@ -103,4 +103,4 @@ showSensorDialog = function (e) {
         setTimeout(function () { DataManager.warningGiven = false; }, 10000);
     });
     modelDialogAddButton(div, 'Close', modalDialogClose);
-}
+};

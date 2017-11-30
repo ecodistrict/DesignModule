@@ -130,7 +130,7 @@ function selectByQueryAddLine(e) {
         operators.name = '';
         operators.classList.add('optionList', 'form-control');
 
-        oparatorsOptions = [{ 'code': '<', 'text': '&lt;' }, { 'code': '<=', 'text': '&le;' }, { 'code': '=', 'text': '=' }, { 'code': '<>', 'text': '&ne;' }, { 'code': '>', 'text': '&gt;' }, { 'code': '>=', 'text': '&ge;' }, { 'code': 'in', 'text': 'in' }]
+        oparatorsOptions = [{ 'code': '<', 'text': '&lt;' }, { 'code': '<=', 'text': '&le;' }, { 'code': '=', 'text': '=' }, { 'code': '<>', 'text': '&ne;' }, { 'code': '>', 'text': '&gt;' }, { 'code': '>=', 'text': '&ge;' }, { 'code': 'in', 'text': 'in' }];
         operatorSelect = document.createElement('select');
         operatorSelect.classList.add('form-control');
         for (var i = 0; i < oparatorsOptions.length; i++) {

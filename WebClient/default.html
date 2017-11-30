@@ -172,7 +172,7 @@
             //session = 'ssm2';
             //session = 'sweco';
             //session = "tud";
-            //session = 'dtv';
+            //session = 'dtv';  
             //session = 'juno';
             //session = 'a2';
             //session = '80BD7A788D6B40A4B3608AA95C26E68F'; // us_utrecht2017
@@ -188,7 +188,8 @@
             //session = '5904DD8ACDD54E15A3A8AA8EA55C0C64';
             //session = '15B0B9AD002343459B36471524BC0FDD'; // karlsruhe
             //session = 'OmniTransConnectorA642109';
-            session = 'EarlyWarning'; //  early warning (Jan Duyzer)
+            //session = 'EarlyWarning'; //  early warning (Jan Duyzer)
+            //session = '7F9B10D93ABB493F876E3D035D55269F'; // Santos (E-Bus)
         }
         var clientType = getParameterByName('clientType', '');
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
@@ -325,7 +326,8 @@
         map.addControl(timesliderControl);
         timesliderControl._collapse();
         InfoTextControl['leaflet-control-timeslider'] = { active: false };
-        // todo: re-add after debugging    map.removeControl(timesliderControl);
+        map.removeControl(timesliderControl);
+        
 
         DataManager.modelControl = L.control.ModelControl();
         map.addControl(DataManager.modelControl);

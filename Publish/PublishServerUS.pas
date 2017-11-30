@@ -275,6 +275,32 @@ type
     function SliceType: Integer; override;
   end;
 
+  TUSControl = class
+  constructor Create(aID: Integer; aName, aDescription: string; aLat, aLon: Double);
+  destructor Destroy; override;
+  private
+    fID: Integer;
+    fName, fDescription: string;
+    fLat, fLon: Double;
+  public
+    property ID: Integer read fID;
+    property Name: string read fName;
+    property Description: string read fDescription;
+    property Lat: Double read fLat;
+    property Lon: Double read fLon;
+  end;
+
+  TUSControlStatus = class
+  constructor Create(aID: Integer; aActive: Boolean);
+  destructor Destroy; override;
+  private
+    fID: Integer;
+    fActive: Boolean; //TODO: rewrite to Integer to reflect database
+  public
+    property ID: Integer read fID;
+    property Active: Boolean read fActive write fActive;
+  end;
+
   TUSScenario = class(TMCScenario)
   constructor Create(aProject: TProject; const aID, aName, aDescription, aFederation: string; aAddBasicLayers: Boolean; aMapView: TMapView; aIMBConnection: TIMBConnection; const aTablePrefix: string);
   destructor Destroy; override;
@@ -282,12 +308,24 @@ type
     fTableprefix: string;
     fIMBConnection: TIMBConnection; // ref
     fUSChartGroups: TObjectList<TUSChartGroup>;
+    fUSControlStatuses: TObjectDictionary<Integer, TUSControlStatus>; //owns, locks with monitor
+    fUpdateQueue: TList<TUSUpdateQueueEntry>;
+    fUpdateQueueEvent: TEvent;
+    fControlsUpdateEvent: TIMBEventEntry;
+    fUpdateThread: TThread;
     procedure ReadIndicators (aTableNames: array of string; aOraSession: TOraSession);
     procedure ReadIndicator (aTableName: string; aOraSession: TOraSession);
+    procedure ReadUSControls (aOraSession: TOraSession);
+    procedure HandleControlsUpdate(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
+    procedure HandleControlsQueueEvent();
   public
     property Tableprefix: string read fTableprefix;
+    property USControlStatuses: TObjectDictionary<Integer, TUSControlStatus> read fUSControlStatuses;
+    function GetUSControlsJSON: string;
+    procedure SendUSControlsMessage(aClient: TClient);
   public
     procedure ReadBasicData(); override;
+    function HandleClientSubscribe(aClient: TClient): Boolean; override;
   public
     // select objects
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
@@ -334,6 +372,7 @@ type
   destructor Destroy; override;
   private
     fUSDBScenarios: TObjectDictionary<string, TUSDBScenario>;
+    fUSControls: TObjectDictionary<Integer, TUSControl>; //locks with TMonitor
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
     fPreLoadScenarios: Boolean;
     fIMB3Connection: TIMBConnection;
@@ -343,16 +382,22 @@ type
   protected
     procedure ReadScenarios;
     procedure ReadMeasures;
+    procedure ReadUSControls;
     property PreLoadScenarios: Boolean read fPreLoadScenarios;
     property USDBScenarios: TObjectDictionary<string, TUSDBScenario> read fUSDBScenarios;
     function FindMeasure(const aActionID: string; out aMeasure: TMeasureAction): Boolean;
     function ReadScenario(const aID: string): TScenario; override;
+    procedure handleNewClient(aClient: TClient); override;
   public
     procedure ReadBasicData(); override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
+    procedure handleTypedClientMessage(aClient: TClient; const aMessageType: string; var aJSONObject: TJSONObject); override;
   public
     property OraSession: TOraSession read getOraSession;
     property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
+  public
+    function GetUSControlsJSON: string;
+    function GetUSControlJSONFromDB(aTablePrefix: string): string;
   end;
 
 
@@ -1715,13 +1760,201 @@ begin
   fTablePrefix := aTablePrefix;
   fIMBConnection := aIMBConnection;
   fUSChartGroups := TObjectList<TUSChartGroup>.Create(True);
+  fUSControlStatuses := TObjectDictionary<Integer, TUSControlStatus>.Create([doOwnsValues]);
   inherited Create(aProject, aID, aName, aDescription, aFederation, aAddbasicLayers, aMapView, false);
+
+  fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
+  fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
+  fUpdateThread := TThread.CreateAnonymousThread(HandleControlsQueueEvent);
+  fUpdateThread.FreeOnTerminate := False;
+  fUpdateThread.NameThreadForDebugging(ElementID + ' controls queue handler');
+  fUpdateThread.Start;
+
+  fControlsUpdateEvent := fIMBConnection.Subscribe((aProject as TUSProject).OraSession.Username+
+          fTableprefix.Substring(fTableprefix.Length-1)+ // #
+          fTableprefix.Substring(0, fTablePrefix.length-1)+
+          '.PBLS_CONTROLS', False);
+  fCOntrolsUpdateEvent.OnChangeObject := HandleControlsUpdate;
 end;
 
 destructor TUSScenario.Destroy;
 begin
   inherited;
   FreeAndNil(fUSChartGroups);
+  FreeAndNil(fUSControlStatuses);
+end;
+
+function TUSScenario.GetUSControlsJSON: string;
+var
+  USControlStatus: TUSControlStatus;
+  active: Integer;
+begin
+  Result := '';
+  TMonitor.Enter(fUSControlStatuses);
+  try
+  for USControlStatus in fUSControlStatuses.Values do
+    begin
+      if Result <> '' then
+        Result := Result + ',';
+      if USControlStatus.Active then
+        active := 1
+      else
+        active := 0;
+      Result := Result + '"' + USControlStatus.ID.ToString + '":{"active":' + active.ToString + '}';
+    end;
+  finally
+    TMonitor.Exit(fUSControlStatuses);
+  end;
+  Result := '{' + Result + '}';
+end;
+
+function TUSScenario.HandleClientSubscribe(aClient: TClient): Boolean;
+begin
+  Result := inherited;
+  SendUSControlsMessage(aClient);
+end;
+
+procedure TUSScenario.HandleControlsQueueEvent;
+
+  procedure ReadMultipleControls(const aIdString: string; const oraSession: TOraSession);
+  var
+   query: TOraQuery;
+   active, id: Integer;
+   controlStatus: TUSControlStatus;
+   o: TLayerObject;
+  begin
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := oraSession;
+      query.SQL.Text := 'SELECT ID, ACTIVE FROM ' + fTablePrefix + 'PBLS_CONTROLS where ID in (' + aIdString + ')';
+      query.UniDirectional := True;
+      query.Open;
+      query.First;
+      while (not query.Eof) do
+        begin
+          id := query.FieldByName('ID').AsInteger;
+          active := query.FieldByName('ACTIVE').AsInteger;
+          controlStatus := TUSControlStatus.Create(id, active = 1);
+          fUSControlStatuses.AddOrSetValue(id, controlStatus);
+          query.Next;
+        end;
+    finally
+      query.Free;
+    end;
+  end;
+var
+  localQueue: TList<TUSUpdateQueueEntry>;
+  tempQueue: TList<TUSUpdateQueueEntry>;
+  entry: TUSUpdateQueueEntry;
+  ChangeStack: TStack<string>;
+  ChangeString: string;
+  i: Integer;
+  oraSession: TOraSession;
+begin
+  localQueue := TList<TUSUpdateQueueEntry>.Create;
+  oraSession := TOraSession.Create(nil);
+  ChangeStack := TStack<string>.Create;
+  try
+    oraSession.connectString := ConnectStringFromSession((Project as TUSProject).oraSession);
+    oraSession.open;
+    while not TThread.CheckTerminated do
+    begin
+      if fUpdateQueueEvent.WaitFor=wrSignaled then
+      begin
+        // swap queues
+        TMonitor.Enter(fUpdateQueueEvent);
+        try
+          tempQueue := fUpdateQueue;
+          fUpdateQueue := localQueue;
+          localQueue := tempQueue;
+        finally
+          TMonitor.Exit(fUpdateQueueEvent);
+        end;
+        if localQueue.Count>0 then
+        begin
+          TMonitor.Enter(fUSControlStatuses);
+          try
+            for entry in localQueue do
+            try
+              begin
+                // process entries
+                if entry.action=actionDelete then
+                begin
+                  if fUSControlStatuses.ContainsKey(entry.objectID) then
+                    fUSControlStatuses.Remove(entry.objectID);
+                end
+                else if entry.action=actionNew then
+                begin
+                  if not fUSControlStatuses.ContainsKey(entry.objectID) then
+                  begin
+                    ChangeStack.Push(entry.objectID.ToString);
+                  end;
+                end
+                else if entry.action=actionChange then
+                begin
+                  if fUSControlStatuses.ContainsKey(entry.objectID) then
+                  begin
+                    ChangeStack.Push(entry.objectID.ToString);
+                  end
+                  else Log.WriteLn('TUSScenario.HandleControlsQueueEvent: no result on change control ('+entry.objectID.toString+') query', llWarning);
+                end;
+              end;
+            except
+              on e: Exception
+              do Log.WriteLn('Exception in handleChangeObject: '+e.Message, llError);
+            end;
+            if (ChangeStack.Count > 0) then
+            begin
+              while (ChangeStack.Count > 1000) do
+              begin
+                changestring := ChangeStack.Pop;
+                for i:=2 to 1000 do
+                  changestring := changestring + ', ' + ChangeStack.Pop;
+                ReadMultipleControls(changestring, oraSession);
+              end;
+              if ChangeStack.Count > 0 then
+              begin
+                changestring := ChangeStack.Pop;
+                while (ChangeStack.Count > 0) do
+                  changestring := changestring + ', ' + ChangeStack.Pop;
+                ReadMultipleControls(changestring, oraSession);
+              end;
+              forEachClient(SendUSControlsMessage);
+            end;
+            finally
+              TMonitor.Exit(fUSControlStatuses);
+            end;
+          //Todo: look into cached updates/batching!
+        end;
+        localQueue.Clear;
+      end;
+    end;
+  finally
+    localQueue.Free;
+    oraSession.Free; //todo can I use one try/finally for all of these?
+    ChangeStack.Free;
+  end;
+end;
+
+procedure TUSScenario.HandleControlsUpdate(aAction, aObjectID: Integer;
+  const aObjectName, aAttribute: string);
+begin
+  TMonitor.Enter(fUpdateQueueEvent);
+  try
+    begin
+      try
+        fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
+        fUpdateQueueEvent.SetEvent;
+      except
+        on e: Exception do
+        begin
+          Log.WriteLn('TUSScenario.handleControlsUpdate. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
+        end
+      end;
+    end
+  finally
+    TMonitor.Exit(fUpdateQueueEvent);
+  end;
 end;
 
 procedure TUSScenario.ReadBasicData;
@@ -1887,6 +2120,8 @@ begin
 //      //GENE_BASCOV
 //    end;
 //  end;
+
+  ReadUSControls(oraSession);
 
   // process meta layer to build list of available layers
   metaLayer := TMetaLayer.Create;
@@ -2112,6 +2347,39 @@ begin
     ReadIndicator(tableName, aOraSession);
 end;
 
+procedure TUSScenario.ReadUSControls(aOraSession: TOraSession);
+var
+ query: TOraQuery;
+ Table: string;
+ ID: Integer;
+ Active: Boolean;
+begin
+  Table := fTablePrefix + 'PBLS_CONTROLS';
+  if TableExists(aOraSession, Table) then
+  begin
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := aOraSession;
+      query.SQL.Text := 'SELECT * FROM ' + Table;
+      query.Open;
+      try
+        TMonitor.Enter(fUSControlStatuses);
+        while not query.EoF do
+        begin
+          ID := query.FieldByName('ID').AsInteger;
+          Active := query.FieldByName('ACTIVE').AsInteger = 1;
+          fUSControlStatuses.Add(ID, TUSControlStatus.Create(ID, Active));
+          query.Next;
+        end;
+      finally
+        TMonitor.Exit(fUSControlStatuses);
+      end;
+    finally
+      query.Free;
+    end;
+  end;
+end;
+
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aSelectedIDs: TArray<string>): string;
 begin
   // todo: implement
@@ -2122,6 +2390,11 @@ function TUSScenario.selectObjectsProperties(aClient: TClient; const aSelectCate
 begin
   // todo: implement
   Result := '';
+end;
+
+procedure TUSScenario.SendUSControlsMessage(aClient: TClient);
+begin
+  aClient.signalString('{"type":"scenarioControlsMessage", "payload": { "scenarioControls": ' + GetUSControlsJSON + '}}');
 end;
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string;
@@ -2317,6 +2590,7 @@ var
 begin
   fIMB3Connection := aIMB3Connection;
   fUSDBScenarios := TObjectDictionary<string, TUSDBScenario>.Create;
+  fUSControls := TObjectDictionary<Integer, TUSControl>.Create([doOwnsValues]);
   mapView := aMapView;
 
   if aSourceEPSG>0
@@ -2345,6 +2619,7 @@ begin
   FreeAndNil(fScenarioLinks);
   inherited;
   FreeAndNil(fUSDBScenarios);
+  FreeAndNil(fUSControls);
 end;
 
 function TUSProject.FindMeasure(const aActionID: string;
@@ -2373,12 +2648,117 @@ begin
   Result := fDBConnection as TOraSession;
 end;
 
+function TUSProject.GetUSControlJSONFromDB(aTablePrefix: string): string;
+var
+  query: TOraQuery;
+ Table: string;
+ ID: Integer;
+ Active: Boolean;
+begin
+  Result := '';
+  Table := aTablePrefix + 'PBLS_CONTROLS';
+  if TableExists(OraSession, Table) then
+  begin
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := OraSession;
+      query.SQL.Text := 'SELECT * FROM ' + Table;
+      query.Open;
+      while not query.EoF do
+      begin
+        ID := query.FieldByName('ID').AsInteger;
+        Active := query.FieldByName('ACTIVE').AsInteger = 1;
+        if Result <> '' then
+          Result := Result + ',';
+        Result := Result + '"' + ID.ToString + '":{"active":' + Active.ToString + '}';
+        query.Next;
+      end;
+    finally
+      query.Free;
+    end;
+  end;
+  Result := '{' + Result + '}';
+end;
+
+function TUSProject.GetUSControlsJSON: string;
+var
+  FoundScenario: Boolean;
+  USControl: TUSControl;
+  Scenario: TScenario;
+  USDBScenario: TUSDBScenario;
+  ScenariosJSON, ControlsJSON: string;
+  ScenarioControlsJSON, ScenarioName, ScenarioID: string;
+begin
+  //TODO: duplicate code from TUSProject.handleNewClient -> rewrite to use the same code
+  ControlsJSON := '';
+  TMonitor.Enter(fUSControls);
+  try
+    for USControl in fUSControls.Values do
+    begin
+      if ControlsJSON <> '' then
+        ControlsJSON := ControlsJSON + ',';
+      ControlsJSON := ControlsJSON + '"' + USControl.ID.ToString + '":{' +
+        '"name":"' + USControl.Name + '",' +
+        '"description":"' + USControl.Description + '",' +
+        '"lat":' + DoubleToJSON(USControl.Lat) + ',' +
+        '"lon":' + DoubleToJSON(USControl.Lon) + '}';
+    end;
+  finally
+    TMonitor.Exit(fUSControls);
+  end;
+  ControlsJSON := '{' + ControlsJSON + '}';
+  ScenariosJSON := '';
+  for USDBScenario in fUSDBScenarios.Values do
+    if USDBScenario._published > 0 then
+    begin
+      FoundScenario := False;
+      if ScenariosJSON <> '' then
+        ScenariosJSON := ScenariosJSON + ',';
+      TMonitor.Enter(fScenarios);
+      try
+        if fScenarios.TryGetValue(USDBScenario.fID, Scenario) then
+          FoundScenario := True;
+      finally
+        TMonitor.Exit(fScenarios);
+      end;
+      if FoundScenario then
+      begin
+
+        ScenarioControlsJSON := (scenario as TUSScenario).GetUSControlsJSON;
+        ScenarioName := scenario.Name;
+        ScenarioID := scenario.Id;
+      end
+      else
+      begin
+        ScenarioControlsJSON := GetUSControlJSONFromDB(USDBScenario.tablePrefix);
+        ScenarioName := USDBScenario.Name;
+        ScenarioID := USDBScenario.Id;
+      end;
+      ScenariosJSON := ScenariosJSON + '"' + ScenarioID + '":{ "name": "' + ScenarioName + '", "controls": ' + ScenarioControlsJSON + '}';
+    end;
+//  TMonitor.Enter(fScenarios);
+//  try
+//    for Scenario in fScenarios.Values do
+//      if Scenario is TUSScenario then
+//      begin
+//        if ScenariosJSON <> '' then
+//          ScenariosJSON := ScenariosJSON + ',';
+//        ScenariosJSON := ScenariosJSON + '"' + scenario.ID + '":' + (scenario as TUSScenario).GetUSControlsJSON;
+//      end;
+//  finally
+//    TMonitor.Exit(fScenarios);
+//  end;
+  ScenariosJSON := '{' + ScenariosJSON + '}';
+  Result := '{"controls":' + ControlsJSON + ', "scenarios":' + ScenariosJSON + '}';
+end;
+
 procedure TUSProject.handleClientMessage(aClient: TClient; aScenario: TScenario;
   aJSONObject: TJSONObject);
 var
   jsonMeasures, selectCategories, selectedObjects: TJSONArray;
-  jsonMeasure, jsonArrayItem: TJSONValue;
+  jsonMeasure, jsonArrayItem, jsonValue: TJSONValue;
   jsonStringValue, selectCategoriesString, selectedObjectsString: string;
+  responseJSON, requestType, requestID: string;
 begin
   inherited;
   if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
@@ -2410,6 +2790,97 @@ begin
         //measureHistory := TMeasureHistory.Create();
       end;
   end;
+  if aJSONObject.TryGetValue<TJSONValue>('dialogDataRequest', jsonValue)
+    and jsonValue.TryGetValue('type', requestType)
+    and jsonValue.TryGetValue('id', requestID) then //TODO: make a seperate thread to handle data requests
+  begin
+    if requestType = 'controls' then
+    begin
+      responseJSON := getUSControlsJSON;
+      responseJSON := '{"type": "dialogDataResponse", "payload": { "data": ' + responseJSON +
+                          ', "id": "' + requestID + '"' +
+                          ', "type": "' + requestType + '" }}';
+      aClient.signalString(responseJSON);
+    end;
+  end;
+end;
+
+procedure TUSProject.handleNewClient(aClient: TClient);
+var
+  ControlsJSON: string;
+  USControl: TUSControl;
+begin
+  inherited;
+  //TODO: duplicate code from TUSProject.getUSControlsJSON -> rewrite to use the same code
+  ControlsJSON := '';
+  TMonitor.Enter(fUSControls);
+  try
+    for USControl in fUSControls.Values do
+    begin
+      if ControlsJSON <> '' then
+        ControlsJSON := ControlsJSON + ',';
+      ControlsJSON := ControlsJSON + '"' + USControl.ID.ToString + '":{' +
+        '"name":"' + USControl.Name + '",' +
+        '"description":"' + USControl.Description + '",' +
+        '"lat":' + DoubleToJSON(USControl.Lat) + ',' +
+        '"lon":' + DoubleToJSON(USControl.Lon) + '}';
+    end;
+  finally
+    TMonitor.Exit(fUSControls);
+  end;
+  ControlsJSON := '{' + ControlsJSON + '}';
+  aClient.signalString('{"type":"scenarioControlsMessage", "payload": { "allControls": ' + ControlsJSON + '}}');
+end;
+
+procedure TUSProject.handleTypedClientMessage(aClient: TClient;
+  const aMessageType: string; var aJSONObject: TJSONObject);
+var
+  jsonArrayItem: TJSONValue;
+  controlActive, controlID: Integer;
+  payloadArray: TJSONArray;
+  scenario: TUSScenario;
+  oraSession: TOraSession;
+  queryText: string;
+  publishEventName: string;
+  publishEvent: TIMBEventEntry;
+  controlStatus: TUSControlStatus;
+begin
+  inherited;
+  if aJSONObject.TryGetValue<TJSONArray>('payload', payloadArray) then
+  begin
+    if aMessageType = 'scenarioControlsChanges' then
+    begin
+      if Assigned(aClient.currentScenario) and (aClient.currentScenario is TUSScenario) then
+      begin
+        scenario := aClient.currentScenario as TUSScenario;
+        oraSession := fDBConnection as TOraSession;
+        queryText := 'update ' + scenario.Tableprefix + 'PBLS_CONTROLS ' +
+                        'set active = :A where ID = :B';
+        TMonitor.Enter(scenario.USControlStatuses);
+        try
+          publishEventName := oraSession.Username + '#' + scenario.Name + '.PBLS_CONTROLS';
+          publishEvent := IMB3Connection.publish(publishEventName, false);
+          try
+            for jsonArrayItem in payloadArray do
+            if jsonArrayItem.TryGetValue<Integer>('id', controlID) and jsonArrayItem.TryGetValue<Integer>('active', controlActive) then
+            begin
+              if scenario.USControlStatuses.TryGetValue(controlID, controlStatus) and not (controlStatus.Active = (controlActive = 1)) then
+              begin
+                oraSession.ExecSQL(queryText, [controlID, controlActive]);
+                oraSession.Commit;
+                controlStatus.Active := (controlActive = 1);
+                publishEvent.SignalChangeObject(actionChange, controlID, 'ACTIVE');
+              end;
+            end;
+          finally
+            publishEvent.UnPublish;
+          end;
+        finally
+          TMonitor.Exit(scenario.USControlStatuses);
+        end;
+      end;
+    end;
+  end;
 end;
 
 procedure TUSProject.ReadBasicData;
@@ -2419,6 +2890,7 @@ var
 begin
   ReadScenarios;
   ReadMeasures;
+  ReadUSControls;
   // load current scenario and ref scenario first
   scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession));
   fProjectCurrentScenario := ReadScenario(scenarioID.ToString);
@@ -2571,6 +3043,43 @@ begin
   else fScenarioLinks.sortChildren(); // todo: sort scenario links?
   // filter closed 'leaves'
   fScenarioLinks.removeLeaf('CLOSED');
+end;
+
+procedure TUSProject.ReadUSControls;
+var
+ query: TOraQuery;
+ Table: string;
+ ID: Integer;
+ Name, Description: string;
+ Lat, Lon: Double;
+begin
+  Table := 'PBLS_CONTROLS';
+  if TableExists(OraSession, Table) then
+  begin
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := OraSession;
+      query.SQL.Text := 'SELECT ID, NAME, DESCRIPTION, LAT, LON FROM ' + Table;
+      query.Open;
+      try
+        TMonitor.Enter(fUSControls);
+        while not query.EoF do
+        begin
+          ID := query.FieldByName('ID').AsInteger;
+          Name := query.FieldByName('NAME').AsString;
+          Description := query.FieldByName('DESCRIPTION').AsString;
+          Lat := query.FieldByName('LAT').AsFloat;
+          Lon := query.FieldByName('LON').AsFloat;
+          fUSControls.Add(ID, TUSControl.Create(ID, Name, Description, Lat, Lon));
+          query.Next;
+        end;
+      finally
+        TMonitor.Exit(fUSControls);
+      end;
+    finally
+      query.Free;
+    end;
+  end;
 end;
 
 function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapView;
@@ -3242,6 +3751,38 @@ procedure TUSChartGroup.SetEvent(aDataEvent: TIMBEventEntry);
 begin
   fDataEvent := aDataEvent;
   fDataEvent.OnChangeObject := HandleChangeObject;
+end;
+
+{ TUSControl }
+
+constructor TUSControl.Create(aID: Integer; aName, aDescription: string; aLat,
+  aLon: Double);
+begin
+  fID := aID;
+  fName := aName;
+  fDescription := aDescription;
+  fLat := aLat;
+  fLon := aLon;
+end;
+
+destructor TUSControl.Destroy;
+begin
+
+  inherited;
+end;
+
+{ TUSControlSetting }
+
+constructor TUSControlStatus.Create(aID: Integer; aActive: Boolean);
+begin
+  fID := aID;
+  fActive := aActive;
+end;
+
+destructor TUSControlStatus.Destroy;
+begin
+
+  inherited;
 end;
 
 end.

@@ -227,16 +227,23 @@ begin
                     end;
                   end;
                 end
-                else if (measure.ActionID >= -22) and (measure.ActionID <= -21) then
+                else if (measure.ActionID >= -29) and (measure.ActionID <= -21) then
                 begin
                   table := (aScenario as TUSScenario).Tableprefix + 'GENE_ROAD';
                   case measure.ActionID of
-                    -21: value := '0.5';
-                    -22: value := '2';
+                    -21: value := '0';
+                    -22: value := '1500';
+                    -23: value := '2200';
+                    -24: value := '4400';
+                    -25: value := '8800';
+                    -26: value := '13200';
+                    -27: value := '17600';
+                    -28: value := '22000';
+                    -29: value := '26400';
                   end;
                   queryText := 'update ' + table +
                     ' set' +
-                    ' CAPACITY_L  = CAPACITY_L * ' + value + ', CAPACITY_R = CAPACITY_R * ' + value +
+                    ' CAPACITY_L  = ' + value + ', CAPACITY_R = ' + value +
                     ' where OBJECT_ID = :A';
                   if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
                   begin
@@ -428,32 +435,33 @@ begin
 end;
 
 procedure TUSDesignProject.ReadBasicData;
-var
-  scenarioID: Integer;
-  s: string;
+//var
+  //scenarioID: Integer;
+  //s: string;
 begin
-  ReadScenarios;
-  ReadMeasures;
-  // load current scenario and ref scenario first
-  scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession));
-  fProjectCurrentScenario := ReadScenario(scenarioID.ToString);
-  Log.WriteLn('current US scenario: '+fProjectCurrentScenario.ID+' ('+(fProjectCurrentScenario as TUSScenario).Tableprefix+'): "'+fProjectCurrentScenario.description+'"', llOk);
-  // ref
-  scenarioID := GetScenarioBaseID(OraSession, scenarioID);
-  if scenarioID>=0 then
-  begin
-    fProjectRefScenario := ReadScenario(scenarioID.ToString);
-    Log.WriteLn('reference US scenario: '+fProjectRefScenario.ID+' ('+(fProjectRefScenario as TUSScenario).Tableprefix+'): "'+fProjectRefScenario.description+'"', llOk);
-  end
-  else Log.WriteLn('NO reference US scenario', llWarning);
-  if PreLoadScenarios then
-  begin
-    for s in USDBScenarios.Keys do
-    begin
-      if USDBScenarios[s]._published=1
-        then ReadScenario(s);
-    end;
-  end;
+  inherited;
+//  ReadScenarios;
+//  ReadMeasures;
+//  // load current scenario and ref scenario first
+//  scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession));
+//  fProjectCurrentScenario := ReadScenario(scenarioID.ToString);
+//  Log.WriteLn('current US scenario: '+fProjectCurrentScenario.ID+' ('+(fProjectCurrentScenario as TUSScenario).Tableprefix+'): "'+fProjectCurrentScenario.description+'"', llOk);
+//  // ref
+//  scenarioID := GetScenarioBaseID(OraSession, scenarioID);
+//  if scenarioID>=0 then
+//  begin
+//    fProjectRefScenario := ReadScenario(scenarioID.ToString);
+//    Log.WriteLn('reference US scenario: '+fProjectRefScenario.ID+' ('+(fProjectRefScenario as TUSScenario).Tableprefix+'): "'+fProjectRefScenario.description+'"', llOk);
+//  end
+//  else Log.WriteLn('NO reference US scenario', llWarning);
+//  if PreLoadScenarios then
+//  begin
+//    for s in USDBScenarios.Keys do
+//    begin
+//      if USDBScenarios[s]._published=1
+//        then ReadScenario(s);
+//    end;
+//  end;
 end;
 
 { TUSMonitorProject }
