@@ -377,7 +377,7 @@ begin
   // handle feed entry
   newRoad := TNWBLiveFeedRoad.CreateFromFeed(Self, aPayload);
   try
-    fLastTimeStamp := FormatDateTime('yyyy-mm-dd hh:nn', ((newRoad as TNWBLiveFeedRoad).fTime / 86400) + 25569)+' UTC';
+    fLastTimeStamp := FormatDateTime(publisherDateTimeFormat, ((newRoad as TNWBLiveFeedRoad).fTime / 86400) + 25569)+' UTC';
     if FindObject(newRoad.id, road) then
     begin
       if (road as TNWBLiveFeedRoad).Change(newRoad as TNWBLiveFeedRoad) then

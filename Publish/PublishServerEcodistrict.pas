@@ -1476,7 +1476,7 @@ begin
         '"measure":'+mi.Value.measure+', '+
         '"selectCategories": ['+mi.Value.categories+'],'+
         '"selectedObjects": ['+mi.Value.object_ids+'],'+
-        '"time": "'+FormatDateTime('yyyy-mm-dd hh:nn', mi.Value.timeutc)+'",'+
+        '"time": "'+FormatDateTime(publisherDateTimeFormat, mi.Value.timeutc)+'",'+
         '"id": "'+mi.Value.id.ToString+'"'+
         '}'; // todo:
     end;
@@ -1642,7 +1642,7 @@ begin
     begin
       measureId := (jsonMeasure as TJSONObject).GetValue<string>('measure.id');
       measure := (jsonMeasure as TJSONObject).GetValue<TJSONObject>('measure');
-      // todo: should allways be 1 category (for now)
+      // todo: should always be 1 category (for now)
       jsonObjectIDs := (jsonMeasure as TJSONObject).GetValue<TJSONArray>('selectedObjects');
       objectIDs := '';
       for jsonObjectID in jsonObjectIDs do

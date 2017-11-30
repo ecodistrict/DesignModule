@@ -2126,16 +2126,16 @@ end;
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string;
 var
-  layers: TList<TLayer>;
+  layers: TList<TLayerBase>;
   categories: string;
   objectsGeoJSON: string;
   totalObjectCount: Integer;
   extent: TWDExtent;
-  l: TLayer;
+  l: TLayerBase;
   objectCount: Integer;
 begin
   Result := '';
-  layers := TList<TLayer>.Create;
+  layers := TList<TLayerBase>.Create;
   try
     if selectLayersOnCategories(aSelectCategories, layers) then
     begin
@@ -2145,13 +2145,16 @@ begin
       extent := TWDExtent.FromGeometry(aGeometry);
       for l in layers do
       begin
-        objectCount := l.findObjectsInGeometry(extent, aGeometry, objectsGeoJSON);
-        if objectCount>0 then
+        if l is TLayer then
         begin
-          if categories=''
-          then categories := '"'+l.id+'"'
-          else categories := categories+',"'+l.id+'"';
-          totalObjectCount := totalObjectCount+objectCount;
+          objectCount := (l as TLayer).findObjectsInGeometry(extent, aGeometry, objectsGeoJSON);
+          if objectCount>0 then
+          begin
+            if categories=''
+            then categories := '"'+l.id+'"'
+            else categories := categories+',"'+l.id+'"';
+            totalObjectCount := totalObjectCount+objectCount;
+          end;
         end;
       end;
       Result :=
@@ -2168,12 +2171,12 @@ end;
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string;
 var
-  layers: TList<TLayer>;
+  layers: TList<TLayerBase>;
   dist: TDistanceLatLon;
   nearestObject: TLayerObject;
   nearestObjectLayer: TLayer;
   nearestObjectDistanceInMeters: Double;
-  l: TLayer;
+  l: TLayerBase;
   o: TLayerObject;
   categories: string;
   objectsGeoJSON: string;
@@ -2181,7 +2184,7 @@ var
   objectCount: Integer;
 begin
   Result := '';
-  layers := TList<TLayer>.Create;
+  layers := TList<TLayerBase>.Create;
   try
     if selectLayersOnCategories(aSelectCategories, layers) then
     begin
@@ -2193,13 +2196,16 @@ begin
         nearestObjectDistanceInMeters := Infinity;
         for l in layers do
         begin
-          o := l.findNearestObject(dist, aX, aY, nearestObjectDistanceInMeters);
-          if assigned(o) then
+          if l is TLayer then
           begin
-            nearestObjectLayer := l;
-            nearestObject := o;
-            if nearestObjectDistanceInMeters=0
-            then break;
+            o := (l as TLayer).findNearestObject(dist, aX, aY, nearestObjectDistanceInMeters);
+            if assigned(o) then
+            begin
+              nearestObjectLayer := l as TLayer;
+              nearestObject := o;
+              if nearestObjectDistanceInMeters=0
+              then break;
+            end;
           end;
         end;
         if Assigned(nearestObject) then
@@ -2219,13 +2225,16 @@ begin
         totalObjectCount := 0;
         for l in layers do
         begin
-          objectCount := l.findObjectsInCircle(dist, aX, aY, aRadius, objectsGeoJSON);
-          if objectCount>0 then
+          if l is TLayer then
           begin
-            if categories=''
-            then categories := '"'+l.id+'"'
-            else categories := categories+',"'+l.id+'"';
-            totalObjectCount := totalObjectCount+objectCount;
+            objectCount := (l as TLayer).findObjectsInCircle(dist, aX, aY, aRadius, objectsGeoJSON);
+            if objectCount>0 then
+            begin
+              if categories=''
+              then categories := '"'+l.id+'"'
+              else categories := categories+',"'+l.id+'"';
+              totalObjectCount := totalObjectCount+objectCount;
+            end;
           end;
         end;
         Result :=
@@ -2243,10 +2252,10 @@ end;
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string;
 var
-  layers: TList<TLayer>;
+  layers: TList<TLayerBase>;
 begin
   Result := '';
-  layers := TList<TLayer>.Create;
+  layers := TList<TLayerBase>.Create;
   try
     if selectLayersOnCategories(aSelectCategories, layers) then
     begin
