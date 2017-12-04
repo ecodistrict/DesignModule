@@ -4,6 +4,11 @@
   background-repeat: no-repeat;
   display: block;
 }
+
+.leaflet-control-history {
+    background: #fff;
+    border-radius: 5px;
+}
 /* history control */
 .leaflet-control-history-toggle {
   background-image: url('images/history2.png');
