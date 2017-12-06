@@ -2834,7 +2834,7 @@ end;
 procedure TUSProject.handleTypedClientMessage(aClient: TClient;
   const aMessageType: string; var aJSONObject: TJSONObject);
 var
-  jsonArrayItem: TJSONValue;
+  jsonArrayItem, payloadValue: TJSONValue;
   controlActive, controlID: Integer;
   payloadArray: TJSONArray;
   scenario: TUSScenario;
@@ -2845,10 +2845,11 @@ var
   controlStatus: TUSControlStatus;
 begin
   inherited;
-  if aJSONObject.TryGetValue<TJSONArray>('payload', payloadArray) then
+  if aJSONObject.TryGetValue<TJSONValue>('payload', payloadValue) then
   begin
-    if aMessageType = 'scenarioControlsChanges' then
+    if (aMessageType = 'scenarioControlsChanges') and (payloadValue is TJSONArray) then
     begin
+      payloadArray := payloadValue as TJSONArray;
       if Assigned(aClient.currentScenario) and (aClient.currentScenario is TUSScenario) then
       begin
         scenario := aClient.currentScenario as TUSScenario;
