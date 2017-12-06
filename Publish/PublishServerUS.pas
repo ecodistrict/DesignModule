@@ -100,7 +100,7 @@ type
     procedure ReadFromQueryRow(aQuery: TOraQuery);
     function BaseTable(const aTablePrefix:string): string;
     function BaseTableNoPrefix: string;
-    function BuildJoin(const aTablePrefix: string; out aShapePrefix: string): string;
+    function BuildJoin(const aTablePrefix: string; out aShapePrefix, aObjectIDPrefix, aPreJoin: string): string;
     function SQLQuery(const aTablePrefix:string; xMin: Integer=0; yMin: Integer=0; xMax: Integer=-1; yMax: Integer=-1): string;
     function SQLQueryNew(const aTablePrefix:string): string;
     //function SQLQueryChange(const aTablePrefix:string): string;
@@ -618,19 +618,22 @@ begin
   end;
 end;
 
-function TMetaLayerEntry.BuildJoin(const aTablePrefix: string; out aShapePrefix: string): string;
+function TMetaLayerEntry.BuildJoin(const aTablePrefix: string; out aShapePrefix, aObjectIDPrefix, aPreJoin: string): string;
 var
   p: Integer;
   t1: string;
   t2: string;
 begin
   aShapePrefix := '';
+  aObjectIDPrefix := '';
+  aPreJoin := '';
   p := Pos('!', LAYER_TABLE);
   if p>0 then
   begin
     SplitAt(LAYER_TABLE, p, t1, t2);
     Result := aTablePrefix+t1+' t1 JOIN '+aTablePrefix+t2+' t2 ON t1.OBJECT_ID=t2.OBJECT_ID';
     aShapePrefix := 't1.';
+    aObjectIDPrefix := aShapePrefix;
   end
   else
   begin
@@ -642,6 +645,7 @@ begin
       Delete(t2, p, 1);
       Result := aTablePrefix+t1+' t1 JOIN '+aTablePrefix+t2+' t2 ON t1.OBJECT_ID=t2.OBJECT_ID';
       aShapePrefix := 't1.';
+      aObjectIDPrefix := aShapePrefix;
     end
     else
     begin // single table?
@@ -651,6 +655,7 @@ begin
         t2 := LAYER_TABLE;
         Result := aTablePrefix+t1+' t1 JOIN '+aTablePrefix+t2+' t2 ON t1.OBJECT_ID=t2.OBJECT_ID';
         aShapePrefix := 't1.';
+        aObjectIDPrefix := aShapePrefix;
       end
       else
       begin
@@ -660,6 +665,15 @@ begin
           t2 := LAYER_TABLE;
           Result := aTablePrefix+t1+' t1 JOIN '+aTablePrefix+t2+' t2 ON t1.OBJECT_ID=t2.OBJECT_ID';
           aShapePrefix := 't1.';
+          aObjectIDPrefix := aShapePrefix;
+        end
+        else if StartsWith(LAYER_TABLE, 'AIR_EMISSIONS') then
+        begin
+          t1 := LAYER_TABLE;
+          Result := aTablePrefix+t1+' t2, '+aTablePrefix+'GENE_ROAD'+' t1';
+          aShapePrefix := '';
+          aObjectIDPrefix := 't1.';
+          aPreJoin := 't1.OBJECT_ID=t2.OBJECT_ID AND ';
         end
         else
         begin
@@ -667,6 +681,7 @@ begin
           //t2 := '';
           Result := aTablePrefix+t1+' t1';
           aShapePrefix := 't1.';
+          aObjectIDPrefix := aShapePrefix;
         end;
       end;
     end;
@@ -936,9 +951,11 @@ function TMetaLayerEntry.SQLQuery(const aTablePrefix:string; xMin, yMin, xMax, y
 var
   join: string;
   ShapePrefix: string;
+  ObjectIDPrefix: string;
+  PreJoin: string;
   cellIndexFiltering: Boolean;
 begin
-  join := BuildJoin(aTablePrefix, ShapePrefix);
+  join := BuildJoin(aTablePrefix, ShapePrefix, ObjectIDPrefix, PreJoin);
   case LAYER_TYPE mod 100 of
     2:
       begin
@@ -969,32 +986,32 @@ begin
       begin
         Result :=
           'SELECT '+
-            ShapePrefix+'OBJECT_ID, '+
+            ObjectIDPrefix+'OBJECT_ID, '+
             VALUE_EXPR+' AS VALUE, '+
             ShapePrefix+'SHAPE '+
           'FROM '+join;
         if JOINCONDITION<>''
         then Result := Result+' '+
-          'WHERE '+JOINCONDITION;
+          'WHERE '+PreJoin+JOINCONDITION;
       end;
     5, 9:
       begin
         Result :=
           'SELECT '+
-            ShapePrefix+'OBJECT_ID, '+
+            ObjectIDPrefix+'OBJECT_ID, '+
             VALUE_EXPR+','+
             TEXTURE_EXPR+','+
             ShapePrefix+'SHAPE '+
           'FROM '+join;
         if JOINCONDITION<>''
         then Result := Result+' '+
-          'WHERE '+JOINCONDITION;
+          'WHERE '+PreJoin+JOINCONDITION;
       end;
     21:
       begin
         Result :=
           'SELECT '+
-            ShapePrefix+'OBJECT_ID, '+
+            ObjectIDPrefix+'OBJECT_ID, '+
             ShapePrefix+'shape.sdo_point.x, '+
             ShapePrefix+'shape.sdo_point.y, '+
             ShapePrefix+'poiType, '+
@@ -1002,18 +1019,18 @@ begin
           'FROM '+join;
         if JOINCONDITION<>''
         then Result := Result+' '+
-          'WHERE '+JOINCONDITION;
+          'WHERE '+PreJoin+JOINCONDITION;
       end;
   else
     Result :=
       'SELECT '+
-        ShapePrefix+'OBJECT_ID, '+
+        ObjectIDPrefix+'OBJECT_ID, '+
         VALUE_EXPR+' AS VALUE, '+
         ShapePrefix+'SHAPE '+
       'FROM '+join;
     if JOINCONDITION<>''
     then Result := Result+' '+
-      'WHERE '+JOINCONDITION;
+      'WHERE '+PreJoin+JOINCONDITION;
   end;
 end;
 
@@ -1073,8 +1090,10 @@ function TMetaLayerEntry.SQLQueryChangeMultiple(
 var
   join: string;
   ShapePrefix: string;
+  ObjectIDPrefix: string;
+  PreJoin: string;
 begin
-  join := BuildJoin(aTablePrefix, ShapePrefix);
+  join := BuildJoin(aTablePrefix, ShapePrefix, ObjectIDPrefix, PreJoin);
   case LAYER_TYPE mod 100 of
     2:
       begin
@@ -1083,32 +1102,32 @@ begin
     4:
       begin
         Result :=
-          'SELECT '+ShapePrefix+'OBJECT_ID, '+
+          'SELECT '+ObjectIDPrefix+'OBJECT_ID, '+
             VALUE_EXPR+' AS VALUE, '+
             ShapePrefix+'SHAPE '+
           'FROM '+join+' '+
           'WHERE ';
         if JOINCONDITION<>''
-          then Result := Result+ JOINCONDITION +' AND ';
-        Result := Result +ShapePrefix+'OBJECT_ID in ';
+          then Result := Result+PreJoin+JOINCONDITION +' AND ';
+        Result := Result + ObjectIDPrefix+'OBJECT_ID in ';
       end;
     5, 9:
       begin
         Result :=
-          'SELECT '+ShapePrefix+'OBJECT_ID, '+
+          'SELECT '+ObjectIDPrefix+'OBJECT_ID, '+
             VALUE_EXPR+','+
             TEXTURE_EXPR+','+
             ShapePrefix+'SHAPE '+
           'FROM '+join+' '+
           'WHERE ';
         if JOINCONDITION<>''
-          then Result := Result+ JOINCONDITION +' AND ';
-        Result := Result +ShapePrefix+'OBJECT_ID in ';
+          then Result := Result+PreJoin+JOINCONDITION +' AND ';
+        Result := Result +ObjectIDPrefix+'OBJECT_ID in ';
       end;
     21:
       begin
         Result :=
-          'SELECT '+ShapePrefix+'OBJECT_ID, '+
+          'SELECT '+ObjectIDPrefix+'OBJECT_ID, '+
             ShapePrefix+'shape.sdo_point.x, '+
             ShapePrefix+'shape.sdo_point.y, '+
             ShapePrefix+'poiType, '+
@@ -1116,19 +1135,19 @@ begin
           'FROM '+join+' '+
           'WHERE ';
         if JOINCONDITION<>''
-          then Result := Result+ JOINCONDITION +' AND ';
-        Result := Result +ShapePrefix+'OBJECT_ID in ';
+          then Result := Result+PreJoin+JOINCONDITION +' AND ';
+        Result := Result +ObjectIDPrefix+'OBJECT_ID in ';
       end;
   else
     Result :=
-      'SELECT '+ShapePrefix+'OBJECT_ID, '+
+      'SELECT '+ObjectIDPrefix+'OBJECT_ID, '+
         VALUE_EXPR+' AS VALUE, '+
         ShapePrefix+'SHAPE '+
       'FROM '+join+' '+
       'WHERE ';
     if JOINCONDITION<>''
-      then Result := Result+ JOINCONDITION +' AND ';
-    Result := Result +ShapePrefix+'OBJECT_ID in ';
+      then Result := Result+PreJoin+JOINCONDITION +' AND ';
+    Result := Result +ObjectIDPrefix+'OBJECT_ID in ';
   end;
 end;
 
@@ -1136,8 +1155,10 @@ function TMetaLayerEntry.SQLQueryNew(const aTablePrefix: string): string;
 var
   join: string;
   ShapePrefix: string;
+  ObjectIDPrefix: string;
+  PreJoin: string;
 begin
-  join := BuildJoin(aTablePrefix, ShapePrefix);
+  join := BuildJoin(aTablePrefix, ShapePrefix, ObjectIDPrefix, PreJoin);
   case LAYER_TYPE mod 100 of
     2:
       begin
@@ -1150,10 +1171,9 @@ begin
             VALUE_EXPR+' AS VALUE, '+
             ShapePrefix+'SHAPE '+
           'FROM '+join+' '+
-          'WHERE '+ShapePrefix+'OBJECT_ID=:OBJECT_ID';
+          'WHERE '+ObjectIDPrefix+'OBJECT_ID=:OBJECT_ID';
         if JOINCONDITION<>''
-        then Result := Result+' AND '+
-          JOINCONDITION;
+        then Result := Result+' AND '+ PreJoin+JOINCONDITION;
       end;
     5, 9:
       begin
@@ -1163,10 +1183,9 @@ begin
             TEXTURE_EXPR+','+
             ShapePrefix+'SHAPE '+
           'FROM '+join+' '+
-          'WHERE '+ShapePrefix+'OBJECT_ID=:OBJECT_ID';
+          'WHERE '+ObjectIDPrefix+'OBJECT_ID=:OBJECT_ID';
         if JOINCONDITION<>''
-        then Result := Result+' AND '+
-          JOINCONDITION;
+        then Result := Result+' AND '+PreJoin+JOINCONDITION;
       end;
     21:
       begin
@@ -1177,10 +1196,9 @@ begin
             ShapePrefix+'poiType, '+
             ShapePrefix+'category '+
           'FROM '+join+' '+
-          'WHERE '+ShapePrefix+'OBJECT_ID=:OBJECT_ID';
+          'WHERE '+ObjectIDPrefix+'OBJECT_ID=:OBJECT_ID';
         if JOINCONDITION<>''
-        then Result := Result+' AND '+
-          JOINCONDITION;
+        then Result := Result+' AND '+PreJoin+JOINCONDITION;
       end;
   else
     Result :=
@@ -1188,10 +1206,9 @@ begin
         VALUE_EXPR+' AS VALUE, '+
         ShapePrefix+'SHAPE '+
       'FROM '+join+' '+
-      'WHERE '+ShapePrefix+'OBJECT_ID=:OBJECT_ID';
+      'WHERE '+ObjectIDPrefix+'OBJECT_ID=:OBJECT_ID';
     if JOINCONDITION<>''
-    then Result := Result+' AND '+
-      JOINCONDITION;
+    then Result := Result+' AND '+PreJoin+JOINCONDITION;
   end;
 end;
 
