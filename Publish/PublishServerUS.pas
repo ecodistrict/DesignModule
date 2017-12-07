@@ -3097,6 +3097,7 @@ begin
       query.Free;
     end;
   end;
+  //TODO: Subscribe to IMB updates
 end;
 
 function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapView;

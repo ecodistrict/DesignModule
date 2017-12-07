@@ -1,0 +1,95 @@
+﻿/* .leaflet-control-controls derived from .leaflet--control-layers (leaflet.css) */
+.leaflet-control-controls-toggle {
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    display: block;
+}
+/* measures control */
+.leaflet-control-controls {
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    background: #fff;
+    border-radius: 5px;
+}
+
+    .leaflet-control-controls a.leaflet-control-controls-toggle:hover {
+        background-color: #f4f4f4;
+        border-radius: 5px;
+    }
+
+.leaflet-control-controls-toggle {
+    background-image: url('images/adjustControls.png');
+    width: 26px;
+    height: 26px;
+}
+
+.leaflet-retina .leaflet-control-controls-toggle {
+    background-image: url('images/adjustControls-2x.png');
+    background-size: 360px 30px;
+}
+
+.leaflet-touch .leaflet-control-controls-toggle {
+    width: 30px;
+    height: 30px;
+}
+
+/* touch */
+.leaflet-touch .leaflet-control-controls {
+    box-shadow: none
+}
+
+.leaflet-touch .leaflet-control-controls {
+    border: 2px solid rgba(0,0,0,0.2);
+    background-clip: padding-box;
+}
+
+.leaflet-oldie .leaflet-control-controls {
+    border: 1px solid #999
+}
+
+/* .leaflet-control-overview derived from .leaflet--control-layers (leaflet.css) */
+.leaflet-control-overview-toggle {
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    display: block;
+}
+/* measures control */
+.leaflet-control-overview {
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    background: #fff;
+    border-radius: 5px;
+}
+
+    .leaflet-control-overview a.leaflet-control-overview-toggle:hover {
+        background-color: #f4f4f4;
+        border-radius: 5px;
+    }
+
+.leaflet-control-overview-toggle {
+    background-image: url('images/overviewControls.png');
+    width: 26px;
+    height: 26px;
+}
+
+.leaflet-retina .leaflet-control-overview-toggle {
+    background-image: url('images/overviewControls-2x.png');
+    background-size: 360px 30px;
+}
+
+.leaflet-touch .leaflet-control-overview-toggle {
+    width: 30px;
+    height: 30px;
+}
+
+/* touch */
+.leaflet-touch .leaflet-control-overview {
+    box-shadow: none
+}
+
+.leaflet-touch .leaflet-control-overview {
+    border: 2px solid rgba(0,0,0,0.2);
+    background-clip: padding-box;
+}
+
+.leaflet-oldie .leaflet-control-overview {
+    border: 1px solid #999
+}
