@@ -1368,6 +1368,7 @@
                     fireEvent('update', handleNumber);
                     fireEvent('slide', handleNumber);
                 });
+                event.cancelBubble = true; // prevent map from moving
             }
         }
 

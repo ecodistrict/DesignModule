@@ -3200,7 +3200,8 @@ begin
   try
     aBitmap.Canvas.Clear(0);
     aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
-    fDataLock.BeginRead;
+    fCurrentSlice.fDataLock.BeginRead;
+    fRefSlice.fDataLock.BeginRead;
     try
       for isgop in (fCurrentSlice as TSliceGeometryI).fGeometries do
       begin
@@ -3227,7 +3228,8 @@ begin
         end;
       end;
     finally
-      fDataLock.EndRead;
+      fCurrentSlice.fDataLock.EndRead;
+      fRefSlice.fDataLock.EndRead;
     end;
   finally
     aBitmap.Canvas.EndScene;
