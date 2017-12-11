@@ -27,6 +27,8 @@ const
 
   DefaultSensorRadius = 100;
 
+  MaxNoSensorValueTime = 4/24;
+
   wdatSensordata_Benzene = (550 shl 3) or wt64Bit;
   wdatSourceEmissionStrengthAnalysisBenzene = (561 shl 3) or wt64Bit;
   wdatLat = (15 shl 3) or wt64Bit;
@@ -241,22 +243,17 @@ function TCursor.First: Boolean;
 var
   sensor: TSensor;
 begin
-  TMonitor.Enter(fData);
-  try
-    fSensorRecords.Clear;
-    if fData.Count>0 then
-    begin
-      fCurrentIndex := 0;
-      // load first known sensors
-      for sensor in fData[fCurrentIndex].fValues.Keys.ToArray
-      do fSensorRecords.Add(sensor, fCurrentIndex);
-      fCurrentTimeStamp := fData[fCurrentIndex].fTimeStamp;
-      Result := True;
-    end
-    else Result := False;
-  finally
-    TMonitor.Exit(fData);
-  end;
+  fSensorRecords.Clear;
+  if fData.Count>0 then
+  begin
+    fCurrentIndex := 0;
+    // load first known sensors
+    for sensor in fData[fCurrentIndex].fValues.Keys.ToArray
+    do fSensorRecords.Add(sensor, fCurrentIndex);
+    fCurrentTimeStamp := fData[fCurrentIndex].fTimeStamp;
+    Result := True;
+  end
+  else Result := False;
 end;
 
 procedure TCursor.Invalidate;
@@ -282,105 +279,115 @@ end;
 
 function TCursor.MoveTo(aTimeStamp: TDateTime): Boolean;
 begin
-  TMonitor.Enter(fData);
-  try
-    if not IsValid
-    then First;
-    if IsValid then
+  if not IsValid
+  then First;
+  if IsValid then
+  begin
+    Result := True;
+    if aTimeStamp>fData[fCurrentIndex].timeStamp then
     begin
-      Result := True;
-      if aTimeStamp>fData[fCurrentIndex].timeStamp then
-      begin
-        // move to future
-        // check for next step
-        while (fCurrentIndex<fData.Count-1) and (aTimeStamp>=fData[fCurrentIndex+1].timeStamp)
-        do Result := Next;
-      end
-      else if aTimeStamp<fData[fCurrentIndex].timeStamp then
-      begin
-        // move to past
-        while (fCurrentIndex>=0) and (aTimeStamp<fData[fCurrentIndex].timeStamp)
-        do Result := Prev;
-      end;
-      // else we are there
+      // move to future
+      // check for next step
+      while Result and (fCurrentIndex<fData.Count-1) and (aTimeStamp>=fData[fCurrentIndex+1].timeStamp)
+      do Result := Next;
     end
-    else Result := False;
-  finally
-    TMonitor.Exit(fData);
-  end;
+    else if aTimeStamp<fData[fCurrentIndex].timeStamp then
+    begin
+      // move to past
+      while Result and (fCurrentIndex>=0) and (aTimeStamp<fData[fCurrentIndex].timeStamp)
+      do Result := Prev;
+    end;
+    // else we are there
+  end
+  else Result := False;
+  // store the given timestamp
+  fCurrentTimeStamp := aTimeStamp;
 end;
 
 function TCursor.Next: Boolean;
 var
   sensor: TSensor;
 begin
-  TMonitor.Enter(fData);
-  try
-    if IsValid then
+  if IsValid then
+  begin
+    if fCurrentIndex<fData.Count-1 then
     begin
-      if fCurrentIndex<fData.Count-1 then
-      begin
-        fCurrentIndex := fCurrentIndex+1;
-        for sensor in fData[fCurrentIndex].fValues.Keys.ToArray
-        do fSensorRecords.AddOrSetValue(sensor, fCurrentIndex);
-        fCurrentTimeStamp := fData[fCurrentIndex].fTimeStamp;
-        Result := True;
-      end
-      else Result := False;
+      fCurrentIndex := fCurrentIndex+1;
+      for sensor in fData[fCurrentIndex].fValues.Keys.ToArray
+      do fSensorRecords.AddOrSetValue(sensor, fCurrentIndex);
+      fCurrentTimeStamp := fData[fCurrentIndex].fTimeStamp;
+      Result := True;
     end
-    else
+    else Result := False;
+  end
+  else
+  begin
+    fSensorRecords.Clear;
+    if fData.Count>0 then
     begin
-      fSensorRecords.Clear;
-      if fData.Count>0 then
-      begin
-        fCurrentIndex := 0;
-        // load first known sensors
-        for sensor in fData[fCurrentIndex].fValues.Keys.ToArray
-        do fSensorRecords.Add(sensor, fCurrentIndex);
-        fCurrentTimeStamp := fData[fCurrentIndex].fTimeStamp;
-        Result := True;
-      end
-      else Result := False;
-    end;
-  finally
-    TMonitor.Exit(fData);
+      fCurrentIndex := 0;
+      // load first known sensors
+      for sensor in fData[fCurrentIndex].fValues.Keys.ToArray
+      do fSensorRecords.Add(sensor, fCurrentIndex);
+      fCurrentTimeStamp := fData[fCurrentIndex].fTimeStamp;
+      Result := True;
+    end
+    else Result := False;
   end;
 end;
 
 function TCursor.Prev: Boolean;
 var
   sensor: TSensor;
+  changedSensors: TDictionary<TSensor, Boolean>;
+  localIndex: Integer;
 begin
-  TMonitor.Enter(fData);
-  try
-    if IsValid then
+  if IsValid then
+  begin
+    if fCurrentIndex>0 then
     begin
-      if fCurrentIndex>0 then
-      begin
+      changedSensors := TDictionary<TSensor, Boolean>.Create;
+      try
+        // store list of changed sensors
+        for sensor in fData[fCurrentIndex].fValues.Keys.ToArray
+        do changedSensors.Add(sensor, True);
+        // step back current index
         fCurrentIndex := fCurrentIndex-1;
-        for sensor in fData[fCurrentIndex].fValues.Keys.ToArray
-        do fSensorRecords.AddOrSetValue(sensor, fCurrentIndex);
         fCurrentTimeStamp := fData[fCurrentIndex].fTimeStamp;
-        Result := True;
-      end
-      else Result := False;
+        // walk back on index until all changed sensors have new values
+        localIndex := fCurrentIndex;
+        while (localIndex>=0) and (changedSensors.Count>0) do
+        begin
+          for sensor in fData[localIndex].fValues.Keys.ToArray do
+          begin
+            if changedSensors.ContainsKey(sensor) then
+            begin
+              fSensorRecords.AddOrSetValue(sensor, localIndex);
+              changedSensors.Remove(sensor);
+            end;
+          end;
+          localIndex := localIndex-1;
+        end;
+      finally
+        changedSensors.Free;
+      end;
+      Result := True;
     end
-    else
+    else Result := False;
+  end
+  else
+  begin
+    fSensorRecords.Clear;
+    if fData.Count>0 then
     begin
-      fSensorRecords.Clear;
-      if fData.Count>0 then
-      begin
-        fCurrentIndex := 0;
-        // load first known sensors
-        for sensor in fData[fCurrentIndex].fValues.Keys.ToArray
-        do fSensorRecords.Add(sensor, fCurrentIndex);
-        fCurrentTimeStamp := fData[fCurrentIndex].fTimeStamp;
-        Result := True;
-      end
-      else Result := False;
-    end;
-  finally
-    TMonitor.Exit(fData);
+      fCurrentIndex := 0;
+      // load first known sensors
+      for sensor in fData[fCurrentIndex].fValues.Keys.ToArray
+      do fSensorRecords.Add(sensor, fCurrentIndex);
+      fCurrentTimeStamp := fData[fCurrentIndex].fTimeStamp;
+      Result := True;
+    end
+    else Result := False;
   end;
 end;
 
@@ -433,60 +440,55 @@ var
   sensorValues: TSensorValues;
   cursor: TCursor;
 begin
-  TMonitor.Enter(fData);
-  try
-    if fData.Count>0 then
+  if fData.Count>0 then
+  begin
+    // find or add record starting at end (asume values arrive sorted in time)
+    i := fData.Count-1;
+    if fData[i].fTimeStamp<aTimeStamp then
     begin
-      // find or add record starting at end (asume values arrive sorted in time)
-      i := fData.Count-1;
-      if fData[i].fTimeStamp<aTimeStamp then
-      begin
-        // new entry that is newer then last
-        sensorsRecord := TSensorsRecord.Create(aTimeStamp);
-        fData.Add(sensorsRecord);
-      end
-      else
-      begin
-        while (i>=0) and (fData[i].fTimeStamp>aTimeStamp)
-        do i := i-1;
-        if i>=0 then
-        begin
-          if fData[i].fTimeStamp<>aTimeStamp then
-          begin
-            sensorsRecord := TSensorsRecord.Create(aTimeStamp);
-            fData.Insert(i, sensorsRecord);
-          end
-          else sensorsRecord := fData[i];
-        end
-        else
-        begin
-          sensorsRecord := TSensorsRecord.Create(aTimeStamp);
-          fData.Insert(0, sensorsRecord);
-        end;
-      end;
+      // new entry that is newer then last
+      sensorsRecord := TSensorsRecord.Create(aTimeStamp);
+      fData.Add(sensorsRecord);
     end
     else
     begin
-      // empty so add entry
-      sensorsRecord := TSensorsRecord.Create(aTimeStamp);
-      fData.Add(sensorsRecord);
+      while (i>=0) and (fData[i].fTimeStamp>aTimeStamp)
+      do i := i-1;
+      if i>=0 then
+      begin
+        if fData[i].fTimeStamp<>aTimeStamp then
+        begin
+          sensorsRecord := TSensorsRecord.Create(aTimeStamp);
+          fData.Insert(i, sensorsRecord);
+        end
+        else sensorsRecord := fData[i];
+      end
+      else
+      begin
+        sensorsRecord := TSensorsRecord.Create(aTimeStamp);
+        fData.Insert(0, sensorsRecord);
+      end;
     end;
-    // correct sensors record is found or added
-    if not sensorsRecord.values.TryGetValue(aSensor, sensorValues) then
-    begin
-      sensorValues := TSensorValues.Create();
-      sensorsRecord.values.Add(aSensor, sensorValues);
-    end;
-    sensorValues.AddOrSetValue(aTag, aValue);
-    // check cursors
-    for cursor in fCursors do
-    begin
-      // invalidate cursor if record before current was changed
-      if (not Double(cursor.fCurrentTimeStamp).IsNan) and (cursor.fCurrentTimeStamp>aTimeStamp)
-      then cursor.Invalidate;
-    end;
-  finally
-    TMonitor.Exit(fData);
+  end
+  else
+  begin
+    // empty so add entry
+    sensorsRecord := TSensorsRecord.Create(aTimeStamp);
+    fData.Add(sensorsRecord);
+  end;
+  // correct sensors record is found or added
+  if not sensorsRecord.values.TryGetValue(aSensor, sensorValues) then
+  begin
+    sensorValues := TSensorValues.Create();
+    sensorsRecord.values.Add(aSensor, sensorValues);
+  end;
+  sensorValues.AddOrSetValue(aTag, aValue);
+  // check cursors
+  for cursor in fCursors do
+  begin
+    // invalidate cursor if record before current was changed
+    if (not Double(cursor.fCurrentTimeStamp).IsNan) and (cursor.fCurrentTimeStamp>aTimeStamp)
+    then cursor.Invalidate;
   end;
 end;
 
@@ -513,9 +515,9 @@ constructor TSensorsLayer2.Create(
   aOpacity: Double; const aLegendJSON: string);
 begin
   inherited Create(aScenario, aDomain, aID, aName, aDescription,
-    [ ['contextmenu', 'true'],
+    [ (*['contextmenu', 'true'],
       ['contextmenuItems', '[{"text": "Layer item1","index": 0, "tag": 1.5},{"text": "Layer item2","index": 1, "tag": "text"}]'], // , {"separator": true, "index": 1}
-      ['contextmenuInheritItems', 'true']
+      ['contextmenuInheritItems', 'true']*)
     ],
     [],
     aDefaultLoad, aDisplayGroup, aShowInDomains, aBasicLayer, aOpacity, aLegendJSON);
@@ -560,10 +562,18 @@ begin
 end;
 
 function TSensorsLayer2.getLive(aClient: TClient): Boolean;
+var
+  cursor: TCursor;
+  lastDataRecord: TSensorsRecord;
 begin
   TMonitor.Enter(fCursors);
   try
-    Result := not fCursors.ContainsKey(aClient);
+    if fCursors.TryGetValue(aClient, cursor) then
+    begin
+      lastDataRecord := cursor.fData.Last;
+      Result := (not Assigned(lastDataRecord)) or Double(cursor.fCurrentTimeStamp).IsNaN or (cursor.fCurrentTimeStamp>lastDataRecord.fTimeStamp);
+    end
+    else Result := True;
   finally
     TMonitor.Exit(fCursors);
   end;
@@ -595,19 +605,24 @@ var
   cursor: TCursor;
   dt: TDateTime;
 begin
-  Log.WriteLn('Selected time: '+aTime);
   try
     dt := StrToDateTime(aTime, isoDateTimeFormatSettings);
     TMonitor.Enter(fCursors);
     try
       if fCursors.TryGetValue(aClient, cursor) then
       begin
-        cursor.MoveTo(dt);
-        signalCursorValues(aClient, cursor, aPrivateSensorEvent);
+        TMonitor.Enter(fDataSet.Data);
+        try
+          cursor.MoveTo(dt);
+          signalCursorValues(aClient, cursor, aPrivateSensorEvent);
+        finally
+          TMonitor.Exit(fDataSet.Data);
+        end;
       end;
     finally
       TMonitor.Exit(fCursors);
     end;
+    Log.WriteLn('Selected time: '+aTime+' (live:'+live[aClient].ToString(TUseBoolStrs.True)+')');
   except
     on E: Exception
     do Log.WriteLn('TSensorsLayer2.handleNewTime: '+aTime+': '+e.Message, llError);
@@ -705,12 +720,15 @@ begin
           value := aPayload.bb_read_double(aCursor);
           if Assigned(sensor) and not ts.IsNan then
           begin
-            fDataSet.NewValue(sensor, ts, fieldInfo shr 3, value);
-            //so.addOptionColor('color', fPalette.ValueToColors(benzene).fillColor); // todo: add line color to palette?
-            //so.addOptionColor('fillColor', fPalette.ValueToColors(benzene).fillColor);
+            TMonitor.Enter(fDataSet.Data);
+            try
+              fDataSet.NewValue(sensor, ts, fieldInfo shr 3, value);
+            finally
+              TMonitor.Exit(fDataSet.Data);
+            end;
             so.addOptionGeoColor(fPalette.ValueToColors(value));
             so.addPropertyString('tooltip', sensor.Name+'<br>'+
-                                            'Benzene: '+value.ToString+' ..'+'<br>'+
+                                            'Benzene: '+value.ToString+' µg/m³'+'<br>'+
                                             'live..');
             UpdateObject(so, sojnOptions, so.jsonOptionsValue);
             triggerUpdateTimesliderData;
@@ -770,7 +788,7 @@ begin
             begin
               sensor := TSensor.Create(id);
               fDataSet.Sensors.Add(id, sensor);
-              so := TCircleMarker.Create(Self, sensor.IDAsGUIDStr, 0, 0, 3); //, Double.NaN, [[sojnDraggable, 'true']]);
+              so := TCircleMarker.Create(Self, sensor.IDAsGUIDStr, 0, 0, 3);
               AddObject(so, so.jsonNewObject);
             end
             else so := objects[sensor.IDAsGUIDStr];
@@ -820,12 +838,15 @@ begin
           value := aPayload.bb_read_double(aCursor);
           if Assigned(sensor) and not ts.IsNan then
           begin
-            fDataSet.NewValue(sensor, ts, fieldInfo shr 3, value);
-            //so.addOptionColor('color', fPalette.ValueToColors(benzene).fillColor); // todo: add line color to palette?
-            //so.addOptionColor('fillColor', fPalette.ValueToColors(benzene).fillColor);
+            TMonitor.Enter(fDataSet.Data);
+            try
+              fDataSet.NewValue(sensor, ts, fieldInfo shr 3, value);
+            finally
+              TMonitor.Exit(fDataSet.Data);
+            end;
             so.addOptionGeoColor(fPalette.ValueToColors(value));
             so.addPropertyString('tooltip', 'Source'+'<br>'+
-                                            'Benzene: '+value.ToString+' ..'+'<br>'+
+                                            'Benzene: '+value.ToString+' µg/s'+'<br>'+
                                             'live..');
             UpdateObject(so, sojnOptions, so.jsonOptionsValue);
             triggerUpdateTimesliderData;
@@ -869,69 +890,80 @@ end;
 
 function TSensorsLayer2.jsonTimesliderData: string;
 var
-  sr, srPRev: TSensorsRecord;
   entry: string;
   benzene: Double;
-  ssvp: TPair<TSensor, TSensorValues>;
-  tvp: TPair<Integer, Double>;
   fillColorPrev: string;
   fillColor: string;
   startTime: string;
   endTime: string;
+  cursor: TCursor;
+  srp: TPair<TSensor, Integer>;
+  sensorValue: Double;
+  sr: TSensorsRecord;
 begin
   // todo: use cursor, if a sensor has no value on a specific time it is not accounted for and a higher value
   // could be shown then calculated for the time stamp
   Result := '';
-  srPRev := nil;
+  //srPRev := nil;
   startTime := '';
   endTime := '';
   fillColorPrev := '';
   fillColor := '';
-  TMonitor.Enter(fDataSet);
+  cursor := fDataSet.NewCursor;
   try
-    for sr in fDataSet.Data do
-    begin
-      // determine max sensor level color
-      benzene := 0;
-      for ssvp in sr.values do
-        for tvp in ssvp.Value do
-            if benzene<tvp.Value
-            then benzene := tvp.Value;
-      fillColor := ColorToJSON(fPalette.ValueToColors(benzene).fillColor);
-      endTime := FormatDateTime(publisherDateTimeFormat, sr.timeStamp);
-      if assigned(srPRev) then
+    TMonitor.Enter(fDataSet);
+    try
+      if cursor.First then
       begin
-        // only add region when color changes
-        if fillColorPrev<>fillColor then
+        repeat
+          benzene := 0;
+          for srp in cursor.SensorRecords do
+          begin
+            sr := fDataSet.fData[srp.Value];
+            // todo: check if sr has always entry for sensor (iesrp.key)?
+            if (cursor.fCurrentTimeStamp-sr.timeStamp<=MaxNoSensorValueTime) and sr.values[srp.Key].TryGetValue(wdatSensordata_Benzene shr 3, sensorValue) then
+            begin
+              // check if value is not too old and if higher then
+              if benzene<sensorValue
+              then benzene := sensorValue;
+            end;
+          end;
+          fillColor := ColorToJSON(fPalette.ValueToColors(benzene).fillColor);
+          if fillColor<>fillColorPrev then
+          begin
+            // store current time on cursor as endTime
+            endTime := FormatDateTime(publisherDateTimeFormat, cursor.fCurrentTimeStamp);
+            // check if we have a valid range (first change in color only initializes the start of the event)
+            if startTime<>'' then
+            begin
+              // add new entry for pervious color: fillColorPrev startTime-endTime
+              entry :=
+                '"start":"'+startTime+'"'+','+
+                '"end":"'+endTime+'"'+','+
+                '"color":"'+fillColorPrev+'"';
+              jsonAdd(Result, '{'+entry+'}');
+            end;
+            // start new range
+            fillColorPrev := fillColor;
+            startTime := endTime;
+          end;
+        until not cursor.Next;
+        // add last step if exists
+        endTime := FormatDateTime(publisherDateTimeFormat, cursor.fCurrentTimeStamp);
+        if (startTime<>'') and (startTime<>endTime) then
         begin
           entry :=
             '"start":"'+startTime+'"'+','+
             '"end":"'+endTime+'"'+','+
             '"color":"'+fillColorPrev+'"';
           jsonAdd(Result, '{'+entry+'}');
-          // prepare for next step
-          fillColorPrev := fillColor;
-          startTime := endTime;
         end;
-      end
-      else
-      begin
-        fillColorPrev := fillColor;
-        startTime := endTime;
       end;
-      srPRev := sr;
-    end;
-    // add last step if exists
-    if startTime<>endTime then
-    begin
-      entry :=
-        '"start":"'+startTime+'"'+','+
-        '"end":"'+endTime+'"'+','+
-        '"color":"'+fillColorPrev+'"';
-      jsonAdd(Result, '{'+entry+'}');
+    finally
+      TMonitor.Exit(fDataSet);
     end;
   finally
-    TMonitor.Exit(fDataSet);
+    fDataSet.RemoveCursor(cursor);
   end;
 end;
 
@@ -941,25 +973,31 @@ var
 begin
   TMonitor.Enter(fCursors);
   try
-    if Live[aCLient]<>aValue then
+    if aValue then
     begin
-      if aValue then
+      // switch to live mode -> send latest sensor values
+      if fCursors.TryGetValue(aClient, cursor) then
       begin
-        // switch to live mode -> send latest sensor values
-        if fCursors.TryGetValue(aClient, cursor) then
-        begin
+        TMonitor.Enter(fDataSet.Data);
+        try
           // signal last values via cursor
           cursor.Last;
           signalCursorValues(aClient, cursor, nil);
-          // remove cursor so we are live again
-          fCursors.Remove(aClient);
+        finally
+          TMonitor.Exit(fDataSet.Data);
         end;
-      end
-      else
-      begin
-        fCursors.Add(aClient, fDataSet.NewCursor);
-        // switch to history mode -> no action
+        // remove cursor so we are live again
+        fCursors.Remove(aClient);
       end;
+      Log.WriteLn(aClient.clientID+': set live (live:'+Live[aClient].toString(TUseBoolStrs.True)+')');
+    end
+    else
+    begin
+      // only create and add cursor if not already in fCursors
+      if not fCursors.ContainsKey(aClient)
+      then fCursors.Add(aClient, fDataSet.NewCursor);
+      // switch to history mode -> no action
+      Log.WriteLn(aClient.clientID+': set NOT live (live:'+Live[aClient].toString(TUseBoolStrs.True)+')');
     end;
   finally
     TMonitor.Exit(fCursors);
@@ -974,15 +1012,18 @@ var
   jsonEntry: string;
   jsonColor: string;
   modelPayload: TByteBuffer;
+  sr: TSensorsRecord;
 begin
   _json := '';
   modelPayload := '';
-  // todo: implement
   for srp in aCursor.SensorRecords do
   begin
-    if fDataSet.fData[srp.Value].values[srp.Key].TryGetValue(wdatSensordata_Benzene shr 3, sensorValue) then
+    sr := fDataSet.fData[srp.Value];
+    if sr.values[srp.Key].TryGetValue(wdatSensordata_Benzene shr 3, sensorValue) then
     begin
-      jsonColor := '"'+ColorToJSON(fPalette.ValueToColors(sensorValue).fillColor)+'"';
+      if (aCursor.fCurrentTimeStamp-sr.fTimeStamp)<=MaxNoSensorValueTime
+      then jsonColor := '"'+ColorToJSON(fPalette.ValueToColors(sensorValue).fillColor)+'"'
+      else jsonColor := '"'+ColorToJSON(fPalette.ValueToColors(-1).fillColor)+'"';
       jsonEntry :=
         '{"updateobject":'+
           '{"id":"'+srp.Key.IDAsGUIDStr+'","'+sojnOptions+'":'+
@@ -991,8 +1032,8 @@ begin
               '"fillColor":'+jsonColor+
             '}'+','+
             '"tooltip":"'+ srp.Key.Name+'<br>'+
-                           'Benzene: '+sensorValue.ToString+' ..'+'<br>'+
-                           '@ '+FormatDateTime(isoDateTimeFormat, aCursor.fCurrentTimeStamp)+'"'+
+                           'Benzene: '+sensorValue.ToString+' µg/m³'+'<br>'+
+                           '@ '+FormatDateTime(isoDateTimeFormat, sr.fTimeStamp)+'"'+
           '}'+
         '}';
       jsonAdd(_json, jsonEntry);
@@ -1057,7 +1098,7 @@ begin
 
   SetControl('timeslider', '1');
 
-  palette := CreateEWPalette('Benzene ...');
+  palette := CreateEWPalette('Benzene µg/m³');
   jsonLegend := BuildDiscreteLegendJSON(palette as TDiscretePalette, TLegendFormat.lfVertical);
 
   layer := TSensorsLayer2.Create(
@@ -1105,6 +1146,11 @@ begin
       selectedTime: string;
       active: Boolean;
     begin
+      if aPayload.TryGetValue<boolean>('active', active) then
+      begin
+        // active ? switch to selected time : switch to now and follow new data
+        layer.live[aClient] := not active;
+      end;
       if aPayload.TryGetValue<string>('selectedTime', selectedTime) then
       begin
         setTimeTimer.Arm(DateTimeDelta2HRT(0.1*dtOneSecond),
@@ -1112,12 +1158,7 @@ begin
           begin
             layer.handleNewTime(aClient, selectedTime, fPrivateModelSensorEvent);
           end);
-      end
-      else if aPayload.TryGetValue<boolean>('active', active) then
-      begin
-        // active ? switch to selected time : switch to now and follow new data
-        layer.live[aClient] := not active;
-      end
+      end;
     end);
 
   // work-a-round for connected models
