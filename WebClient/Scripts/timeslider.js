@@ -28,7 +28,7 @@ L.Control.TimeSlider = L.Control.extend({
     },
 
     buildTimeSlider: function (aTimesliderDiv) {
-        
+
         var tsStart = new Date();
         tsStart.setTime(tsStart.getTime() - 86400000);
         var tsEnd = new Date();
@@ -41,6 +41,9 @@ L.Control.TimeSlider = L.Control.extend({
         var scale = d3.time.scale()
             .domain([tsStart, tsEnd])
             .range([aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin]);
+        var brush = d3.svg.brush()
+            .x(scale)
+            .on("brush", brushed);
         var xaxis = d3.svg.axis()
             .scale(scale)
             .orient('bottom');
@@ -58,13 +61,21 @@ L.Control.TimeSlider = L.Control.extend({
             .attr('opacity', 0)
             .style('cursor', 'col-resize')
             .call(zoom);
-        svg.append('g')
+        var context = svg.append('g')
             .attr('class', 'xaxis')
             .attr('transform', 'translate(0,' + aTimesliderDiv.yMargin + ')')
             .call(xaxis)
             .selectAll('text')
             .style('pointer-events', 'none')
             .style('font-size', '10px');
+        /*
+        context.append("g")
+            .attr("class", "x brush")
+            .call(brush)
+            .selectAll("rect")
+            .attr("y", -6)
+            .attr("height", rectParent.height - 12);
+        */
         var line = svg.append('line')
             .classed("timeSliderLine", true)
             .attr('x1', rectParent.width / 2)
@@ -73,7 +84,7 @@ L.Control.TimeSlider = L.Control.extend({
             .attr('y2', rectParent.height)
             .style('pointer-events', 'none')
             .style('stroke', 'rgb(6,120,255)')
-            .style('stroke-width', '4');
+            .style('stroke-width', '3');
         var selectedTime = svg.append('text')
             .attr('x', aTimesliderDiv.xSelTextOffset + rectParent.width / 2)
             .attr('y', rectParent.height - aTimesliderDiv.ySelTextOffsetBottom)
@@ -83,11 +94,55 @@ L.Control.TimeSlider = L.Control.extend({
             .style('font-size', '14px');
         selectedTime.on('click', (function () {
             if (this.options.showSettings) {
-                this.options.settingsShowing = true;
-                this._expand();
+                this.options.settingsShowing = this.options.settingsShowing ? !this.options.settingsShowing : true;
+                this.options.settingsShowing ? this._expand() : L.control.timeslidersettings.clearSettings();
             }
         }).bind(this));
-        rescale();
+
+        aTimesliderDiv.getCurrentTime = function () {
+            return xaxis.scale().invert(d3.select(aTimesliderDiv).select('.selectedTime').node().getAttribute('x') - aTimesliderDiv.xSelTextOffset);
+        };
+
+        // todo: setting date time via edit box sets text field but not slider axis??!!
+
+        aTimesliderDiv.setCurrentTime = function (aNewTime, aDelta) {
+            // locally store current time
+            var currentTime = aTimesliderDiv.getCurrentTime();
+            // decode time if necessar
+            if (typeof aNewTime === "string") {
+                try {
+                    aNewTime = selectedDateTimeFormat.parse(aNewTime);
+                }
+                catch (e) {
+                    aNewTime = currentTime;
+                }
+            }
+            // calculate local version aNewTime
+            var newTime = new Date(aNewTime.getTime() + (aDelta ? aDelta : 0));
+            // calculate lcoal delta
+            var delta = newTime.getTime() - currentTime.getTime();
+            // translate scale of axis
+            var currentTime = aTimesliderDiv.getCurrentTime();
+            // get domain of current scale
+            var domain = xaxis.scale().domain();
+            // calculate new scale
+            var scale = d3.time.scale()
+                .domain([new Date(domain[0].getTime() + delta), new Date(domain[1].getTime() + delta)])
+                .range([aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin]);
+            // set new scale on xaxis
+            xaxis.scale(scale);
+            // apply new scale to other elements
+            zoom.x(scale);
+            // recalculate xaxis
+            svg.select('g').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
+            // show time in text
+            var selectedTimeText = selectedDateTimeFormat(newTime);
+            d3.select(aTimesliderDiv).select('.selectedTime').text(selectedTimeText).style('cursor', 'pointer');
+            // adjust events to new scale
+            updateEvents();
+            // send new time to publisher
+            sendSelectedTime(selectedTimeText);
+        };
 
         aTimesliderDiv.setEvents = function (aEvents) {
             var events = svg.selectAll("rect.item").data(aEvents.map(function (d) {
@@ -191,6 +246,7 @@ L.Control.TimeSlider = L.Control.extend({
         aTimesliderDiv.addEvents(flights2);
         */
 
+        // close button
         var close = L.DomUtil.create('div', 'timeslider-close');
         close.innerHTML = '&#x2715;';
         close.onclick = (function (e) {
@@ -198,24 +254,31 @@ L.Control.TimeSlider = L.Control.extend({
             L.control.timeslidersettings.clearSettings();
         }).bind(this);
         aTimesliderDiv.appendChild(close);
+
+        // handle resize of window
         var resize = function () {
+            // store current time
+            var currentTime = aTimesliderDiv.getCurrentTime();
+            // reset slider size to match window size
             rectParent = aTimesliderDiv.getBoundingClientRect();
-            scale.range([aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin]);
+            // resize axis scale
+            xaxis.scale().range([aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin]);
             rect.attr('width', rectParent.width);
-            zoom.x(scale); // rebind, zoom makes copy! http://stackoverflow.com/questions/27204907/d3-reset-zoom-when-chart-is-brushed
-            aTimesliderDiv.scale = scale;
+            //zoom.x(scale); 
+            //aTimesliderDiv.scale = scale;
+            // move line to show current time
             line
                 .attr('x1', rectParent.width / 2)
                 .attr('x2', rectParent.width / 2);
+            // move text showing current selected time
             selectedTime.attr('x', aTimesliderDiv.xSelTextOffset + rectParent.width / 2);
-            rescale();
+            // reset time to handle all else
+            aTimesliderDiv.setCurrentTime(currentTime);
         };
         // resize handler
         window.addEventListener('resize', resize);
-        aTimesliderDiv.resetTimeSlider = function () {
-            resize();
-        };
 
+        /*
         aTimesliderDiv.setDatetimeTimeSlider = function (date, difference) {
             if (typeof date === "string") {
                 date = selectedDateTimeFormat.parse(date);
@@ -224,7 +287,7 @@ L.Control.TimeSlider = L.Control.extend({
             var tsEnd = date ? new Date(date) : new Date();
 
             if (difference) {
-                tsStart = new Date(tsStart.getTime() + difference);
+                tsStart = new Date(tsStart.getTime() - difference);
                 tsEnd = new Date(tsEnd.getTime() + difference);
             }
 
@@ -234,9 +297,9 @@ L.Control.TimeSlider = L.Control.extend({
                 var rectParent = aTimesliderDiv.getBoundingClientRect();
                 tsStart.setTime(tsStart.getTime() - diff);
                 tsEnd.setTime(tsEnd.getTime() + diff);
-                var range = function () {
-                    return [aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin];
-                };
+                //var range = function () {
+                //    return [aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin];
+                //};
                 var scale = d3.time.scale()
                     .domain([tsStart, tsEnd])
                     .range([aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin]);
@@ -245,13 +308,14 @@ L.Control.TimeSlider = L.Control.extend({
                     .orient('bottom');
                 //var selectedDateTimeFormat = d3.time.format('%Y-%m-%d %H:%M');
                 d3.select(aTimesliderDiv).select('svg').select('g').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
-                var selectedTimeTime = scale.invert(d3.select(aTimesliderDiv).select('.selectedTime').node().getAttribute('x') - aTimesliderDiv.xSelTextOffset);
+                var selectedTimeTime = aTimesliderDiv.getCurrentTime(); // scale.invert(d3.select(aTimesliderDiv).select('.selectedTime').node().getAttribute('x') - aTimesliderDiv.xSelTextOffset);
                 var selectedTimeText = selectedDateTimeFormat(selectedTimeTime);
                 d3.select(aTimesliderDiv).select('.selectedTime').text(selectedTimeText).style('cursor', 'pointer');
                 sendSelectedTime(selectedTimeText);
                 aTimesliderDiv.scale = scale;
             }
         };
+        */
 
         function updateEvents() {
             return svg.selectAll("rect.item")
@@ -259,14 +323,21 @@ L.Control.TimeSlider = L.Control.extend({
                 .attr("width", function (d) { return scale(d.end) - scale(d.start); });
         }
 
-        function rescale(e) {
+        function rescale() {
+            // show new axis with changed scale
             svg.select('g').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
-            var selectedTimeTime = scale.invert(selectedTime.node().getAttribute('x') - aTimesliderDiv.xSelTextOffset);
+            // show new time as text
+            var selectedTimeTime = aTimesliderDiv.getCurrentTime();
             var selectedTimeText = selectedDateTimeFormat(selectedTimeTime);
+            // change style of time show as text
             selectedTime.text(selectedTimeText).style('cursor', 'pointer');
+            // update events to new axis and scale
             updateEvents();
+            // send new selected time to publisher
             sendSelectedTime(selectedTimeText);
-            aTimesliderDiv.scale = scale;
+        }
+
+        function brushed(e) {
         }
     },
 
@@ -419,16 +490,6 @@ L.control.timeslidersettings.addTo = function (map) {
     return this;
 };
 
-L.control.timeslidersettings._createEntryText = function (text) {
-    console.log(text);
-    var entry = document.createElement('td');
-    var entryText = document.createElement('div');
-    entryText.className = 'settings-entry-text';
-    entryText.innerHTML = text;
-    entry.appendChild(entryText);
-    return entry;
-};
-
 L.control.timeslidersettings._createEntryTitle = function (text) {
     this._title = this._div.appendChild(L.DomUtil.create('div', 'settings-title'));
     this._title.innerHTML = text;
@@ -507,25 +568,23 @@ L.control.timeslidersettings._createRow = function (elements) {
     document.getElementsByClassName('replayButton')[0].onclick = function () {
         if (!timeslider.classList.contains('leaflet-control-timeslider-expanded')) {
             // timeslider.resetTimeToToday(new Date());
-            timeslider.setDatetimeTimeSlider(false);
+            timeslider.setCurrentTime(new Date(), 0);
         }
     };
     document.getElementsByClassName('dateButton')[0].onclick = function () {
-        if (!timeslider.classList.contains('leaflet-control-timeslider-expanded')) {
-            timeslider.setDatetimeTimeSlider(document.getElementsByClassName('dateInput')[0].value);
-        }
+        timeslider.setCurrentTime(document.getElementsByClassName('dateInput')[0].value, 0);
     };
     document.getElementsByClassName('forwardButton')[0].onclick = function () {
-        timeslider.setDatetimeTimeSlider(new Date(timeslider.scale.domain()[1] - (timeslider.scale.domain()[1] - timeslider.scale.domain()[0]) / 2), hour);
+        timeslider.setCurrentTime(timeslider.getCurrentTime(), hour);
     };
     document.getElementsByClassName('backwardButton')[0].onclick = function () {
-        timeslider.setDatetimeTimeSlider(new Date(timeslider.scale.domain()[1] - (timeslider.scale.domain()[1] - timeslider.scale.domain()[0]) / 2), -hour);
+        timeslider.setCurrentTime(timeslider.getCurrentTime(), -hour);
     };
     document.getElementsByClassName('fastforwardButton')[0].onclick = function () {
-        timeslider.setDatetimeTimeSlider(new Date(timeslider.scale.domain()[1] - (timeslider.scale.domain()[1] - timeslider.scale.domain()[0]) / 2), day);
+        timeslider.setCurrentTime(timeslider.getCurrentTime(), day);
     };
     document.getElementsByClassName('fastbackwardButton')[0].onclick = function () {
-        timeslider.setDatetimeTimeSlider(new Date(timeslider.scale.domain()[1] - (timeslider.scale.domain()[1] - timeslider.scale.domain()[0]) / 2), -day);
+        timeslider.setCurrentTime(timeslider.getCurrentTime(), -day);
     };
 };
 
@@ -561,11 +620,11 @@ L.control.timeslidersettings.createSettings = function (definition, layerid, aTi
     }
 };
 
-L.control.timeslidersettings.clearSettings = function (aClearPosition, asettingsLayer) {
-    if (typeof asettingsLayer === "undefined")
+L.control.timeslidersettings.clearSettings = function (aClearPosition, aSettingsLayer) {
+    if (typeof aSettingsLayer === "undefined")
         this.settingsLayer = null;
     else
-        this.settingsLayer = asettingsLayer;
+        this.settingsLayer = aSettingsLayer;
 
     if (this._div) {
         if (aClearPosition) {
@@ -583,35 +642,3 @@ L.control.timeslidersettings.update = function (props) {
 };
 
 map.addControl(L.control.timeslidersettings);
-
-/*
-if (is_touch_device tis_touch_device()) {
-    document.addEventListener('touchstart', function (event) {
-        this.allowUp = this.scrollTop > 0;
-        this.allowDown = this.scrollTop < this.scrollHeight - this.clientHeight;
-        this.slideBeginY = event.pageY;
-    });
-
-    document.addEventListener('touchmove', function (event) {
-        var up = event.pageY > this.slideBeginY;
-        var down = event.pageY < this.slideBeginY;
-        this.slideBeginY = event.pageY;
-        if ((up && this.allowUp) || (down && this.allowDown)) {
-            event.stopPropagation();
-        }
-        else {
-            event.preventDefault();
-        }
-    });
-}
-function is_touch_device() {
-    try {
-        document.createEvent("TouchEvent");
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-*/
-
-

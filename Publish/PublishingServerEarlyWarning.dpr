@@ -28,10 +28,17 @@ const
   DefaultSensorRadius = 100;
 
   wdatSensordata_Benzene = (550 shl 3) or wt64Bit;
+  wdatSourceEmissionStrengthAnalysisBenzene = (561 shl 3) or wt64Bit;
   wdatLat = (15 shl 3) or wt64Bit;
   wdatLon = (16 shl 3) or wt64Bit;
   //tag_height = 17;
   wdatSensorCode = (18 shl 3) or wtLengthDelimited;
+
+  tag_meteodata_winddirection = 16; //129;
+  tag_meteodata_windspeed = 17; //137;
+  tag_meteodata_moninobukhovlength = 27; //217;
+  tag_meteodata_mixinglayerheight = 28; //225;
+  tag_meteodata_rainfall = 35; //280;
 
 type
   TSensor = class
@@ -48,6 +55,7 @@ type
     property Description: string read fDescription write fDescription;
     property Lat: Double read fLat write fLat;
     property Lon: Double read fLon write fLon;
+    function IDAsGUID: TGUID;
     function IDAsGUIDStr: string;
   end;
 
@@ -74,7 +82,6 @@ type
     fCurrentIndex: Integer;
     fCurrentTimeStamp: TDateTime; // helper
     fSensorRecords: TDictionary<TSensor, Integer>; //  current indexes of sensor values
-    //function UpdateCurrentIndexL: Boolean;
   public
     property SensorRecords: TDictionary<TSensor, Integer> read fSensorRecords;
     function First: Boolean;
@@ -105,7 +112,10 @@ type
   
   TSensorsLayer2 = class(TSimpleLayer)
   constructor Create(
-    aPalette: TWDPalette; aEventEntry, aPrivateEventEntry: TEventEntry; aScenario: TScenario;
+    aPalette: TWDPalette;
+    aEventEntrySensor, aPrivateEventEntrySensor: TEventEntry;
+    aEventEntrySource, aPrivateEventEntrySource: TEventEntry;
+    aScenario: TScenario;
     const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aDisplayGroup: string=''; aShowInDomains: Boolean=True;
     aBasicLayer: Boolean=False; aOpacity: Double=0.8; const aLegendJSON: string='');
@@ -115,20 +125,24 @@ type
     fPalette: TWDPalette;
     fDataSet: TSensorsDataSet; // owns records, not sensors in records, ordered by timestamp
     // events
-    fEventEntry: TEventEntry;
-    fPrivateEventEntry: TEventEntry;
+    fEventEntrySensor: TEventEntry;
+    fPrivateEventEntrySensor: TEventEntry;
+    fEventEntrySource: TEventEntry;
+    fPrivateEventEntrySource: TEventEntry;
     fTimeSliderDataTimer: TTimer;
     fCursors: TDictionary<TClient, TCursor>; // only refs
     procedure handleSensorDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+    procedure handleSourceDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure setLive(aClient: TClient; const aValue: Boolean);
     function getLive(aClient: TClient): Boolean;
-    procedure signalCursorValues(aClient: TClient; aCursor: TCursor);
+    procedure signalCursorValues(aClient: TClient; aCursor: TCursor; aPrivateModelSensorEvent: TEventEntry);
+
   protected
     function IsReceivingLayerUpdates(aClient: TClient): Boolean; override;
     function jsonTimesliderData: string;
     procedure triggerUpdateTimesliderData;
   protected
-    procedure handleNewTime(aClient: TClient; const aTime: string);
+    procedure handleNewTime(aClient: TClient; const aTime: string; aPrivateSensorEvent: TEventEntry);
     procedure handleUpdateLayerObject(aPayload: TJSONObject); override;
   public
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
@@ -143,6 +157,11 @@ type
     aDBConnection: TCustomConnection; aAddBasicLayers: Boolean;
     aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; aProjectCurrentScenario, aProjectRefScenario: TScenario);
   destructor Destroy; override;
+  private
+    fPrivateModelMeteoEvent: TEventEntry;
+    fPrivateModelSensorEvent: TEventEntry;
+    fWindSpeed: Double;
+    fWindDirection: Double;
   end;
 
 
@@ -176,7 +195,12 @@ end;
 
 function TSensor.IDAsGUIDStr: string;
 begin
-  Result := TGUID.Create(Pointer(PAnsiCHar(fID))^).ToString;
+  Result := IDAsGUID.ToString;
+end;
+
+function TSensor.IDAsGUID: TGUID;
+begin
+  Result := TGUID.Create(Pointer(PAnsiCHar(fID))^);
 end;
 
 { TSensorsRecord }
@@ -481,7 +505,10 @@ end;
 { TSensorsLayer2 }
 
 constructor TSensorsLayer2.Create(
-  aPalette: TWDPalette; aEventEntry, aPrivateEventEntry: TEventEntry; aScenario: TScenario; const aDomain, aID, aName,
+  aPalette: TWDPalette;
+  aEventEntrySensor, aPrivateEventEntrySensor: TEventEntry;
+  aEventEntrySource, aPrivateEventEntrySource: TEventEntry;
+  aScenario: TScenario; const aDomain, aID, aName,
   aDescription: string; aDefaultLoad: Boolean; const aDisplayGroup: string; aShowInDomains, aBasicLayer: Boolean;
   aOpacity: Double; const aLegendJSON: string);
 begin
@@ -497,15 +524,29 @@ begin
   fCursors := TDictionary<TClient, TCursor>.Create;
   fTimeSliderDataTimer := scenario.project.Timers.CreateInactiveTimer;
 
-  fEventEntry := aEventEntry;
-  fEventEntry.OnEvent.Add(handleSensorDataEvent);
-  fEventEntry.subscribe; // start listening
-  fPrivateEventEntry := aPrivateEventEntry;
-  fPrivateEventEntry.OnEvent.Add(handleSensorDataEvent);
-  fPrivateEventEntry.subscribe; // start listening
+
+  // sensor
+  fEventEntrySensor := aEventEntrySensor;
+  fEventEntrySensor.OnEvent.Add(handleSensorDataEvent);
+  fEventEntrySensor.subscribe; // start listening
+  fPrivateEventEntrySensor := aPrivateEventEntrySensor;
+  fPrivateEventEntrySensor.OnEvent.Add(handleSensorDataEvent);
+  fPrivateEventEntrySensor.subscribe; // start listening
   // signal inquire
-  fEventEntry.signalEvent(
-    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateEventEntry.eventName)+
+  fEventEntrySensor.signalEvent(
+    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateEventEntrySensor.eventName)+
+    TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, ''));
+
+  // source
+  fEventEntrySource := aEventEntrySource;
+  fEventEntrySource.OnEvent.Add(handleSourceDataEvent);
+  fEventEntrySource.subscribe; // start listening
+  fPrivateEventEntrySource := aPrivateEventEntrySource;
+  fPrivateEventEntrySource.OnEvent.Add(handleSourceDataEvent);
+  fPrivateEventEntrySource.subscribe; // start listening
+  // signal inquire
+  fEventEntrySource.signalEvent(
+    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateEventEntrySource.eventName)+
     TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, ''));
 end;
 
@@ -549,7 +590,7 @@ begin
   end;
 end;
 
-procedure TSensorsLayer2.handleNewTime(aClient: TClient; const aTime: string);
+procedure TSensorsLayer2.handleNewTime(aClient: TClient; const aTime: string; aPrivateSensorEvent: TEventEntry);
 var
   cursor: TCursor;
   dt: TDateTime;
@@ -562,7 +603,7 @@ begin
       if fCursors.TryGetValue(aClient, cursor) then
       begin
         cursor.MoveTo(dt);
-        signalCursorValues(aClient, cursor);
+        signalCursorValues(aClient, cursor, aPrivateSensorEvent);
       end;
     finally
       TMonitor.Exit(fCursors);
@@ -578,7 +619,7 @@ var
   fieldInfo: UInt32;
   id: TWDID;
   ts: Double;
-  benzene: Double;
+  value: Double;
   lat: Double;
   lon: Double;
   sensorCode: string;
@@ -661,20 +702,135 @@ begin
         end;
       wdatSensordata_Benzene:
         begin
-          benzene := aPayload.bb_read_double(aCursor);
+          value := aPayload.bb_read_double(aCursor);
           if Assigned(sensor) and not ts.IsNan then
           begin
-            fDataSet.NewValue(sensor, ts, wdatSensordata_Benzene shr 3, benzene);
+            fDataSet.NewValue(sensor, ts, fieldInfo shr 3, value);
             //so.addOptionColor('color', fPalette.ValueToColors(benzene).fillColor); // todo: add line color to palette?
             //so.addOptionColor('fillColor', fPalette.ValueToColors(benzene).fillColor);
-            so.addOptionGeoColor(fPalette.ValueToColors(benzene));
+            so.addOptionGeoColor(fPalette.ValueToColors(value));
             so.addPropertyString('tooltip', sensor.Name+'<br>'+
-                                            'Benzene: '+benzene.ToString+' ..'+'<br>'+
+                                            'Benzene: '+value.ToString+' ..'+'<br>'+
                                             'live..');
             UpdateObject(so, sojnOptions, so.jsonOptionsValue);
             triggerUpdateTimesliderData;
           end;
           // else un-timestamped sensor value -> ignore
+        end;
+      (icehNoObjectID shl 3) or wtLengthDelimited:
+        begin
+          id := aPayload.bb_read_rawbytestring(aCursor);
+          TMonitor.Enter(fDataSet);
+          try
+            if fDataSet.Sensors.TryGetValue(id, sensor) then
+            begin
+              if objects.TryGetValue(sensor.IDAsGUIDStr, so) then
+              begin
+                RemoveObject(so);
+              end;
+              fDataSet.Sensors.Remove(id);
+              // todo: cleanup history and invalidate cursors?
+            end
+            else so := objects[sensor.IDAsGUIDStr];
+          finally
+            TMonitor.Exit(fDataSet);
+          end;
+        end
+    else
+      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
+    end;
+  end;
+end;
+
+procedure TSensorsLayer2.handleSourceDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+var
+  fieldInfo: UInt32;
+  id: TWDID;
+  ts: Double;
+  value: Double;
+  lat: Double;
+  lon: Double;
+  sensorCode: string;
+  sensor: TSensor;
+  so: TSimpleObject;
+begin
+  sensor := nil;
+  so := nil;
+  ts := Double.NaN;
+  while aCursor<aLimit do
+  begin
+    fieldInfo := aPayload.bb_read_uint32(aCursor);
+    case fieldInfo of
+      (icehObjectID shl 3) or wtLengthDelimited:
+        begin
+          id := aPayload.bb_read_rawbytestring(aCursor);
+          TMonitor.Enter(fDataSet);
+          try
+            if not fDataSet.Sensors.TryGetValue(id, sensor) then
+            begin
+              sensor := TSensor.Create(id);
+              fDataSet.Sensors.Add(id, sensor);
+              so := TCircleMarker.Create(Self, sensor.IDAsGUIDStr, 0, 0, 3); //, Double.NaN, [[sojnDraggable, 'true']]);
+              AddObject(so, so.jsonNewObject);
+            end
+            else so := objects[sensor.IDAsGUIDStr];
+          finally
+            TMonitor.Exit(fDataSet);
+          end;
+        end;
+      wdatLat:
+        begin
+          lat := aPayload.bb_read_double(aCursor);
+          if Assigned(sensor) and (sensor.lat.IsNan) or (sensor.lat<>lat) then
+          begin
+            sensor.Lat := lat;
+            (so.geometry as TWDGeometryPoint).y := lat;
+            UpdateObject(so, sojnGeometry, so.jsonGeometryValue);
+          end;
+        end;
+      wdatLon:
+        begin
+          lon := aPayload.bb_read_double(aCursor);
+          if Assigned(sensor)  and (sensor.lon.IsNan) or (sensor.lon<>lon) then
+          begin
+            sensor.Lon := lon;
+            (so.geometry as TWDGeometryPoint).x := lon;
+            UpdateObject(so, sojnGeometry, so.jsonGeometryValue);
+          end;
+        end;
+      wdatSensorCode:
+        begin
+          sensorCode := aPayload.bb_read_string(aCursor);
+          if Assigned(sensor) then
+          begin
+            if sensor.Name<>sensorCode then
+            begin
+              sensor.Name := sensorCode;
+              so.addPropertyString('tooltip', sensor.Name);
+              UpdateObject(so, sojnOptions, so.jsonOptionsValue);
+            end;
+          end;
+        end;
+      wdatTimeStamp:
+        begin
+          ts := aPayload.bb_read_double(aCursor);
+        end;
+      wdatSourceEmissionStrengthAnalysisBenzene:
+        begin
+          value := aPayload.bb_read_double(aCursor);
+          if Assigned(sensor) and not ts.IsNan then
+          begin
+            fDataSet.NewValue(sensor, ts, fieldInfo shr 3, value);
+            //so.addOptionColor('color', fPalette.ValueToColors(benzene).fillColor); // todo: add line color to palette?
+            //so.addOptionColor('fillColor', fPalette.ValueToColors(benzene).fillColor);
+            so.addOptionGeoColor(fPalette.ValueToColors(value));
+            so.addPropertyString('tooltip', 'Source'+'<br>'+
+                                            'Benzene: '+value.ToString+' ..'+'<br>'+
+                                            'live..');
+            UpdateObject(so, sojnOptions, so.jsonOptionsValue);
+            triggerUpdateTimesliderData;
+          end;
+          // else un-timestamped source value -> ignore
         end;
       (icehNoObjectID shl 3) or wtLengthDelimited:
         begin
@@ -723,9 +879,10 @@ var
   startTime: string;
   endTime: string;
 begin
+  // todo: use cursor, if a sensor has no value on a specific time it is not accounted for and a higher value
+  // could be shown then calculated for the time stamp
   Result := '';
   srPRev := nil;
-  //benzene := 0;
   startTime := '';
   endTime := '';
   fillColorPrev := '';
@@ -793,7 +950,7 @@ begin
         begin
           // signal last values via cursor
           cursor.Last;
-          signalCursorValues(aClient, cursor);
+          signalCursorValues(aClient, cursor, nil);
           // remove cursor so we are live again
           fCursors.Remove(aClient);
         end;
@@ -809,15 +966,17 @@ begin
   end;
 end;
 
-procedure TSensorsLayer2.signalCursorValues(aClient: TClient; aCursor: TCursor);
+procedure TSensorsLayer2.signalCursorValues(aClient: TClient; aCursor: TCursor; aPrivateModelSensorEvent: TEventEntry);
 var
   srp: TPair<TSensor, Integer>;
   sensorValue: Double;
   _json: string;
   jsonEntry: string;
   jsonColor: string;
+  modelPayload: TByteBuffer;
 begin
   _json := '';
+  modelPayload := '';
   // todo: implement
   for srp in aCursor.SensorRecords do
   begin
@@ -837,10 +996,21 @@ begin
           '}'+
         '}';
       jsonAdd(_json, jsonEntry);
+      if Assigned(aPrivateModelSensorEvent) then
+      begin
+        modelPayload := modelPayload+
+          TByteBuffer.bb_tag_guid(icehObjectID, srp.Key.IDAsGUID)+
+          TByteBuffer.bb_tag_double(wdatLat shr 3, srp.Key.Lat)+
+          TByteBuffer.bb_tag_double(wdatLon shr 3, srp.Key.Lon)+
+          TByteBuffer.bb_tag_double(wdatTimeStamp shr 3, aCursor.fCurrentTimeStamp)+
+          TByteBuffer.bb_tag_double(wdatSensordata_Benzene shr 3, sensorValue);
+      end;
     end;
   end;
   _json := '{"type":"updatelayer","payload":{"id":"'+ElementID+'","data":['+_json+']}}';
   aClient.signalString(_json);
+  if Assigned(aPrivateModelSensorEvent) and (modelPayload<>'')
+  then aPrivateModelSensorEvent.signalEvent(modelPayload);
 end;
 
 procedure TSensorsLayer2.triggerUpdateTimesliderData;
@@ -874,10 +1044,17 @@ begin
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
     aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView, aProjectCurrentScenario, aProjectRefScenario);
+  fPrivateModelMeteoEvent := nil;
+  fPrivateModelSensorEvent := nil;
+
   scenario := TScenario.Create(Self, 'EarlyWarning', 'EarlyWarning', 'EarlyWarning', False, aMapView, False);
   scenarios.Add(scenario.ID, scenario);
   projectCurrentScenario := scenario;
+
+  fWindSpeed := 0;
+  fWindDirection := 0;
   windControl; // enable by using
+
   SetControl('timeslider', '1');
 
   palette := CreateEWPalette('Benzene ...');
@@ -887,11 +1064,38 @@ begin
     palette,
     aConnection.eventEntry('sensordata', True),
     aConnection.eventEntry(connection.privateEventName+'.sensordata', False),
+    aConnection.eventEntry('sources', True),
+    aConnection.eventEntry(connection.privateEventName+'.sources', False),
     scenario,
     'Benzene', 'Sensors', 'Sensors', 'Sensors for benzene', True, '', True, False, 0.8, jsonLegend);
   scenario.AddLayer(layer);
 
   layer.previewBase64 := PNGFileToBase64(ExtractFilePath(ParamStr(0))+'previews\EWSensorLayer.png');
+
+  clientMessageHandlers.Add('windData',
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    var
+      windChanged: Boolean;
+    begin
+      windChanged := False;
+      if aPayload.TryGetValue<Double>('speed', fWindSpeed)
+      then windChanged := True;
+      if aPayload.TryGetValue<Double>('direction', fWindDirection)
+      then windChanged := True;
+      if windChanged then
+      begin
+        if Assigned(fPrivateModelMeteoEvent) then
+        begin
+          fPrivateModelMeteoEvent.signalEvent(
+            TByteBuffer.bb_tag_double(wdatTimeStamp shr 3, now)+ // todo: time utc!
+            TByteBuffer.bb_tag_double(tag_meteodata_windspeed , fWindSpeed)+
+            TByteBuffer.bb_tag_double(tag_meteodata_winddirection, fWindDirection)+
+            TByteBuffer.bb_tag_double(tag_meteodata_moninobukhovlength, 0.2)+
+            TByteBuffer.bb_tag_double(tag_meteodata_mixinglayerheight, 1000)+
+            TByteBuffer.bb_tag_bool(tag_meteodata_rainfall, false));
+        end;
+      end;
+    end);
 
   setTimeTimer := Timers.CreateInactiveTimer;
   setTimeTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*0.5);
@@ -906,7 +1110,7 @@ begin
         setTimeTimer.Arm(DateTimeDelta2HRT(0.1*dtOneSecond),
           procedure (aTimer: TTimer; aTime: THighResTicks)
           begin
-            layer.handleNewTime(aClient, selectedTime);
+            layer.handleNewTime(aClient, selectedTime, fPrivateModelSensorEvent);
           end);
       end
       else if aPayload.TryGetValue<boolean>('active', active) then
@@ -915,11 +1119,22 @@ begin
         layer.live[aClient] := not active;
       end
     end);
+
+  // work-a-round for connected models
+  aConnection.eventEntry('Clients.earlywarning', false).subscribe.OnString.Add(
+    procedure(aEventEntry: TEventEntry; const aString: string)
+    begin
+      if Assigned(fPrivateModelMeteoEvent)
+      then fPrivateModelMeteoEvent.unPublish;
+      if Assigned(fPrivateModelSensorEvent)
+      then fPrivateModelSensorEvent.unPublish;
+      fPrivateModelMeteoEvent := aConnection.eventEntry(aString+'.meteodata', false);
+      fPrivateModelSensorEvent := aConnection.eventEntry(aString+'.sensordata', false);
+    end);
 end;
 
 destructor TProjectEarlyWarning.Destroy;
 begin
-
   inherited;
 end;
 
@@ -971,10 +1186,13 @@ begin
 
         WriteLn('Press return to quit..');
         Readln;
+
       finally
+        WriteLn('Shutting down session..');
         sessionModel.Free;
       end;
     finally
+      WriteLn('Shutting down connection..');
       connection.Free;
     end;
     Log.Finish();
