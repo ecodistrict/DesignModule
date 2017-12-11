@@ -49,6 +49,7 @@
     <link rel="stylesheet" href="Content/timeRangeSlider.css" />
     <link rel="stylesheet" href="Content/layermanager.css" />
     <link rel="stylesheet" href="Content/ScenarioControlsManager.css" />
+    <link rel="stylesheet" href="Content/controlsControl.css" />
 
     <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
@@ -139,6 +140,7 @@
     <script src="Scripts/contextManager.js"></script>
     <script src="Scripts/L.Path.Drag-src.js"></script>
     <script src="Scripts/ScenarioControlsManager.js"></script>
+    <script src="Scripts/ControlsControl.js"></script>
     <script src="Scripts/FileSaver.js"></script>
     <script src="Scripts/files.js"></script>
     <!-- charts -->
@@ -190,6 +192,7 @@
             //session = 'OmniTransConnectorA642109';
             //session = 'EarlyWarning'; //  early warning (Jan Duyzer)
             //session = '7F9B10D93ABB493F876E3D035D55269F'; // Santos (E-Bus)
+            //session = '3F5435CDD5A7490DAD3A173B4548A06E'; // New Dehli
         }
         var clientType = getParameterByName('clientType', '');
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
@@ -305,6 +308,13 @@
 
 
         // top-left
+
+        //controls
+        DataManager.controlsControl = L.control.ControlsControl();
+        //map.addControl(controlsControl);
+
+        DataManager.overviewControl = L.control.OverviewControl();
+        //map.addControl(overviewControl);
 
         //measures
         var measuresControl = L.control.measures([], historyControl);

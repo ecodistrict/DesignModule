@@ -297,6 +297,28 @@ var wsLookup = {
             }
         }
 
+        if (typeof payload.controlsControlEnabled !== "undefined") {
+            if (payload.controlsControlEnabled) {
+                map.addControl(DataManager.controlsControl);
+                InfoTextControl['leaflet-control-controls'] = { description: 'Shows the controls of the current scenario', active: true, iconPosition: 'left' };
+            }
+            else {
+                map.removeControl(DataManager.controlsControl);
+                InfoTextControl['leaflet-control-controls'] = { active: false };
+            }
+        }
+
+        if (typeof payload.overviewControlEnabled !== "undefined") {
+            if (payload.overviewControlEnabled) {
+                map.addControl(DataManager.overviewControl);
+                InfoTextControl['leaflet-control-overview'] = { description: 'Overview of the controls of all scenarios', active: true, iconPosition: 'left' };
+            }
+            else {
+                map.removeControl(DataManager.overviewControl);
+                InfoTextControl['leaflet-control-overview'] = { active: false };
+            }
+        }
+
         // basic controls
         InfoTextControl['leaflet-control-zoom'] = { description: 'Zoom', active: true, iconPosition: 'right' };
         InfoTextControl['leaflet-control-layers-toggle'] = { description: 'Selecteer de basis kaart', active: true, iconPosition: 'left' };

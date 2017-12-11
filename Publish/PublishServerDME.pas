@@ -99,6 +99,8 @@ begin
   EnableControl(measuresControl);
   EnableControl(measuresHistoryControl);
   EnableControl(modelControl);
+  EnableControl(controlsControl);
+  EnableControl(overviewControl);
 end;
 
 destructor TUSDesignProject.Destroy;

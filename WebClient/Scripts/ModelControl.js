@@ -85,7 +85,7 @@
                 this._modelControl.Div.style.display = "block";
             }
         }
-        //this.FillModelControl();
+        this.FillModelControl();
         this._showing = true;
     },
 
@@ -172,7 +172,7 @@
         }
         else if (model.status.toLowerCase() != "idle" || true) {
             this._models[model.id] = model;
-            //this.FillModelControl();
+            this.FillModelControl();
             if (this._first) {
                 this._first = false;
                 this.showModelControl();
@@ -215,7 +215,7 @@
 
         delete this._models[modelid];
 
-        //this.FillModelControl();
+        this.FillModelControl();
     },
 
     HandleMessages: function (payload) {
