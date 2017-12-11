@@ -1,4 +1,8 @@
 ﻿/* .leaflet-control-history derived from .leaflet--control-layers (leaflet.css) */
+.leaflet-control-dateForm {
+    background: #fff;
+    border-radius: 5px;
+}
 .leaflet-control-dateForm-toggle {
   background-position: 50% 50%;
   background-repeat: no-repeat;
