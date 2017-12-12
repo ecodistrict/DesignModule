@@ -1229,28 +1229,32 @@ begin
       connection.onException := HandleConnectionException;
       connection.onDisconnect := HandleConnectionDisconnect;
       (connection as TSocketConnection).SetSocketKeepAlive(True);
-      sessionModel := TSessionModel.Create(connection);
-      try
-        mapView := TMapView.Create(GetSetting(MapViewSwitchName));
-        mapView.DumpToLog;
+      if connection.Connected then
+      begin
+        sessionModel := TSessionModel.Create(connection);
+        try
+          mapView := TMapView.Create(GetSetting(MapViewSwitchName));
+          mapView.DumpToLog;
 
-        project := TProjectEarlyWarning.Create(sessionModel, connection, 'EarlyWarning', 'EarlyWarning', '', '', nil, False, 250, mapView, nil, nil);
-        sessionModel.Projects.Add(project);
+          project := TProjectEarlyWarning.Create(sessionModel, connection, 'EarlyWarning', 'EarlyWarning', '', '', nil, False, 250, mapView, nil, nil);
+          sessionModel.Projects.Add(project);
 
-        (*
-        project.projectCurrentScenario.AddLayer(TExternalTilesLayer.Create(
-          project.projectCurrentScenario, 'Cycling', 'OCM', 'OCM', 'Open Cycle Map',
-          'http://a.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png',
-          False, '', True, False));
-        *)
+          (*
+          project.projectCurrentScenario.AddLayer(TExternalTilesLayer.Create(
+            project.projectCurrentScenario, 'Cycling', 'OCM', 'OCM', 'Open Cycle Map',
+            'http://a.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png',
+            False, '', True, False));
+          *)
 
-        WriteLn('Press return to quit..');
-        Readln;
+          WriteLn('Press return to quit..');
+          Readln;
 
-      finally
-        WriteLn('Shutting down session..');
-        sessionModel.Free;
-      end;
+        finally
+          WriteLn('Shutting down session..');
+          sessionModel.Free;
+        end;
+      end
+      else Log.WriteLn('Could not connect imb to '+GetSetting(RemoteHostSwitchName, imbDefaultRemoteHost)+':'+GetSetting(RemotePortSwitchName, imbDefaultRemoteSocketPort).ToString, llError);
     finally
       WriteLn('Shutting down connection..');
       connection.Free;

@@ -57,11 +57,14 @@ L.Control.TimeSlider = L.Control.extend({
                     d3.event.preventDefault();
                     d3.event.stopImmediatePropagation();
                     //initiate brush
-                    var ct = xaxis.scale().invert(d3.event.offsetX);
-                    brush.extent([new Date(ct.getTime() - hour), new Date(ct.getTime() + hour)])
+                    var initialBrushHalfWidthInPixels = 20
+                    brush.extent([
+                        xaxis.scale().invert(d3.event.offsetX - initialBrushHalfWidthInPixels),
+                        xaxis.scale().invert(d3.event.offsetX + initialBrushHalfWidthInPixels)]);
                     brushContainer.call(brush);
                     // remove background rect for brush: interferes with timeslider control and not needed here
                     brushContainer.selectAll("rect.background").remove();
+                    signalBrush();
                 }
             })
             .on('contextmenu', function () {
@@ -70,7 +73,8 @@ L.Control.TimeSlider = L.Control.extend({
                 //return false;
             }) // stop default handling (show browser context menu)
             .call(zoom);
-        
+
+        // content group that the x-axis works on
         var context = svg.append('g')
             .attr('class', 'xaxis')
             .attr('transform', 'translate(0,' + aTimesliderDiv.yMargin + ')')
@@ -78,9 +82,11 @@ L.Control.TimeSlider = L.Control.extend({
             .selectAll('text')
             .style('pointer-events', 'none')
             .style('font-size', '10px');
-        
+
+        // group to store events in
         var eventContainer = svg.append('g');
-        
+
+        // tooltip element for showing event info
         var tip = d3.tip()
             .attr('class', 'd3-tip')
             .style('z-index', 999)
@@ -88,16 +94,18 @@ L.Control.TimeSlider = L.Control.extend({
             .html(function (d) { return (d && d.tooltip) ? d.tooltip : ""; });
 
         svg.call(tip);
-        
+
+        // brush to select range
         var brushContainer = svg.append('g')
             .attr("class", "brush")
             .call(brush);
         
         brushContainer.selectAll("rect")
-            //.attr('class', '')
-            .attr("height", rectParent.height)
-            .attr("y", aTimesliderDiv.yMargin)
-            .attr("height", rectParent.height - aTimesliderDiv.yMargin)
+            .attr("height", rectParent.height - 2 - aTimesliderDiv.yMargin)
+            .attr("y", aTimesliderDiv.yMargin + 4)
+            .attr("height", rectParent.height - 8 - aTimesliderDiv.yMargin)
+            .style("opacity", 0.7)
+            //.call(zoom)
             .on('mousedown', function (e) {
                 // on right mouse button
                 if (d3.event.button == 2) {
@@ -107,13 +115,28 @@ L.Control.TimeSlider = L.Control.extend({
                     // set the brush to empty => remove from sight
                     brush.clear();
                     brushContainer.call(brush);
+                    signalBrush();
                 }
             })
+            
+            .on('wheel.zoom', function (e) {
+                //zoom.dispatch('wheel.zoom');
+                //rect.dispatch
+                //return true;
+                //d3.event
+                //var e = document.createEvent('Event');
+                //d3.event.initWheelEvent(e);
+                //svg.node().dispatchEvent(e);
+                
+            })
+            
             .on('contextmenu', function () {
                 d3.event.preventDefault();
                 //d3.event.stopImmediatePropagation();
                 //return false;
             }); // stop default handling (show browser context menu)
+            //.call(zoom);
+
         // remove background rect for brush: interferes with timeslider control and not needed here
         brushContainer.selectAll("rect.background").remove();
 
@@ -340,27 +363,28 @@ L.Control.TimeSlider = L.Control.extend({
         }
 
         function updateBrush() {
-            var scale = xaxis.scale();
-            brush.x(scale);
-            signalBrush();
-            /*
+            brush.extent(brush.extent());
+            brush.x(xaxis.scale());
             brushContainer.call(brush);
             // remove background rect for brush: interferes with timeslider control and not needed here
             brushContainer.selectAll("rect.background").remove();
-            */
+            //signalBrush();
         }
 
         function signalBrush() {
             if (!brush.empty()) {
+                var _extent = brush.extent();
+                _extent[0] = selectedDateTimeFormat(_extent[0]);
+                _extent[1] = selectedDateTimeFormat(_extent[1]);
                 wsSend({
                     type: "timeslider",
-                    payload: { brush: { extent: brush.extent() } }
+                    payload: { brush: { extent: _extent } }
                 });
             }
             else {
                 wsSend({
                     type: "timeslider",
-                    payload: { nobrush: {} }
+                    payload: { brush: { extent: {} } }
                 });
             }
         }
@@ -368,8 +392,6 @@ L.Control.TimeSlider = L.Control.extend({
         function rescale() {
             // show new axis with changed scale
             svg.select('g.xaxis').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
-            // adjust brush
-            svg.select('g.brush').call(brush)
             // show new time as text
             var selectedTimeTime = aTimesliderDiv.getCurrentTime();
             var selectedTimeText = selectedDateTimeFormat(selectedTimeTime);
@@ -386,6 +408,8 @@ L.Control.TimeSlider = L.Control.extend({
         }
 
         function brushed(e) {
+            brush.extent(brush.extent());
+            brush.x(xaxis.scale());
             signalBrush();
         }
     },
