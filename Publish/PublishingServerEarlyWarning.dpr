@@ -138,7 +138,6 @@ type
     procedure setLive(aClient: TClient; const aValue: Boolean);
     function getLive(aClient: TClient): Boolean;
     procedure signalCursorValues(aClient: TClient; aCursor: TCursor; aPrivateModelSensorEvent: TEventEntry);
-
   protected
     function IsReceivingLayerUpdates(aClient: TClient): Boolean; override;
     function jsonTimesliderData: string;
@@ -900,6 +899,7 @@ var
   srp: TPair<TSensor, Integer>;
   sensorValue: Double;
   sr: TSensorsRecord;
+  prevMax: Double;
 begin
   // todo: use cursor, if a sensor has no value on a specific time it is not accounted for and a higher value
   // could be shown then calculated for the time stamp
@@ -909,6 +909,7 @@ begin
   endTime := '';
   fillColorPrev := '';
   fillColor := '';
+  prevMax := 0;
   cursor := fDataSet.NewCursor;
   try
     TMonitor.Enter(fDataSet);
@@ -940,22 +941,30 @@ begin
               entry :=
                 '"start":"'+startTime+'"'+','+
                 '"end":"'+endTime+'"'+','+
-                '"color":"'+fillColorPrev+'"';
+                '"color":"'+fillColorPrev+'"'+','+
+                '"tooltip":'+'"max value: '+prevmax.toString+'"'; // localized double
               jsonAdd(Result, '{'+entry+'}');
             end;
             // start new range
             fillColorPrev := fillColor;
             startTime := endTime;
+            prevMax := benzene;
+          end
+          else
+          begin
+            if prevMax<benzene
+            then prevMax := benzene;
           end;
         until not cursor.Next;
-        // add last step if exists
-        endTime := FormatDateTime(publisherDateTimeFormat, cursor.fCurrentTimeStamp);
+        // add last step
+        endTime := FormatDateTime(publisherDateTimeFormat, cursor.fCurrentTimeStamp+1/24); // 1 hour
         if (startTime<>'') and (startTime<>endTime) then
         begin
           entry :=
             '"start":"'+startTime+'"'+','+
             '"end":"'+endTime+'"'+','+
-            '"color":"'+fillColorPrev+'"';
+            '"color":"'+fillColorPrev+'"'+','+
+            '"tooltip":'+'"max value: '+prevmax.toString+'"'; // localized double
           jsonAdd(Result, '{'+entry+'}');
         end;
       end;
@@ -1145,6 +1154,8 @@ begin
     var
       selectedTime: string;
       active: Boolean;
+      selectedEvent: TJSONValue;
+    brush: TJSONValue;
     begin
       if aPayload.TryGetValue<boolean>('active', active) then
       begin
@@ -1158,6 +1169,14 @@ begin
           begin
             layer.handleNewTime(aClient, selectedTime, fPrivateModelSensorEvent);
           end);
+      end;
+      if aPayload.TryGetValue<TJSONValue>('selectedEvent', selectedEvent) then
+      begin
+        Log.WriteLn('selected event: '+selectedEvent.toJSON, llWarning);
+      end;
+      if aPayload.TryGetValue<TJSONValue>('brush', brush) then
+      begin
+        Log.WriteLn('brush: '+brush.toJSON, llWarning);
       end;
     end);
 
@@ -1210,28 +1229,32 @@ begin
       connection.onException := HandleConnectionException;
       connection.onDisconnect := HandleConnectionDisconnect;
       (connection as TSocketConnection).SetSocketKeepAlive(True);
-      sessionModel := TSessionModel.Create(connection);
-      try
-        mapView := TMapView.Create(GetSetting(MapViewSwitchName));
-        mapView.DumpToLog;
+      if connection.Connected then
+      begin
+        sessionModel := TSessionModel.Create(connection);
+        try
+          mapView := TMapView.Create(GetSetting(MapViewSwitchName));
+          mapView.DumpToLog;
 
-        project := TProjectEarlyWarning.Create(sessionModel, connection, 'EarlyWarning', 'EarlyWarning', '', '', nil, False, 250, mapView, nil, nil);
-        sessionModel.Projects.Add(project);
+          project := TProjectEarlyWarning.Create(sessionModel, connection, 'EarlyWarning', 'EarlyWarning', '', '', nil, False, 250, mapView, nil, nil);
+          sessionModel.Projects.Add(project);
 
-        (*
-        project.projectCurrentScenario.AddLayer(TExternalTilesLayer.Create(
-          project.projectCurrentScenario, 'Cycling', 'OCM', 'OCM', 'Open Cycle Map',
-          'http://a.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png',
-          False, '', True, False));
-        *)
+          (*
+          project.projectCurrentScenario.AddLayer(TExternalTilesLayer.Create(
+            project.projectCurrentScenario, 'Cycling', 'OCM', 'OCM', 'Open Cycle Map',
+            'http://a.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png',
+            False, '', True, False));
+          *)
 
-        WriteLn('Press return to quit..');
-        Readln;
+          WriteLn('Press return to quit..');
+          Readln;
 
-      finally
-        WriteLn('Shutting down session..');
-        sessionModel.Free;
-      end;
+        finally
+          WriteLn('Shutting down session..');
+          sessionModel.Free;
+        end;
+      end
+      else Log.WriteLn('Could not connect imb to '+GetSetting(RemoteHostSwitchName, imbDefaultRemoteHost)+':'+GetSetting(RemotePortSwitchName, imbDefaultRemoteSocketPort).ToString, llError);
     finally
       WriteLn('Shutting down connection..');
       connection.Free;

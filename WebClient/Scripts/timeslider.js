@@ -3,17 +3,6 @@
 // http://jsfiddle.net/HF57g/2/
 
 
-function sendSelectedTime(aSelectedTimeText) {
-    wsSend({
-        type: "timeslider",
-        payload: { selectedTime: aSelectedTimeText }
-    });
-}
-
-function isValidDate(date) {
-    return new Date(date) !== "Invalid Date" && !isNaN(new Date(date));
-}
-
 // timeslider control
 
 L.Control.TimeSlider = L.Control.extend({
@@ -42,13 +31,8 @@ L.Control.TimeSlider = L.Control.extend({
         var scale = d3.time.scale()
             .domain([tsStart, tsEnd])
             .range([aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin]);
-        //var brushScale = d3.time.scale()
-        //    .domain([new Date(tsCurrent.getTime() - hour), new Date(tsCurrent.getTime() + hour)])
-        //    .range([aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin]);
         var brush = d3.svg.brush()
             .x(scale)
-            //.extent([new Date(tsCurrent.getTime() - hour), 0, new Date(tsCurrent.getTime() + hour), rectParent.height])
-            .extent([new Date(tsCurrent.getTime() - hour), new Date(tsCurrent.getTime() + hour)])
             .on("brush", brushed);
         var xaxis = d3.svg.axis()
             .scale(scale)
@@ -66,8 +50,31 @@ L.Control.TimeSlider = L.Control.extend({
             .attr('height', rectParent.height)
             .attr('opacity', 0)
             .style('cursor', 'col-resize')
+            .on('mousedown', function (e) {
+                // on right mouse button
+                if (d3.event.button == 2) {
+                    // stop default handling
+                    d3.event.preventDefault();
+                    d3.event.stopImmediatePropagation();
+                    //initiate brush
+                    var initialBrushHalfWidthInPixels = 20
+                    brush.extent([
+                        xaxis.scale().invert(d3.event.offsetX - initialBrushHalfWidthInPixels),
+                        xaxis.scale().invert(d3.event.offsetX + initialBrushHalfWidthInPixels)]);
+                    brushContainer.call(brush);
+                    // remove background rect for brush: interferes with timeslider control and not needed here
+                    brushContainer.selectAll("rect.background").remove();
+                    signalBrush();
+                }
+            })
+            .on('contextmenu', function () {
+                d3.event.preventDefault();
+                //d3.event.stopImmediatePropagation();
+                //return false;
+            }) // stop default handling (show browser context menu)
             .call(zoom);
-        /*
+
+        // content group that the x-axis works on
         var context = svg.append('g')
             .attr('class', 'xaxis')
             .attr('transform', 'translate(0,' + aTimesliderDiv.yMargin + ')')
@@ -75,20 +82,63 @@ L.Control.TimeSlider = L.Control.extend({
             .selectAll('text')
             .style('pointer-events', 'none')
             .style('font-size', '10px');
-        */
+
+        // group to store events in
         var eventContainer = svg.append('g');
-        /*
+
+        // tooltip element for showing event info
+        var tip = d3.tip()
+            .attr('class', 'd3-tip')
+            .style('z-index', 999)
+            .offset([-10, 0])
+            .html(function (d) { return (d && d.tooltip) ? d.tooltip : ""; });
+
+        svg.call(tip);
+
+        // brush to select range
         var brushContainer = svg.append('g')
             .attr("class", "brush")
             .call(brush);
-            //.call(brush.event);
-
+        
         brushContainer.selectAll("rect")
-            //.attr('class', '')
-            .attr("height", rectParent.height)
-            .attr("y", aTimesliderDiv.yMargin)
-            .attr("height", rectParent.height - aTimesliderDiv.yMargin);
-        */
+            .attr("height", rectParent.height - 2 - aTimesliderDiv.yMargin)
+            .attr("y", aTimesliderDiv.yMargin + 4)
+            .attr("height", rectParent.height - 8 - aTimesliderDiv.yMargin)
+            .style("opacity", 0.7)
+            //.call(zoom)
+            .on('mousedown', function (e) {
+                // on right mouse button
+                if (d3.event.button == 2) {
+                    // stop default handling
+                    d3.event.preventDefault();
+                    d3.event.stopImmediatePropagation();
+                    // set the brush to empty => remove from sight
+                    brush.clear();
+                    brushContainer.call(brush);
+                    signalBrush();
+                }
+            })
+            
+            .on('wheel.zoom', function (e) {
+                //zoom.dispatch('wheel.zoom');
+                //rect.dispatch
+                //return true;
+                //d3.event
+                //var e = document.createEvent('Event');
+                //d3.event.initWheelEvent(e);
+                //svg.node().dispatchEvent(e);
+                
+            })
+            
+            .on('contextmenu', function () {
+                d3.event.preventDefault();
+                //d3.event.stopImmediatePropagation();
+                //return false;
+            }); // stop default handling (show browser context menu)
+            //.call(zoom);
+
+        // remove background rect for brush: interferes with timeslider control and not needed here
+        brushContainer.selectAll("rect.background").remove();
 
         var line = svg.append('line')
             .classed("timeSliderLine", true)
@@ -154,23 +204,25 @@ L.Control.TimeSlider = L.Control.extend({
             // apply new scale to other elements
             zoom.x(scale);
             // recalculate xaxis
-            svg.select('g').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
+            svg.select('g.xaxis').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
             // show time in text
             var selectedTimeText = selectedDateTimeFormat(newTime);
             d3.select(aTimesliderDiv).select('.selectedTime').text(selectedTimeText).style('cursor', 'pointer');
             // adjust events to new scale
             updateEvents();
+            updateBrush();
             // send new time to publisher
-            sendSelectedTime(selectedTimeText);
+            wsSend({
+                type: "timeslider",
+                payload: { selectedTime: selectedTimeText }
+            });
         };
 
         aTimesliderDiv.setEvents = function (aEvents) {
             var events = eventContainer.selectAll("rect.event").data(aEvents.map(function (d) {
-                var res = {};
-                res.start = selectedDateTimeFormat.parse(d.start);
-                res.end = selectedDateTimeFormat.parse(d.end); // d3.time.format(selectedDateTimeFormat)
-                res.color = d.color;
-                return res;
+                d.start = typeof d.start == "string" ? selectedDateTimeFormat.parse(d.start) : d.start;
+                d.end = typeof d.end == "string" ? selectedDateTimeFormat.parse(d.end) : d.end;
+                return d;
             }));
             var scale = xaxis.scale();
             events.enter()
@@ -180,7 +232,9 @@ L.Control.TimeSlider = L.Control.extend({
                 .attr("y", 2)
                 .attr("width", function (d) { return scale(d.end) - scale(d.start); })
                 .attr("height", 4)
-                .style('pointer-events', 'none')
+                .on('mouseover', tip.show)
+                .on('mouseout', tip.hide)
+                .on('click', function (d, i, j) { wsSend({ type: "timeslider", payload: { selectedEvent: d } }); })
                 .style("fill", function (d) { return d.color; });
             events.transition()
                 .attr("x", function (d) { return scale(d.start); })
@@ -193,11 +247,9 @@ L.Control.TimeSlider = L.Control.extend({
         aTimesliderDiv.addEvents = function (aEvents) {
             var _existing = eventContainer.selectAll("rect.event").data();
             var _new = aEvents.map(function (d) {
-                var res = {};
-                res.start = selectedDateTimeFormat.parse(d.start);
-                res.end = selectedDateTimeFormat.parse(d.end); // d3.time.format(selectedDateTimeFormat)
-                res.color = d.color;
-                return res;
+                d.start = typeof d.start == "string" ? selectedDateTimeFormat.parse(d.start) : d.start;
+                d.end = typeof d.end == "string" ? selectedDateTimeFormat.parse(d.end): d.end;
+                return d;
             });
             var events = eventContainer.selectAll("rect.event").data(d3.merge([_existing, _new]));
             var scale = xaxis.scale();
@@ -208,7 +260,9 @@ L.Control.TimeSlider = L.Control.extend({
                 .attr("y", 2)
                 .attr("width", function (d) { return scale(d.end) - scale(d.start); })
                 .attr("height", 4)
-                .style('pointer-events', 'none')
+                .on('mouseover', tip.show)
+                .on('mouseout', tip.hide)
+                .on('click', function (d, i, j) { wsSend({ type: "timeslider", payload: { selectedEvent: d } }); })
                 .style("fill", function (d) { return d.color; });
             events.transition()
                 .attr("x", function (d) { return scale(d.start); })
@@ -301,45 +355,6 @@ L.Control.TimeSlider = L.Control.extend({
         window.addEventListener('resize', resize);
         map.on('tsrescale', resize);
 
-        /*
-        aTimesliderDiv.setDatetimeTimeSlider = function (date, difference) {
-            if (typeof date === "string") {
-                date = selectedDateTimeFormat.parse(date);
-            }
-            var tsStart = date ? new Date(date) : new Date();
-            var tsEnd = date ? new Date(date) : new Date();
-
-            if (difference) {
-                tsStart = new Date(tsStart.getTime() - difference);
-                tsEnd = new Date(tsEnd.getTime() + difference);
-            }
-
-            if (isValidDate(date)) {
-                // todo: change ref to timeslider
-                var diff = (aTimesliderDiv.scale.domain()[1] - aTimesliderDiv.scale.domain()[0]) / 2;
-                var rectParent = aTimesliderDiv.getBoundingClientRect();
-                tsStart.setTime(tsStart.getTime() - diff);
-                tsEnd.setTime(tsEnd.getTime() + diff);
-                //var range = function () {
-                //    return [aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin];
-                //};
-                var scale = d3.time.scale()
-                    .domain([tsStart, tsEnd])
-                    .range([aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin]);
-                var xaxis = d3.svg.axis()
-                    .scale(scale)
-                    .orient('bottom');
-                //var selectedDateTimeFormat = d3.time.format('%Y-%m-%d %H:%M');
-                d3.select(aTimesliderDiv).select('svg').select('g').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
-                var selectedTimeTime = aTimesliderDiv.getCurrentTime(); // scale.invert(d3.select(aTimesliderDiv).select('.selectedTime').node().getAttribute('x') - aTimesliderDiv.xSelTextOffset);
-                var selectedTimeText = selectedDateTimeFormat(selectedTimeTime);
-                d3.select(aTimesliderDiv).select('.selectedTime').text(selectedTimeText).style('cursor', 'pointer');
-                sendSelectedTime(selectedTimeText);
-                aTimesliderDiv.scale = scale;
-            }
-        };
-        */
-
         function updateEvents() {
             var scale = xaxis.scale();
             return eventContainer.selectAll("rect.event")
@@ -347,9 +362,36 @@ L.Control.TimeSlider = L.Control.extend({
                 .attr("width", function (d) { return scale(d.end) - scale(d.start); });
         }
 
+        function updateBrush() {
+            brush.extent(brush.extent());
+            brush.x(xaxis.scale());
+            brushContainer.call(brush);
+            // remove background rect for brush: interferes with timeslider control and not needed here
+            brushContainer.selectAll("rect.background").remove();
+            //signalBrush();
+        }
+
+        function signalBrush() {
+            if (!brush.empty()) {
+                var _extent = brush.extent();
+                _extent[0] = selectedDateTimeFormat(_extent[0]);
+                _extent[1] = selectedDateTimeFormat(_extent[1]);
+                wsSend({
+                    type: "timeslider",
+                    payload: { brush: { extent: _extent } }
+                });
+            }
+            else {
+                wsSend({
+                    type: "timeslider",
+                    payload: { brush: { extent: {} } }
+                });
+            }
+        }
+
         function rescale() {
             // show new axis with changed scale
-            svg.select('g').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
+            svg.select('g.xaxis').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
             // show new time as text
             var selectedTimeTime = aTimesliderDiv.getCurrentTime();
             var selectedTimeText = selectedDateTimeFormat(selectedTimeTime);
@@ -357,11 +399,18 @@ L.Control.TimeSlider = L.Control.extend({
             selectedTime.text(selectedTimeText).style('cursor', 'pointer');
             // update events to new axis and scale
             updateEvents();
+            updateBrush();
             // send new selected time to publisher
-            sendSelectedTime(selectedTimeText);
+            wsSend({
+                type: "timeslider",
+                payload: { selectedTime: selectedTimeText }
+            });
         }
 
         function brushed(e) {
+            brush.extent(brush.extent());
+            brush.x(xaxis.scale());
+            signalBrush();
         }
     },
 
