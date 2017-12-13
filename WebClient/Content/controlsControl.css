@@ -24,7 +24,7 @@
 
 .leaflet-retina .leaflet-control-controls-toggle {
     background-image: url('images/adjustControls-2x.png');
-    background-size: 360px 30px;
+    background-size: 30px 30px;
 }
 
 .leaflet-touch .leaflet-control-controls-toggle {
@@ -72,7 +72,7 @@
 
 .leaflet-retina .leaflet-control-overview-toggle {
     background-image: url('images/overviewControls-2x.png');
-    background-size: 360px 30px;
+    background-size: 30px 30px;
 }
 
 .leaflet-touch .leaflet-control-overview-toggle {
