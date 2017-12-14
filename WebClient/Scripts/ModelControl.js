@@ -17,9 +17,9 @@
         this._lastRefresh = 0;
         this._enabled = false;
 
-        this.modelControlMouseDown = this.modelControlMouseDown.bind(this);
-        this.modelControlDragMove = this.modelControlDragMove.bind(this);
-        this.modelControlDragEnd = this.modelControlDragEnd.bind(this);
+        //this.modelControlMouseDown = this.modelControlMouseDown.bind(this);
+        //this.modelControlDragMove = this.modelControlDragMove.bind(this);
+        //this.modelControlDragEnd = this.modelControlDragEnd.bind(this);
     },
 
     onAdd: function (map) {
@@ -46,6 +46,7 @@
         }
 
         container.addEventListener("click", this.clickModelControl.bind(this));
+        container.addEventListener("touchstart", this.clickModelControl.bind(this));
 
         var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
         link.href = '#';
@@ -64,8 +65,7 @@
         {
             this._modelControl.Div.style.display = 'none';
             //reset positioning
-            this._modelControl.Div.style.right = this.rightMargin;
-            this._modelControl.Div.style.bottom = this.bottomMargin;
+            L.DomUtil.setPosition(this._modelControl.Div, 0, 0);
         }
         this._showing = false;
     },
@@ -79,6 +79,8 @@
             modelDiv.style.display = 'block';
             modelDiv.style.right = this.rightMargin;
             modelDiv.style.bottom = this.bottomMargin;
+            this._draggable = new L.Draggable(modelDiv);
+            this._draggable.enable();
         }
         else {
             if (this._modelControl.Div.style.display == 'none') {
@@ -107,7 +109,6 @@
             return;
         var modelDiv = this._modelControl.Div;
         modelDiv.innerHTML = ''; //clear all contents
-        modelDiv.addEventListener('mousedown', this.modelControlMouseDown);
 
         var div = modelDiv.appendChild(document.createElement('div'));
         div.className = 'modalDialog-close';
@@ -119,10 +120,10 @@
         titleDiv.innerHTML = "<strong>ModelControl Info:</strong>";
         titleDiv.className = "mcTitleDiv";
         titleDiv.addEventListener('contextmenu', (function (e) {
+            e.preventDefault();
+            e.stopPropagation();
             if (performance.now() - 1000 > this._lastRefresh)
             {
-                e.preventDefault();
-                e.stopPropagation();
                 this._lastRefresh = performance.now();
                 wsSend({ modelControl: {refresh: true}});
             }
@@ -264,78 +265,78 @@
         this._models = {};
     },
 
-    modelControlMouseDown: function (e) {
-        e.preventDefault();
-        e.stopPropagation();
+    //modelControlMouseDown: function (e) {
+    //    e.preventDefault();
+    //    e.stopPropagation();
 
-        if (typeof e.clientX === 'undefined') {
-            this.dragInfo = {
-                startX: parseInt(this._modelControl.Div.style.right),
-                startY: parseInt(this._modelControl.Div.style.bottom),
-                mouseX: e.changedTouches[0].clientX,
-                mouseY: e.changedTouches[0].clientY
-            };
-        } else {
-            this.dragInfo = {
-                startX: parseInt(this._modelControl.Div.style.right),
-                startY: parseInt(this._modelControl.Div.style.bottom),
-                mouseX: e.clientX,
-                mouseY: e.clientY
-            };
-        }
-        if (is_touch_device()) {
-            window.addEventListener('touchmove', this.modelControlDragMove);
-            window.addEventListener('touchend', this.modelControlDragEnd);
-        } else {
-            window.addEventListener("mousemove", this.modelControlDragMove);
-            window.addEventListener("mouseup", this.modelControlDragEnd);
-        }
+    //    if (typeof e.clientX === 'undefined') {
+    //        this.dragInfo = {
+    //            startX: parseInt(this._modelControl.Div.style.right),
+    //            startY: parseInt(this._modelControl.Div.style.bottom),
+    //            mouseX: e.changedTouches[0].clientX,
+    //            mouseY: e.changedTouches[0].clientY
+    //        };
+    //    } else {
+    //        this.dragInfo = {
+    //            startX: parseInt(this._modelControl.Div.style.right),
+    //            startY: parseInt(this._modelControl.Div.style.bottom),
+    //            mouseX: e.clientX,
+    //            mouseY: e.clientY
+    //        };
+    //    }
+    //    if (e.type == "mousedown") { //click
+    //        window.addEventListener("mousemove", this.modelControlDragMove);
+    //        window.addEventListener("mouseup", this.modelControlDragEnd);
+    //    } else { //touch
+    //        window.addEventListener('touchmove', this.modelControlDragMove);
+    //        window.addEventListener('touchend', this.modelControlDragEnd);
+    //    }
 
-    },
+    //},
 
-    modelControlDragMove: function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var deltaX, deltaY;
+    //modelControlDragMove: function (e) {
+    //    e.preventDefault();
+    //    e.stopPropagation();
+    //    var deltaX, deltaY;
 
-        if (typeof e.clientX === 'undefined') {
-            deltaX = e.changedTouches[0].clientX - this.dragInfo.mouseX;
-            deltaY = e.changedTouches[0].clientY - this.dragInfo.mouseY;
-        }
-        else {
-            deltaX = e.clientX - this.dragInfo.mouseX;
-            deltaY = e.clientY - this.dragInfo.mouseY;
-        }
+    //    if (typeof e.clientX === 'undefined') {
+    //        deltaX = e.changedTouches[0].clientX - this.dragInfo.mouseX;
+    //        deltaY = e.changedTouches[0].clientY - this.dragInfo.mouseY;
+    //    }
+    //    else {
+    //        deltaX = e.clientX - this.dragInfo.mouseX;
+    //        deltaY = e.clientY - this.dragInfo.mouseY;
+    //    }
 
-        this._modelControl.Div.style.right = this.dragInfo.startX - deltaX + 'px';
-        this._modelControl.Div.style.bottom = this.dragInfo.startY - deltaY + 'px';
-    },
+    //    this._modelControl.Div.style.right = this.dragInfo.startX - deltaX + 'px';
+    //    this._modelControl.Div.style.bottom = this.dragInfo.startY - deltaY + 'px';
+    //},
 
-    modelControlDragEnd: function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var deltaX, deltaY;
+    //modelControlDragEnd: function (e) {
+    //    e.preventDefault();
+    //    e.stopPropagation();
+    //    var deltaX, deltaY;
 
-        if (typeof e.clientX === 'undefined') {
-            deltaX = e.changedTouches[0].clientX - this.dragInfo.mouseX;
-            deltaY = e.changedTouches[0].clientY - this.dragInfo.mouseY;
-        }
-        else {
-            deltaX = e.clientX - this.dragInfo.mouseX;
-            deltaY = e.clientY - this.dragInfo.mouseY;
-        }
+    //    if (typeof e.clientX === 'undefined') {
+    //        deltaX = e.changedTouches[0].clientX - this.dragInfo.mouseX;
+    //        deltaY = e.changedTouches[0].clientY - this.dragInfo.mouseY;
+    //    }
+    //    else {
+    //        deltaX = e.clientX - this.dragInfo.mouseX;
+    //        deltaY = e.clientY - this.dragInfo.mouseY;
+    //    }
 
-        this._modelControl.Div.style.right = this.dragInfo.startX - deltaX;
-        this._modelControl.Div.style.bottom = this.dragInfo.startY - deltaY;
+    //    this._modelControl.Div.style.right = this.dragInfo.startX - deltaX;
+    //    this._modelControl.Div.style.bottom = this.dragInfo.startY - deltaY;
 
-        if (is_touch_device()) {
-            window.removeEventListener('touchmove', this.modelControlDragMove);
-            window.removeEventListener('touchend', this.modelControlDragEnd);
-        } else {
-            window.removeEventListener("mousemove", this.modelControlDragMove);
-            window.removeEventListener("mouseup", this.modelControlDragEnd);
-        }
-    }
+    //    if (e.type == "mouseup") {
+    //        window.removeEventListener("mousemove", this.modelControlDragMove);
+    //        window.removeEventListener("mouseup", this.modelControlDragEnd);
+    //    } else {
+    //        window.removeEventListener('touchmove', this.modelControlDragMove);
+    //        window.removeEventListener('touchend', this.modelControlDragEnd);
+    //    }
+    //}
 });
 
 L.control.ModelControl = function (categories, options) {

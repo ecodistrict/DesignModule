@@ -50,7 +50,7 @@ function handleDataResponse(response)
 {
     var div = document.getElementById('requestDialogDiv');
 
-    if (typeof div.requestId !== 'undefined' && div.requestId == response.id)
+    if (div != null && typeof div.requestId !== 'undefined' && div.requestId == response.id)
     {
         div.innerHTML = '';
         div.buildResponseDialog(div, response.data);

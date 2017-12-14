@@ -105,6 +105,10 @@ var GraphManager = {
         rightMargin: 63, //Right margin of the GraphManager
         topMargin: 48, //Top margin of the GraphManager
         bottomMargin: 50, //Bottom margin of the GraphManager
+        graphSpacing: { //extra spacing between the graphs when auto positioning
+            x: 0,
+            y: 10
+        },
         axisMargin: { //Margins for the axis
             x: 20,
             y: 40
@@ -525,28 +529,28 @@ var GraphManager = {
         {
             col /= 2;
             if (GraphManager.position == graphPosition.bottomLeft || GraphManager.position == graphPosition.topLeft) {
-                graphDiv.style.left = col * GraphManager.defaultValues.xOffset + "px";//GraphManager.defaultValues.width + "px";
+                graphDiv.style.left = col * (GraphManager.defaultValues.xOffset + GraphManager.defaultValues.graphSpacing.x) + "px";//GraphManager.defaultValues.width + "px";
             }
             else {
-                graphDiv.style.left = w - (GraphManager.defaultValues.width + (col * GraphManager.defaultValues.xOffset)) + "px";
+                graphDiv.style.left = w - (GraphManager.defaultValues.width + (col * (GraphManager.defaultValues.xOffset + GraphManager.defaultValues.graphSpacing.x))) + "px";
             }
         }
         else //other side aligning
         {
             col = (col - 1) / 2;
             if (GraphManager.position == graphPosition.bottomLeft || GraphManager.position == graphPosition.topLeft) {
-                graphDiv.style.left = w - (GraphManager.defaultValues.width + (col * GraphManager.defaultValues.xOffset)) + "px";
+                graphDiv.style.left = w - (GraphManager.defaultValues.width + (col * (GraphManager.defaultValues.xOffset + GraphManager.defaultValues.graphSpacing.x))) + "px";
             }
             else {
-                graphDiv.style.left = col * GraphManager.defaultValues.xOffset + "px";
+                graphDiv.style.left = col * (GraphManager.defaultValues.xOffset + GraphManager.defaultValues.graphSpacing.x) + "px";
             }
         }
 
         if (GraphManager.position == graphPosition.topLeft || GraphManager.position == graphPosition.topRight) {
-            graphDiv.style.top = (row * GraphManager.defaultValues.height) + (GraphManager.defaultValues.yOffset * col) + "px";
+            graphDiv.style.top = (row * (GraphManager.defaultValues.height + GraphManager.defaultValues.graphSpacing.y) + (GraphManager.defaultValues.yOffset * col)) + "px";
         }
         else {
-            graphDiv.style.top = h - (((row + 1) * GraphManager.defaultValues.height) + (col * GraphManager.defaultValues.yOffset)) + "px";
+            graphDiv.style.top = h - (((row + 1) * GraphManager.defaultValues.height + GraphManager.defaultValues.graphSpacing.y) + (col * GraphManager.defaultValues.yOffset)) + "px";
         }
     },
 
