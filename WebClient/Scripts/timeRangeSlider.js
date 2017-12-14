@@ -15,7 +15,8 @@
                 max: date.getTime() + 50000000
             },
             start: [0],
-            connect: [true, false]
+            connect: [true, false],
+            orientation: options ? options.orientation : 'horizontal'
         };
         this.lastUpdate = null;
         this.lastValue = null;
@@ -35,7 +36,7 @@
     },
 
     initLayout: function () {
-        var className = 'leaflet-control-timeRangeSlider',
+        var className = (this.sliderOptions && this.sliderOptions.orientation == 'vertical') ? 'leaflet-control-timeRangeSliderV' : 'leaflet-control-timeRangeSlider',
             container = this._container = L.DomUtil.create('div', className);
 
         container.addEventListener('contextmenu', this.containerRightClick);
@@ -48,7 +49,7 @@
         this._container.appendChild(this._sliderDiv);
 
         this.timeTextDiv = L.DomUtil.create('div', className + '-sliderTextDiv');
-        this.timeTextDiv.innerText = 'No Time Selected';
+        this.timeTextDiv.innerText = ' ';
         this._container.appendChild(this.timeTextDiv);
     },
 
@@ -104,7 +105,7 @@
     },
 
     doubleToDate: function (aDouble) {
-        var date = new Date(Math.round(aDouble));
+        var date = isNaN(aDouble) ?  new Date() : new Date(Math.round(aDouble));
         var dateString = date.toISOString();
         var dateSplit = dateString.split('T');
         dateString = dateSplit[0] + ' ' + dateSplit[1];

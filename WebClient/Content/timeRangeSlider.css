@@ -6,20 +6,45 @@
   width: 200px;
   height: auto;
   padding: 5px;
-  /*top: -30px;*/
 }
 
 .leaflet-control-timeRangeSlider-sliderDiv {
-  position:relative;
-  margin: 5px 15px 5px 15px;
+    position: relative;
+    margin: 5px 15px 5px 15px;
 }
 
 .leaflet-control-timeRangeSlider-sliderTextDiv {
-  margin: 5px 15px 5px 15px;
-  padding-top: 5px;
+    margin: 5px 15px 5px 15px;
+    padding-top: 5px;
 }
 
 .leaflet-control-timeRangeSlider .noUi-handle {
+    border-color: rgba(173, 216, 230, 1);
+}
+
+.leaflet-control-timeRangeSliderV {
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    animation-duration: 10s;
+    width: auto;
+    height: 200px;
+    padding: 5px;
+}
+
+.leaflet-control-timeRangeSliderV-sliderDiv {
+    position: relative;
+    margin: 15px 5px 15px 5px;
+    height: 168px; /* to fix auto height not working for verical slider */
+}
+
+.leaflet-control-timeRangeSliderV-sliderTextDiv {
+    margin: 15px 5px 15px 5px;
+    padding-left: 5px;
+    transform: rotate(-90);
+}
+
+.leaflet-control-timeRangeSliderV .noUi-handle {
     border-color: rgba(173, 216, 230, 1);
 }
 
