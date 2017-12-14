@@ -342,8 +342,8 @@
         var timesliderControl = L.control.timeslider(timeslider);
         map.addControl(timesliderControl);
         timesliderControl._collapse();
-        //InfoTextControl['leaflet-control-timeslider'] = { active: false };
-        //map.removeControl(timesliderControl);
+        InfoTextControl['leaflet-control-timeslider'] = { active: false };
+        map.removeControl(timesliderControl);
 
 
         DataManager.modelControl = L.control.ModelControl();
