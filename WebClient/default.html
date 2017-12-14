@@ -91,7 +91,7 @@
     <!-- current-reference-difference selector -->
     <div id="currefdiff" class="currefdiff leaflet-container" title="Show the current version of the layer, reference version or difference between those"></div>
     <!-- time related elements-->
-    <div id="timeslider" class="timeslider leaflet-container" title="Grab and move this element to position the center line on the time to be selected"></div>
+    <div id="timeslider" class="timeslider leaflet-container"></div>
 
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
     <!-- load scripts -->
@@ -153,12 +153,13 @@
     <script src="Scripts/Graphs/Charts.js"></script>
     <script src="Scripts/Graphs/BarChart.js"></script>
     <script src="Scripts/Graphs/tablegraphs.js"></script>
+    <!-- bower -->
+    <script src="bower_components/d3-tip/index.js"></script>
     <!-- local scripts -->
     <script>
         wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
         // determine parameters and config
         var wsBaseURL = wsp + '://vps17642.public.cloudvps.com';
-        //var wsBaseURL = 'ws://enselsrv.westeurope.cloudapp.azure.com:8080';
         //var wsBaseURL = wsp + '://enselsrv.westeurope.cloudapp.azure.com';
         var session = getParameterByName('session', '');
         if (session == '') {
@@ -174,7 +175,7 @@
             //session = 'ssm2';
             //session = 'sweco';
             //session = "tud";
-            //session = 'dtv';  
+            //session = 'dtv';
             //session = 'juno';
             //session = 'a2';
             //session = '80BD7A788D6B40A4B3608AA95C26E68F'; // us_utrecht2017
@@ -193,6 +194,8 @@
             //session = 'EarlyWarning'; //  early warning (Jan Duyzer)
             //session = '7F9B10D93ABB493F876E3D035D55269F'; // Santos (E-Bus)
             //session = '3F5435CDD5A7490DAD3A173B4548A06E'; // New Dehli
+            //session = "sesmi${103ae874-daaf-40f4-8b89-a9f8fddd9644}$fietsuser"; // ensel fiets utrecht-nijmegen
+
         }
         var clientType = getParameterByName('clientType', '');
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
@@ -339,9 +342,9 @@
         var timesliderControl = L.control.timeslider(timeslider);
         map.addControl(timesliderControl);
         timesliderControl._collapse();
-        InfoTextControl['leaflet-control-timeslider'] = { active: false };
-        map.removeControl(timesliderControl);
-        
+        //InfoTextControl['leaflet-control-timeslider'] = { active: false };
+        //map.removeControl(timesliderControl);
+
 
         DataManager.modelControl = L.control.ModelControl();
         map.addControl(DataManager.modelControl);
@@ -385,16 +388,16 @@
         GraphManager.Initialize();
 
         // test graph
-        //testGraph = {};
-        //testGraph.id = 'tg';
-        //testGraph.name = 'tg name';
-        //testGraph.type = 'table';
-        //testGraph.data = { header: { a: 'Option', b: 'Value' }, data: [{ a: 'Heel belangrijke waarde', b: 2.4 }, { a: 'Ook heel belangrijk', b: '7.456 MW' }] };
+        /*
+        testGraph = {};
+        testGraph.id = 'tg';
+        testGraph.name = 'tg name';
+        testGraph.type = 'table';
+        testGraph.data = { header: { a: 'Option', b: 'Value' }, data: [{ a: 'Heel belangrijke waarde', b: 2.4 }, { a: 'Ook heel belangrijk', b: '7.456 MW' }] };
 
-
-        //GraphManager.MakeGraph(testGraph);
-        //testGraph.container.graph.ShowGraph();
-
+        GraphManager.MakeGraph(testGraph);
+        testGraph.container.graph.ShowGraph();
+        */
 
         // link up connection control
         var connectionStatus = document.getElementById('connectionStatus');

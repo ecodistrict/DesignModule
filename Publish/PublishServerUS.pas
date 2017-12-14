@@ -778,6 +778,12 @@ begin
         geometryType := 'LineString';
         diffRange := defaultValue(diffRange, autoDiffRange*0.3);
       end;
+    10:
+      begin
+        objectTypes := '"location"';
+        geometryType := 'Point';
+        diffRange := diffRange; // todo
+      end;
     11:
       begin
         objectTypes := '"location"';
@@ -1021,6 +1027,18 @@ begin
         then Result := Result+' '+
           'WHERE '+PreJoin+JOINCONDITION;
       end;
+    10: //control, for now hardcoded the base table
+    begin
+      Result := 'SELECT ' +
+                  't1.ID as OBJECT_ID, '+
+                  't1.ACTIVE as VALUE, '+
+                  't2.LAT as LAT, '+
+                  't2.LON as LON '+
+                  'FROM ' + aTablePrefix +'PBLS_CONTROLS t1 '+
+                  'INNER JOIN '+
+                  'PBLS_CONTROLS t2 '+
+                  'on t1.ID = t2.ID';
+    end;
   else
     Result :=
       'SELECT '+
@@ -1138,6 +1156,19 @@ begin
           then Result := Result+PreJoin+JOINCONDITION +' AND ';
         Result := Result +ObjectIDPrefix+'OBJECT_ID in ';
       end;
+    10: //control
+      begin
+        Result := 'SELECT ' +
+                  't1.ID as OBJECT_ID, '+
+                  't1.ACTIVE as VALUE, '+
+                  't2.LAT as LAT, '+
+                  't2.LON as LON '+
+                  'FROM ' + aTablePrefix +'PBLS_CONTROLS t1 '+
+                  'INNER JOIN '+
+                  'PBLS_CONTROLS t2 '+
+                  'on t1.ID = t2.ID '+
+                  'where t1.ID in ';
+      end;
   else
     Result :=
       'SELECT '+ObjectIDPrefix+'OBJECT_ID, '+
@@ -1199,6 +1230,19 @@ begin
           'WHERE '+ObjectIDPrefix+'OBJECT_ID=:OBJECT_ID';
         if JOINCONDITION<>''
         then Result := Result+' AND '+PreJoin+JOINCONDITION;
+      end;
+    10: //control
+      begin
+        Result:= 'SELECT ' +
+                  't1.ID as OBJECT_ID, '+
+                  't1.ACTIVE as VALUE, '+
+                  't2.LAT as LAT, '+
+                  't2.LON as LON '+
+                  'FROM ' + aTablePrefix +'PBLS_CONTROLS t1 '+
+                  'INNER JOIN '+
+                  'PBLS_CONTROLS t2 '+
+                  'on t1.ID = t2.ID '+
+                  'where t1.ID=:OBJECT_ID';
       end;
   else
     Result :=
@@ -1502,7 +1546,16 @@ begin
           objects.Add(oid, TGeometryLayerPOIObject.Create(Self, oid, usPOI.ID, geometryPoint));
         end;
         *)
-      end
+      end;
+    10: // control
+      begin
+        value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
+        geometryPoint := TWDGeometryPoint.Create(FieldFloatValueOrNaN(aQuery.FieldByName('LON')),
+                          FieldFloatValueOrNaN(aQuery.FieldByName('LAT')),
+                          NaN);
+        projectGeometryPoint(geometryPoint, fSourceProjection);
+        Result := TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value);
+      end;
   else
     value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
     if not Assigned(aObject) then
@@ -1676,6 +1729,7 @@ begin
   // create new ora session because we are running in a different thread
   oraSession := TOraSession.Create(nil);
   try
+    //RegisterLayer;
     oraSession.connectString := fConnectString;
     oraSession.open;
     query := TOraQuery.Create(nil);
@@ -1720,6 +1774,7 @@ begin
     4,  // road color (VALUE_EXPR) unidirectional, path, intensity
     5,  // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, path, intensity/capacity left/right
     9,  // energy color (VALUE_EXPR) and width (TEXTURE_EXPR), path, intensity/capacity unidirectional
+    10, // control (VALUE_EXPR)
     11, // points, basic layer
     21: // POI
       RegisterOnTiler(False, SliceType, name);
@@ -1735,7 +1790,7 @@ begin
     4:   tilerLayer.signalAddSlice(fPalette.Clone); // road color (VALUE_EXPR) unidirectional
     5:   tilerLayer.signalAddSlice(fPalette.Clone); // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
     9:   tilerLayer.signalAddSlice(fPalette.Clone); // energy color (VALUE_EXPR) and width (TEXTURE_EXPR)
-    11:  tilerLayer.signalAddSlice(fPalette.Clone); // points, basic layer
+    10,11:  tilerLayer.signalAddSlice(fPalette.Clone); // points, basic layer
     21: // POI
       begin
         // todo: does not work like this!!! TPicture <> TPngImage.. order of id..
@@ -1762,7 +1817,7 @@ begin
     4:   Result := stGeometryI; // road color (VALUE_EXPR) unidirectional
     5:   Result := stGeometryICLR; // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
     9:   Result := stGeometryIC; // energy color (VALUE_EXPR) and width (TEXTURE_EXPR)
-    11:  Result := stLocation;  // points, basic layer
+    10, 11:  Result := stLocation;  // controls, points: basic layer
     21:  Result := stPOI; // POI
   else
          Result := stUndefined;
@@ -1791,7 +1846,7 @@ begin
           fTableprefix.Substring(fTableprefix.Length-1)+ // #
           fTableprefix.Substring(0, fTablePrefix.length-1)+
           '.PBLS_CONTROLS', False);
-  fCOntrolsUpdateEvent.OnChangeObject := HandleControlsUpdate;
+  fControlsUpdateEvent.OnChangeObject := HandleControlsUpdate;
 end;
 
 destructor TUSScenario.Destroy;
