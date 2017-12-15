@@ -19,11 +19,12 @@
             orientation: options && options.orientation ? options.orientation : 'horizontal',
             colorInversed: options && options.colorInversed ? options.colorInversed : false
         };
-        this.lastValue = options && options.value ? parseFloat(options.value) : null;
+        this.lastUpdate = new Date();
         this.sliderID = options && options.ID ? options.ID : 'rangeSlider';
         this.text = ' ';
         this.updateDelta = options && options.updateDelta ? parseInt( options.updateDelta ) : 500; // max update time while sliding 1 second
         this.live = true;
+        this.acceptText = 0;;
     },
 
     onAdd: function (map) {
@@ -41,7 +42,9 @@
         var className = (this.sliderOptions && this.sliderOptions.orientation == 'vertical') ? 'leaflet-control-rangeSliderVertical' + inversed : 'leaflet-control-rangeSliderHorizontal' + inversed,
             container = this._container = L.DomUtil.create('div', className);
 
+        container.id = this.sliderID;
         container.addEventListener('contextmenu', this.containerRightClick);
+
 
         this._sliderDiv = L.DomUtil.create('div', className + '-sliderDiv');
         this._slider = noUiSlider.create(this._sliderDiv, this.sliderOptions);
@@ -58,29 +61,31 @@
     containerRightClick: function (e) {
         e.preventDefault(); //prevent showing of contextmenu since we use right-mouse for something else
         e.stopPropagation();
-        DataManager.timeRangeSlider.goLive();
+        sliderID = e.currentTarget.id;
+        slider = DataManager._getSlider(sliderID);
+        if (slider) {
+            slider.goLive();
+        }
     },
 
     /* Not sure how useful this is atm... */
     goLive: function () {
         this.live = true;
-        this._slider.set(this.liveValue);
         wsSend({
             type: "rangeslider",
-            ID: this.sliderID,
-            payload: { live: true }
+            payload: {
+                ID: this.sliderID,
+                live: true
+            }
         });
     },
 
     sliderStart: function () {
-        this.lastValue = this._slider.get();
         this.live = false;
     },
 
     sliderMove: function () {
         this.live = false;
-        var newValue = this._slider.get();
-
         var newTime = new Date();
         if (this.lastUpdate == null || newTime - this.lastUpdate > this.updateDelta) {
             this.lastUpdate = newTime;
@@ -99,11 +104,14 @@
                 }
             });
         }
-        this.updateValueDisplay();
+        if (!this.live) {
+            this.acceptText++;
+        }
     },
 
     updateValueDisplay: function () {
         this.valueTextDiv.innerText = this.text;
+        this.acceptText--;
     },
 
     update: function (payload) {
@@ -121,15 +129,16 @@
 
         if (payload.text) 
         {
-            this.text = payload.text;
-            this.updateValueDisplay();
+            if (this.live || this.acceptText>0) {
+                this.text = payload.text;
+                this.updateValueDisplay();
+            }
         }
 
         if (payload.value)
         {
-            this.liveValue = parseFloat(payload.value);
             if (this.live && this._slider) {
-                this._slider.set(this.liveValue);
+                this._slider.set(parseFloat(payload.value));
             }
         }
     }
