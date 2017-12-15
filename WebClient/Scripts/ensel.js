@@ -5,6 +5,7 @@ DataManager = {
     sensors: [],
     cars: [],
     carshash: {},
+    sliders: [],
     counter: 99,
     warningGiven: false,
     wind: null,
@@ -498,6 +499,31 @@ DataManager = {
             map.addControl(DataManager.timeRangeSlider);
         }
         DataManager.timeRangeSlider.update(aData);
+    },
+
+
+    _addSlider: function (slider) {
+        DataManager.sliders.push(slider);
+    },
+
+    _getSlider: function (sliderID) {
+        for (var i = 0; i < DataManager.sliders.length; i++) {
+            if (DataManager.sliders[i].sliderID == sliderID)
+                return DataManager.sliders[i]; 
+        }
+
+        return null;
+    },
+
+    NewRangeSliderData: function (aData) {
+        slider = DataManager._getSlider(aData.ID);
+
+        if (slider == null) {
+            slider = new L.Control.rangeSlider(aData);
+            DataManager._addSlider(slider)
+            map.addControl(slider);
+        }
+        slider.update(aData);
     },
 
     NewWindData: function (aData) {

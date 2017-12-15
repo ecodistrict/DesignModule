@@ -432,6 +432,9 @@ var wsLookup = {
     timerangeslider: function (payload) {
         DataManager.NewRangeTimeSliderData(payload);
     },
+    rangeslider: function (payload) {
+        DataManager.NewRangeSliderData(payload);
+    },
     fileDownload: function (payload) {
         DataManager.filesControl.HandleFileDownloadMessage(payload);
     },
