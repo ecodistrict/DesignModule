@@ -74,8 +74,9 @@
 
 .leaflet-control-rangeSliderVertical-sliderTextDiv,
 .leaflet-control-rangeSliderVerticalInversed-sliderTextDiv {
-    margin: 0px 0px 0px 10px;
-    writing-mode: tb-lr;
+    padding: 0px 0px 0px 10px;
+    -ms-writing-mode: tb-lr;
+    writing-mode: vertical-lr;
     display: inline;
     text-align: center;
     height: 100%;
