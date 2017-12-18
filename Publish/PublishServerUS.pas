@@ -1729,7 +1729,6 @@ begin
   // create new ora session because we are running in a different thread
   oraSession := TOraSession.Create(nil);
   try
-    //RegisterLayer;
     oraSession.connectString := fConnectString;
     oraSession.open;
     query := TOraQuery.Create(nil);
