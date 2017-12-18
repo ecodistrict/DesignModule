@@ -1,0 +1,83 @@
+﻿.leaflet-control-rangeSliderHorizontal,
+.leaflet-control-rangeSliderHorizontalInversed {
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    animation-duration: 10s;
+    width: 200px;
+    height: auto;
+    padding: 5px;
+}
+
+.leaflet-control-rangeSliderHorizontal-sliderDiv,
+.leaflet-control-rangeSliderHorizontalInversed-sliderDiv {
+    position: relative;
+    margin: 5px 15px 5px 15px;
+}
+
+.leaflet-control-rangeSliderHorizontalInversed-sliderTextDiv,
+.leaflet-control-rangeSliderHorizontal-sliderTextDiv {
+    margin: 5px 15px 5px 15px;
+    padding-top: 5px;
+}
+
+.leaflet-control-rangeSliderHorizontal .noUi-handle,
+.leaflet-control-rangeSliderHorizontalInversed .noUi-handle,
+.leaflet-control-rangeSliderVertical .noUi-handle,
+.leaflet-control-rangeSliderVerticalInversed .noUi-handle {
+    border-color: rgba(173, 216, 230, 1);
+}
+
+.leaflet-control-rangeSliderHorizontal .noUi-target,
+.leaflet-control-rangeSliderVertical .noUi-target {
+    background: rgba(250, 250, 250, 1);
+    box-shadow: inset 0px 1px 1px #f0f0f0, 0px 3px 6px -5px #bbb;
+}
+
+.leaflet-control-rangeSliderHorizontalInversed .noUi-target,
+.leaflet-control-rangeSliderVerticalInversed .noUi-target {
+    background: rgba(173, 216, 230, 1);
+    box-shadow: none;
+}
+
+.leaflet-control-rangeSliderHorizontal .noUi-connect,
+.leaflet-control-rangeSliderVertical .noUi-connect {
+    background: rgba(173, 216, 230, 1);
+    box-shadow: none;
+}
+
+.leaflet-control-rangeSliderHorizontalInversed .noUi-connect,
+.leaflet-control-rangeSliderVerticalInversed .noUi-connect {
+    background: rgba(250, 250, 250, 1);
+    box-shadow: inset 0px 1px 1px #f0f0f0, 0px 3px 6px -5px #bbb;
+}
+
+.leaflet-control-rangeSliderVertical,
+.leaflet-control-rangeSliderVerticalInversed {
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    animation-duration: 10s;
+    width: auto;
+    
+    height: 200px;
+    padding: 5px 10px 5px 10px;
+}
+
+.leaflet-control-rangeSliderVertical-sliderDiv,
+.leaflet-control-rangeSliderVerticalInversed-sliderDiv {
+    position: relative;
+    margin: 15px auto 15px auto;
+    height: 168px; /* to fix auto height not working for verical slider */
+    float: left;
+}
+
+.leaflet-control-rangeSliderVertical-sliderTextDiv,
+.leaflet-control-rangeSliderVerticalInversed-sliderTextDiv {
+    padding: 0px 0px 0px 10px;
+    -ms-writing-mode: tb-lr;
+    writing-mode: vertical-lr;
+    display: inline;
+    text-align: center;
+    height: 100%;
+}
