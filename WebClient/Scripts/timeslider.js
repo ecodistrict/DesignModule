@@ -57,7 +57,7 @@ L.Control.TimeSlider = L.Control.extend({
                     d3.event.preventDefault();
                     d3.event.stopImmediatePropagation();
                     //initiate brush
-                    var initialBrushHalfWidthInPixels = 20
+                    var initialBrushHalfWidthInPixels = 20;
                     brush.extent([
                         xaxis.scale().invert(d3.event.offsetX - initialBrushHalfWidthInPixels),
                         xaxis.scale().invert(d3.event.offsetX + initialBrushHalfWidthInPixels)]);
@@ -90,7 +90,14 @@ L.Control.TimeSlider = L.Control.extend({
         var tip = d3.tip()
             .attr('class', 'd3-tip')
             .style('z-index', 999)
-            .offset([-10, 0])
+            .offset(function () {
+                // default tip is shown on x at middle of rect
+                // translate to show tip at mouse x
+                // else we risk showing the tip off screen and creating a scrollbar
+                var r = this.getBoundingClientRect();
+                var m = (r.left + r.right) / 2;
+                return [-10, d3.event.clientX - m];
+            })
             .html(function (d) { return (d && d.tooltip) ? d.tooltip : ""; });
 
         svg.call(tip);
@@ -192,7 +199,8 @@ L.Control.TimeSlider = L.Control.extend({
             // calculate lcoal delta
             var delta = newTime.getTime() - currentTime.getTime();
             // translate scale of axis
-            var currentTime = aTimesliderDiv.getCurrentTime();
+            // todo: is call to getCurrentTime needed? removed for now..
+            // var currentTime = aTimesliderDiv.getCurrentTime();
             // get domain of current scale
             var domain = xaxis.scale().domain();
             // calculate new scale
