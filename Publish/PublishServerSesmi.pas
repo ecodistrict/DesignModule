@@ -13,6 +13,9 @@ uses
   WorldLegends,
   WorldTilerConsts,
 
+  TimerPool,
+  SensorDataSets,
+
   TilerControl,
 
   PublishServerLib,
@@ -40,61 +43,63 @@ const
   sensordata_pm25                  = 1601;              //tag 200
   sensordata_no2                   = 1921;              //tag 240
   //sensordata_no2                   = 961;               //tag 120 -> temporary tag!
-  sensordata_pm1                   = 2081;              //tag 260
-  sensordata_nh3                   = 2241;              //tag 280
-  sensordata_pnc                   = 2401;              //tag 300
-  sensordata_nox                   = 2561;              //tag 320
+  //sensordata_pm1                   = 2081;              //tag 260
+  //sensordata_nh3                   = 2241;              //tag 280
+  //sensordata_pnc                   = 2401;              //tag 300
+  //sensordata_nox                   = 2561;              //tag 320
   sensordata_linkid                = 2882;              //tag 360
 
-  sensordata_pm10_total            = 1449;              //tag 181
-  sensordata_pm25_total            = 1609;              //tag 201
+  //sensordata_pm10_total            = 1449;              //tag 181
+  //sensordata_pm25_total            = 1609;              //tag 201
   sensordata_no2_total             = 969;               //tag 241
-  sensordata_pm1_total             = 2089;              //tag 261
-  sensordata_assim_nox             = 2577;              //tag 322
-  sensordata_assim_pm10            = 1457;              //tag 182
-  sensordata_assim_pm25            = 1617;              //tag 202
-  sensordata_assim_no2             = 977;               //tag 242
-  sensordata_assim_pm1             = 2097;              //tag 262
-  sensordata_assim_nh3             = 2257;              //tag 282
-  sensordata_assim_pnc             = 2417;              //tag 302
-  sensordata_assim_pm10_total      = 1465;              //tag 183
-  sensordata_assim_pm25_total      = 1625;              //tag 203
+  //sensordata_pm1_total             = 2089;              //tag 261
+  //sensordata_assim_nox             = 2577;              //tag 322
+  //sensordata_assim_pm10            = 1457;              //tag 182
+  //sensordata_assim_pm25            = 1617;              //tag 202
+  //sensordata_assim_no2             = 977;               //tag 242
+  //sensordata_assim_pm1             = 2097;              //tag 262
+  //sensordata_assim_nh3             = 2257;              //tag 282
+  //sensordata_assim_pnc             = 2417;              //tag 302
+  //sensordata_assim_pm10_total      = 1465;              //tag 183
+  //sensordata_assim_pm25_total      = 1625;              //tag 203
   sensordata_assim_no2_total       = 985;               //tag 243
-  sensordata_assim_pm1_total       = 2105;              //tag 263
+  //sensordata_assim_pm1_total       = 2105;              //tag 263
 
-  meteodata_winddirection = 129;
-  meteodata_windspeed = 137;
-  meteodata_gust = 145;
-  meteodata_temperature = 153;
-  meteodata_minimumtemperature = 161;
-  meteodata_dewpoint = 169;
-  meteodata_sunshine = 177;
-  meteodata_globalradiation = 185;
-  meteodata_precipitationduration = 193;
-  meteodata_precipitation = 201;
-  meteodata_pressureatsealevel = 209;
-  meteodata_moninobukhovlength = 217;
-  meteodata_mixinglayerheight = 225;
-  meteodata_visibility = 232;
-  meteodata_cloudiness = 240;
-  meteodata_relativehumidity = 248;
-  meteodata_weathercode1 = 256;
-  meteodata_weathercode2 = 264;
-  meteodata_fog = 272;
-  meteodata_rainfall = 280;
-  meteodata_snow = 288;
-  meteodata_thunder = 296;
-  meteodata_iceformation = 304;
+  meteodata_winddirection          = 129;
+  meteodata_windspeed              = 137;
+  //meteodata_gust                   = 145;
+  //meteodata_temperature            = 153;
+  //meteodata_minimumtemperature     = 161;
+  //meteodata_dewpoint               = 169;
+  //meteodata_sunshine               = 177;
+  //meteodata_globalradiation        = 185;
+  //meteodata_precipitationduration  = 193;
+  //meteodata_precipitation          = 201;
+  //meteodata_pressureatsealevel     = 209;
+  //meteodata_moninobukhovlength     = 217;
+  //meteodata_mixinglayerheight      = 225;
+  //meteodata_visibility             = 232;
+  //meteodata_cloudiness             = 240;
+  //meteodata_relativehumidity       = 248;
+  //meteodata_weathercode1           = 256;
+  //meteodata_weathercode2           = 264;
+  //meteodata_fog                    = 272;
+  //meteodata_rainfall               = 280;
+  //meteodata_snow                   = 288;
+  //meteodata_thunder                = 296;
+  //meteodata_iceformation           = 304;
 
-  kpi_road_segment_id = 2880;      // tag 360
-  kpi_TransportMode = 3042;        //tag 380
-  kpi_ComponentName = 3202;        //tag 400
-  kpi_Time_Category = 3362;        //tag 420
-  kpi_avg_concentration = 3521;    //tag 440
-  kpi_duration = 3681;             //tag 460
+  kpi_road_segment_id              = 2880;              // tag 360
+  kpi_TransportMode                = 3042;              //tag 380
+  kpi_ComponentName                = 3202;              //tag 400
+  kpi_Time_Category                = 3362;              //tag 420
+  kpi_avg_concentration            = 3521;              //tag 440
+  kpi_duration                     = 3681;              //tag 460
 
   TimeSpanSwitch = 'timespan';
   DefaultTimeSpan = 7;
+
+  MaxNoSensorValueTime = 0.5/24; // half hour
 
 type
   TSesmiClient = class(TClient)
@@ -160,21 +165,14 @@ type
   TSesmiTrackLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean; aPallette: TWDPalette; aLegendJSON: string);
   destructor Destroy; override;
-  private
-    fLastLats: TDictionary<TGUID, Double>;
-    fLastLons: TDictionary<TGUID, Double>;
   protected
   public
     procedure AddPoint(aObjectID: TGUID; aLat, aLon, aValue: Double);
-    procedure AddLat(aSensorId: TGUID; aLat: Double);
-    procedure AddLon(aSensorId: TGUID; aLon: Double);
-    procedure AddValue(aSensorId: TGUID; aValue: Double);//value is always last
     procedure Reset;
     procedure RegisterLayer; override;
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
   end;
-
 
   TSesmiMobileSensorLayer  = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
@@ -254,6 +252,12 @@ type
   private
     fLinkLayers: TDictionary<Integer, TSesmiLinkLayer>;
     fTrackLayers: TDictionary<Integer, TSesmiTrackLayer>;
+    fLastLats: TDictionary<TGUID, Double>;
+    fLastLons: TDictionary<TGUID, Double>;
+    fSensorsDataSet: TSensorsDataSet;
+    fTimeSliderDataTimer: TTimer;
+    procedure triggerUpdateTimesliderData;
+    function jsonTimesliderData(aTag: Integer; aPalette: TWDPalette): string;
   protected
     fGUID: TGUID;
     fLive: Boolean;
@@ -268,7 +272,11 @@ type
     fDBCounter: Integer;
     procedure handleLiveEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleQueryEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+    procedure handleUniEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+    procedure handleTimeSliderEventData(const aSensorid: TGUID; aTimestamp: TDateTime; aFieldInfo: UInt32; aLat, aLon, aValue: Double);
     procedure AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette, aTrackPalette: TWDPalette; const aLegendJSON: string);
+  public
+    function HandleClientSubscribe(aClient: TClient): Boolean; override;
   public
     procedure InquireDB(const aInquire: string; const aLowerTimestamp, aUpperTimestamp: Double);
     procedure ReadBasicData(); override;
@@ -349,15 +357,18 @@ end;
 
 //Discrete pallette for the Sesmi project
 function CreateHansPalette(const aTitle: string): TWDPalette;
+var
+  factor: Double;
 begin
+  factor := 1 / 1000000000;
   Result := TDiscretePalette.Create(aTitle, [
-    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff000000), -40000, 0, '<0'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff0047ba), 0, 25, '0-25'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff6da5ff), 25, 30, '25-30'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($Ffffff00), 30, 45, '30-45'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($Ffff8000), 45, 60, '45-60'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($Ffff0000), 60, 75, '60-75'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff8100c1), 75, 20000, '>75')
+    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff000000), -40000*factor, 0*factor, '<0'),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff0047ba), 0*factor, 25*factor, '0-25'),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff6da5ff), 25*factor, 30*factor, '25-30'),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($Ffffff00), 30*factor, 45*factor, '30-45'),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($Ffff8000), 45*factor, 60*factor, '45-60'),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($Ffff0000), 60*factor, 75*factor, '60-75'),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($Ff8100c1), 75*factor, 20000*factor, '>75')
   ],TGeoColors.Create($00000000)); //default: transparant
 end;
 
@@ -1104,15 +1115,20 @@ begin
   fDBCounter := 0;
   fLinkLayers := TDictionary<Integer, TSesmiLinkLayer>.Create;
   fTrackLayers := TDictionary<Integer, TSesmiTrackLayer>.Create;
+  fLastLats := TDictionary<TGUID, Double>.Create;
+  fLastLons := TDictionary<TGUID, Double>.Create;
+  fSensorsDataSet := TSensorsDataSet.Create;
+  fTimeSliderDataTimer := aProject.Timers.CreateInactiveTimer;
   inherited;
-  fPubEvent := project.Connection.eventEntry('mobilesensordata').publish;
-  fLiveEvent := project.Connection.eventEntry('mobilesensordata').subscribe;
+  fPubEvent := aProject.Connection.eventEntry('mobilesensordata').publish;
+  fLiveEvent := aProject.Connection.eventEntry('mobilesensordata').subscribe;
   fLiveEventHandler := handleLiveEvent;
   fLiveEvent.OnEvent.Add(fLiveEventHandler);
 end;
 
 destructor TSesmiScenario.Destroy;
 begin
+  CancelTimer(fTimeSliderDataTimer);
   if fQuerySubscribed then //unsubscribe from the previous returnEvent
   begin
     fqueryEvent.OnEvent.Remove(fQueryEventHandler);
@@ -1123,6 +1139,9 @@ begin
   project.Connection.unPublish(fPubEvent);
   FreeAndNil(fLinkLayers);
   FreeAndNil(fTrackLayers);
+  FreeAndNil(fLastLons);
+  FreeAndNil(fLastLats);
+  FreeAndNil(fSensorsDataSet);
   inherited;
 end;
 
@@ -1147,79 +1166,64 @@ begin
   InquireDB('', currentTime - GetSetting(TimeSpanSwitch, DefaultTimeSpan), currentTime);
 end;
 
-procedure TSesmiScenario.handleLiveEvent(aEventEntry: TEventEntry;
-  const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+function TSesmiScenario.HandleClientSubscribe(aClient: TClient): Boolean;
 var
-  layer: TSesmiLinkLayer;
-  trackLayer: TSesmiTrackLayer;
-  fieldInfo: UInt32;
-  value: Double;
-  timestamp: Double;
-  id: TWDID;
-  sensorid: TGUID;
+  jsonTSData: string;
+  palette: TWDPalette;
+begin
+  Result := inherited;
+  // send data to time slider
+  palette := CreateHansPalette('NO2');
+  try
+    jsonTSData := jsonTimesliderData(sensordata_no2 shr 3, palette);
+  finally
+    palette.Free;
+  end;
+  aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+end;
+
+procedure TSesmiScenario.handleLiveEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
 begin
   fLiveCounter := fLiveCounter + 1;
   if not Live then
     exit;
-  timestamp := 0;
-  sensorid := TGUID.Empty;
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aPayload.bb_read_uint32(aCursor);
-    case fieldInfo of
-      wdatTimeStamp:
-        begin
-          timestamp := aPayload.bb_read_double(aCursor);
-        end;
-      (icehObjectID shl 3) or wtLengthDelimited:
-        begin
-          sensorid := aPayload.bb_read_guid(aCursor);
-          if (fGUID <> (project as TSesmiProject).ExpertScenarioGUID) and (fGUID <> sensorid)  then //filter: only accept live events that match our id
-           exit; //todo: mag dit, of moeten we de buffer leeg lezen? Wordt id altijd verstuurd voor de data?
-        end;
-      sensordata_no2, sensordata_pm10, sensordata_pm25:
-        begin
-          value := aPayload.bb_read_double(aCursor);
-          if fLinkLayers.TryGetValue(fieldInfo, layer) then
-            layer.AddValue(timestamp, value);
-          if fTrackLayers.TryGetValue(fieldInfo, trackLayer) then
-            trackLayer.AddValue(sensorid, value);
-        end;
-      sensordata_linkid:
-        begin
-          id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
-          TMonitor.Enter(fLinkLayers);
-          try
-            for layer in fLinkLayers.Values do
-              layer.AddLinkID(timestamp, id);
-          finally
-            TMonitor.Exit(fLinkLayers);
-          end;
-        end;
-      sensordata_latitude:
-        begin
-          value := aPayload.bb_read_double(aCursor);
-          for trackLayer in fTrackLayers.Values do
-            begin
-              trackLayer.AddLat(sensorid, value);
-            end;
-        end;
-      sensordata_longitude:
-        begin
-          value := aPayload.bb_read_double(aCursor);
-          for trackLayer in fTrackLayers.Values do
-            begin
-              trackLayer.AddLon(sensorid, value);
-            end;
-        end;
-    else
-      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
+  handleUniEvent(aEventEntry, aPayload, aCursor, aLimit);
+end;
+
+procedure TSesmiScenario.handleQueryEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+begin
+  fDBCounter := fDBCounter + 1;
+  handleUniEvent(aEventEntry, aPayload, aCursor, aLimit);
+end;
+
+procedure TSesmiScenario.handleTimeSliderEventData(
+  const aSensorid: TGUID; aTimestamp: TDateTime; aFieldInfo: UInt32; aLat, aLon, aValue: Double);
+var
+  id: TWDID;
+  sensor: TSensor;
+begin
+  id := TByteBuffer.bb_bytes(aSensorid, SizeOf(aSensorid));
+  TMonitor.Enter(fSensorsDataSet.Sensors);
+  try
+    if not fSensorsDataSet.Sensors.TryGetValue(id, sensor) then
+    begin
+      sensor := TSensor.Create(id);
+      fSensorsDataSet.Sensors.Add(id, sensor);
     end;
+  finally
+    TMonitor.Exit(fSensorsDataSet.Sensors);
+  end;
+  TMonitor.Enter(fSensorsDataSet.Data);
+  try
+    fSensorsDataSet.NewValues(sensor, aTimestamp,
+      [sensordata_latitude shr 3, sensordata_longitude shr 3, aFieldInfo shr 3],
+      [aLat, aLon, aValue]);
+  finally
+    TMonitor.Exit(fSensorsDataSet.Data);
   end;
 end;
 
-procedure TSesmiScenario.handleQueryEvent(aEventEntry: TEventEntry;
-  const aPayload: TByteBuffer; aCursor, aLimit: Integer);
+procedure TSesmiScenario.handleUniEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
 var
   layer: TSesmiLinkLayer;
   trackLayer: TSesmiTrackLayer;
@@ -1227,8 +1231,9 @@ var
   value, timestamp: Double;
   id: TWDID;
   sensorid: TGUID;
+  lastLat: Double;
+  lastLon: Double;
 begin
-  fDBCounter := fDBCounter + 1;
   timestamp := 0;
   while aCursor<aLimit do
   begin
@@ -1249,8 +1254,13 @@ begin
           value := aPayload.bb_read_double(aCursor);
           if fLinkLayers.TryGetValue(fieldInfo, layer) then
             layer.AddValue(timestamp, value);
-          if fTrackLayers.TryGetValue(fieldInfo, trackLayer) then
-            trackLayer.AddValue(sensorid, value);
+          if fLastLons.TryGetValue(sensorid, lastLon) and fLastLats.TryGetValue(sensorid, lastLat) then
+          begin
+            if fTrackLayers.TryGetValue(fieldInfo, trackLayer) then
+              trackLayer.AddPoint(sensorid, lastLat, lastLon, value);
+            handleTimeSliderEventData(sensorid, timestamp, fieldInfo, lastLat, lastLon, value);
+            triggerUpdateTimesliderData();
+          end;
         end;
       sensordata_linkid:
         begin
@@ -1266,18 +1276,12 @@ begin
       sensordata_latitude:
         begin
           value := aPayload.bb_read_double(aCursor);
-          for trackLayer in fTrackLayers.Values do
-            begin
-              trackLayer.AddLat(sensorid, value);
-            end;
+          fLastLats.AddOrSetValue(sensorid, value);
         end;
       sensordata_longitude:
         begin
           value := aPayload.bb_read_double(aCursor);
-          for trackLayer in fTrackLayers.Values do
-            begin
-              trackLayer.AddLon(sensorid, value);
-            end;
+          fLastLons.AddOrSetValue(sensorid, value);
         end;
     else
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
@@ -1312,6 +1316,122 @@ begin
   buffer := buffer + TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, returnString);
   buffer := buffer + TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, aInquire);
   fPubEvent.signalEvent(buffer);
+end;
+
+function CompareLessOrIsNaN(aValue1, aValue2: Double): Boolean;
+begin
+  if aValue1.IsNaN or aValue2.IsNaN then
+  begin
+    if aValue1.IsNaN
+    then Result := True
+    else Result := False;
+  end
+  else Result := aValue1<aValue2;
+end;
+
+function TSesmiScenario.jsonTimesliderData(aTag: Integer; aPalette: TWDPalette): string;
+var
+  entry: string;
+  loopSensorValue: Double;
+  fillColorPrev: string;
+  fillColor: string;
+  startTime: string;
+  endTime: string;
+  cursor: TCursor;
+  srp: TPair<TSensor, Integer>;
+  sensorValue: Double;
+  sr: TSensorsRecord;
+  prevMax: Double;
+  loopLat: Double;
+  loopLon: Double;
+  fct: Boolean;
+  fc: TAlphaRGBPixel;
+  fctp: Boolean;
+begin
+  // todo: use cursor, if a sensor has no value on a specific time it is not accounted for and a higher value
+  // could be shown then calculated for the time stamp
+  Result := '';
+  //srPRev := nil;
+  startTime := '';
+  endTime := '';
+  fillColorPrev := '';
+  fctp := True;
+  fillColor := '';
+  prevMax := Double.NaN;
+  cursor := fSensorsDataSet.NewCursor;
+  try
+    TMonitor.Enter(fSensorsDataSet);
+    try
+      if cursor.First then
+      begin
+        repeat
+          loopSensorValue := Double.NaN;
+          loopLat := Double.NaN;
+          loopLon := Double.NaN;
+          for srp in cursor.SensorRecords do
+          begin
+            sr := fSensorsDataSet.Data[srp.Value];
+            // todo: check if sr has always entry for sensor (iesrp.key)?
+            if (cursor.CurrentTimeStamp-sr.timeStamp<=MaxNoSensorValueTime) and sr.values[srp.Key].TryGetValue(aTag, sensorValue) then
+            begin
+              // check if value is not too old and if higher then
+              if loopSensorValue.IsNaN or (loopSensorValue<sensorValue) then
+              begin
+                loopSensorValue := sensorValue;
+                sr.values[srp.Key].TryGetValue(sensordata_latitude shr 3, loopLat);
+                sr.values[srp.Key].TryGetValue(sensordata_longitude shr 3, loopLon);
+              end;
+            end;
+          end;
+          fc := aPalette.ValueToColors(loopSensorValue).fillColor;
+          fct := (fc and $FF000000)=0;
+          fillColor := ColorToJSON(fc);
+          if fillColor<>fillColorPrev then
+          begin
+            // store current time on cursor as endTime
+            endTime := FormatDateTime(publisherDateTimeFormat, cursor.CurrentTimeStamp);
+            // check if we have a valid range (first change in color only initializes the start of the event)
+            // and check if not transparant
+            if (startTime<>'') and not fctp then
+            begin
+              // add new entry for pervious color: fillColorPrev startTime-endTime
+              entry :=
+                '"start":"'+startTime+'"'+','+
+                '"end":"'+endTime+'"'+','+
+                '"color":"'+fillColorPrev+'"'+','+
+                '"tooltip":'+'"max value: '+prevmax.toString+'"'; // localized double
+              jsonAdd(Result, '{'+entry+'}');
+            end;
+            // start new range
+            fillColorPrev := fillColor;
+            fctp := fct;
+            startTime := endTime;
+            prevMax := loopSensorValue;
+          end
+          else
+          begin
+            if CompareLessOrIsNaN(prevMax, loopSensorValue)
+            then prevMax := loopSensorValue;
+          end;
+        until not cursor.Next;
+        // add last step
+        endTime := FormatDateTime(publisherDateTimeFormat, cursor.CurrentTimeStamp+1/24); // 1 hour
+        if (startTime<>'') and (startTime<>endTime) then
+        begin
+          entry :=
+            '"start":"'+startTime+'"'+','+
+            '"end":"'+endTime+'"'+','+
+            '"color":"'+fillColorPrev+'"'+','+
+            '"tooltip":'+'"max value: '+prevmax.toString+'"'; // localized double
+          jsonAdd(Result, '{'+entry+'}');
+        end;
+      end;
+    finally
+      TMonitor.Exit(fSensorsDataSet);
+    end;
+  finally
+    fSensorsDataSet.RemoveCursor(cursor);
+  end;
 end;
 
 procedure TSesmiScenario.ReadBasicData;
@@ -1384,6 +1504,28 @@ begin
   end;
 end;
 
+procedure TSesmiScenario.triggerUpdateTimesliderData;
+begin
+  fTimeSliderDataTimer.Arm(DateTimeDelta2HRT(2*dtOneSecond),
+    procedure (aTimer: TTimer; aTime: THighResTicks)
+    var
+      jsonTSData: string;
+      client: TClient;
+      palette: TWDPalette;
+    begin
+      palette := CreateHansPalette('NO2');
+      try
+        jsonTSData := jsonTimesliderData(sensordata_no2 shr 3, palette);
+      finally
+        palette.Free;
+      end;
+      for client in clients do
+      begin
+        client.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+      end;
+    end);
+end;
+
 { TSesmiProject }
 
 function TSesmiProject.addClient(const aClientID: string): TClient;
@@ -1410,6 +1552,7 @@ begin
   fTiler.onTilerStatus := handleTilerStatus;
 
   //Set Sesmi controls
+  SetControl('timeslider', '1');
   SetControl(dateFormControl, '{"data":' + aDateFormData + '}');
   fLinks := TDictionary<TGUID, TWDGeometry>.Create;
   fPubEvent := aConnection.eventEntry('geometry_roads').publish;
@@ -1447,7 +1590,8 @@ begin
 
   scenarios.Add(aScenarioID, scenario);
   }
-  scenario.GoLive(True);
+  // **** scenario.GoLive(True);
+  scenario.GoDB('',Double.NegativeInfinity, Double.PositiveInfinity);
   Result := scenario;
 end;
 
@@ -2177,16 +2321,6 @@ end;
 
 { TSesmiTrackLayer }
 
-procedure TSesmiTrackLayer.AddLat(aSensorId: TGUID; aLat: Double);
-begin
-  fLastLats.AddOrSetValue(aSensorId, aLat);
-end;
-
-procedure TSesmiTrackLayer.AddLon(aSensorId: TGUID; aLon: Double);
-begin
-  fLastLons.AddOrSetValue(aSensorId, aLon);
-end;
-
 procedure TSesmiTrackLayer.AddPoint(aObjectID: TGUID; aLat, aLon,
   aValue: Double);
 var
@@ -2204,20 +2338,12 @@ begin
   AddObject(TGeometryPointLayerObject.Create(Self, wdid, geometryPoint, aValue));
 end;
 
-procedure TSesmiTrackLayer.AddValue(aSensorId: TGUID; aValue: Double);
-var
-  lastLon, lastLat: Double;
-begin
-  if fLastLons.TryGetValue(aSensorId, lastLon) and fLastLats.TryGetValue(aSensorId, lastLat) then
-    AddPoint(aSensorId, lastLat, lastLon, aValue);
-end;
-
 constructor TSesmiTrackLayer.Create(aScenario: TScenario; const aDomain, aID,
   aName, aDescription: string; aDefaultLoad, aShowInDomains: Boolean;
   aPallette: TWDPalette; aLegendJSON: string);
 begin
-  fLastLats := TDictionary<TGUID, Double>.Create;
-  fLastLons := TDictionary<TGUID, Double>.Create;
+  //fLastLats := TDictionary<TGUID, Double>.Create;
+  //fLastLons := TDictionary<TGUID, Double>.Create;
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"mobilesensor"', 'Point', ltTile, aShowInDomains, 0);
   fPalette := aPallette;
   fLegendJSON := aLegendJSON;
@@ -2225,8 +2351,8 @@ end;
 
 destructor TSesmiTrackLayer.Destroy;
 begin
-  FreeAndNil(fLastLons);
-  FreeAndNil(fLastLats);
+  //FreeAndNil(fLastLons);
+  //FreeAndNil(fLastLats);
   inherited;
 end;
 

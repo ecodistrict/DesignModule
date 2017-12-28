@@ -5,9 +5,12 @@ program PublishingServerEarlyWarning;
 {$R *.res}
 
 uses
-  Logger, LogConsole, LogFile,
+  Logger,
+  LogConsole,
+  LogFile,
   StdIni,
-  imb4, imb.SocksLib,
+  imb4,
+  imb.SocksLib,
   TimerPool,
   WorldDataCode,
   WorldLegends,
@@ -111,7 +114,7 @@ type
     procedure Invalidate;
     procedure NewValue(aSensor: TSensor; aTimeStamp: TDateTime; aTag: Integer; aValue: Double);
   end;
-  
+
   TSensorsLayer2 = class(TSimpleLayer)
   constructor Create(
     aPalette: TWDPalette;
