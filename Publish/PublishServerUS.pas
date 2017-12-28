@@ -266,8 +266,8 @@ type
     procedure UpdateQueuehandler();
 
     function UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
-    procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
   public
+    procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
     property ChangeMultipleQuery: string read fChangeMultipleQuery;
     procedure ReadObjects(aSender: TObject);
     procedure RegisterLayer; override;
@@ -323,6 +323,7 @@ type
     property USControlStatuses: TObjectDictionary<Integer, TUSControlStatus> read fUSControlStatuses;
     function GetUSControlsJSON: string;
     procedure SendUSControlsMessage(aClient: TClient);
+    procedure ChangeUSControl(aAction, aControlID: Integer; const aObjectName, aAttribute: string);
   public
     procedure ReadBasicData(); override;
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
@@ -387,7 +388,7 @@ type
     property USDBScenarios: TObjectDictionary<string, TUSDBScenario> read fUSDBScenarios;
     function FindMeasure(const aActionID: string; out aMeasure: TMeasureAction): Boolean;
     function ReadScenario(const aID: string): TScenario; override;
-    procedure handleNewClient(aClient: TClient); override;
+    //procedure handleNewClient(aClient: TClient); override;
   public
     procedure ReadBasicData(); override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
@@ -1027,7 +1028,7 @@ begin
         then Result := Result+' '+
           'WHERE '+PreJoin+JOINCONDITION;
       end;
-    10: //control, for now hardcoded the base table
+    10, 98: //control, for now hardcoded the base table
     begin
       Result := 'SELECT ' +
                   't1.ID as OBJECT_ID, '+
@@ -1156,7 +1157,7 @@ begin
           then Result := Result+PreJoin+JOINCONDITION +' AND ';
         Result := Result +ObjectIDPrefix+'OBJECT_ID in ';
       end;
-    10: //control
+    10, 98: //control
       begin
         Result := 'SELECT ' +
                   't1.ID as OBJECT_ID, '+
@@ -1231,7 +1232,7 @@ begin
         if JOINCONDITION<>''
         then Result := Result+' AND '+PreJoin+JOINCONDITION;
       end;
-    10: //control
+    10, 98: //control
       begin
         Result:= 'SELECT ' +
                   't1.ID as OBJECT_ID, '+
@@ -1547,14 +1548,18 @@ begin
         end;
         *)
       end;
-    10: // control
+    10, 98: // control
       begin
         value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
-        geometryPoint := TWDGeometryPoint.Create(FieldFloatValueOrNaN(aQuery.FieldByName('LON')),
+        if not Assigned(aObject) then
+        begin
+          geometryPoint := TWDGeometryPoint.Create(FieldFloatValueOrNaN(aQuery.FieldByName('LON')),
                           FieldFloatValueOrNaN(aQuery.FieldByName('LAT')),
                           NaN);
-        projectGeometryPoint(geometryPoint, fSourceProjection);
-        Result := TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value);
+          projectGeometryPoint(geometryPoint, fSourceProjection);
+          Result := TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value);
+        end
+        else (aObject as TGeometryPointLayerObject).value := value;
       end;
   else
     value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
@@ -1825,6 +1830,21 @@ end;
 
 { TUSScenario }
 
+procedure TUSScenario.ChangeUSControl(aAction, aControlID: Integer; const aObjectName, aAttribute: string);
+var
+  layerBase: TLayerBase;
+  usLayer: TUSLayer;
+begin
+  TMonitor.Enter(fLayers);
+  try
+    for layerBase in fLayers.Values do
+      if (layerBase is TUSLayer) and ((layerBase as TUSLayer).fLayerType = 10) then //TODO: find other way to check if layer is a control layer -> how can we link this?
+        (layerBase as TUSLayer).handleChangeObject(aAction, aControlID, aObjectName, aAttribute);
+  finally
+    TMonitor.Exit(fLayers);
+  end;
+end;
+
 constructor TUSScenario.Create(aProject: TProject; const aID, aName, aDescription, aFederation: string; aAddBasicLayers: Boolean; aMapView: TMapView;
   aIMBConnection: TIMBConnection; const aTablePrefix: string);
 begin
@@ -1858,23 +1878,51 @@ end;
 function TUSScenario.GetUSControlsJSON: string;
 var
   USControlStatus: TUSControlStatus;
+  layerBase: TLayerBase;
+  usLayer: TUSLayer;
+  layerObject: TLayerObject;
+  controlObject : TGeometryPointLayerObject;
   active: Integer;
 begin
   Result := '';
-  TMonitor.Enter(fUSControlStatuses);
+//  TMonitor.Enter(fUSControlStatuses);
+//  try
+//  for USControlStatus in fUSControlStatuses.Values do
+//    begin
+//      if Result <> '' then
+//        Result := Result + ',';
+//      if USControlStatus.Active then
+//        active := 1
+//      else
+//        active := 0;
+//      Result := Result + '"' + USControlStatus.ID.ToString + '":{"active":' + active.ToString + '}';
+//    end;
+//  finally
+//    TMonitor.Exit(fUSControlStatuses);
+//  end;
+
+  TMonitor.Enter(fLayers);
   try
-  for USControlStatus in fUSControlStatuses.Values do
-    begin
-      if Result <> '' then
-        Result := Result + ',';
-      if USControlStatus.Active then
-        active := 1
-      else
-        active := 0;
-      Result := Result + '"' + USControlStatus.ID.ToString + '":{"active":' + active.ToString + '}';
-    end;
+    for layerBase in fLayers.Values do
+      if (layerBase is TUSLayer) and ((layerBase as TUSLayer).fLayerType = 10) then //TODO: better check!?
+      begin
+        usLayer := layerBase as TUSLayer;
+        usLayer.objectsLock.BeginRead;
+        try
+          for layerObject in usLayer.objects.Values do
+          begin
+            controlObject := layerObject as TGeometryPointLayerObject;
+            active := Round((layerObject as TGeometryPointLayerObject).value);
+            if Result <> '' then
+              Result := Result + ',';
+            Result := Result + '"' + string(layerObject.ID) + '":{"active":' + active.ToString + '}';
+          end;
+        finally
+          usLayer.objectsLock.EndRead;
+        end;
+      end;
   finally
-    TMonitor.Exit(fUSControlStatuses);
+    TMonitor.Exit(fLayers);
   end;
   Result := '{' + Result + '}';
 end;
@@ -2211,6 +2259,15 @@ begin
           AddBasicLayer(aID, mlp.Value.description, mlp.Value.description, mlp.Value.domain, mlp.Value.objectType, mlp.Value.geometryType,
             'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+fTablePrefix.ToUpper+ mlp.Value.LAYER_TABLE + ' t', GetBasicLayerType(mlp.Value.geometryType),
             connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, mlp.Value.LAYER_TABLE), sourceProjection);
+        end
+        else if (mlp.Value.LAYER_TYPE = 98) and addBasicLayers then //controls basic layer!
+        begin
+          aID := mlp.Value.description.ToLower.Replace(' ', '', [rfReplaceAll]);
+          if aID.EndsWith('s') then
+            aID := aID.Remove(aID.Length-1, 1);
+          AddBasicLayer(aID, mlp.Value.description, mlp.Value.description, mlp.Value.domain, mlp.Value.objectType, mlp.Value.geometryType,
+            mlp.Value.SQLQuery(fTablePrefix.ToUpper), 10,
+            connectString, mlp.Value.SQLQueryNew(fTablePrefix.ToUpper), mlp.Value.SQLQueryChangeMultiple(fTablePrefix.ToUpper), oraSession, SubscribeDataEvents(oraSession.Username, mlp.Value.LAYER_TABLE), sourceProjection);
         end
         else
         begin
@@ -2871,36 +2928,45 @@ begin
                           ', "id": "' + requestID + '"' +
                           ', "type": "' + requestType + '" }}';
       aClient.signalString(responseJSON);
+    end
+    else if (requestType = 'scenarioControls') and (aScenario is TUSScenario) then
+    begin
+      responseJSON := (aScenario as TUSScenario).GetUSControlsJSON;
+      responseJSON := '{"type": "dialogDataResponse", "payload": { "data": ' + responseJSON +
+                          ', "id": "' + requestID + '"' +
+                          ', "type": "' + requestType + '" }}';
+      aClient.signalString(responseJSON);
     end;
+    //TODO: generate a response for unknown requestTypes? -> Requires work around for the inheritance fallthrough
   end;
 end;
 
-procedure TUSProject.handleNewClient(aClient: TClient);
-var
-  ControlsJSON: string;
-  USControl: TUSControl;
-begin
-  inherited;
-  //TODO: duplicate code from TUSProject.getUSControlsJSON -> rewrite to use the same code
-  ControlsJSON := '';
-  TMonitor.Enter(fUSControls);
-  try
-    for USControl in fUSControls.Values do
-    begin
-      if ControlsJSON <> '' then
-        ControlsJSON := ControlsJSON + ',';
-      ControlsJSON := ControlsJSON + '"' + USControl.ID.ToString + '":{' +
-        '"name":"' + USControl.Name + '",' +
-        '"description":"' + USControl.Description + '",' +
-        '"lat":' + DoubleToJSON(USControl.Lat) + ',' +
-        '"lon":' + DoubleToJSON(USControl.Lon) + '}';
-    end;
-  finally
-    TMonitor.Exit(fUSControls);
-  end;
-  ControlsJSON := '{' + ControlsJSON + '}';
-  aClient.signalString('{"type":"scenarioControlsMessage", "payload": { "allControls": ' + ControlsJSON + '}}');
-end;
+//procedure TUSProject.handleNewClient(aClient: TClient);
+//var
+//  ControlsJSON: string;
+//  USControl: TUSControl;
+//begin
+//  inherited;
+//  //TODO: duplicate code from TUSProject.getUSControlsJSON -> rewrite to use the same code
+//  ControlsJSON := '';
+//  TMonitor.Enter(fUSControls);
+//  try
+//    for USControl in fUSControls.Values do
+//    begin
+//      if ControlsJSON <> '' then
+//        ControlsJSON := ControlsJSON + ',';
+//      ControlsJSON := ControlsJSON + '"' + USControl.ID.ToString + '":{' +
+//        '"name":"' + USControl.Name + '",' +
+//        '"description":"' + USControl.Description + '",' +
+//        '"lat":' + DoubleToJSON(USControl.Lat) + ',' +
+//        '"lon":' + DoubleToJSON(USControl.Lon) + '}';
+//    end;
+//  finally
+//    TMonitor.Exit(fUSControls);
+//  end;
+//  ControlsJSON := '{' + ControlsJSON + '}';
+//  aClient.signalString('{"type":"scenarioControlsMessage", "payload": { "allControls": ' + ControlsJSON + '}}');
+//end;
 
 procedure TUSProject.handleTypedClientMessage(aClient: TClient;
   const aMessageType: string; var aJSONObject: TJSONObject);
@@ -2935,13 +3001,11 @@ begin
             for jsonArrayItem in payloadArray do
             if jsonArrayItem.TryGetValue<Integer>('id', controlID) and jsonArrayItem.TryGetValue<Integer>('active', controlActive) then
             begin
-              if scenario.USControlStatuses.TryGetValue(controlID, controlStatus) and not (controlStatus.Active = (controlActive = 1)) then
-              begin
-                oraSession.ExecSQL(queryText, [controlID, controlActive]);
-                oraSession.Commit;
-                controlStatus.Active := (controlActive = 1);
-                publishEvent.SignalChangeObject(actionChange, controlID, 'ACTIVE');
-              end;
+              oraSession.ExecSQL(queryText, [controlActive, controlID]);
+              oraSession.Commit;
+              publishEvent.SignalChangeObject(actionChange, controlID, 'ACTIVE');
+              if Assigned(aClient.currentScenario) and (aClient.currentScenario is TUSScenario) then
+                (aClient.currentScenario as TUSScenario).ChangeUSControl(actionChange, controlID, 'control', 'Value');
             end;
           finally
             publishEvent.UnPublish;

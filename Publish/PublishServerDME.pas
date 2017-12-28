@@ -431,6 +431,42 @@ begin
                     publishEvent.UnPublish;
                   end;
                 end
+                else if (measure.ActionID >= -62) and (measure.ActionID <= -61) then
+                begin
+                  table := (aScenario as TUSScenario).Tableprefix + 'PBLS_CONTROLS';
+                  case measure.ActionID of
+                    -61: value := '1';
+                    -62: value := '0';
+                  end;
+                  queryText := 'update ' + table +
+                    ' set' +
+                    ' ACTIVE  = ' + value +
+                    ' where ID = :A';
+                  if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
+                  begin
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.PBLS_CONTROLS';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    try
+                      for jsonObjectID in jsonObjectIDs do
+                      begin
+                        if TryStrToInt(jsonObjectID.Value, objectID) then
+                        begin
+                          //check if this road exists
+                          if aScenario.Layers.ContainsKey('control') and (aScenario.Layers['control'] as TLayer).objects.ContainsKey(AnsiString(objectID.ToString)) then
+                          begin
+                            oraSession.ExecSQL(queryText, [objectID]);
+                            oraSession.Commit;
+                            publishEvent.SignalChangeObject(actionChange, objectID, 'ACTIVE');
+                            if aScenario is TUSScenario then
+                              (aScenario as TUSScenario).ChangeUSControl(actionChange, objectID, 'control', 'Value');
+                          end;
+                        end;
+                      end;
+                    finally
+                      publishEvent.UnPublish;
+                    end;
+                  end;
+                end
               end
             end;
   end;

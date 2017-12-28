@@ -27,15 +27,14 @@ function createRequestDialog(aTitle, aDescription, type, buildFunction)
     var request = { dialogDataRequest: {id: id, type: type} };
 
     var dialogDiv = modalDialogCreate(aTitle, aDescription);
-    var div = dialogDiv.appendChild(document.createElement('div'));
-    div.requestId = id;
-    div.buildResponseDialog = buildFunction;
-    div.id = "requestDialogDiv"
+    dialogDiv.requestId = id;
+    dialogDiv.buildResponseDialog = buildFunction;
+    dialogDiv.id = "requestDialogDiv";
     
-    var loaderDiv = div.appendChild(document.createElement('div'));
+    var loaderDiv = dialogDiv.appendChild(document.createElement('div'));
     loaderDiv.className = 'loader';
 
-    var loadingText = div.appendChild(document.createElement('div'));
+    var loadingText = dialogDiv.appendChild(document.createElement('div'));
     loadingText.className = 'loaderText';
     loadingText.innerHTML = 'Loading...';
 
