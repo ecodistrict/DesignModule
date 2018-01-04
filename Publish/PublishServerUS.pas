@@ -1833,7 +1833,6 @@ end;
 procedure TUSScenario.ChangeUSControl(aAction, aControlID: Integer; const aObjectName, aAttribute: string);
 var
   layerBase: TLayerBase;
-  usLayer: TUSLayer;
 begin
   TMonitor.Enter(fLayers);
   try
@@ -1877,7 +1876,7 @@ end;
 
 function TUSScenario.GetUSControlsJSON: string;
 var
-  USControlStatus: TUSControlStatus;
+//  USControlStatus: TUSControlStatus;
   layerBase: TLayerBase;
   usLayer: TUSLayer;
   layerObject: TLayerObject;
@@ -1912,7 +1911,7 @@ begin
           for layerObject in usLayer.objects.Values do
           begin
             controlObject := layerObject as TGeometryPointLayerObject;
-            active := Round((layerObject as TGeometryPointLayerObject).value);
+            active := Round(controlObject.value);
             if Result <> '' then
               Result := Result + ',';
             Result := Result + '"' + string(layerObject.ID) + '":{"active":' + active.ToString + '}';
@@ -2979,7 +2978,6 @@ var
   queryText: string;
   publishEventName: string;
   publishEvent: TIMBEventEntry;
-  controlStatus: TUSControlStatus;
 begin
   inherited;
   if aJSONObject.TryGetValue<TJSONValue>('payload', payloadValue) then

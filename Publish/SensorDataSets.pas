@@ -1,5 +1,10 @@
 unit SensorDataSets;
 
+// todo: add islive property to cursor (always latest record)
+
+// todo: cursor now: last data record index per sensor -> last data record index per sensor and tag
+//                                                        or cursor per tag?
+
 interface
 
 uses
@@ -38,6 +43,8 @@ type
   public
     property timeStamp: TDateTime read fTimeStamp;
     property values: TObjectDictionary<TSensor, TSensorValues> read fValues;
+  public
+    procedure RemoveSensor(aSensor: TSensor);
   end;
 
   TSensorsData = TObjectList<TSensorsRecord>;
@@ -47,12 +54,17 @@ type
   destructor Destroy; override;
   private
     fData: TSensorsData; // ref
-    fCurrentIndex: Integer;
+    fCurrentIndex: Integer; // current indexes of sensor values
     fCurrentTimeStamp: TDateTime; // helper
-    fSensorRecords: TDictionary<TSensor, Integer>; //  current indexes of sensor values
+    fIsLive: Boolean;
+    fSensorRecords: TDictionary<TSensor, Integer>;
+    procedure setIsLive(const aValue: Boolean);
   public
+    property Data: TSensorsData read fData;
     property SensorRecords: TDictionary<TSensor, Integer> read fSensorRecords;
+    property CurrentIndex: Integer read fCurrentIndex;
     property CurrentTimeStamp: TDateTime read fCurrentTimeStamp;
+    property IsLive: Boolean read fIsLive write setIsLive;
     function First: Boolean;
     function Next: Boolean;
     function Prev: Boolean;
@@ -60,6 +72,11 @@ type
     function MoveTo(aTimeStamp: TDateTime): Boolean;
     function IsValid: Boolean;
     procedure Invalidate;
+    function IsInTimeStep(aTimestamp: TDateTime): Boolean;
+    function RangeAsString: string;
+    function StartOfRange: TDateTime;
+  public
+    procedure RemoveSensor(aSensor: TSensor);
   end;
 
   TSensorsDataSet = class
@@ -76,13 +93,31 @@ type
     function NewCursor: TCursor;
     procedure RemoveCursor(aCursor: TCursor);
     procedure Invalidate;
-    procedure NewValue(aSensor: TSensor; aTimeStamp: TDateTime; aTag: Integer; aValue: Double);
-    procedure NewValues(aSensor: TSensor; aTimeStamp: TDateTime; const aTags: TArray<Integer>; const aValues: TArray<Double>);
+    //function NewValue(aSensor: TSensor; aTimeStamp: TDateTime; aTag: Integer; aValue: Double): Boolean;
+    function NewValues(aSensor: TSensor; aTimeStamp: TDateTime; const aTags: TArray<Integer>; const aValues: TArray<Double>): Boolean;
+    procedure RemoveSensor(aSensor: TSensor);
   end;
 
 
+function CompareLessOrIsNaN(aValue1, aValue2: Double): Boolean;
+
 
 implementation
+
+{ utils }
+
+function CompareLessOrIsNaN(aValue1, aValue2: Double): Boolean;
+begin
+  if aValue1.IsNaN or aValue2.IsNaN then
+  begin
+    if aValue1.IsNaN
+    then Result := True
+    else Result := False;
+  end
+  else Result := aValue1<aValue2;
+end;
+
+
 
 { TSensor }
 
@@ -121,6 +156,11 @@ begin
   inherited;
 end;
 
+procedure TSensorsRecord.RemoveSensor(aSensor: TSensor);
+begin
+  fValues.Remove(aSensor);
+end;
+
 { TCursor }
 
 constructor TCursor.Create(aData: TSensorsData);
@@ -130,6 +170,7 @@ begin
   fSensorRecords := TDictionary<TSensor, Integer>.Create;
   fCurrentIndex := -1;
   fCurrentTimeStamp := Double.NaN;
+  fIsLive := False;
 end;
 
 destructor TCursor.Destroy;
@@ -144,6 +185,7 @@ function TCursor.First: Boolean;
 var
   sensor: TSensor;
 begin
+  fIsLive := False;
   fSensorRecords.Clear;
   if fData.Count>0 then
   begin
@@ -159,6 +201,7 @@ end;
 
 procedure TCursor.Invalidate;
 begin
+  // todo: improve performance by only setting flag
   // called when updating data -> already locked
   fSensorRecords.Clear;
   fCurrentIndex := -1;
@@ -173,6 +216,17 @@ begin
   then repeat until not Next;
 end;
 
+function TCursor.IsInTimeStep(aTimestamp: TDateTime): Boolean;
+begin
+  if fCurrentIndex>=0 then
+  begin
+    if fCurrentIndex+1<fData.Count
+    then Result := (fData[fCurrentIndex].timeStamp<=aTimestamp) and (aTimestamp<fData[fCurrentIndex+1].timeStamp)
+    else Result := fData[fCurrentIndex].timeStamp<=aTimestamp;
+  end
+  else Result := False;
+end;
+
 function TCursor.IsValid: Boolean;
 begin
   Result := fCurrentIndex >= 0;
@@ -180,27 +234,36 @@ end;
 
 function TCursor.MoveTo(aTimeStamp: TDateTime): Boolean;
 begin
-  if not IsValid
-  then First;
-  if IsValid then
+  if not Double(aTimeStamp).IsNaN then
   begin
-    Result := True;
-    if aTimeStamp>fData[fCurrentIndex].timeStamp then
+    fIsLive := False;
+    if not IsValid
+    then First;
+    if IsValid then
     begin
-      // move to future
-      // check for next step
-      while Result and (fCurrentIndex<fData.Count-1) and (aTimeStamp>=fData[fCurrentIndex+1].timeStamp)
-      do Result := Next;
+      Result := True;
+      if aTimeStamp>fData[fCurrentIndex].timeStamp then
+      begin
+        // move into future
+        // check for next step
+        while Result and (fCurrentIndex<fData.Count-1) and (aTimeStamp>=fData[fCurrentIndex+1].timeStamp)
+        do Result := Next;
+      end
+      else if aTimeStamp<fData[fCurrentIndex].timeStamp then
+      begin
+        // move into past
+        while Result and (fCurrentIndex>=0) and (aTimeStamp<fData[fCurrentIndex].timeStamp)
+        do Result := Prev;
+      end;
+      // else we are there
     end
-    else if aTimeStamp<fData[fCurrentIndex].timeStamp then
-    begin
-      // move to past
-      while Result and (fCurrentIndex>=0) and (aTimeStamp<fData[fCurrentIndex].timeStamp)
-      do Result := Prev;
-    end;
-    // else we are there
+    else Result := False;
   end
-  else Result := False;
+  else
+  begin
+    Invalidate;
+    Result := False;
+  end;
   // store the given timestamp
   fCurrentTimeStamp := aTimeStamp;
 end;
@@ -243,6 +306,7 @@ var
   changedSensors: TDictionary<TSensor, Boolean>;
   localIndex: Integer;
 begin
+  fIsLive := False;
   if IsValid then
   begin
     if fCurrentIndex>0 then
@@ -292,6 +356,36 @@ begin
   end;
 end;
 
+function TCursor.RangeAsString: string;
+begin
+  if fCurrentIndex>=0 then
+  begin
+    if fCurrentIndex+1<fData.Count
+    then Result := Double(fData[fCurrentIndex].timeStamp).toString+' - '+Double(fData[fCurrentIndex+1].timeStamp).toString
+    else Result := Double(fData[fCurrentIndex].timeStamp).toString+' - ...';
+  end
+  else Result := '##';
+end;
+
+procedure TCursor.RemoveSensor(aSensor: TSensor);
+begin
+  fSensorRecords.Remove(aSensor);
+end;
+
+procedure TCursor.setIsLive(const aValue: Boolean);
+begin
+  if aValue
+  then Last;
+  fIsLive := aValue;
+end;
+
+function TCursor.StartOfRange: TDateTime;
+begin
+  if fCurrentIndex>=0
+  then Result := fData[fCurrentIndex].timeStamp
+  else Result := Double.NaN;
+end;
+
 { TSensorsDataSet }
 
 constructor TSensorsDataSet.Create;
@@ -333,26 +427,31 @@ begin
     TMonitor.Exit(fCursors);
   end;
 end;
-
-procedure TSensorsDataSet.NewValue(aSensor: TSensor; aTimeStamp: TDateTime; aTag: Integer; aValue: Double);
+{
+function TSensorsDataSet.NewValue(aSensor: TSensor; aTimeStamp: TDateTime; aTag: Integer; aValue: Double): Boolean;
 var
   sensorsRecord: TSensorsRecord;
   i: Integer;
   sensorValues: TSensorValues;
   cursor: TCursor;
 begin
+  // return if changing newest record (or adding new record)
+  Result := False;
   if fData.Count>0 then
   begin
-    // find or add record starting at end (asume values arrive sorted in time)
+    // start at last record (newest) (assumes mostly data is comming in from old to new
     i := fData.Count-1;
+    // check if newer data
     if fData[i].fTimeStamp<aTimeStamp then
     begin
       // new entry that is newer then last
       sensorsRecord := TSensorsRecord.Create(aTimeStamp);
       fData.Add(sensorsRecord);
+      Result := True; // newer record
     end
     else
     begin
+      // step back in records until record is no longer newer then given timestamp
       while (i>=0) and (fData[i].fTimeStamp>aTimeStamp)
       do i := i-1;
       if i>=0 then
@@ -360,9 +459,13 @@ begin
         if fData[i].fTimeStamp<>aTimeStamp then
         begin
           sensorsRecord := TSensorsRecord.Create(aTimeStamp);
-          fData.Insert(i, sensorsRecord);
+          fData.Insert(i+1, sensorsRecord);
         end
-        else sensorsRecord := fData[i];
+        else
+        begin
+          sensorsRecord := fData[i];
+          Result := i = fData.Count-1; // newest record ?
+        end;
       end
       else
       begin
@@ -397,26 +500,31 @@ begin
     TMonitor.Exit(fCursors);
   end;
 end;
-
-procedure TSensorsDataSet.NewValues(aSensor: TSensor; aTimeStamp: TDateTime; const aTags: TArray<Integer>; const aValues: TArray<Double>);
+}
+function TSensorsDataSet.NewValues(aSensor: TSensor; aTimeStamp: TDateTime; const aTags: TArray<Integer>; const aValues: TArray<Double>): Boolean;
 var
   sensorsRecord: TSensorsRecord;
   i: Integer;
   sensorValues: TSensorValues;
   cursor: TCursor;
 begin
+  // return if changing newest record (or adding new record)
+  Result := False;
   if fData.Count>0 then
   begin
-    // find or add record starting at end (asume values arrive sorted in time)
+    // start at last record (newest) (assumes mostly data is comming in from old to new
     i := fData.Count-1;
+    // check if newer data
     if fData[i].fTimeStamp<aTimeStamp then
     begin
       // new entry that is newer then last
       sensorsRecord := TSensorsRecord.Create(aTimeStamp);
       fData.Add(sensorsRecord);
+      Result := True; // newer record
     end
     else
     begin
+      // step back in records until record is no longer newer then given timestamp
       while (i>=0) and (fData[i].fTimeStamp>aTimeStamp)
       do i := i-1;
       if i>=0 then
@@ -424,9 +532,13 @@ begin
         if fData[i].fTimeStamp<>aTimeStamp then
         begin
           sensorsRecord := TSensorsRecord.Create(aTimeStamp);
-          fData.Insert(i, sensorsRecord);
+          fData.Insert(i+1, sensorsRecord);
         end
-        else sensorsRecord := fData[i];
+        else
+        begin
+          sensorsRecord := fData[i];
+          Result := i = fData.Count-1; // newest record ?
+        end;
       end
       else
       begin
@@ -475,5 +587,21 @@ begin
   end;
 end;
 
+procedure TSensorsDataSet.RemoveSensor(aSensor: TSensor);
+var
+  cursor: TCursor;
+  sensorsRecord: TSensorsRecord;
+begin
+  for sensorsRecord in fData
+  do sensorsRecord.RemoveSensor(aSensor);
+  TMonitor.Enter(fCursors);
+  try
+    for cursor in fCursors
+    do cursor.RemoveSensor(aSensor);
+  finally
+    TMonitor.Exit(fCursors);
+  end;
+  fSensors.Remove(aSensor.ID);
+end;
 
 end.

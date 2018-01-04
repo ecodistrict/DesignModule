@@ -1318,17 +1318,6 @@ begin
   fPubEvent.signalEvent(buffer);
 end;
 
-function CompareLessOrIsNaN(aValue1, aValue2: Double): Boolean;
-begin
-  if aValue1.IsNaN or aValue2.IsNaN then
-  begin
-    if aValue1.IsNaN
-    then Result := True
-    else Result := False;
-  end
-  else Result := aValue1<aValue2;
-end;
-
 function TSesmiScenario.jsonTimesliderData(aTag: Integer; aPalette: TWDPalette): string;
 var
   entry: string;
@@ -1372,7 +1361,8 @@ begin
           begin
             sr := fSensorsDataSet.Data[srp.Value];
             // todo: check if sr has always entry for sensor (iesrp.key)?
-            if (cursor.CurrentTimeStamp-sr.timeStamp<=MaxNoSensorValueTime) and sr.values[srp.Key].TryGetValue(aTag, sensorValue) then
+            if (cursor.CurrentTimeStamp-sr.timeStamp<=MaxNoSensorValueTime) and
+               sr.values[srp.Key].TryGetValue(aTag, sensorValue) then
             begin
               // check if value is not too old and if higher then
               if loopSensorValue.IsNaN or (loopSensorValue<sensorValue) then
