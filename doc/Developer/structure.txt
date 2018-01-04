@@ -1,0 +1,64 @@
+web engine parts
+	components
+			> element-id: string
+		map
+			layer
+					> title
+				basic?
+				detail
+					tiles
+						> url
+						] refresh
+					geo
+					simple
+					zoom
+		kpi
+			bullit
+		graph
+			line
+			bar
+			..
+		title-bar
+				> info-tip: string
+			scenario selection (left click)
+			options (right click)
+		log
+		control
+				> visible: bool
+				> read-only: bool
+				> draggable: bool
+				> info-tip: string
+			button-action
+				zoom
+				select
+			hover/in-place expandable control
+				measures
+				base layer
+				domains
+				details
+				measures-history
+			toggle expandable control
+				meteo-wind-temp
+				slider: horizontal|vertical
+				simulation
+				models (MC)
+				time-slider
+		active-reference-difference
+		legend
+		dialogs
+				> title
+				> content
+				> end-dialog-buttons: ok|apply|cancel
+			scenario selector
+			object editor
+			model parameters (MC)
+			incident parameters (Response)
+			..
+		info
+			> info-tip: string
+
+	additions
+		context-menu
+		tool-tip
+		
+publisher
