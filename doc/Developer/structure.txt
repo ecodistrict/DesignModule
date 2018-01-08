@@ -3,21 +3,113 @@ web engine parts
 			> element-id: string
 		map
 			layer
+				** LayerManager.js
 					> title
 				basic?
-				detail
-					tiles
-						> url
-						] refresh
+				
+				BaseLayer
+					> id
+					> legend
+					> crd
+					> detailsLayer
+					> type
+					] showLegend
+					] subscribe
+					] unsubscribe
+					] updatePreview
+					] getPreview
+					details
+				    tile
+						** TileLayer: BaseLayer, LayerManager.js
+						> tiles				// url
+						] hideLayer 
+						] showLayer (leafletLayer)
+						] updateData (payload) 		// (tiles, legend, preview)
+					object
+						** TileLayer: BaseLayer, LayerManager.js
+						> objects
+						> contextmenu
+						] showLayer (leafletLayer)
+						] hideLayer 
+						] updateData (payload)		// newobject, updateobject, removeobject, preview, legend, preview
+						] newObject 				// LayerManager.Circle
+						] updateObject
+						] removeObject
+						marker
+							** MarkerLayer: ObjectLayer, LayerManager.js
+							> objects
+							] newObject					// LayerManger.Marker
+							] showLayer
+							] hideLayer					
 					geo
+						** GeoJSONLayer: BaseLayer, LayerManager.js
+						> geoJSON
+						] showLayer (leafletLayer)
+						] getStyle
+						] hideLayer 
+						] updateDate (payload)		// geoJSON(.data), preview, legend
 					simple
-					zoom
+						** SimpleLayer: BaseLayer, LayerManager.js
+						> objects
+						] updateOptions (options)	// contextmenuItems
+						] hideLayer
+						] showLayer (leafletLayer)
+						] updateData (payload)		// legend, preview, objects(.data; newobject, updateobject, removeobject, preview, legend, options)
+						] newObject (object)
+						] updateObject (object)
+						] removeObject (object)
+					switch 					// zoom					
+						** SwitchLayer: BaseLayer, LayerManager.js
+						> showing
+						> layers []
+						] showLayer (leafletLayer)
+						] showSwitchLayer (leafletLayer)
+						] hideLayer
+						] updateData (data)			// showing, layers
+						] showLegend
 		kpi
 			bullit
 		graph
-			line
-			bar
-			..
+		  ** GraphManager.js
+				> title						// via graphObject
+				> id						// via graphObject				
+				> type						// via graphObject
+				> width						// via graphObject
+				> height					// via graphObject
+				> x							// via graphObject
+				> y							// via graphObject
+				> xScale					// via graphObject
+				> yScale					// via graphObject
+				> maxPoints					// via graphObject
+				> interpolation				// via graphObject
+				> additive					// via graphObject
+				> xAxis						// via graphObject
+				> yAxis						// via graphObject
+				> xAxisOrient				// via graphObject
+				> yAxisOrient				// via graphObject
+				> holdminmax				// via graphObject
+				> margins					// via graphObject	
+				> showLabels				// via graphObject
+				> showLegends				// via graphObject
+				] _openGraph
+				] _closeGraph
+				] Update (data)			??? Werkt dit wel?
+			SpiderChart						// type: spider
+				** Graphs/spiderChart.js
+			LineBottomLeft					// type: line
+				** Graphs/LineGraph.js
+			VerticalBarChart				// type: bar|newbar
+				** Graphs/BarChart.js
+			Chart							// type: spline|area|step|area-step|area-spline|scatter|pie|donut|gauge
+				** Graphs/Chart.js
+			TableGraph						// type: table
+				** Graphs/TableGraph.js
+			
+			<IN updatechart
+				newgtustatistics
+			    updategtustatistics
+				resetgraphs
+				
 		title-bar
 				> info-tip: string
 			scenario selection (left click)
@@ -29,20 +121,292 @@ web engine parts
 				> draggable: bool
 				> info-tip: string
 			button-action
-				zoom
-				select
+				zoom  (L.Map.zoomControl, leaflet native)
+				  > position
+				  > zoomInText
+				  > zoomInTitle
+				  > zoomOutText
+				  > zoomOutTitle
+				  <IN type: session
+				      payload.view {
+						.lat: double
+						.lon: double
+						.zoom: double
+					  }
+				  
+				select  ??   
 			hover/in-place expandable control
-				measures
-				base layer
-				domains
-				details
-				measures-history
+                    > collapsed: bool
+					> position: string
+					> autoZIndex: bool
+					> hideSingleBase: bool			
+				measures 
+				    ** L.Control.Measures, measures.js
+					> selectCategories: []
+					] initialize (measureddefinitions, measuresHistory, options)
+					] setSelectCategories (selectCategories)
+					] resetMeasures (measureddefinitions)		
+				    // created default.html: 
+					// 		var measuresControl = L.control.measures([], historyControl);
+					// 		map.addControl(measuresControl);
+					// 		map.removeControl(measuresControl);
+					// 		measuresControl.setSelectCategories([]);
+					
+					// TODO: check/add HC
+					<IN type: "measures"				// handled resetMeasures, via webSocketjs
+					    payload:
+							[
+								description: string,
+								category: string,
+								measures: [
+									description: string,
+									measure: string
+									actions
+								          ](0,*)
+							](0,*)
+							
+				base layer  
+				    ** L.Control.layers, leaflet-src.js native
+					> sortLayers: bool
+					> sortFunction: f(layerA, layerB, nameA, nameB)
+					] initialize (baseLayers, overlays, options)
+					] addOverLay (layer, name)				 
+					] addBaseLayer (layer, name)
+					] removeLayer (layer)
+					// Created in map.js Map creation:
+					// 		L.control.layers(baseLayers, overlayLayers).addTo(Map)
+				domains 
+				    ** L.Control.Domains, domains.js
+					] initialize (domains, options)
+					] updateDomains (domains)
+					] resetDomains (domains)
+					] _expand
+					] _collapse
+					<IN domains //TODO
+							.string  (0,*)
+								.enabled: bool
+								.kpis []
+								.charts []
+								.layers []
+									.basic						  
+					// created default.html:
+					// 		var domainsControl = L.control.domains({}); 
+					// 		map.addControl(domainsControl);
+				details 
+				    ** L.Control.Details, details.js
+					] initialize (options)
+					] updateDomains (domains)
+					] resetDomains (domains)
+					] resetkpi (aKPI)
+					] updatePreview (aElementID, preview)
+					] updateTilesURL (payload)
+					// NEEDS DataManager?
+				    // created default.html
+					//		var detailsControl = L.control.details(DataManager.detailsInfo); 
+					// 		map.addControl(detailsControl);
+				measures-history 
+				    ** L.Control.History, history.js
+					] initialize (options)
+					] addHistoryItems (historyItems)
+					] removeHistoryItems (historyItems)
+					] addMeasure (m, so, sc)
+					] hasActiveElements: bool
+					] hasElements: bool
+					// Created default.html
+					//		var historyControl = L.control.history(baseLayers); // todo (NK): why pass baseLayers as options?
+					//		map.addControl(historyControl);
+					//		map.removeControl(historyControl);
+					//		DataManager.HistoryControl = historyControl;					
 			toggle expandable control
-				meteo-wind-temp
-				slider: horizontal|vertical
+				meteo-wind-temp  
+					** L.Control.Arrow, WindDirection.js				
+					> collapsed: bool
+					> position: string
+					> autoZIndex: bool
+					> hideSingleBase: bool
+					> height: int
+					> width: int
+					> maxSpeed: int
+					] initialize (options)
+					] NewData (data)
+					] rotate (degrees, speed)
+					<OUT type: "windData"
+					     payload:
+							.direction: double
+							.speed: double
+							.live: bool
+					<IN type: "windData" 					   // handled in NewData
+					    payload:
+							.speed: double
+							.direction: double
+					// created default.html
+		            //  	DataManager.wind = L.control.arrow();
+					// shown: ensel.js, dynamic
+					//		DataManager.wind = L.control.arrow();
+					//		map.addControl(DataManager.wind);
+					
+				rangeSlider: horizontal|vertical 			(TODO make expandable)
+				    ** L.Control.rangeSlider, rangeSlider.js
+					> collapsed: bool
+					> position: string
+					> autoZIndex: bool
+					> hideSingleBase: bool
+					> range { min: double, 
+					          max: double }  					// internal: sliderOptions.range
+					> start: double 							// internal: sliderOptions.start
+					> connect: bool 							// internal: sliderOptions.connect
+					> orientation: string, horizontal|vertical 	// internal: sliderOptions.orientation
+					> colorInversed: bool 						// internal: sliderOptions.colorInversed
+					] initialize (options)			
+					] update (payload)
+					<OUT type: "rangeslider"
+					     payload
+						   .ID: string 			*Req
+						   .value: double
+					       .live: bool
+					<IN type: "rangeslider"
+					    payload
+							.ID: string         *Req
+							.range {min: double, max: double}
+							.text: string
+							.value: double
+							.live: bool
+					// TODO _expand, _collapse etc
+					
+					// Created ensel.js, dynamic
+					// 		slider = new L.Control.rangeSlider(aData)
+					// 		DataManager._addSlider(slider)
+					// 		map.addControl(slider)
+					
 				simulation
+				    ** L.Control.simulation, simulation.js					
+					> position: string
+					> autoZIndex: bool
+					> hideSingleBase: bool
+					] initialize(options)
+					] _clickControl 					// Link, onclick
+														// DataManager, openFormDialog CreateSimulation
+					// List events via form>?
+					
+					// created default.html
+					//		var simulationControl = L.control.simulation(); // todo (NK): why pass baseLayers as options?
+					//		map.addControl(simulationControl);
+					//		map.removeControl(simulationControl);
+					//		DataManager.simulationControl = simulationControl;
+					
+				simulationClose
+				    ** L.Control.SimulationClose, simulation.js
+					> collapsed: bool
+					> position: string
+					> autoZIndex: bool
+					> hideSingleBase: bool
+					] _collapse
+					] _expand
+					] _update
+					] initialize(options)
+				    ] showSimCloseDialog   				// EventListener, Click
+					<OUT closeSimulation: true
+					// created default.html
+					// 		DataManager.simCloseControl = L.control.SimulationClose();
+					
+				start-stop
+				  ** L.Control.StartStop
+					> collapsed: bool
+					> position: string
+					> autoZIndex: bool
+					> hideSingleBase: bool
+					> disabled: bool
+					] initialize ()
+					] disable
+					] enable
+					] SimulationStarted					// called from webSocket.js, simulationControl.start
+					] SimulationStopped                 // called from webSocket.js, simulationControl.stop
+					<IN simulationControl				// handled webSocketjs:
+					    .start: *						// 		StartStop.SimulationStopped
+						.stop: *						// 		StartStop.SimulationStarted
+						.speed: double					// 		DataManager.simSpeed = f
+					<OUT simulationControl				
+						.stop: true
+						.start: true
+						.speed: [double]
+					<OUT closeSimulation: true
+					
 				models (MC)
+					** L.Control.ModelControl, ModelControl.js
+					> collapsed: bool
+					> position: string
+					> autoZIndex: bool
+					> hideSingleBase: bool		
+					] initialize(options)
+					] HandleMessages (payload)          
+					] AddModel (model)
+					] UpdateModel (payload)
+					] RemoveModel (modelID)
+					] ClearModelControl
+					] FillModelControl					
+					] hideModelControl					// TODO: Refactor _collapse?
+					] showModelControl 					// TODO: Refactor _expand?
+					] clickModelControl 				// EventListener, "click" & "touchstart"
+					<IN modelcontrol					// handled in ModelControl.HandleMessages, via webSocket.js
+						.status[]
+							.new
+								.id
+								.status
+								.progress
+								.name
+							.change 
+							    .id 
+								.status
+								.progress
+								.name
+							.delete
+								.id
+							.reset
+					<OUT modelControl
+						.refresh						
+					// created default.html 
+					// 		DataManager.modelControl = L.control.ModelControl(); 
+					// shown webSocket.js; payload.modelControlEnabled
+					
 				time-slider
+				    ! Needs DIV 'timeslider' 
+					** L.Control.TimeSlider, timeslider.js
+					> collapsed: bool
+					> position: string
+					> autoZIndex: bool
+					> hideSingleBase: bool
+					> showSettings: bool
+					> settingsShowing: bool
+					] initialize (aTimesliderDiv, options)
+					] _collapse              // called from webSocket.js payload.timeslider == 1
+					] _expand                // called from webSocket.js payload.timeslider == 2
+					] setEvents (payload)
+					] addEvents (payload)		
+					timeSliderDIV.handleEvents
+					<IN timeslider 
+						.setEvents[]
+							.start
+							.end
+							.color
+							.*
+						.addEvents[]
+							.start
+							.end
+							.color
+							.*		
+					<OUT timeslider
+						.selectedEvent
+							.start	
+							.end
+							.color
+							.*
+					// created default.html
+					//      var timesliderControl = L.control.timeslider(timeslider);
+					// 		map.addControl(timesliderControl);
+					//		timesliderControl._collapse();
+					//		InfoTextControl['leaflet-control-timeslider'] = { active: false };
+					//		map.removeControl(timesliderControl);			
+					
 		active-reference-difference
 		legend
 		dialogs
