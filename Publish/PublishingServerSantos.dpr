@@ -41,6 +41,7 @@ const
 
   ProjectIDSwitch = 'ProjectID';
   ProjectNameSwitch = 'ProjectName';
+  SourceEPSGIntSwitch = 'SourceEPSGInt';
 
   PreLoadScenariosSwitch = 'PreLoadScenarios';
 
@@ -51,8 +52,7 @@ const
   IMB4RemotePortSwitch = 'IMB4RemotePort';
 
   BaseScenarioIDSwitch = 'BaseScenario';
-    DefaultBaseScenarioID = '0';
-//  RecoverySection = 'recovery';
+    DefaultBaseScenarioID = '1';
 
 type
   TModel = class(TMCModelStarter2)
@@ -232,7 +232,7 @@ begin
       projectID, projectName,
       tilerName,
       GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-      dbConnection.ConnectString,
+      aParameters.ParameterByName[DataSourceParameterName].ValueAsString,
       dbConnection,
       mapView,
       preLoadScenarios,
