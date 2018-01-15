@@ -407,7 +407,25 @@ web engine parts
 					//		InfoTextControl['leaflet-control-timeslider'] = { active: false };
 					//		map.removeControl(timesliderControl);			
 					
-		active-reference-difference
+		current-reference-difference
+			** L.Control.CRD, currefdiff.js
+			> collapsed: bool
+			> position: string
+			> autoZIndex: bool
+			> hideSingleBase: bool
+			> current: bool
+			> reference: bool
+			> difference: bool
+			> layer: bool
+			] _addRadioButton (group, title, checked)
+			] _expand
+			] _collapse
+			] _update
+			] _setVisibility (element, visible, input)
+			] reset (current, reference, difference, layer, active)
+			
+			// On default.html
+			// In LayerManger.js
 		legend
 		dialogs
 				> title
@@ -426,3 +444,4 @@ web engine parts
 		tool-tip
 		
 publisher
+
