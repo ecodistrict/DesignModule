@@ -10,7 +10,7 @@ web engine parts
 				BaseLayer
 					> id
 					> legend
-					> crd
+					> crd		// current/reference/difference
 					> detailsLayer
 					> type
 					] showLegend
