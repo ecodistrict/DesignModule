@@ -11,6 +11,30 @@ function LineBottomLeft(graphObject) {
         var marginLeft = GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.axisMargin.y;
         var marginTop = GraphManager.defaultValues.graphPadding.top;
 
+        if (this.graphObject.x.set)
+            {
+                this.graphObject.minX = 0//this.graphObject.x.min;
+                this.graphObject.maxX = 1//this.graphObject.x.max;
+            }
+
+        var ySet = false;
+        var minY = Number.POSITIVE_INFINITY;
+        var maxY = Number.NEGATIVE_INFINITY;
+        for (let i = 0; i < this.graphObject.y.length; i++)
+            if (this.graphObject.y[i].set)
+            {
+                ySet = true;
+                if (graphObject.y[i].min < minY)
+                    minY = graphObject.y[i].min;
+                if (graphObject.y[i].max > maxY)
+                    maxY = graphObject.y[i].max;
+            }
+        if (ySet && minY != Number.POSITIVE_INFINITY && maxY != Number.NEGATIVE_INFINITY)
+        {
+            this.graphObject.minY = 20//minY;
+            this.graphObject.maxY = 40//maxY;
+        }
+
         //var svgHolder = container.appendChild(document.createElement('div'));
 
         var svg = d3.select(container).append("svg")
@@ -25,8 +49,14 @@ function LineBottomLeft(graphObject) {
             svg.on("click", this.onsvgclick);
         }
 
-        var lineG = svg.append("g");
+        var clipPath = svg.append("clipPath")
+            .attr("id", "clip" + this.graphID);
 
+        var clipShape = clipPath.append("rect");
+
+        var lineG = svg.append("g")
+            .attr("clip-path", "url(#clip" + this.graphID + ")");
+        
         var text = null;
 
         if (typeof this.graphObject.name !== "undefined") {
@@ -81,6 +111,8 @@ function LineBottomLeft(graphObject) {
         }
         this.graphObject.lineG = lineG;
         this.graphObject.text = text;
+        this.graphObject.clipPath = clipPath;
+        this.graphObject.clipShape = clipShape;
 
         container.style.visibility = "hidden";
         container.graph = this;
@@ -198,6 +230,13 @@ function LineBottomLeft(graphObject) {
                 break;
         }
 
+
+        graph.preview.clipShape
+            .attr("x", DataManager.detailsInfo.graphMargin)
+            .attr("y", DataManager.detailsInfo.graphMargin)
+            .attr("width", width - (2 * DataManager.detailsInfo.graphMargin))
+            .attr("height", height - (2 * DataManager.detailsInfo.graphMargin));
+
         graph.preview.lineG.selectAll("path").remove();
 
         var lineFunction = d3.svg.line()
@@ -251,12 +290,22 @@ function LineBottomLeft(graphObject) {
 
         svg.className = "graph-svg-preview";
 
-        var lineG = svg.append("g");
-        lineG.className = "graph-g-preview";
+        var clipPath = svg.append("clipPath")
+            .attr("id", "preview-clip" + this.graphID);
 
+        var clipShape = clipPath.append("rect");
+
+
+        var lineG = svg.append("g")
+            .attr("clip-path", "url(#preview-clip" + this.graphID + ")");
+
+        lineG.className = "graph-g-preview";
+        
         this.graphObject.preview.container = previewContainer;
         this.graphObject.preview.svg = svg;
         this.graphObject.preview.lineG = lineG;
+        this.graphObject.preview.clipPath = clipPath;
+        this.graphObject.preview.clipShape = clipShape;
 
         this._UpdatePreview();
 
@@ -419,6 +468,12 @@ function LineBottomLeft(graphObject) {
 
         var yAxis = d3.svg.axis().scale(yScale).orient(graph.yAxisOrient).ticks(5);
         graph.axisY.call(yAxis);
+
+        graph.clipShape
+            .attr("x", marginLeft)
+            .attr("y", marginTop)
+            .attr("width", width - (marginLeft + marginRight))
+            .attr("height", height - (marginTop + marginBottom));
 
         graph.lineG.selectAll("path").remove();
 
