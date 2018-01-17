@@ -91,8 +91,8 @@ var GraphManager = {
         interpolation: "linear", //https://coderwall.com/p/thtwbw/d3-js-interpolation-options
         flashBorder: false, //todo: implementation. makes border of a graph flash when received new data
         maxPoints: 100, //9007199254740991, //Graph only plots the last x points of an array
-        x: { label: "" }, //Attribute name for the attribute holding the value for the x-axis
-        y: [{ color: "LightBlue", label: "" }], //Attribute name for the attribute holding the value of the y-axis along with color and label
+        x: { label: "", set: 0 }, //Attribute name for the attribute holding the value for the x-axis
+        y: [{ color: "LightBlue", label: "", set: 0 }], //Attribute name for the attribute holding the value of the y-axis along with color and label
         xScale: "linear", //sets the scale to use for the x axis "linear"/"ordinal"/"power"/"log" todo: date
         yScale: "linear", //sets the scale to use for the y axis "linear"/"ordinal"/"power"/"log" todo: date
         xAxis: true, //sets showing of x axis
