@@ -1,8 +1,10 @@
 unit PublishServerSantos;
 
-// TODO -oPW 24+hr timestamps parsen
-// TODO -oPW Chargeloc. data aanpassen
 // TODO -oPW onclick TSimpleObject?
+
+// TODO -oPW - timeslider voor alle clients ?
+//           - how to handle updated INDIC_DAT, update map colors: all clients?
+//           -   keep time per client, or all clients on same time?
 
 
 interface
@@ -107,7 +109,7 @@ type
     constructor Create(aScenario: TScenario; aBusBlock: Integer;
         aBaseDay, aBaseMonth, aBaseYear: Word;
         const aDomain, aID, aName, aDescription, aConnectString, aTablePrefix: string;
-        aEventEntry: TIMBEventEntry);
+        aPubEntry: TIMBEventEntry; aSubEntry: TIMBEventEntry);
     destructor Destroy; override;
   private
     fEventEntry: TIMBEventEntry;
@@ -123,6 +125,9 @@ type
     fBaseDay: array of word; // [d,m,y]
     fChargerTypes: TStrings;
     fConnectString: string;
+    fUpdateTimer: TTimer;
+    fLastUpdate: THighResTicks;
+
 
     procedure initStops(aSession: TOraSession);
     procedure initTimeTable(aSession: TOraSession);
@@ -132,6 +137,8 @@ type
 
     function  jsonTimesliderData: String;
     procedure handleUpdateLayerObject(aClient: TClient; aPayload: TJSONObject); override;
+    procedure HandleOnChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
+    procedure HandleDataUpdate(aTimer: TTimer; aTime: THighResTicks);
   public
     procedure HandleSelectedEvent(aClient: TClient; aMessage: TJSONValue);
     procedure handleNewTime(aClient: TClient; aTime: string);
@@ -152,9 +159,11 @@ type
     fSantosLayers: TObjectDictionary<TScenario, TSantosLayer>; // ref
     fBaseDay: Array of Word;
   protected
+    procedure HandleDataUpdate(aSession: TOrasession; aScenario: TScenario; aLayer: TSantosLayer; const aTablePrefix: string);
     function  ReadScenario(const aID: string): TScenario; override;
     procedure ReadChartBlockSoC(aSession: TOraSession; aScenario: TScenario; const aTablePrefix: string);
-    procedure ReadChartChargerTotalPower(aSession: TOraSession; aScenario: TScenario; const aTablePrefix: string; aCharger: Integer);
+    procedure ReadChartChargerTotalPower(aSession: TOraSession; aScenario: TScenario;  const aTablePrefix: string;
+                                         aCharger: Integer; const aName: string = '');
   public
     procedure ReadBasicData(); override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
@@ -208,11 +217,11 @@ constructor TSantosProject.Create(aSessionModel: TSessionModel;
   aDBConnection: TCustomConnection; aMapView: TMapView;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
   aStartScenario: string);
-var
-  q: TOraQuery;
+//var
+//  q: TOraQuery;
 begin
   fSantosLayers := TObjectDictionary<TScenario, TSantosLayer>.Create([]);
-  fCurrentBusBlock := 1; // Param?
+  fCurrentBusBlock := 2; // Param?
 
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
                    aDataSource, aDBConnection, aMapView, aPreLoadScenarios , False, aMaxNearestObjectDistanceInMeters);
@@ -228,9 +237,7 @@ begin
     procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
     var
       selectedTime: string;
-      active: Boolean;
       selectedEvent: TJSONValue;
-      brush: TJSONValue;
       l: TSantosLayer;
     begin
       TMonitor.Enter(fSantosLayers);
@@ -289,11 +296,24 @@ begin
   end;
 end;
 
+procedure TSantosProject.HandleDataUpdate(aSession: TOrasession;
+  aScenario: TScenario; aLayer: TSantosLayer; const aTablePrefix: string);
+var
+  stop: TPair<string, TBusStop>;
+begin
+  ReadChartBlockSoC(aSession, aScenario, aTablePrefix);
+  TMonitor.Enter(aLayer.fBusStops);
+  try
+    for stop in aLayer.fBusStops do
+      if stop.Value.isCharger then
+        ReadChartChargerTotalPower(aSession, aScenario, aTablePrefix, stop.Value.objectID, stop.Value.name);
+  finally
+    TMonitor.Exit(aLayer.fBusStops);
+  end;
+end;
+
 procedure TSantosProject.ReadBasicData;
 var
-  tablePrefix: string;
-  oraSession: TOraSession;
-  scenarioID: Integer;
   y,m,d: Word;
 begin
   setLength(fBaseDay, 3);
@@ -380,7 +400,7 @@ begin
 end;
 
 procedure TSantosProject.ReadChartChargerTotalPower(aSession: TOraSession; aScenario: TScenario;
-  const aTablePrefix: string; aCharger: Integer);
+  const aTablePrefix: string; aCharger: Integer; const aName: string = '');
 var
   zero, t: TDateTime;
   minOfDay: Integer;
@@ -389,9 +409,14 @@ var
   isNew, tableExists: Boolean;
   chgTotalPowerChart: TChart;
   chartID: string;
+  name: string;
 const
   ChgPwrChartID = 'santosChgPwr';
 begin
+  if aName.IsEmpty
+  then name := ' Charge Location ' + aCharger.ToString
+  else name := aName;
+
   zero := SantosTimeToDateTime('00:00', fBaseDay);
   tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(2,'0') + cINDIC_DAT_GRID_TOTALPOWER;
 
@@ -408,7 +433,7 @@ begin
 
   if isNew and tableExists then
   begin
-    chgTotalPowerChart := TChartLines.Create(aScenario, 'Santos' , chartID, 'Charge Location ' + aCharger.ToString + ' Total Power',
+    chgTotalPowerChart := TChartLines.Create(aScenario, 'Santos' , chartID, '' + name + ' Total Power',
                   'Charge Location ' + aCharger.ToString + ' Total Power', True, 'line',
               TChartAxis.Create('Time (hour of day)', 'lightBlue', 'Time', 'h'),
               [ TChartAxis.Create('Total Power (-)', 'lightBlue', 'Dimensionless', '-')]);
@@ -456,10 +481,11 @@ end;
 
 function TSantosProject.ReadScenario(const aID: string): TScenario;
 var
-  dbScenario: TUSDBScenario;
   oraSession: TOraSession;
-  tablePrefix: string;
+  tablePrefix, userName: string;
   santosLayer: TSantosLayer;
+  indic_event: TIMBEventEntry;
+  stop: TPair<string, TBusStop>;
 begin
   Result := inherited; // TUSStuff
   if Assigned(Result) then
@@ -473,18 +499,35 @@ begin
         try
           oraSession.ConnectString := (self as TMCProject).controlInterface.DataSource;
           oraSession.Open;
-
+          userName := oraSession.Username;
           tablePrefix := (Result as TUSScenario).Tableprefix;
 //          GetScenarioTablePrefix(oraSession,  aID);
           ReadChartBlockSoC(oraSession, Result, tablePrefix);
-          ReadChartChargerTotalPower(oraSession, Result, tablePrefix, 2); // TODO
+
+//        ReadChartChargerTotalPower(oraSession, Result, tablePrefix, 2); // TODO
+
+          indic_event := fIMB3Connection.Subscribe(userName +
+            tableprefix.Substring(tableprefix.Length-1)+ // #
+            tableprefix.Substring(0, tablePrefix.length-1)+
+            '.EBUS_INDIC_DAT', False); // add with absolute path
+
+          santosLayer := TSantosLayer.Create(Result, fCurrentBusBlock, fBaseDay[0], fBaseDay[1], fBaseDay[2], 'Santos', 'Santos'+fCurrentBusBlock.ToString,
+              'Bus block '+fCurrentBusBlock.ToString, 'Bus block '+fCurrentBusBlock.ToString+' stops',
+              (self as TMCProject).controlInterface.DataSource, tablePrefix, fIMB3Connection.Publish('EBUS_CHARGELOCATION'), indic_event);
+          if FileExists(ExtractFilePath(ParamStr(0))+'previews\Santos.png') then
+            santosLayer.previewBase64 := PNGFileToBase64(ExtractFilePath(ParamStr(0))+'previews\Santos.png');
+
+          TMonitor.Enter(santosLayer.fBusStops);
+          try
+            for stop in santosLayer.fBusStops do
+              if stop.Value.isCharger then
+                ReadChartChargerTotalPower(oraSession, Result, tablePrefix, stop.Value.objectID, stop.Value.name);
+          finally
+            TMonitor.Exit(santosLayer.fBusStops);
+          end;
         finally
           oraSession.Free;
         end;
-
-        santosLayer := TSantosLayer.Create(Result, fCurrentBusBlock, fBaseDay[0], fBaseDay[1], fBaseDay[2], 'Santos', 'Santos'+fCurrentBusBlock.ToString,
-          'Bus block '+fCurrentBusBlock.ToString, 'Bus block '+fCurrentBusBlock.ToString+' stops',
-          (self as TMCProject).controlInterface.DataSource, tablePrefix, fIMB3Connection.Publish('EBUS_CHARGELOCATION'));
 
         Result.AddLayer(santosLayer);
         fSantosLayers.Add(Result, santosLayer);
@@ -500,19 +543,23 @@ end;
 constructor TSantosLayer.Create(aScenario: TScenario; aBusBlock: Integer;
   aBaseDay, aBaseMonth, aBaseYear: Word;
   const aDomain, aID, aName, aDescription, aConnectString, aTablePrefix: string;
-  aEventEntry: TIMBEventEntry);
+  aPubEntry: TIMBEventEntry; aSubEntry: TIMBEventEntry);
 var
   oraSession: TOraSession;
   entries: TPaletteRampEntryArray;
-
 begin
   // TODO
   inherited Create(aScenario, aDomain, aID, aName, aDescription);
   fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(28992);
   fTablePrefix := aTablePrefix;
   fBlockID := aBusBlock;
-  fEventEntry := aEventEntry;
+  fEventEntry := aPubEntry;
   fConnectString := aConnectString;
+  aSubEntry.OnChangeObject := HandleOnChangeObject;
+  fUpdateTimer := fScenario.project.Timers.CreateInactiveTimer;
+  //fUpdateTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneMinute*5);
+  fUpdateTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*30);
+  fLastUpdate := hrtNow;
 
   setLength(fBaseDay, 3);
   fBaseDay[0] := aBaseDay;
@@ -796,11 +843,7 @@ begin
     finally
       TMonitor.Exit(fBusStops);
     end;
-
-
   end;
-
-
 end;
 
 procedure TSantosLayer.handleNewTime(aClient: TClient; aTime: string);
@@ -929,6 +972,16 @@ begin
   end;
 end;
 
+procedure TSantosLayer.HandleOnChangeObject(aAction, aObjectID: Integer;
+  const aObjectName, aAttribute: string);
+var
+  delta: THighResTicks;
+begin
+  delta := Max(DateTimeDelta2HRT(dtOneSecond*5),DateTimeDelta2HRT(dtOneSecond*30) - (hrtNow - fLastUpdate));
+  fUpdateTimer.Arm(delta,
+    HandleDataUpdate);
+end;
+
 procedure TSantosLayer.HandleSelectedEvent(aClient: TClient; aMessage: TJSONValue);
 begin
 end;
@@ -1011,6 +1064,40 @@ begin
 //        stop.location; // localized double
       jsonAdd(Result, '{'+entry+'}');
     end;
+  end;
+end;
+
+procedure TSantosLayer.HandleDataUpdate;
+var
+  jsonTSData: string;
+  client: TClient;
+  oraSession: TOraSession;
+begin
+  oraSession := TOraSession.Create(nil);
+  try
+    oraSession.connectString := fConnectString;
+    oraSession.Open;
+
+    // reload timetable
+    initTimeTable(oraSession);
+    if (scenario.project is TSantosProject) then
+      (scenario.project as TSantosProject).HandleDataUpdate(oraSession, scenario, self, fTablePrefix);
+  finally
+    oraSession.Free;
+  end;
+
+  fLastUpdate := aTime;
+
+  TMonitor.Enter(fScenario.clients);
+  try
+    for client in scenario.clients do
+    begin
+      // send data to time slider
+      jsonTSData := jsonTimesliderData;
+      client.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+    end;
+  finally
+    TMonitor.Exit(fScenario.clients);
   end;
 end;
 
@@ -1229,9 +1316,7 @@ begin
 
       while not query.Eof do
       begin // TODO, X,Y
-//        DecodeTime( .AsString), h,m,s,ms);
         ttEntry.timeStart := SantosTimeToDateTime (query.FieldByName('TIME').AsString, fBaseDay);
-//        StrToDateTime(today + ' ' + query.FieldByName('TIME').AsString.Trim);
         ttEntry.soc := query.FieldByName('Y').AsFloat;
         if not query.FieldByName('PLACE').IsNull then
         begin
