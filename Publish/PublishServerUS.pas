@@ -93,6 +93,7 @@ type
     objectType: string;
     geometryType: string;
     _published: Integer;
+    selectProperties: string;
     // indirect
     legendAVL: string;
     odbList: TODBList;
@@ -121,6 +122,79 @@ type
     // diffRange, double
     // title, string, null, ".."
     // description, string, null, ".."
+
+  TMetaObjectsEntry = record
+    OBJECT_ID: Integer;
+    TABLE_NAME: string;
+    LAYER_DESCRIPTION: string;
+    SELECT_PROPERTY: string;
+    PROPERTY_DESCRIPTION: string;
+    OBJECT_TYPE: string;
+    GEOMETRY_TYPE: string;
+    _published: Integer;
+  public
+    procedure ReadFromQueryRow(aQuery: TOraQuery);
+  end;
+
+  TSelectProperty = record
+    ID: Integer;
+    SelectProperty: string;
+    PropertyDescription: string;
+  public
+    function ReadFromMetaObjectsEntry(const aMetaObjectsEntry: TMetaObjectsEntry): Boolean; //returns true if property not null
+  end;
+
+  TSelectProperties = array of TSelectProperty;
+
+  TMetaBaseLayerEntry = class
+  constructor Create(const aMetaObjectsEntry: TMetaObjectsEntry);
+  destructor Destroy; override;
+  private
+    fTableName: string;
+    fLayerDescription: string;
+    fObjectType: string;
+    fGeometryType: string;
+    fPublished: Integer;
+    fSelectProperties: TDictionary<string, TSelectProperty>; //owns values, locks with TMonitor -> maybe index on id? -> index on property gives error on duplicate properties
+  public
+    property TableName: string read fTableName;
+    property LayerDescription: string read fLayerDescription;
+    property ObjectType: string read fObjectType;
+    property GeometryType: string read fGeometryType;
+    property IsPublished: Integer read fPublished;
+    function AddMetaObjectsEntry(const aMetaObjectsEntry: TMetaObjectsEntry): Boolean; //returns true if SelectProperty was not null
+    function BuildPropertiesQuery(const aPrefix: string): string;
+    function GetSelectProperties: TSelectProperties;
+  end;
+
+  TMetaBaseLayer = TObjectDictionary<string, TMetaBaseLayerEntry>;
+
+  TUSBuilderProperty = record
+    distinctCount: Integer;
+    name: string;
+    value: string;
+  public
+    function AddValue(const aValue: string): Boolean; //returns true if it's the second or more distinct value being added (value will stay '')
+    function getJSON: string;
+    function Open: Boolean;
+  end;
+
+  TUSPropertiesBuilder = class //builder is not thread safe!
+  constructor Create(aTableName: string; aSelectProperties: TSelectProperties);
+  destructor Destroy; override;
+  private
+    fTableName: string;
+    fOpenProperties: Integer;
+    fProperties: TDictionary<string, TUSBuilderProperty>;
+  protected
+    function QueryDB(aOraSession: TOraSession; const aObjectIds: string): Boolean; //returns true if all properties are "closed"
+    procedure BuildProperties(aOraSession: TOraSession; aSelectedObjects: TArray<string>);
+  public
+    procedure AddProperty(const aPropertyName: string);
+    function AddValue(const aPropertyName, aValue: string): Boolean; //returns true if all properties are "closed"
+    function GetJSON(aOraSession: TOraSession): string;
+    function Open: Boolean;
+  end;
 
   TUSRoadIC = class(TGeometryLayerObject)
   constructor Create(aLayer: TLayer; const aID: TWDID; aGeometry: TWDGeometry; aValue, aTexture: Double);
@@ -274,6 +348,22 @@ type
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
   end;
+
+  TUSBasicLayer = class (TUSLayer)
+  constructor Create (aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
+    aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
+    const aConnectString, aNewQuery, {aChangeQuery, }aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry;
+    aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; const aTableName: string; aSelectProperties: TSelectProperties);
+  destructor Destroy; override;
+  private
+    fTableName: string;
+    fSelectProperties: TSelectProperties;
+  public
+    property SelectProperties: TSelectProperties read fSelectProperties;
+    property BasicTableName: string read fTableName;
+  end;
+
+
 
   TUSControl = class
   constructor Create(aID: Integer; aName, aDescription: string; aLat, aLon: Double);
@@ -494,6 +584,37 @@ begin
   Result := TDiscretePalette.Create(aDescription, entries, TGeoColors.Create(noDataColor));
 end;
 
+function ReadMetaObjects(aSession: TOraSession; const aTablePrefix: string; aMetaBaseLayer: TMetaBaseLayer): Boolean;
+var
+  query : TOraQuery;
+  metaObjectsEntry: TMetaObjectsEntry;
+begin
+  if TableExists(aSession, aTablePrefix+'META_OBJECTS') then
+  begin
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := aSession;
+      query.SQL.Text := 'SELECT * FROM '+aTablePrefix+'META_OBJECTS';
+      query.Open;
+      while not query.Eof do
+      begin
+        // default
+        metaObjectsEntry.ReadFromQueryRow(query);
+        if aMetaBaseLayer.ContainsKey(metaObjectsEntry.TABLE_NAME) then
+          aMetaBaseLayer[metaObjectsEntry.TABLE_NAME].AddMetaObjectsEntry(metaObjectsEntry)
+        else
+          aMetaBaseLayer.Add(metaObjectsEntry.TABLE_NAME, TMetaBaseLayerEntry.Create(metaObjectsEntry));
+        query.Next;
+      end;
+      Result := True;
+    finally
+      query.Free;
+    end;
+  end
+  else
+    Result := False;
+end;
+
 function ReadMetaLayer(aSession: TOraSession; const aTablePrefix: string; aMetaLayer: TMetaLayer): Boolean;
 var
   query: TOraQuery;
@@ -512,6 +633,15 @@ begin
            'PUBLISHED INTEGER)');
     aSession.Commit;
   end;
+
+  //TODO: discuss with Hans then implement!
+//  if TableExists(aSession, aTablePrefix+'META_LAYER') and not FieldExists(aSession, aTablePrefix+'META_LAYER', 'SELECTPROPERTIES') then
+//  begin
+//    aSession.ExecSQL(
+//      'ALTER TABLE '+aTableprefix+'META_LAYER '+
+//      'ADD (SELECTPROPERTIES VARCHAR2(255 BYTE)');
+//    aSession.Commit;
+//  end;
 
   query := TOraQuery.Create(nil);
   try
@@ -894,7 +1024,7 @@ begin
   objectType := StringField('OBJECTTYPE');
   geometryType := StringField('GEOMETRYTYPE');
   _published := IntField('PUBLISHED', 1);
-
+  //selectProperties := StringField('SELECTPROPERTIES');
   {
   ALTER TABLE VXX#META_LAYER
   ADD (DOMAIN VARCHAR2(50), DESCRIPTION VARCHAR2(150), DIFFRANGE NUMBER, OBJECTTYPE VARCHAR2(50), GEOMETRYTYPE VARCHAR2(50), PUBLISHED INTEGER);
@@ -2077,12 +2207,13 @@ end;
 procedure TUSScenario.ReadBasicData;
 
   procedure AddBasicLayer(const aID, aName, aDescription, aDefaultDomain, aObjectType, aGeometryType, aQuery: string;
-    aLayerType: Integer; const aConnectString, aNewQuery, aChangeQuery: string; aOraSession: TOraSession; const aDataEvents: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem);
+    aLayerType: Integer; const aConnectString, aNewQuery, aChangeQuery: string; aOraSession: TOraSession; const aDataEvents: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem;
+    const aBasicTableName: string; aSelectProperties: TSelectProperties);
   var
-    layer: TUSLayer;
+    layer: TUSBasicLayer;
   begin
 
-    layer := TUSLayer.Create(Self,
+    layer := TUSBasicLayer.Create(Self,
 
       standardIni.ReadString('domains', aObjectType, aDefaultDomain), //  domain
       aID, aName, aDescription, false,
@@ -2093,7 +2224,8 @@ procedure TUSScenario.ReadBasicData;
        aDataEvents,
        aSourceProjection,
        TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicOutline)),
-       True);
+       aBasicTableName,
+       aSelectProperties);
     layer.query := aQuery;
     Layers.Add(layer.ID, layer);
     Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
@@ -2135,6 +2267,7 @@ procedure TUSScenario.ReadBasicData;
 
 var
   mlp: TPair<Integer, TMetaLayerEntry>;
+  mblp: TPair<string, TMetaBaseLayerEntry>;
   layer: TUSLayer;
   indicTableNames: TAllRowsSingleFieldResult;
 //  tableName: string;
@@ -2142,6 +2275,7 @@ var
 //  i: Integer;
   oraSession: TOraSession;
   metaLayer: TMetaLayer;
+  metaBaseLayer: TMetaBaseLayer;
   connectString: string;
   sourceProjection: TGIS_CSProjectedCoordinateSystem;
   aID: string;
@@ -2238,7 +2372,29 @@ begin
 //    end;
 //  end;
 
-  ReadUSControls(oraSession);
+  //ReadUSControls(oraSession);
+
+  //process base layers
+  if addBasicLayers then
+  begin
+    metaBaseLayer := TMetaBaseLayer.Create([doOwnsValues]);
+    try
+      ReadMetaObjects(oraSession, fTablePrefix, metaBaseLayer);
+      for mblp in metaBaseLayer do
+      begin
+        if mblp.Value.IsPublished > 0 then
+        begin
+          AddBasicLayer(mblp.Value.ObjectType, mblp.Value.LayerDescription, mblp.Value.LayerDescription, 'basic structures', mblp.Value.ObjectType, mblp.Value.GeometryType,
+            'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+fTablePrefix.ToUpper+ mblp.Value.TableName + ' t', GetBasicLayerType(mblp.Value.GeometryType),
+            connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, mblp.Value.TableName), sourceProjection, fTablePrefix.ToUpper+ mblp.Value.TableName, mblp.Value.GetSelectProperties);
+        end;
+      end;
+      //-> add base layers
+    finally
+      FreeAndNil(metaBaseLayer);
+    end;
+
+  end;
 
   // process meta layer to build list of available layers
   metaLayer := TMetaLayer.Create;
@@ -2249,26 +2405,26 @@ begin
     begin
       if mlp.Value._published>0 then
       begin
-        if (mlp.Value.LAYER_TYPE = 99) and addBasicLayers then
-        begin
-          aID := mlp.Value.description.ToLower.Replace(' ', '', [rfReplaceAll]);
-          if aID.EndsWith('s') then
-            aID := aID.Remove(aID.Length-1, 1);
-
-          AddBasicLayer(aID, mlp.Value.description, mlp.Value.description, mlp.Value.domain, mlp.Value.objectType, mlp.Value.geometryType,
-            'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+fTablePrefix.ToUpper+ mlp.Value.LAYER_TABLE + ' t', GetBasicLayerType(mlp.Value.geometryType),
-            connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, mlp.Value.LAYER_TABLE), sourceProjection);
-        end
-        else if (mlp.Value.LAYER_TYPE = 98) and addBasicLayers then //controls basic layer!
-        begin
-          aID := mlp.Value.description.ToLower.Replace(' ', '', [rfReplaceAll]);
-          if aID.EndsWith('s') then
-            aID := aID.Remove(aID.Length-1, 1);
-          AddBasicLayer(aID, mlp.Value.description, mlp.Value.description, mlp.Value.domain, mlp.Value.objectType, mlp.Value.geometryType,
-            mlp.Value.SQLQuery(fTablePrefix.ToUpper), 10,
-            connectString, mlp.Value.SQLQueryNew(fTablePrefix.ToUpper), mlp.Value.SQLQueryChangeMultiple(fTablePrefix.ToUpper), oraSession, SubscribeDataEvents(oraSession.Username, mlp.Value.LAYER_TABLE), sourceProjection);
-        end
-        else
+//        if (mlp.Value.LAYER_TYPE = 99) and addBasicLayers then
+//        begin
+//          aID := mlp.Value.description.ToLower.Replace(' ', '', [rfReplaceAll]);
+//          if aID.EndsWith('s') then
+//            aID := aID.Remove(aID.Length-1, 1);
+//          AddBasicLayer(aID, mlp.Value.description, mlp.Value.description, mlp.Value.domain, mlp.Value.objectType, mlp.Value.geometryType,
+//            'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+fTablePrefix.ToUpper+ mlp.Value.LAYER_TABLE + ' t', GetBasicLayerType(mlp.Value.geometryType),
+//            connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, mlp.Value.LAYER_TABLE), sourceProjection);
+//        end
+//        else if (mlp.Value.LAYER_TYPE = 98) and addBasicLayers then //controls basic layer!
+//        begin
+//          aID := mlp.Value.description.ToLower.Replace(' ', '', [rfReplaceAll]);
+//          if aID.EndsWith('s') then
+//            aID := aID.Remove(aID.Length-1, 1);
+//          AddBasicLayer(aID, mlp.Value.description, mlp.Value.description, mlp.Value.domain, mlp.Value.objectType, mlp.Value.geometryType,
+//            mlp.Value.SQLQuery(fTablePrefix.ToUpper), 10,
+//            connectString, mlp.Value.SQLQueryNew(fTablePrefix.ToUpper), mlp.Value.SQLQueryChangeMultiple(fTablePrefix.ToUpper), oraSession, SubscribeDataEvents(oraSession.Username, mlp.Value.LAYER_TABLE), sourceProjection);
+//        end
+//        else
+        if (mlp.Value.LAYER_TYPE < 50) then
         begin
           // try tablename-value, legend description-value..
           layerInfoKey := mlp.Value.LAYER_TABLE.Trim+'-'+mlp.Value.VALUE_EXPR.trim;
@@ -2513,9 +2669,30 @@ begin
 end;
 
 function TUSScenario.selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string;
+var
+  layer: TLayerBase;
+  queryString: string;
+  oraSession: TOraSession;
+  objectIDs: string;
 begin
-  // todo: implement
   Result := '';
+  if length(aSelectCategories) > 0 then
+  begin
+    TMonitor.Enter(fLayers);
+    try
+      if fLayers.TryGetValue(aSelectCategories[0], layer) and (layer is TUSLayer) then
+      begin
+
+      end;
+    finally
+      TMonitor.Exit(fLayers);
+    end;
+    if queryString <> '' then
+    begin
+      oraSession := (project as TUSProject).OraSession;
+      //todo fire query -> build response!
+    end;
+  end;
 end;
 
 procedure TUSScenario.SendUSControlsMessage(aClient: TClient);
@@ -3917,6 +4094,290 @@ destructor TUSControlStatus.Destroy;
 begin
 
   inherited;
+end;
+
+{ TMetaObjectsEntry }
+
+procedure TMetaObjectsEntry.ReadFromQueryRow(aQuery: TOraQuery);
+  function StringField(const aFieldName: string; const aDefaultValue: string=''): string;
+  var
+    F: TField;
+  begin
+    F := aQuery.FieldByName(aFieldName);
+    if Assigned(F) and not F.IsNull
+    then Result := F.AsString
+    else Result := aDefaultValue;
+  end;
+
+  function IntField(const aFieldName: string; aDefaultValue: Integer=0): Integer;
+  var
+    F: TField;
+  begin
+    F := aQuery.FieldByName(aFieldName);
+    if Assigned(F) and not F.IsNull
+    then Result := F.AsInteger
+    else Result := aDefaultValue;
+  end;
+
+  function DoubleField(const aFieldName: string; aDefaultValue: Double=NaN): Double;
+  var
+    F: TField;
+  begin
+    F := aQuery.FieldByName(aFieldName);
+    if Assigned(F) and not F.IsNull
+    then Result := F.AsFloat
+    else Result := aDefaultValue;
+  end;
+begin
+  OBJECT_ID := IntField('OBJECT_ID');
+  TABLE_NAME := StringField('TABLE_NAME').ToUpper;
+  LAYER_DESCRIPTION := StringField('LAYER_DESCRIPTION');
+  SELECT_PROPERTY := StringField('PROPERTY');
+  PROPERTY_DESCRIPTION := StringField('PROPERTY_DESCRIPTION');
+  OBJECT_TYPE := StringField('OBJECT_TYPE');
+  GEOMETRY_TYPE := StringField('GEOMETRY_TYPE');
+  _published := IntField('PUBLISHED');
+end;
+
+{ TSelectProperty }
+
+function TSelectProperty.ReadFromMetaObjectsEntry(
+  const aMetaObjectsEntry: TMetaObjectsEntry): Boolean;
+begin
+  ID := aMetaObjectsEntry.OBJECT_ID;
+  if aMetaObjectsEntry.SELECT_PROPERTY <> '' then
+  begin
+    Result := True;
+    SelectProperty := aMetaObjectsEntry.SELECT_PROPERTY;
+    PropertyDescription := aMetaObjectsEntry.PROPERTY_DESCRIPTION;
+  end
+  else
+    Result := False;
+
+end;
+
+{ TMetaBaseLayerEntry }
+
+function TMetaBaseLayerEntry.AddMetaObjectsEntry(
+  const aMetaObjectsEntry: TMetaObjectsEntry): Boolean;
+var
+  SelectProperty: TSelectProperty;
+begin
+  Result := False;
+  if aMetaObjectsEntry._published > 0 then
+  begin
+    fPublished := aMetaObjectsEntry._published;
+    if SelectProperty.ReadFromMetaObjectsEntry(aMetaObjectsEntry) then
+    begin
+      TMonitor.Enter(fSelectProperties);
+      try
+        fSelectProperties.Add(SelectProperty.SelectProperty, SelectProperty);
+        Result := True;
+      finally
+        TMonitor.Exit(fSelectProperties);
+      end;
+
+    end;
+  end;
+end;
+
+function TMetaBaseLayerEntry.BuildPropertiesQuery(
+  const aPrefix: string): string;
+var
+  SelectProperty: TSelectProperty;
+begin
+  Result := '';
+  TMonitor.Enter(fSelectProperties);
+  try
+    if fSelectProperties.Count > 0 then
+    begin
+      for SelectProperty in fSelectProperties.Values do
+      begin
+        if Result <> '' then
+          Result := Result + ', ';
+        Result := Result + SelectProperty.SelectProperty;
+        Result := 'SELECT ' + Result + ' FROM ' + aPrefix + fTableName + ' WHERE OBJECT_ID in ';
+      end;
+    end;
+  finally
+    TMonitor.Exit(fSelectProperties);
+  end;
+
+end;
+
+constructor TMetaBaseLayerEntry.Create(
+  const aMetaObjectsEntry: TMetaObjectsEntry);
+begin
+  fSelectProperties := TDictionary<string, TSelectProperty>.Create;
+  fTableName := aMetaObjectsEntry.TABLE_NAME;
+  fLayerDescription := aMetaObjectsEntry.LAYER_DESCRIPTION;
+  fObjectType := aMetaObjectsEntry.OBJECT_TYPE;
+  fGeometryType := aMetaObjectsEntry.GEOMETRY_TYPE;
+  fPublished := aMetaObjectsEntry._published;
+  AddMetaObjectsEntry(aMetaObjectsEntry);
+end;
+
+destructor TMetaBaseLayerEntry.Destroy;
+begin
+  FreeAndNil(fSelectProperties);
+  inherited;
+end;
+
+function TMetaBaseLayerEntry.GetSelectProperties: TSelectProperties;
+var
+  SelectProperty: TSelectProperty;
+  index: Integer;
+begin
+  index := 0;
+  TMonitor.Enter(fSelectProperties);
+  try
+    SetLength(Result, fSelectProperties.Count);
+    for SelectProperty in fSelectProperties.Values do
+    begin
+      Result[index] := SelectProperty;
+    end;
+  finally
+    TMonitor.Exit(fSelectProperties);
+  end;
+end;
+
+{ TUSBasicLayer }
+
+constructor TUSBasicLayer.Create(aScenario: TScenario; const aDomain, aID,
+  aName, aDescription: string; aDefaultLoad: Boolean; const aObjectTypes,
+  aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
+  const aConnectString, aNewQuery, aChangeMultipleQuery: string;
+  const aDataEvent: array of TIMBEventEntry;
+  aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette;
+  const aTableName: string; aSelectProperties: TSelectProperties);
+begin
+  fTableName := aTableName;
+  fSelectProperties := aSelectProperties;
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes,
+    aGeometryType, aLayerType, aDiffRange, aConnectString, aNewQuery, aChangeMultipleQuery, aDataEvent,
+    aSourceProjection, aPalette, True);
+end;
+
+destructor TUSBasicLayer.Destroy;
+begin
+  inherited;
+  fSelectProperties := nil;
+end;
+
+{ TUSPropertiesBuilder }
+
+procedure TUSPropertiesBuilder.AddProperty(const aPropertyName: string);
+var
+  BuilderProperty: TUSBuilderProperty;
+begin
+  BuilderProperty.name := aPropertyName;
+  if not fProperties.ContainsKey(aPropertyName) then
+    fProperties.Add(aPropertyName, BuilderProperty)
+  else
+    Log.WriteLn('TUSPropertiesBuilder.AddProperty duplicate property: ' + aPropertyName);
+end;
+
+function TUSPropertiesBuilder.AddValue(const aPropertyName,
+  aValue: string): Boolean;
+begin
+  Result := False;
+  if fProperties.ContainsKey(aPropertyName) and fProperties[aPropertyName].AddValue(aValue) then
+  begin
+    fOpenProperties := fOpenProperties - 1;
+    if fOpenProperties = 0 then
+      Result := True;
+  end;
+end;
+
+procedure TUSPropertiesBuilder.BuildProperties(aOraSession: TOraSession;
+  aSelectedObjects: TArray<string>);
+begin
+
+end;
+
+constructor TUSPropertiesBuilder.Create(aTableName: string;
+  aSelectProperties: TSelectProperties);
+var
+  SelectProperty: TSelectProperty;
+begin
+  fTableName := aTableName;
+  for SelectProperty in aSelectProperties do
+    AddProperty(SelectProperty.SelectProperty);
+  fOpenProperties := fProperties.Count;
+end;
+
+destructor TUSPropertiesBuilder.Destroy;
+begin
+
+  inherited;
+end;
+
+function TUSPropertiesBuilder.GetJSON(aOraSession: TOraSession): string;
+begin
+
+end;
+
+function TUSPropertiesBuilder.Open: Boolean;
+begin
+  Result := fOpenProperties > 0;
+end;
+
+function TUSPropertiesBuilder.QueryDB(aOraSession: TOraSession;
+  const aObjectIds: string): Boolean;
+var
+ queryString: string;
+ BuilderProperty: TUSBuilderProperty;
+ Query: TOraQuery;
+begin
+  for BuilderProperty in fProperties.Values do
+    if BuilderProperty.Open then
+    begin
+      if queryString <> '' then
+        queryString := queryString + ',';
+      queryString := queryString + BuilderProperty.name;
+    end;
+  if queryString <> '' then
+  begin
+    queryString := 'SELECT ' + queryString + ' FROM ' + fTableName +
+      ' WHERE OBJECT_ID in (' + aObjectIds + ')';
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := aOraSession;
+      query.SQL.Text := queryString;
+      query.UniDirectional := True;
+      query.Open;
+      query.First;
+      while (not query.Eof) and Open do
+        begin
+          for BuilderProperty in fProperties.Values do
+            if BuilderProperty.Open then
+              AddValue(BuilderProperty.name, query.FieldByName(BuilderProperty.name).AsString);
+          query.Next;
+        end;
+    finally
+      query.Free
+    end;
+    Result := not Open;
+  end
+  else
+    Result := True;
+end;
+
+{ TUSBuilderProperty }
+
+function TUSBuilderProperty.AddValue(const aValue: string): Boolean;
+begin
+
+end;
+
+function TUSBuilderProperty.getJSON: string;
+begin
+
+end;
+
+function TUSBuilderProperty.Open: Boolean;
+begin
+  Result := distinctCount <= 1;
 end;
 
 end.

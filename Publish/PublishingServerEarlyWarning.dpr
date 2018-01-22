@@ -86,7 +86,7 @@ type
     procedure triggerUpdateTimesliderData;
   protected
     procedure handleNewTime(aClient: TClient; const aTime: string; aPrivateSensorEvent, aPrivateMeteoEvent: TEventEntry);
-    procedure handleUpdateLayerObject(aPayload: TJSONObject); override;
+    procedure handleUpdateLayerObject(aClient: TClient; aPayload: TJSONObject); override;
   public
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
     function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
@@ -612,7 +612,7 @@ begin
   end;
 end;
 
-procedure TSensorsLayer2.handleUpdateLayerObject(aPayload: TJSONObject);
+procedure TSensorsLayer2.handleUpdateLayerObject(aClient: TClient; aPayload: TJSONObject);
 begin
   Log.WriteLn('handleUpdateLayerObject: '+aPayload.ToJSON);
 end;

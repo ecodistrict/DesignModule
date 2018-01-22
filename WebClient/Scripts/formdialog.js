@@ -210,7 +210,11 @@ function openFormDialog(aTitle, aData) {
             f.appendChild(optionWrapper);
         } else if (formElement === 'select') {
 
+            var selectedDefault = false;
             //console.log(options);
+            if (extraOptions && typeof extraOptions.defaultValue != "undefined") {
+                selectedDefault = extraOptions.defaultValue;
+            }
 
             for (var i = 0; i < optionsArray.length; i++) {
                 option = optionsArray[i];
@@ -221,6 +225,9 @@ function openFormDialog(aTitle, aData) {
                 } else {
                     opt.value = option;
                     opt.innerHTML = option;
+                }
+                if (selectedDefault && opt.value == selectedDefault) {
+                    opt.selected = "selected";
                 }
 
                 container.appendChild(opt);
