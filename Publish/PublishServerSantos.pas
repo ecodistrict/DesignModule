@@ -127,6 +127,7 @@ type
     fConnectString: string;
     fUpdateTimer: TTimer;
     fLastUpdate: THighResTicks;
+    fCurrentTime: TDateTime;
 
 
     procedure initStops(aSession: TOraSession);
@@ -737,6 +738,7 @@ begin
   // send data to time slider
   jsonTSData := jsonTimesliderData;
   aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+  aClient.signalString('{"type":"timesliderEvents","payload":{"setCurrentTime":"'+FormatDateTime(publisherDateTimeFormat, fCurrentTime)+'"}}');
 end;
 
 procedure TSantosLayer.HandleFormResult(aFormResult: TJSONObject);
@@ -861,8 +863,23 @@ var
   J: Integer;
   stop: TBusStop;
   ssid: string;
+  client: TClient;
 begin
   time := StrToDateTime(aTime, isoDateTimeFormatSettings);
+
+  fCurrentTime := time;
+  TMonitor.Enter(fScenario.clients);
+  try
+    for client in fScenario.clients do
+    begin
+      // send new time to all other clients
+      if Client<>aClient then
+        client.signalString('{"type":"timesliderEvents","payload":{"setCurrentTime":"'+FormatDateTime(publisherDateTimeFormat, fCurrentTime)+'"}}');
+    end;
+  finally
+    TMonitor.Exit(fScenario.clients);
+  end;
+
   stopID := '';
   found := false;
   iNearest := -1;
@@ -1090,7 +1107,7 @@ begin
 
   TMonitor.Enter(fScenario.clients);
   try
-    for client in scenario.clients do
+    for client in fScenario.clients do
     begin
       // send data to time slider
       jsonTSData := jsonTimesliderData;
@@ -1356,6 +1373,8 @@ begin
     finally
       query.Free;
     end;
+
+    fCurrentTime := now;
 
   finally
     TMonitor.Exit(fTimeTable);
