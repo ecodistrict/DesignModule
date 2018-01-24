@@ -2,10 +2,8 @@ unit PublishServerSantos;
 
 // TODO -oPW onclick TSimpleObject?
 
-// TODO -oPW - timeslider voor alle clients ?
-//           - how to handle updated INDIC_DAT, update map colors: all clients?
-//           -   keep time per client, or all clients on same time?
-
+// Legend?
+// show graph via Event on ChargeLoc?
 
 interface
 
@@ -163,8 +161,11 @@ type
     procedure HandleDataUpdate(aSession: TOrasession; aScenario: TScenario; aLayer: TSantosLayer; const aTablePrefix: string);
     function  ReadScenario(const aID: string): TScenario; override;
     procedure ReadChartBlockSoC(aSession: TOraSession; aScenario: TScenario; const aTablePrefix: string);
-    procedure ReadChartChargerTotalPower(aSession: TOraSession; aScenario: TScenario;  const aTablePrefix: string;
+    procedure ReadChartChargerTotalPower(aSession: TOraSession; aScenario: TScenario; const aTablePrefix: string;
                                          aCharger: Integer; const aName: string = '');
+    procedure ReadChartChargerPeakBusses(aSession: TOraSession; aScenario: TScenario; const aTablePrefix: string;
+                                         aCharger: Integer; const aName: string = '');
+
   public
     procedure ReadBasicData(); override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
@@ -307,7 +308,10 @@ begin
   try
     for stop in aLayer.fBusStops do
       if stop.Value.isCharger then
+      begin
         ReadChartChargerTotalPower(aSession, aScenario, aTablePrefix, stop.Value.objectID, stop.Value.name);
+        ReadChartChargerPeakBusses(aSession, aScenario, aTablePrefix, stop.Value.objectID, stop.Value.name);
+      end;
   finally
     TMonitor.Exit(aLayer.fBusStops);
   end;
@@ -396,6 +400,87 @@ begin
       end;
     finally
       TMonitor.Exit(socChart);
+    end;
+  end;
+end;
+
+procedure TSantosProject.ReadChartChargerPeakBusses(aSession: TOraSession;
+  aScenario: TScenario; const aTablePrefix: string; aCharger: Integer;
+  const aName: string);
+var
+  zero, t: TDateTime;
+  minOfDay: Integer;
+  query: TOraQuery;
+  tableName: String;
+  isNew, tableExists: Boolean;
+  chgPeakBussesChart: TChart;
+  chartID: string;
+  name: string;
+const
+  ChgPwrChartID = 'santosPeakBusses';
+begin
+  if aName.IsEmpty
+  then name := ' Charge Location ' + aCharger.ToString
+  else name := aName;
+
+  zero := SantosTimeToDateTime('00:00', fBaseDay);
+  tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(2,'0') + cINDIC_DAT_GRID_PEAK_BUSSES;
+
+  tableExists := MyOraLib.TableExists(aSession, tableName);
+
+  chartID := ChgPwrChartID + aCharger.ToString;
+
+  TMonitor.Enter(aScenario.Charts);
+  try
+    isNew := not aScenario.Charts.TryGetValue(chartID, chgPeakBussesChart);
+  finally
+    TMonitor.Exit(aScenario.Charts);
+  end;
+
+  if isNew and tableExists then
+  begin
+    chgPeakBussesChart := TChartLines.Create(aScenario, 'Santos' , chartID, '' + name + ' Peak Busses',
+                  'Charge Location ' + aCharger.ToString + ' Peak Busses', True, 'line',
+              TChartAxis.Create('Time (hour of day)', 'lightBlue', 'Time', 'h'),
+              [ TChartAxis.Create('Peak busses (-)', 'lightBlue', 'Dimensionless', '-')]);
+  end;
+
+  if Assigned(chgPeakBussesChart) then
+  begin
+    TMonitor.enter(chgPeakBussesChart);
+    try
+       // Clear
+      if not isNew then
+        chgPeakBussesChart.reset;
+
+      if tableExists then
+      begin
+        query := TOraQuery.Create(nil);
+        try
+          query.Session := aSession;
+          query.SQL.Text := 'SELECT LPAD(TRIM(X), 5, ''0'') as TIME,Y ' +
+                            'FROM ' + tableName + ' ORDER BY TIME ASC';
+          query.Open;
+            while not Query.Eof do
+            begin
+              t := SantosTimeToDateTime(Query.FieldByName('TIME').AsString,fBaseDay);
+              minOfDay := MinutesBetween(zero, t) *60;
+              (chgPeakBussesChart as TChartLines).AddValue(
+                minOfDay,
+                [Query.FieldByName('Y').AsFloat]
+              );
+              Query.Next;
+            end;
+
+        finally
+          query.Free;
+        end;
+      end;
+
+      if isNew then
+        aScenario.addChart(chgPeakBussesChart);
+    finally
+      TMonitor.Exit(chgPeakBussesChart);
     end;
   end;
 end;
@@ -505,8 +590,6 @@ begin
 //          GetScenarioTablePrefix(oraSession,  aID);
           ReadChartBlockSoC(oraSession, Result, tablePrefix);
 
-//        ReadChartChargerTotalPower(oraSession, Result, tablePrefix, 2); // TODO
-
           indic_event := fIMB3Connection.Subscribe(userName +
             tableprefix.Substring(tableprefix.Length-1)+ // #
             tableprefix.Substring(0, tablePrefix.length-1)+
@@ -522,7 +605,10 @@ begin
           try
             for stop in santosLayer.fBusStops do
               if stop.Value.isCharger then
+              begin
                 ReadChartChargerTotalPower(oraSession, Result, tablePrefix, stop.Value.objectID, stop.Value.name);
+                ReadChartChargerPeakBusses(oraSession, Result, tablePrefix, stop.Value.objectID, stop.Value.name);
+              end;
           finally
             TMonitor.Exit(santosLayer.fBusStops);
           end;
