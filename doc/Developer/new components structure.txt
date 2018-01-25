@@ -1,0 +1,77 @@
+Domains
+** L.Control.Domains, domains.js
+	> domains {} //counters, indexed on domain name
+	] initialize (domains, options)
+	] _expand
+	] _collapse
+	] AddDomainComponent (domainName)
+	] RemoveDomainComponent (domainName)
+	] ClickDomain //click event -> notifies DetailsControl
+
+Details
+** L.Control.Details, details.js
+	> detailComponents {} //arrays of components, indexed on domain they fall under
+	> container // div that holds all the previews
+	] initialize (options)
+	] _expand
+	] _collapse
+	] AddDetailComponent (DetailsComponent) // also calls AddDomainComponent(DetailsComponent.Domain) on DomainsControl
+	] RemoveDetailComponent (DetailsComponent) // also calls RemoveDomainComponent(DetailsComponent.Domain) on DomainsControl
+
+Component
+** Base Class for all Components
+	> id
+	] *virtual* Update (updatePayload)
+	] *virtual* Reset () // do we want a reset? New system we can just delete and remake components?
+	
+DetailsComponent *interface*
+** Base Interface for all the details components
+	> Domain
+	> Type?? //do we want to store if it's kpi/chart/layer etc?
+	] GetPreview (width, height)
+	
+BaseLayer : Component
+	...
+	] Initialize // if layer is a details layer registers with detailsControl!
+	] ShowComponent // handles showing of layer, also calls AddVisibleLayer(self) on LayerManager
+	...
+	
+ComponentsManager
+** BaseClass for components management (layers, controls, charts etc)
+	> components {} //components, indexed on id;
+	] AddComponents (payload) //called from publisher
+	] RemoveComponents (payload) //called from publisher
+	] UpdateComponents (payload) //called from publisher
+	] *abstract* CreateComponent (componentPayload) : Component //called from AddComponents 
+	
+LayerManager : ComponentsManager
+** (LayerManager.js) Manager that handles all layer components
+	> _visibleLayers [] // contains all visible layers, needed for cdr and legend management
+	] *override* CreateComponent (componentPayload) : BaseLayer
+	] SetNextLegend
+	] SetNextCRD
+	] AddVisibleLayer (BaseLayer) //called from BaseLayer.
+	] RemoveVisibleLayer (BaseLayer)
+	
+GraphManager : ComponentsManager
+** (graphManager.js) Maanger that handles all graph components
+	> _alignedGraphs[] // contains all visible graphs, needed for set positioning
+	> _movedGraphs[] // contains all graphs that have been moved (no set positioning)
+	> _hiddenGraphs[] // all graphs that are not visible
+	> container // div that contains all graphs
+	> zIndexManager // manages z indexes (clicking a graph will put it on top)
+		> baseIndex
+		> graphDivs []
+		] updateIndexes
+		] focus (graphID)
+		] newGraph (graphDiv)
+		] removeGraph (graphID)
+	] *override* CreateComponent (componentPayload) : BaseGraph
+	] RepositionGraphs
+	] PositionGraph
+	
+Zoiets is het idee. DetailsComponents registeren zichzelf bij het detailsControl die vervolgens weer in contact staat met domainscontrol. Maar alle components kunnen ook op andere manieren weergegeven worden (direct aangestuurd door de publisher, base layers etc)
+	
+	
+	
+	

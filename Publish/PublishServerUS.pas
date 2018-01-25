@@ -2288,7 +2288,6 @@ var
   layerInfoKey: string;
   layerInfo: string;
   layerInfoParts: TArray<string>;
-
   dom: string;
   nam: string;
 begin
