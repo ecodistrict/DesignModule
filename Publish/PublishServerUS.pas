@@ -131,6 +131,7 @@ type
     PROPERTY_DESCRIPTION: string;
     OBJECT_TYPE: string;
     GEOMETRY_TYPE: string;
+    EDITABLE: Integer;
     _published: Integer;
   public
     procedure ReadFromQueryRow(aQuery: TOraQuery);
@@ -140,6 +141,7 @@ type
     ID: Integer;
     SelectProperty: string;
     PropertyDescription: string;
+    Editable: Integer;
   public
     function ReadFromMetaObjectsEntry(const aMetaObjectsEntry: TMetaObjectsEntry): Boolean; //returns true if property not null
   end;
@@ -169,9 +171,14 @@ type
 
   TMetaBaseLayer = TObjectDictionary<string, TMetaBaseLayerEntry>;
 
-  TUSBuilderProperty = record
+  TUSBuilderProperty = class
+  constructor Create(aSelectProperty: TSelectProperty);
+  destructor Destroy; override;
+  public
     distinctCount: Integer;
     name: string;
+    description: string;
+    editable: Boolean;
     value: string;
   public
     function AddValue(const aValue: string): Boolean; //returns true if it's the second or more distinct value being added (value will stay '')
@@ -185,14 +192,14 @@ type
   private
     fTableName: string;
     fOpenProperties: Integer;
-    fProperties: TDictionary<string, TUSBuilderProperty>;
+    fProperties: TObjectDictionary<string, TUSBuilderProperty>;
   protected
     function QueryDB(aOraSession: TOraSession; const aObjectIds: string): Boolean; //returns true if all properties are "closed"
     procedure BuildProperties(aOraSession: TOraSession; aSelectedObjects: TArray<string>);
   public
-    procedure AddProperty(const aPropertyName: string);
+    procedure AddProperty(const aSelectProperty: TSelectProperty);
     function AddValue(const aPropertyName, aValue: string): Boolean; //returns true if all properties are "closed"
-    function GetJSON(aOraSession: TOraSession): string;
+    function GetJSON: string;
     function Open: Boolean;
   end;
 
@@ -2278,7 +2285,6 @@ var
   metaBaseLayer: TMetaBaseLayer;
   connectString: string;
   sourceProjection: TGIS_CSProjectedCoordinateSystem;
-  aID: string;
   layerInfoKey: string;
   layerInfo: string;
   layerInfoParts: TArray<string>;
@@ -2671,26 +2677,44 @@ end;
 function TUSScenario.selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string;
 var
   layer: TLayerBase;
-  queryString: string;
+  basicLayer: TUSBasicLayer;
   oraSession: TOraSession;
-  objectIDs: string;
+  propertyBuilder: TUSPropertiesBuilder;
+  ids, id: string;
 begin
   Result := '';
   if length(aSelectCategories) > 0 then
   begin
     TMonitor.Enter(fLayers);
     try
-      if fLayers.TryGetValue(aSelectCategories[0], layer) and (layer is TUSLayer) then
-      begin
-
-      end;
+      fLayers.TryGetValue(aSelectCategories[0], layer);
     finally
       TMonitor.Exit(fLayers);
     end;
-    if queryString <> '' then
+    if Assigned(layer) and (layer is TUSBasicLayer) then
     begin
+      basicLayer := (layer as TUSBasicLayer);
       oraSession := (project as TUSProject).OraSession;
-      //todo fire query -> build response!
+      try
+        propertyBuilder := TUSPropertiesBuilder.Create(basicLayer.BasicTableName, basicLayer.SelectProperties);
+        propertyBuilder.BuildProperties(oraSession, aSelectedObjects);
+        for id in aSelectedObjects do
+        begin
+          if ids <> '' then
+            ids := ids + ',';
+          ids := ids + id;
+        end;
+
+        Result := '{"selectedObjectsProperties":'+
+              '{'+
+                '"selectedCategories": ["'+layer.ID+'"],'+
+                '"properties":['+propertyBuilder.GetJSON+'],'+
+                '"selectedObjects":['+ids+']'+
+              '}'+
+            '}';
+      finally
+        FreeAndNil(propertyBuilder);
+      end;
     end;
   end;
 end;
@@ -4136,6 +4160,7 @@ begin
   PROPERTY_DESCRIPTION := StringField('PROPERTY_DESCRIPTION');
   OBJECT_TYPE := StringField('OBJECT_TYPE');
   GEOMETRY_TYPE := StringField('GEOMETRY_TYPE');
+  EDITABLE := IntField('EDITABLE', 0);
   _published := IntField('PUBLISHED');
 end;
 
@@ -4150,6 +4175,7 @@ begin
     Result := True;
     SelectProperty := aMetaObjectsEntry.SELECT_PROPERTY;
     PropertyDescription := aMetaObjectsEntry.PROPERTY_DESCRIPTION;
+    Editable := aMetaObjectsEntry.EDITABLE;
   end
   else
     Result := False;
@@ -4235,6 +4261,7 @@ begin
     for SelectProperty in fSelectProperties.Values do
     begin
       Result[index] := SelectProperty;
+      index := index + 1;
     end;
   finally
     TMonitor.Exit(fSelectProperties);
@@ -4266,15 +4293,15 @@ end;
 
 { TUSPropertiesBuilder }
 
-procedure TUSPropertiesBuilder.AddProperty(const aPropertyName: string);
+procedure TUSPropertiesBuilder.AddProperty(const aSelectProperty: TSelectProperty);
 var
   BuilderProperty: TUSBuilderProperty;
 begin
-  BuilderProperty.name := aPropertyName;
-  if not fProperties.ContainsKey(aPropertyName) then
-    fProperties.Add(aPropertyName, BuilderProperty)
+  BuilderProperty := TUSBuilderProperty.Create(aSelectProperty);
+  if not fProperties.ContainsKey(aSelectProperty.SelectProperty) then
+    fProperties.Add(aSelectProperty.SelectProperty, BuilderProperty)
   else
-    Log.WriteLn('TUSPropertiesBuilder.AddProperty duplicate property: ' + aPropertyName);
+    Log.WriteLn('TUSPropertiesBuilder.AddProperty duplicate property: ' + aSelectProperty.SelectProperty);
 end;
 
 function TUSPropertiesBuilder.AddValue(const aPropertyName,
@@ -4291,8 +4318,26 @@ end;
 
 procedure TUSPropertiesBuilder.BuildProperties(aOraSession: TOraSession;
   aSelectedObjects: TArray<string>);
+var
+  index, counter, amount: Integer;
+  ids: string;
 begin
-
+  index := 0;
+  amount := Length(aSelectedObjects);
+  while amount > index do
+  begin
+    counter := 0;
+    ids := '';
+    while (amount > index) and (counter <= 1000) do
+    begin
+      if ids <> '' then
+        ids := ids + ',';
+      ids := ids + aSelectedObjects[index];
+      index := index + 1;
+      counter := counter + 1;
+    end;
+    QueryDB(aOraSession, ids);
+  end;
 end;
 
 constructor TUSPropertiesBuilder.Create(aTableName: string;
@@ -4301,20 +4346,29 @@ var
   SelectProperty: TSelectProperty;
 begin
   fTableName := aTableName;
+  fProperties := TObjectDictionary<string, TUSBuilderProperty>.Create([doOwnsValues]);
   for SelectProperty in aSelectProperties do
-    AddProperty(SelectProperty.SelectProperty);
+    AddProperty(SelectProperty);
   fOpenProperties := fProperties.Count;
 end;
 
 destructor TUSPropertiesBuilder.Destroy;
 begin
-
+  FreeAndNil(fProperties);
   inherited;
 end;
 
-function TUSPropertiesBuilder.GetJSON(aOraSession: TOraSession): string;
+function TUSPropertiesBuilder.GetJSON: string;
+var
+  builderProperty: TUSBuilderProperty;
 begin
-
+  Result := '';
+  for builderProperty in fProperties.values do
+  begin
+    if Result <> '' then
+      Result := Result + ',';
+    Result := Result + '{' + builderProperty.getJSON + '}';
+  end;
 end;
 
 function TUSPropertiesBuilder.Open: Boolean;
@@ -4367,12 +4421,79 @@ end;
 
 function TUSBuilderProperty.AddValue(const aValue: string): Boolean;
 begin
+  Result := False;
+  if distinctCount = 0 then
+  begin
+    value := aValue;
+    distinctCount := distinctCount + 1;
+  end
+  else if distinctCount = 1 then
+  begin
+    if value <> aValue then
+    begin
+      distinctCount := distinctCount + 1;
+      value := '';
+      Result := True;
+    end;
+  end;
+end;
 
+constructor TUSBuilderProperty.Create(aSelectProperty: TSelectProperty);
+begin
+  distinctCount := 0;
+  value := '';
+  name := aSelectProperty.SelectProperty;
+  description := aSelectProperty.PropertyDescription;
+  if aSelectProperty.Editable > 0 then
+    Editable := True
+  else
+    Editable := False;
+end;
+
+destructor TUSBuilderProperty.Destroy;
+begin
+  inherited;
 end;
 
 function TUSBuilderProperty.getJSON: string;
+var
+  doubleValue: Double;
+  valueString: string;
+  editableString: string;
 begin
+  {
+    "name" : "Height",
+    "value" : 5 | "Marie" | false, 300.3
+    "type" : "list" | "string" | "int" | "float" | "bool",
+    "editable" : "Y" | "N",
+    "options" : [1, 3, 343, 5],
+    "forced" : "Y" | "N"
+  }
+  if value <> '' then
+  begin
+    try
+      doubleValue := StrToFloat(value);
+      valueString := doubleValue.ToString(dotFormat);
+    except
+      on E: Exception do
+      begin
+        valueString := value;
+      end;
+    end;
+  end
+  else
+    valueString := value;
 
+  if Editable then
+    editableString := 'true'
+  else
+    editableString := 'false';
+
+  Result :=
+    '"name":"'+description+'",'+
+    '"type":"string",'+
+    '"editable":"'+editableString+'",'+
+    '"value":"'+valueString + '"';
 end;
 
 function TUSBuilderProperty.Open: Boolean;
