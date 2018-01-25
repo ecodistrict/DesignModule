@@ -177,7 +177,8 @@ L.Control.TimeSlider = L.Control.extend({
             return xaxis.scale().invert(d3.select(aTimesliderDiv).select('.selectedTime').node().getAttribute('x') - aTimesliderDiv.xSelTextOffset);
         };
 
-        aTimesliderDiv.setCurrentTime = function (aNewTime, aDelta) {
+        aTimesliderDiv.doSetCurrentTime = function (aNewTime, aDelta) {
+             // Set time, no event
             // locally store current time
             var currentTime = aTimesliderDiv.getCurrentTime();
             // decode time if necessary
@@ -219,6 +220,11 @@ L.Control.TimeSlider = L.Control.extend({
             // adjust events to new scale
             updateEvents();
             updateBrush();
+            return selectedTimeText;
+        };
+
+        aTimesliderDiv.setCurrentTime = function (aNewTime, aDelta) {
+            var selectedTimeText = aTimesliderDiv.doSetCurrentTime(aNewTime, aDelta);
             // send new time to publisher
             wsSend({
                 type: "timeslider",
@@ -287,6 +293,12 @@ L.Control.TimeSlider = L.Control.extend({
             else if (payload.addEvents) {
                 aTimesliderDiv.addEvents(payload.addEvents);
             }
+
+            if (payload.setCurrentTime) {
+                aTimesliderDiv.doSetCurrentTime(payload.setCurrentTime);
+                //doSetCurrentTime
+            }
+
         };
 
         /*
