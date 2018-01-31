@@ -127,7 +127,6 @@ type
     fLastUpdate: THighResTicks;
     fCurrentTime: TDateTime;
 
-
     procedure initStops(aSession: TOraSession);
     procedure initTimeTable(aSession: TOraSession);
     procedure initChargerTypes(aSession: TOraSession);
@@ -161,9 +160,12 @@ type
     procedure HandleDataUpdate(aSession: TOrasession; aScenario: TScenario; aLayer: TSantosLayer; const aTablePrefix: string);
     function  ReadScenario(const aID: string): TScenario; override;
     procedure ReadChartBlockSoC(aSession: TOraSession; aScenario: TScenario; const aTablePrefix: string);
+
     procedure ReadChartChargerTotalPower(aSession: TOraSession; aScenario: TScenario; const aTablePrefix: string;
                                          aCharger: Integer; const aName: string = '');
     procedure ReadChartChargerPeakBusses(aSession: TOraSession; aScenario: TScenario; const aTablePrefix: string;
+                                         aCharger: Integer; const aName: string = '');
+    procedure ReadChartChargerWarnings(aSession: TOraSession; aScenario: TScenario; const aTablePrefix: string;
                                          aCharger: Integer; const aName: string = '');
 
   public
@@ -184,7 +186,8 @@ const
 function SantosTimeToDateTime(const aTime: string; aBaseDay: Array of word): TDateTime;
 var
   parts: TArray<String>;
-  d, h,m: Integer;
+  d, // amount of days to increase (h>24)
+  h,m: Integer;
 begin
   if aTime.IsEmpty then
     Result := EncodeDateTime(aBaseDay[2], aBaseDay[1], aBaseDay[0], 0, 0, 0, 0)
@@ -193,13 +196,15 @@ begin
     parts := aTime.Trim.Split([':']);
     if TryStrToInt(parts[0], h) and TryStrToInt(parts[1], m) then
     begin
-      d := aBaseDay[0];
+      d := 0;
       while h>=24 do
       begin
         Inc(d);
         h := h-24;
       end;
-      Result := EncodeDateTime(aBaseDay[2], aBaseDay[1], d, h, m, 0, 0)
+      Result := EncodeDateTime(aBaseDay[2], aBaseDay[1], aBaseDay[0], h, m, 0, 0);
+      if d>0 then
+        IncDay(Result, d);
     end
     else
       Result := EncodeDateTime(aBaseDay[2], aBaseDay[1], aBaseDay[0], 0, 0, 0, 0);
@@ -219,8 +224,6 @@ constructor TSantosProject.Create(aSessionModel: TSessionModel;
   aDBConnection: TCustomConnection; aMapView: TMapView;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
   aStartScenario: string);
-//var
-//  q: TOraQuery;
 begin
   fSantosLayers := TObjectDictionary<TScenario, TSantosLayer>.Create([]);
   fCurrentBusBlock := 2; // Param?
@@ -230,7 +233,6 @@ begin
 
   EnableControl(modelControl);
   SetControl('timeslider', '1');
-
 
   fTimeSliderTimer := Timers.CreateInactiveTimer;
   fTimeSliderTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*0.5);
@@ -311,6 +313,7 @@ begin
       begin
         ReadChartChargerTotalPower(aSession, aScenario, aTablePrefix, stop.Value.objectID, stop.Value.name);
         ReadChartChargerPeakBusses(aSession, aScenario, aTablePrefix, stop.Value.objectID, stop.Value.name);
+        ReadChartChargerWarnings(aSession, aScenario, aTablePrefix, stop.Value.objectID, stop.Value.name);
       end;
   finally
     TMonitor.Exit(aLayer.fBusStops);
@@ -422,7 +425,9 @@ begin
   if aName.IsEmpty
   then name := ' Charge Location ' + aCharger.ToString
   else name := aName;
-
+  {$IFDEF DEBUG}
+  Log.WriteLn('Loading peak busses chart for: ' + name);
+  {$ENDIF}
   zero := SantosTimeToDateTime('00:00', fBaseDay);
   tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(2,'0') + cINDIC_DAT_GRID_PEAK_BUSSES;
 
@@ -502,7 +507,9 @@ begin
   if aName.IsEmpty
   then name := ' Charge Location ' + aCharger.ToString
   else name := aName;
-
+  {$IFDEF DEBUG}
+  Log.WriteLn('Loading total power chart for: ' + name);
+  {$ENDIF}
   zero := SantosTimeToDateTime('00:00', fBaseDay);
   tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(2,'0') + cINDIC_DAT_GRID_TOTALPOWER;
 
@@ -565,6 +572,89 @@ begin
   end;
 end;
 
+procedure TSantosProject.ReadChartChargerWarnings(aSession: TOraSession;
+  aScenario: TScenario; const aTablePrefix: string; aCharger: Integer;
+  const aName: string);
+var
+  zero, t: TDateTime;
+  minOfDay: Integer;
+  query: TOraQuery;
+  tableName: String;
+  isNew, tableExists: Boolean;
+  chgPeakBussesChart: TChart;
+  chartID: string;
+  name: string;
+const
+  ChgPwrChartID = 'santosNumberWarn';
+begin
+  if aName.IsEmpty
+  then name := ' Charge Location ' + aCharger.ToString
+  else name := aName;
+  {$IFDEF DEBUG}
+  Log.WriteLn('Loading peak busses warnings chart for: ' + name);
+  {$ENDIF}
+  zero := SantosTimeToDateTime('00:00', fBaseDay);
+  tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(2,'0') + cINDIC_DAT_GRID_PEAK_BUSSES_WARN;
+
+  tableExists := MyOraLib.TableExists(aSession, tableName);
+
+  chartID := ChgPwrChartID + aCharger.ToString;
+
+  TMonitor.Enter(aScenario.Charts);
+  try
+    isNew := not aScenario.Charts.TryGetValue(chartID, chgPeakBussesChart);
+  finally
+    TMonitor.Exit(aScenario.Charts);
+  end;
+
+  if isNew and tableExists then
+  begin
+    chgPeakBussesChart := TChartLines.Create(aScenario, 'Santos' , chartID, '' + name + ' Peak Busses Warnings',
+                  'Charge Location ' + aCharger.ToString + ' peak busses warnings', True, 'line',
+              TChartAxis.Create('Time (hour of day)', 'lightBlue', 'Time', 'h'),
+              [ TChartAxis.Create('Peak Busses Warnings (-)', 'lightBlue', 'Dimensionless', '-')]);
+  end;
+
+  if Assigned(chgPeakBussesChart) then
+  begin
+    TMonitor.enter(chgPeakBussesChart);
+    try
+       // Clear
+      if not isNew then
+        chgPeakBussesChart.reset;
+
+      if tableExists then
+      begin
+        query := TOraQuery.Create(nil);
+        try
+          query.Session := aSession;
+          query.SQL.Text := 'SELECT LPAD(TRIM(X), 5, ''0'') as TIME,Y ' +
+                            'FROM ' + tableName + ' ORDER BY TIME ASC';
+          query.Open;
+            while not Query.Eof do
+            begin
+              t := SantosTimeToDateTime(Query.FieldByName('TIME').AsString,fBaseDay);
+              minOfDay := MinutesBetween(zero, t) *60;
+              (chgPeakBussesChart as TChartLines).AddValue(
+                minOfDay,
+                [Query.FieldByName('Y').AsFloat]
+              );
+              Query.Next;
+            end;
+
+        finally
+          query.Free;
+        end;
+      end;
+
+      if isNew then
+        aScenario.addChart(chgPeakBussesChart);
+    finally
+      TMonitor.Exit(chgPeakBussesChart);
+    end;
+  end;
+end;
+
 function TSantosProject.ReadScenario(const aID: string): TScenario;
 var
   oraSession: TOraSession;
@@ -608,6 +698,7 @@ begin
               begin
                 ReadChartChargerTotalPower(oraSession, Result, tablePrefix, stop.Value.objectID, stop.Value.name);
                 ReadChartChargerPeakBusses(oraSession, Result, tablePrefix, stop.Value.objectID, stop.Value.name);
+                ReadChartChargerWarnings(oraSession, Result, tablePrefix, stop.Value.objectID, stop.Value.name);
               end;
           finally
             TMonitor.Exit(santosLayer.fBusStops);
@@ -902,7 +993,6 @@ begin
                 'WHERE OBJECT_ID='+stop.objectID.ToString;
             oraQuery.Execute;
 //            oraQuery.CommitUpdates;
-            log.WriteLn(oraQuery.SQL.Text, llSummary);
           finally
             oraQuery.free;
           end;
@@ -1080,7 +1170,7 @@ procedure TSantosLayer.HandleOnChangeObject(aAction, aObjectID: Integer;
 var
   delta: THighResTicks;
 begin
-  delta := Max(DateTimeDelta2HRT(dtOneSecond*5),DateTimeDelta2HRT(dtOneSecond*30) - (hrtNow - fLastUpdate));
+  delta := Max(DateTimeDelta2HRT(dtOneSecond*3),DateTimeDelta2HRT(dtOneSecond*20) - (hrtNow - fLastUpdate));
   fUpdateTimer.Arm(delta,
     HandleDataUpdate);
 end;
@@ -1178,6 +1268,7 @@ var
 begin
   oraSession := TOraSession.Create(nil);
   try
+    Log.WriteLn('Data changed. Updating');
     oraSession.connectString := fConnectString;
     oraSession.Open;
 
@@ -1209,6 +1300,7 @@ var
   query: TOraQuery;
 begin
   query := TOraQuery.Create(nil);
+  Log.WriteLn('Loading charger types');
   try
     query.Session := aSession;
     query.SQL.Text :=
@@ -1242,6 +1334,7 @@ var
   removeObjects: TList<TSimpleObject>;
 begin
   TMonitor.Enter(fBusStops);
+  Log.WriteLn('Loading stops');
   try
     removeObjects := TList<TSimpleObject>.create;
     try
@@ -1391,6 +1484,7 @@ begin
   tableName := 'EBUS_INDIC_DAT10' + fBlockID.ToString.PadLeft(2,'0') + '01'; // SoC
   indicTableExists := MyOraLib.TableExists(aSession, fTablePrefix+tableName);
 
+  Log.WriteLn('Loading timetable');
   TMonitor.Enter(fTimeTable);
   try
     fTimeTable.Clear;
