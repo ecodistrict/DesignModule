@@ -364,7 +364,7 @@ begin
     socChart := TChartLines.Create(aScenario, 'Santos' , SocChartID, 'State of Charge',
                  'State of Charge', True, 'line',
               TChartAxis.Create('Time (hour of day)', 'lightBlue', 'Time', 'h'{, True, 0, 36*60*60}),
-              [ TChartAxis.Create('State of Charge (%)', 'lightBlue', 'Dimensionless', '%'{, True, 0, 100})]);
+              [ TChartAxis.Create('State of Charge (%)', 'lightBlue', 'Dimensionless', '%', True, 0, 100)]);
   end;
 
   if Assigned(socChart) then
