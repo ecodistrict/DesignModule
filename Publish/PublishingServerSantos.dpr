@@ -89,7 +89,7 @@ var
 
 constructor TModel.Create;
 begin
-  inherited Create('Publishing');
+  inherited Create('PublishingServerSantos');
   fIMBLogger := nil;
   fSantosProject := nil;
   // imb4
@@ -241,9 +241,9 @@ begin
     fSantosProject.Timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fSantosProject);
 
-    dbConnection := TOraSession.Create(nil);
-    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-    dbConnection.Open;
+//    dbConnection := TOraSession.Create(nil);
+//    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
+//    dbConnection.Open;
 
     // todo: relink existing clients
 
@@ -267,7 +267,9 @@ begin
     // erase recovery section to NOT start in recovery mode next time
     //StandardIni.EraseSection(RecoverySection);
     // execute actions needed to stop the model
+
     fSessionModel.Projects.Clear;
+
     System.TMonitor.Enter(Log);
     try
       WriteLn('Stop model');
