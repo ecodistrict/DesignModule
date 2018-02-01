@@ -258,6 +258,8 @@ begin
     // erase recovery section to NOT start in recovery mode next time
     //StandardIni.EraseSection(RecoverySection);
     // execute actions needed to stop the model
+    fSessionModel.Projects.Clear;
+
     System.TMonitor.Enter(Log);
     try
       WriteLn('Stop model');
