@@ -446,6 +446,10 @@ var wsLookup = {
     },
     timesliderEvents: function (payload) {
         timeslider.HandleEvents(payload);
+    },
+    userMessages: function (payload) {
+        for (let i = 0; i < payload.length; i++)
+            AddErrorMessage(payload[i].text, payload[i].type, payload[i].timeout);
     }
 };
 

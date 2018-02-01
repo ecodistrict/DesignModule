@@ -54,7 +54,7 @@ LayerManager : ComponentsManager
 	] RemoveVisibleLayer (BaseLayer)
 	
 GraphManager : ComponentsManager
-** (graphManager.js) Maanger that handles all graph components
+** (graphManager.js) Mananger that handles all graph components
 	> _alignedGraphs[] // contains all visible graphs, needed for set positioning
 	> _movedGraphs[] // contains all graphs that have been moved (no set positioning)
 	> _hiddenGraphs[] // all graphs that are not visible

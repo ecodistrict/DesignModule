@@ -330,6 +330,7 @@ var GraphManager = {
         graphObject.margins = (typeof graphObject.margins === 'undefined') ? GraphManager.defaultValues.margins : graphObject.margins;
         graphObject.showLabels = (typeof graphObject.showLabels === 'undefined') ? GraphManager.defaultValues.showLabels : graphObject.showLabels;
         graphObject.showLegends = (typeof graphObject.showLegends === 'undefined') ? GraphManager.defaultValues.showLegends : graphObject.showLegends;
+        graphObject.clickable = (typeof graphObject.clickable === 'undefined') ? GraphManager.defaultValues.clickable : graphObject.clickable;
         return graphObject;
     },
 

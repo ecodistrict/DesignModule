@@ -179,9 +179,10 @@ type
     name: string;
     description: string;
     editable: Boolean;
+    dataType: string;
     value: string;
   public
-    function AddValue(const aValue: string): Boolean; //returns true if it's the second or more distinct value being added (value will stay '')
+    function AddValue(const aValue: string; const aDataType: TFieldType): Boolean; //returns true if it's the second or more distinct value being added (value will stay '')
     function getJSON: string;
     function Open: Boolean;
   end;
@@ -198,9 +199,36 @@ type
     procedure BuildProperties(aOraSession: TOraSession; aSelectedObjects: TArray<string>);
   public
     procedure AddProperty(const aSelectProperty: TSelectProperty);
-    function AddValue(const aPropertyName, aValue: string): Boolean; //returns true if all properties are "closed"
+    function AddValue(const aPropertyName, aValue: string; const aDataType: TFieldType): Boolean; //returns true if all properties are "closed"
     function GetJSON: string;
     function Open: Boolean;
+  end;
+
+  TUSCommitProperty = class
+  constructor Create(aSelectProperty: TSelectProperty);
+  destructor Destroy; override;
+  private
+    fName: string;
+    fValue: Variant;
+    fStringValue: string;
+    fDataType: string;
+  public
+    function AddValue(const aValue, aType: string): Boolean;
+    property ValueAsString: string read fStringValue;
+  end;
+
+  TUSBasicLayer = class; //forward
+
+  TUSCommitPropertyBuilder = class
+  constructor Create(aTableName: string; aSelectProperties: TSelectProperties);
+  destructor Destroy; override;
+  private
+    fTableName: string;
+    fProperties: TDictionary<string, TSelectProperty>;
+    fChangedProperties: TObjectDictionary<string, TUSCommitProperty>;
+  public
+    procedure ParseJSONProperties(aJSONProperties: TJSONArray);
+    function CommitChangesToDB(aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; aBasicLayer: TUSBasicLayer; out aChangedCount: Integer): Boolean;
   end;
 
   TUSRoadIC = class(TGeometryLayerObject)
@@ -370,8 +398,6 @@ type
     property BasicTableName: string read fTableName;
   end;
 
-
-
   TUSControl = class
   constructor Create(aID: Integer; aName, aDescription: string; aLat, aLon: Double);
   destructor Destroy; override;
@@ -412,7 +438,7 @@ type
     fUpdateThread: TThread;
     procedure ReadIndicators (aTableNames: array of string; aOraSession: TOraSession);
     procedure ReadIndicator (aTableName: string; aOraSession: TOraSession);
-    procedure ReadUSControls (aOraSession: TOraSession);
+    //procedure ReadUSControls (aOraSession: TOraSession);
     procedure HandleControlsUpdate(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
     procedure HandleControlsQueueEvent();
   public
@@ -2634,6 +2660,7 @@ begin
     ReadIndicator(tableName, aOraSession);
 end;
 
+{
 procedure TUSScenario.ReadUSControls(aOraSession: TOraSession);
 var
  query: TOraQuery;
@@ -2666,6 +2693,7 @@ begin
     end;
   end;
 end;
+}
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aSelectedIDs: TArray<string>): string;
 begin
@@ -2755,6 +2783,11 @@ begin
             totalObjectCount := totalObjectCount+objectCount;
           end;
         end;
+      end;
+      if totalObjectCount >300 then
+      begin
+        objectsGeoJSON := '';
+        aClient.SendMessage('Selected too many objects to display', mtWarning);
       end;
       Result :=
         '{"selectedObjects":{"selectCategories":['+categories+'],'+
@@ -3085,6 +3118,12 @@ var
   jsonMeasure, jsonArrayItem, jsonValue: TJSONValue;
   jsonStringValue, selectCategoriesString, selectedObjectsString: string;
   responseJSON, requestType, requestID: string;
+  baseLayer: TLayerBase;
+  selectionLayer: TUSBasicLayer;
+  jsonSelectedCategories: TJSONArray;
+  jsonProperties: TJSONArray;
+  commitBuilder: TUSCommitPropertyBuilder;
+  changedCount: Integer;
 begin
   inherited;
   if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
@@ -3137,6 +3176,26 @@ begin
       aClient.signalString(responseJSON);
     end;
     //TODO: generate a response for unknown requestTypes? -> Requires work around for the inheritance fallthrough
+  end;
+  if aJSONObject.TryGetValue<TJSONValue>('applyObjectsProperties', jsonValue) then
+  begin
+    Log.WriteLn('Apply object properties');
+    jsonSelectedCategories := jsonValue.GetValue<TJSONArray>('selectedCategories');
+    if jsonValue.TryGetValue<TJSONArray>('selectedObjects', selectedObjects)
+      and jsonValue.TryGetValue<TJSONArray>('selectedCategories', selectCategories)
+      and (jsonSelectedCategories.Count=1)
+      and aScenario.Layers.TryGetValue(jsonSelectedCategories.Items[0].Value, baseLayer)
+      and (baseLayer is TUSBasicLayer) then
+    begin
+      selectionLayer := (baseLayer as TUSBasicLayer);
+      jsonProperties := jsonValue.GetValue<TJSONArray>('properties');
+      commitBuilder := TUSCommitPropertyBuilder.Create(selectionLayer.BasicTableName, selectionLayer.SelectProperties);
+      commitBuilder.ParseJSONProperties(jsonProperties);
+      if commitBuilder.CommitChangesToDB(OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
+        aClient.SendMessage('Succesfully applied changes. Objects changed: ' + changedCount.toString, mtSucces, 10000)
+      else
+        aClient.SendMessage('Error applying changes. Objects changed before error: ' + changedCount.toString, mtError);
+    end;
   end;
 end;
 
@@ -4304,10 +4363,10 @@ begin
 end;
 
 function TUSPropertiesBuilder.AddValue(const aPropertyName,
-  aValue: string): Boolean;
+  aValue: string; const aDataType: TFieldType): Boolean;
 begin
   Result := False;
-  if fProperties.ContainsKey(aPropertyName) and fProperties[aPropertyName].AddValue(aValue) then
+  if fProperties.ContainsKey(aPropertyName) and fProperties[aPropertyName].AddValue(aValue, aDataType) then
   begin
     fOpenProperties := fOpenProperties - 1;
     if fOpenProperties = 0 then
@@ -4381,6 +4440,7 @@ var
  queryString: string;
  BuilderProperty: TUSBuilderProperty;
  Query: TOraQuery;
+ field: TField;
 begin
   for BuilderProperty in fProperties.Values do
     if BuilderProperty.Open then
@@ -4404,7 +4464,10 @@ begin
         begin
           for BuilderProperty in fProperties.Values do
             if BuilderProperty.Open then
-              AddValue(BuilderProperty.name, query.FieldByName(BuilderProperty.name).AsString);
+            begin
+              field := query.FieldByName(BuilderProperty.name);
+              AddValue(BuilderProperty.name, field.AsString, field.DataType);
+            end;
           query.Next;
         end;
     finally
@@ -4418,12 +4481,19 @@ end;
 
 { TUSBuilderProperty }
 
-function TUSBuilderProperty.AddValue(const aValue: string): Boolean;
+function TUSBuilderProperty.AddValue(const aValue: string; const aDataType: TFieldType): Boolean;
 begin
   Result := False;
   if distinctCount = 0 then
   begin
     value := aValue;
+    case aDataType of
+      ftSmallint, ftInteger, ftLargeint, ftShortint, ftLongWord, ftWord: dataType := 'int';
+      ftBoolean: dataType := 'bool';
+      ftFloat, ftSingle: dataType := 'float';
+    else
+      dataType := 'string';
+    end;
     distinctCount := distinctCount + 1;
   end
   else if distinctCount = 1 then
@@ -4441,6 +4511,7 @@ constructor TUSBuilderProperty.Create(aSelectProperty: TSelectProperty);
 begin
   distinctCount := 0;
   value := '';
+  dataType := '';
   name := aSelectProperty.SelectProperty;
   description := aSelectProperty.PropertyDescription;
   if aSelectProperty.Editable > 0 then
@@ -4490,7 +4561,7 @@ begin
 
   Result :=
     '"name":"'+description+'",'+
-    '"type":"string",'+
+    '"type":"'+dataType+'",'+
     '"editable":"'+editableString+'",'+
     '"value":"'+valueString + '"';
 end;
@@ -4498,6 +4569,146 @@ end;
 function TUSBuilderProperty.Open: Boolean;
 begin
   Result := distinctCount <= 1;
+end;
+
+{ TUSCommitProperty }
+
+function TUSCommitProperty.AddValue(const aValue, aType: string): Boolean;
+var
+  parsedValue : Variant;
+begin
+  Result := True;
+  fDataType := aType;
+  try
+    if aType = 'int' then
+      parsedValue := StrToInt(aValue)
+    else if aType = 'float' then
+      parsedValue := StrToFloat(aValue)
+    else if aType = 'bool' then
+      parsedValue := StrToBool(aValue)
+    else
+      parsedValue := aValue;
+
+    fValue := parsedValue;
+    fStringValue := aValue;
+  except
+    on E: Exception do
+    begin
+     Result := False;
+     //todo: logging?
+    end;
+  end;
+end;
+
+constructor TUSCommitProperty.Create(aSelectProperty: TSelectProperty);
+begin
+  fName := aSelectProperty.SelectProperty;
+end;
+
+destructor TUSCommitProperty.Destroy;
+begin
+
+  inherited;
+end;
+
+{ TUSCommitPropertyBuilder }
+
+function TUSCommitPropertyBuilder.CommitChangesToDB(aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; aBasicLayer: TUSBasicLayer; out aChangedCount: Integer): Boolean;
+var
+  baseQuery: string;
+  valueArray: array of Variant;
+  properties: string;
+  commitProperty: TUSCommitProperty;
+  index, objectID: Integer;
+  selectedID: TJSONValue;
+  publishEvent: TIMBEventEntry;
+  obj: TLayerObject;
+begin
+  Result := True;
+  aChangedCount := 0;
+  if fChangedProperties.Count > 0 then
+  begin
+    properties := '';
+    SetLength(valueArray, fChangedProperties.Count + 1);
+    index := 0;
+    for commitProperty in fChangedProperties.Values do
+    begin
+      if properties <> '' then
+        properties := properties + ',';
+      properties := properties + commitProperty.fName + '= :' + commitProperty.fName;
+      valueArray[index] := commitProperty.fStringValue;
+      index := index + 1;
+    end;
+    baseQuery := 'UPDATE ' + fTableName + ' ' +
+                  'SET ' + properties + ' ' +
+                  'WHERE OBJECT_ID = :ID';
+
+    publishEvent := aUSIMBConnection.Publish(aOraSession.Username + '#' + aBasicLayer.fTableName.Split(['#'])[0] + '.' + aBasicLayer.fTableName.Split(['#'])[1], false);
+    try
+      try
+        for selectedID in aSelectedObjects do
+        if TryStrToInt(selectedId.Value, objectId) and aBasicLayer.Objects.TryGetValue(AnsiString(objectID.ToString), obj) then
+        begin
+          valueArray[index] := obj.ID;
+          aOraSession.ExecSQL(baseQuery, valueArray);
+          aOraSession.Commit;
+          for commitProperty in fChangedProperties.Values do
+          begin
+            publishEvent.SignalChangeObject(actionChange, objectID, commitProperty.fName);
+          end;
+          aChangedCount := aChangedCount + 1;
+        end;
+      except
+        on E: Exception do
+        begin
+          Result := False
+          //todo: add error logging
+        end;
+      end;
+    finally
+      publishEvent.UnPublish;
+    end;
+  end;
+end;
+
+constructor TUSCommitPropertyBuilder.Create(aTableName: string;
+  aSelectProperties: TSelectProperties);
+var
+  selectProperty: TSelectProperty;
+begin
+  fTableName := aTableName;
+  fProperties := TDictionary<string, TSelectProperty>.Create;
+  for selectProperty in aSelectProperties do
+    if selectProperty.Editable > 0 then
+      fProperties.Add(selectProperty.PropertyDescription, selectProperty);
+  fChangedProperties := TObjectDictionary<string, TUSCommitProperty>.Create([doOwnsValues]);
+end;
+
+destructor TUSCommitPropertyBuilder.Destroy;
+begin
+  FreeAndNil(fProperties);
+  FreeAndNil(fChangedProperties);
+  inherited;
+end;
+
+procedure TUSCommitPropertyBuilder.ParseJSONProperties(aJSONProperties: TJSONArray);
+var
+  jsonProperty, jsonType, jsonValue, jsonName: TJSONValue;
+  selectProperty: TSelectProperty;
+  commitProperty: TUSCommitProperty;
+begin
+  for jsonProperty in aJSONProperties do
+    if jsonProperty.TryGetValue<TJSONValue>('name', jsonName)
+      and fProperties.TryGetValue(jsonName.Value, selectProperty)
+      and jsonProperty.TryGetValue<TJSONValue>('value', jsonValue)
+      and jsonProperty.TryGetValue<TJSONValue>('type', jsonType) then
+    begin
+      commitProperty := TUSCommitProperty.Create(selectProperty);
+      if (commitProperty.AddValue(jsonValue.Value, jsonType.Value)) then
+        fChangedProperties.Add(selectProperty.SelectProperty, commitProperty) //hand over ownership
+      else
+        FreeAndNil(commitProperty); //destroy if ownership hasn't passed
+    end;
 end;
 
 end.
