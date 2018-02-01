@@ -29,13 +29,7 @@ uses
   System.SysUtils,
   System.RegularExpressions;
 
-{
-  emmission layer
-  sensor layer -> point value, concentration, time,
-}
-
 const
-
   sensordata_longitude             = 129;               //tag 16
   sensordata_latitude              = 121;               //tag 15
 
@@ -67,27 +61,6 @@ const
 
   meteodata_winddirection          = 129;
   meteodata_windspeed              = 137;
-  //meteodata_gust                   = 145;
-  //meteodata_temperature            = 153;
-  //meteodata_minimumtemperature     = 161;
-  //meteodata_dewpoint               = 169;
-  //meteodata_sunshine               = 177;
-  //meteodata_globalradiation        = 185;
-  //meteodata_precipitationduration  = 193;
-  //meteodata_precipitation          = 201;
-  //meteodata_pressureatsealevel     = 209;
-  //meteodata_moninobukhovlength     = 217;
-  //meteodata_mixinglayerheight      = 225;
-  //meteodata_visibility             = 232;
-  //meteodata_cloudiness             = 240;
-  //meteodata_relativehumidity       = 248;
-  //meteodata_weathercode1           = 256;
-  //meteodata_weathercode2           = 264;
-  //meteodata_fog                    = 272;
-  //meteodata_rainfall               = 280;
-  //meteodata_snow                   = 288;
-  //meteodata_thunder                = 296;
-  //meteodata_iceformation           = 304;
 
   kpi_road_segment_id              = 2880;              // tag 360
   kpi_TransportMode                = 3042;              //tag 380
@@ -99,7 +72,7 @@ const
   TimeSpanSwitch = 'timespan';
   DefaultTimeSpan = 7;
 
-  MaxNoSensorValueTime = 0.5/24; // half hour
+  MaxNoSensorValueTime = 5/(60*24); // 5 minutes
 
 type
   TSesmiClient = class(TClient)
@@ -107,7 +80,7 @@ type
   protected
     procedure Login(aJSONObject: TJSONObject); override;
   end;
-
+  {
   TTimedValue = record
     time: Double;
     value: Double;
@@ -124,7 +97,9 @@ type
     procedure UpdateValue(aTimeStamp, aValue: Double);
     procedure Reset();
   end;
+  }
 
+  {
   TSesmiTileLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aKey: UInt32; const aEventName: string; aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean=False);
@@ -144,27 +119,9 @@ type
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
   end;
-{
-  TSesmiTrackLayer  = class(TLayer)
-  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean);
-  private
-    fEvent: TEventEntry;
-    fEventHandler: TOnEvent;
-  public
-    procedure HandleEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
-  public
-    function HandleClientSubscribe(aClient: TClient): Boolean; override;
-    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
-  public
-    procedure RegisterLayer; override;
-    procedure RegisterSlice; override;
-    function SliceType: Integer; override;
-  end;
- }
-
+  }
   TSesmiTrackLayer = class(TLayer)
-  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean; aPallette: TWDPalette; aLegendJSON: string);
-  destructor Destroy; override;
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean; const aLegendJSON: string; aPalette: TWDPalette);
   protected
   public
     procedure AddPoint(aObjectID: TGUID; aLat, aLon, aValue: Double);
@@ -173,7 +130,7 @@ type
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
   end;
-
+  {
   TSesmiMobileSensorLayer  = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
   destructor Destroy; override;
@@ -196,7 +153,8 @@ type
     procedure RegisterSlice; override;
     function SliceType: Integer; override;
   end;
-
+  }
+  {
   TSesmiLinkLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean;  aPalette: TWDPalette; aLegendJSON: string; aChart, aTotalChart: TChartLines);
   destructor Destroy; override;
@@ -220,7 +178,8 @@ type
     procedure RegisterSlice; override;
     procedure RegisterLayer; override;
   end;
-
+  }
+  {
   TSesmiWindData = class
   constructor Create(aProject: TProject);
   private
@@ -233,7 +192,9 @@ type
   public
     property project: TProject read fProject;
   end;
+  }
 
+  {
   TSesmiSpiderChart = class(TSpiderChart)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aDataEvent: TEventEntry;
     aSegment: Integer; const aComponent: string);
@@ -245,22 +206,25 @@ type
     fComponent: string;
     procedure handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
   end;
-
+  }
   TSesmiScenario = class(TScenario)
   constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean);
   destructor Destroy; override;
   private
-    fLinkLayers: TDictionary<Integer, TSesmiLinkLayer>;
+    //fLinkLayers: TDictionary<Integer, TSesmiLinkLayer>;
     fTrackLayers: TDictionary<Integer, TSesmiTrackLayer>;
     fLastLats: TDictionary<TGUID, Double>;
     fLastLons: TDictionary<TGUID, Double>;
     fSensorsDataSet: TSensorsDataSet;
     fTimeSliderDataTimer: TTimer;
+    fFirstTimeSliderUpdate: Boolean;
+    fMobileChart: TChartLines;
+    fTotalChart: TChartLines;
+    fFiltered: Boolean;
     procedure triggerUpdateTimesliderData;
-    function jsonTimesliderData(aTag: Integer; aPalette: TWDPalette): string;
+    function jsonTimesliderData(aTag: Integer; aPalette: TWDPalette; var aExtent: TWDExtent): string;
   protected
     fGUID: TGUID;
-    fLive: Boolean;
     fQueryCounter: Integer;
     fQuerySubscribed: Boolean;
     fPubEvent: TEventEntry;
@@ -273,77 +237,35 @@ type
     procedure handleLiveEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleQueryEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleUniEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-    procedure handleTimeSliderEventData(const aSensorid: TGUID; aTimestamp: TDateTime; aFieldInfo: UInt32; aLat, aLon, aValue: Double);
-    procedure AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette, aTrackPalette: TWDPalette; const aLegendJSON: string);
+    procedure addToSensorDataSet(const aSensorid: TGUID; aTimestamp: TDateTime; aFieldInfo: UInt32; aLat, aLon, aValue: Double);
   public
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    procedure HandleTimeSliderEvent(aClient: TClient; const aType: string; aPayload: TJSONObject);
+    procedure ProcessRecord(
+      aTrackLayer: TSesmiTrackLayer; aMobileChart, aTotalChart: TChartLines;
+      aCursor: TCursor;
+      var aLat, aLon: Double;
+      var aTimeStamp: TDateTime;
+      var aValue, aTotalValue: Double);
   public
     procedure InquireDB(const aInquire: string; const aLowerTimestamp, aUpperTimestamp: Double);
     procedure ReadBasicData(); override;
-    procedure addConcentrationLayer(
-      const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-      aKey: UInt32; const aEventName: string;
-      aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean=False);
-    procedure AddLink(const aGuid: TGUID; const aGeometry: TWDGeometry);
-    procedure GoLive(const first: Boolean = False);
-    procedure GoDB(const aInquire: string; const aLowerTimestamp, aUpperTimestamp: Double);
-    procedure Reset;
-
-    property Live: Boolean read fLive;
-  public
-//    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
-//    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
-//    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aQuery: string): string; overload; override;
-//
-//    function selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string; override;
   end;
 
   TSesmiProject = class(TProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
-    aAddBasicLayers: Boolean; const aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
-  destructor Destroy; override;
+    aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
   private
-    fPubEvent: TEventEntry;
-    fNetworkEvent: TEventEntry;
-    fLinks: TDictionary<TGUID, TWDGeometry>;
-    fSourceProjection: TGIS_CSProjectedCoordinateSystem;
-    fWindData: TSesmiWindData;
     fExpertScenarioGUID: TGUID;
-    //fComplaints: TSesmiComplaints;
-    //fSensorsLayer: TSesmiSensorsLayer;
-    procedure InquireNetwork;
-    procedure handleNetworkEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
   protected
-    procedure ReadObjects(aSender: TObject);
-    function getMeasuresJSON: string; override;
     function handleTilerStatus(aTiler: TTiler): string;
     procedure handleNewClient(aClient: TClient); override;
-  public
-    function ReadScenario(const aID: string): TScenario; override;
-    procedure ReadBasicData(); override;
-    function addClient(const aClientID: string): TClient; override;
-    function CreateSesmiScenario(const aScenarioID: string): TSesmiScenario;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
   public
-    property pubEvent: TEventEntry read fPubEvent;
-    property sourceProjection: TGIS_CSProjectedCoordinateSystem read fSourceProjection;
+    function addClient(const aClientID: string): TClient; override;
+    function CreateSesmiScenario(const aScenarioID: string): TSesmiScenario;
+  public
     property ExpertScenarioGUID: TGUID read fExpertScenarioGUID;
-  end;
-
-  TSesmiModule = class
-  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; const aTilerFQDN, aTilerStatusURL: string;
-    aMaxNearestObjectDistanceInMeters: Integer; const aExpertScenarioGUID: TGUID;
-    const aProjectName: string; aMapView: TMapView);
-  destructor Destroy; override;
-  private
-    fSessionModel: TSessionModel;
-    fConnection: TConnection;
-    fTilerFQDN: string;
-    fTilerStatusURL: string;
-    fProjects: TDictionary<string, TProject>;
-    fMaxNearestObjectDistanceInMeters: Integer;
-    public
-    property Projects: TDictionary<string, TProject> read fProjects;
   end;
 
 implementation
@@ -355,7 +277,9 @@ begin
   Move(aGuid, PAnsiChar(Result)^, SizeOf(aGuid));
 end;
 
-//Discrete pallette for the Sesmi project
+// Discrete palette for the Sesmi project
+
+{
 function CreateHansPalette(const aTitle: string): TWDPalette;
 var
   factor: Double;
@@ -371,6 +295,7 @@ begin
     TDiscretePaletteEntry.Create(TGeoColors.Create($Ff8100c1), 75*factor, 20000*factor, '>75')
   ],TGeoColors.Create($00000000)); //default: transparant
 end;
+}
 
 function CreateNiekPalette(const aTitle: string): TWDPalette;
 var
@@ -408,6 +333,20 @@ begin
       $FF37005C);
 end;
 
+function CreateGrayPalette(const aTitle: string): TWDPalette;
+var
+  factor: Double;
+begin
+  factor := 1 / 1000000000;
+  Result := TRampPalette.Create(aTitle, [
+    TRampPaletteEntry.Create($FFEEEEEE, 0 * factor, '0'),
+    TRampPaletteEntry.Create($FF111111, 120 * factor, '120')],
+      $FFEEEEEE,
+      $00000000,
+      $FF111111);
+end;
+
+{
 function CreateNO2Palette: TWDPalette;
 begin
   Result :=
@@ -445,7 +384,7 @@ begin
       $00000000,
       $FFA21794);
 end;
-
+}
 function BuildLegendJSON(aPalette: TWDPalette): string;
 begin
   if aPalette is TRampPalette
@@ -455,647 +394,53 @@ begin
   else Result := '';
 end;
 
-
-{ TSesmiTileLayer }
-
-constructor TSesmiTileLayer.Create(
-  aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-  const aObjectTypes, aGeometryType: string; aLayerType: Integer;
-  aKey: UInt32; const aEventName: string;
-  aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean);
-begin
-  fLayerType := aLayerType;
-  fPalette := aPalette;
-  fKey := aKey;
-  fEventName := aEventName;
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, Double.NaN, aBasicLayer);
-  fLegendJSON := aLegendJSON; // property of TLayer
-  fHandleDataHandlerRef :=  handleDataEvent;
-  fDataEvent := scenario.project.Connection.eventEntry(fEventName).subscribe;
-  if not fDataEvent.OnEvent.Contains(fHandleDataHandlerRef)
-  then fDataEvent.OnEvent.Add(fHandleDataHandlerRef);
-
-  fPrivateDataEvent := scenario.project.Connection.eventEntry(scenario.project.Connection.privateEventName+'.'+fEventName, False).subscribe;
-  if not fPrivateDataEvent.OnEvent.Contains(fHandleDataHandlerRef)
-  then fPrivateDataEvent.OnEvent.Add(fHandleDataHandlerRef);
-end;
-
-destructor TSesmiTileLayer.Destroy;
-begin
-  FreeAndNil(fPalette);
-  inherited;
-end;
-
-procedure TSesmiTileLayer.handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-var
-  fieldInfo: UInt32;
-  id: TWDID;
-//  timestamp: TDateTime;
-  lat: Double;
-  lon: double;
-  value: Double;
-  prevID: TWDID;
-
-  procedure addLayerObject(const aID: TWDID; aLat, aLon: Double; aValue: Double);
-  var
-    gp: TWDGeometryPoint;
-    gplo: TGeometryPointLayerObject;
-  begin
-    if not (aLat.IsNan or aLon.IsNan) then
-    begin
-      //SetLength(wdid, SizeOf(aID));
-      //Move(aID, PAnsiChar(wdid)^, SizeOf(aID));
-      //sourceId := Round(aLat*100000+aLon).ToString; // todo: bagger, overlap, range check
-      gp := TWDGeometryPoint.Create(aLon, aLat, 0);
-      if Assigned((scenario.project as TSesmiProject).sourceProjection)
-      then projectGeometryPoint(gp, (scenario.project as TSesmiProject).sourceProjection);
-      gplo := TGeometryPointLayerObject.Create(self, aID, gp, aValue);
-      objects.AddOrSetValue(gplo.ID, gplo);
-      //Log.WriteLn('emission: '+aSourceID.ToString+' @ '+gp.x.ToString(dotFormat)+','+gp.y.ToString(dotFormat)+': '+aValue.ToString(dotFormat));
-      if Assigned(tilerLayer)
-      then tilerLayer.signalData(gplo.encode, 0); // todo: timestamp
-    end
-    else Log.WriteLn('TSesmiEmissionLayer.handleDataEvent addLayerObject: ignoring NaN coordinates', llWarning);
-  end;
-
-  procedure removeLayerObject(const aID: TWDID);
-  begin
-    objects.Remove(aID);
-    if Assigned(tilerLayer)
-    then tilerLayer.signalData(TByteBuffer.bb_tag_rawbytestring(icehNoObjectID, aID), 0); // todo: timestamp
-  end;
-
-begin
-  prevID := '';
-  lat := Double.NaN;
-  lon := Double.NaN;
-  value := Double.NaN;
-//  timestamp := double.NaN;
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aPayload.bb_read_uint32(aCursor);
-    if fieldInfo=fKey
-    then value := aPayload.bb_read_double(aCursor)
-    else
-    begin
-      case fieldInfo of
-        (icehObjectID shl 3) or wtLengthDelimited:
-          begin
-            id := aPayload.bb_read_rawbytestring(aCursor);
-            if prevID<>''
-            then addLayerObject(prevID, lat, lon, value);
-            prevID := id;
-          end;
-//        ((icehWorldCommandBase+2) shl 3) or wt64Bit:
-//          timestamp := aPayload.bb_read_double(aCursor);
-        sensordata_longitude:
-          lon := aPayload.bb_read_double(aCursor);
-        sensordata_latitude:
-          lat := aPayload.bb_read_double(aCursor);
-        (icehNoObjectID shl 3) or wtLengthDelimited:
-          begin
-            removeLayerObject(aPayload.bb_read_rawbytestring(aCursor));
-          end;
-      else
-        aPayload.bb_read_skip(aCursor, fieldInfo and 7);
-      end;
-    end;
-  end;
-  if previd<>'' then
-  begin
-    addLayerObject(prevID, lat, lon, value);
-  end;
-end;
-
-procedure TSesmiTileLayer.RegisterLayer;
-begin
-  RegisterOnTiler(False, SliceType, name);
-end;
-
-procedure TSesmiTileLayer.RegisterSlice;
-begin
-  if Assigned(fPalette)
-  then tilerLayer.signalAddSlice(fPalette.Clone)
-  else tilerLayer.signalAddSlice(nil);
-  //signalInquire(); // layer is defined on tiler so now we are ready to send inquire signal
-end;
-
-//procedure TSesmiTileLayer.signalInquire(const aQuery: string);
-//begin
-//  fDataEvent.signalEvent(
-//    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateDataEvent.eventName)+
-//    TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, aQuery));
-//end;
-
-function TSesmiTileLayer.SliceType: Integer;
-begin
-  Result := fLayerType; // in Sesmi slice type=layer type
-end;
-
-(*
-{ TSesmiEmissionLayer }
-
-constructor TSesmiEmissionLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-  const aObjectTypes, aGeometryType: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean);
-begin
-  inherited;
-  fPrivateDataEvent := aScenario.project.Connection.subscribe(aScenario.project.Connection.privateEventName+'.sources', false);
-  fPrivateDataEvent.OnEvent.Add(handleDataEvent);
-  fDataEvent := aScenario.project.Connection.subscribe('Sesmi.sources', false);
-  fDataEvent.OnEvent.Add(handleDataEvent);
-  RegisterLayer;
-end;
-
-procedure TSesmiEmissionLayer.handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-var
-  fieldInfo: UInt32;
-  id: TGUID;
-  lat: Double;
-  lon: double;
-  value: Double;
-  sourceID: Integer;
-  prevID: TGUID;
-
-  procedure addLayerObject(aID: TGUID; aSourceID: Integer; aLat, aLon: Double; aValue: Double);
-  var
-    wdid: TWDID;
-    gp: TWDGeometryPoint;
-    gplo: TGeometryPointLayerObject;
-    //sourceId: TWDID;
-  begin
-    if not (aLat.IsNan or aLon.IsNan) then
-    begin
-      //SetLength(wdid, SizeOf(aID));
-      //Move(aID, PAnsiChar(wdid)^, SizeOf(aID));
-      //sourceId := Round(aLat*100000+aLon).ToString; // todo: bagger, overlap, range check
-      wdid := TWDID(aSourceID.ToString());
-      gp := TWDGeometryPoint.Create(aLon, aLat, 0);
-      projectGeometryPoint(gp, (scenario.project as TSesmiProject).sourceProjection);
-      gplo := TGeometryPointLayerObject.Create(self, wdid, gp, aValue);
-      objects.AddOrSetValue(gplo.ID, gplo);
-      //Log.WriteLn('emission: '+aSourceID.ToString+' @ '+gp.x.ToString(dotFormat)+','+gp.y.ToString(dotFormat)+': '+aValue.ToString(dotFormat));
-      tilerLayer.signalData(gplo.encode, 0); // todo: timestamp
-    end
-    else Log.WriteLn('TSesmiEmissionLayer.handleDataEvent addLayerObject: ignoring NaN coordinates', llWarning);
-  end;
-
-  procedure removeLayerObject(aID: TGUID);
-  var
-    wdid: TWDID;
-  begin
-    SetLength(wdid, SizeOf(aID));
-    Move(aID, PAnsiChar(wdid)^, SizeOf(aID));
-    objects.Remove(wdid);
-    tilerLayer.signalData(TByteBuffer.bb_tag_rawbytestring(icehNoObjectID, wdid), 0); // todo: timestamp
-  end;
-
-begin
-  prevID := TGUID.Empty;
-  lat := Double.NaN;
-  lon := Double.NaN;
-  value := Double.NaN;
-  sourceID := -1;
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aPayload.bb_read_uint32(aCursor);
-    case fieldInfo of
-      (icehObjectID shl 3) or wtLengthDelimited:
-        begin
-          id := aPayload.bb_read_guid(aCursor);
-          if prevID<>TGUID.Empty
-          then addLayerObject(prevID, sourceID, lat, lon, value);
-          prevID := id;
-        end;
-      sources_latitude:
-        lat := aPayload.bb_read_double(aCursor);
-      sources_longitude:
-        lon := aPayload.bb_read_double(aCursor);
-      sources_emission_strength_analysis:
-        value := aPayload.bb_read_double(aCursor);
-      sources_sourceid:
-        sourceID := aPayload.bb_read_int32(aCursor);
-      (icehNoObjectID shl 3) or wtLengthDelimited:
-        begin
-          removeLayerObject(aPayload.bb_read_guid(aCursor));
-        end;
-    else
-      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
-    end;
-  end;
-  if previd<>TGUID.Empty then
-  begin
-    addLayerObject(prevID, sourceID, lat, lon, value);
-  end;
-end;
-*)
-
-
-(*
-{ TSesmiSensorsLayer }
-
-constructor TSesmiSensorsLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-  const aObjectTypes, aGeometryType: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean);
-begin
-  fGUIDToID := TDictionary<TGUID, Integer>.Create;
-  inherited;
-  fPrivateDataEvent := aScenario.project.Connection.subscribe(aScenario.project.Connection.privateEventName+'.sensordata', false);
-  fPrivateDataEvent.OnEvent.Add(handleDataEvent);
-  fDataEvent := aScenario.project.Connection.subscribe('Sesmi.sensordata', false);
-  fDataEvent.OnEvent.Add(handleDataEvent);
-  RegisterLayer;
-end;
-
-destructor TSesmiSensorsLayer.Destroy;
-begin
-  fGUIDToID.Free;
-  inherited;
-end;
-
-procedure TSesmiSensorsLayer.handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-var
-  fieldInfo: UInt32;
-  id: TGUID;
-  lat: Double;
-  lon: double;
-  value: Double;
-  sourceID: Integer;
-  prevID: TGUID;
-  sensorID: TGUID;
-  timeutc: TDateTime;
-
-  procedure addLayerObject(aID: TGUID; aSensorID: TGUID; aLat, aLon: Double; aValue: Double; aTimeUTC: TDateTime);
-  var
-    wdid: TWDID;
-    gp: TWDGeometryPoint;
-    gplo: TGeometryPointLayerObject;
-    localID: Integer;
-    i: Integer;
-    //sourceId: TWDID;
-  begin
-    if not (aLat.IsNan or aLon.IsNan) then
-    begin
-      //SetLength(wdid, SizeOf(aID));
-      //Move(aID, PAnsiChar(wdid)^, SizeOf(aID));
-      //sourceId := Round(aLat*100000+aLon).ToString; // todo: bagger, overlap, range check
-      //wdid := TWDID(aSourceID.ToString());
-      //move(aSensorID, localID, sizeof(localID)); // todo: work-a-round, Walter maps a int32 to the first bytes of the guid
-      //wdid := TWDID(localID.toString);
-
-      if not fGUIDToID.TryGetValue(aSensorID, localID) then
-      begin
-        localID := 1;
-        for i in fGUIDToID.Values do
-        begin
-          if localID<=i
-          then localID := i+1;
-        end;
-        fGUIDToID.Add(aSensorID, localID);
-        //scenario.project.SendString('{"sensor":{"sensorid":'+localID.ToString+',"name":"'+localID.ToString+'","address":"","latitude":'+gp.y.ToString(dotFormat)+',"longitude":'+gp.x.ToString(dotFormat)+',"measuredsubstance":"benzeen","mobile":false}}');
-
-      end;
-
-      gp := TWDGeometryPoint.Create(aLon, aLat, 0);
-      projectGeometryPoint(gp, (scenario.project as TSesmiProject).sourceProjection);
-      gplo := TGeometryPointLayerObject.Create(self, wdid, gp, aValue);
-      objects.AddOrSetValue(gplo.ID, gplo);
-      //Log.WriteLn('sensor: '+wdid+' @ '+gp.x.ToString(dotFormat)+','+gp.y.ToString(dotFormat)+': '+aValue.ToString(dotFormat));
-      tilerLayer.signalData(gplo.encode, 0); // todo: timestamp
-
-      scenario.project.SendString('{"sensor":{"sensorid":'+localID.ToString+',"name":"'+localID.ToString+'","address":"","latitude":'+gp.y.ToString(dotFormat)+',"longitude":'+gp.x.ToString(dotFormat)+',"measuredsubstance":"benzeen","mobile":false}}');
-      scenario.project.SendString('{"sensordata":{"sensorid":'+localID.ToString+',"concentration":'+aValue.ToString(dotFormat)+',"latitude":'+gp.y.ToString(dotFormat)+',"longitude":'+gp.x.ToString(dotFormat)+',"time":"'+formatDateTime('yyyy-mm-dd hh:nn:ss', aTimeUTC)+'"}}');
-    end
-    else Log.WriteLn('TSesmiSensorsLayer.handleDataEvent addLayerObject: ignoring NaN coordinates', llWarning);
-  end;
-
-  procedure removeLayerObject(aID: TGUID);
-  var
-    wdid: TWDID;
-  begin
-    SetLength(wdid, SizeOf(aID));
-    Move(aID, PAnsiChar(wdid)^, SizeOf(aID));
-    objects.Remove(wdid);
-    tilerLayer.signalData(TByteBuffer.bb_tag_rawbytestring(icehNoObjectID, wdid), 0); // todo: timestamp
-  end;
-
-begin
-  prevID := TGUID.Empty;
-  lat := Double.NaN;
-  lon := Double.NaN;
-  value := Double.NaN;
-  sourceID := -1;
-  timeutc := 0;
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aPayload.bb_read_uint32(aCursor);
-    case fieldInfo of
-      (icehObjectID shl 3) or wtLengthDelimited:
-        begin
-          id := aPayload.bb_read_guid(aCursor);
-          if prevID<>TGUID.Empty
-          then addLayerObject(prevID, sensorID, lat, lon, value, timeutc);
-          prevID := id;
-        end;
-      sensordata_sensorid:
-        sensorID := aPayload.bb_read_guid(aCursor);
-      sensordata_latitude:
-        lat := aPayload.bb_read_double(aCursor);
-      sensordata_longitude:
-        lon := aPayload.bb_read_double(aCursor);
-      sensordata_timeutc:
-        timeutc := aPayload.bb_read_double(aCursor);
-      sensordata_concentration:
-        value := aPayload.bb_read_double(aCursor);
-      (icehNoObjectID shl 3) or wtLengthDelimited:
-        begin
-          removeLayerObject(aPayload.bb_read_guid(aCursor));
-        end;
-    else
-      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
-    end;
-  end;
-  if previd<>TGUID.Empty then
-  begin
-    addLayerObject(prevID, sensorID, lat, lon,  value, timeutc);
-  end;
-end;
-*)
-
 { TSesmiTrackLayer }
-(*
-constructor TSesmiTrackLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad, aShowInDomains: Boolean);
-//var
-//  entries: TPaletteDiscreteEntryArray;
-begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"track"', 'Point', ltObject, aShowInDomains, 0);
-  // Track
-  fEvent := scenario.project.connection.Subscribe('track');
-  fEventHandler := HandleEvent;
-  fEvent.OnEvent.Add(fEventHandler);
-end;
 
-function TSesmiTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
+procedure TSesmiTrackLayer.AddPoint(aObjectID: TGUID; aLat, aLon,
+  aValue: Double);
 var
-  iop: TPair<TWDID, TLayerObject>;
-  _json: string;
-  sclo: TSVGCircleLayerObject;
+  wdid: TWDID;
+  geometryPoint: TWDGeometryPoint;
 begin
-  result := inherited;
-  // send new track points
-  _json := '';
-  for iop in objects do
-  begin
-    if iop.Value is TSVGCircleLayerObject then
-    begin
-      sclo := iop.Value as TSVGCircleLayerObject;
-      if _json<>''
-      then _json  := _json+',';
-      _json  := _json+
-        '{"newobject":'+
-          '{"id":"'+string(UTF8String(car.ID))+'",'+
-           '"lng":'+DoubleToJSON(car.latlon.x)+','+
-           '"lat":'+DoubleToJSON(car.latlon.y)+','+
-           '"fillColor":"'+ColorToJSON(car.baseColor)+'"}}';
-    end;
-  end;
-  if _json<>'' then
-  begin
-    aClient.signalString('{"type":"updatelayer","payload":{"id":"'+ElementID+'","data":['+_json+']}}');
-  end;
+  wdid := TWDID(TGUID.NewGuid.ToString);
+  geometryPoint := TWDGeometryPoint.Create;
+  geometryPoint.x := aLon;
+  geometryPoint.y := aLat;
+  AddObject(TGeometryPointLayerObject.Create(Self, wdid, geometryPoint, aValue));
 end;
 
-
-function TSesmiTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
+constructor TSesmiTrackLayer.Create(aScenario: TScenario; const aDomain, aID,
+  aName, aDescription: string; aDefaultLoad, aShowInDomains: Boolean;
+  const aLegendJSON: string; aPalette: TWDPalette);
 begin
-  // todo: option to clear objects
-
-  Result := inherited;
-end;
-
-procedure TSesmiTrackLayer.HandleEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
-begin
-  // todo: build track
-
+  inherited Create(
+    aScenario, aDomain, aID, aName, aDescription,
+    aDefaultLoad, '"mobilesensor"', 'Point', ltTile, aShowInDomains, 0, False, 0.8,
+    'default', aLegendJSON, '', aPalette);
 end;
 
 procedure TSesmiTrackLayer.RegisterLayer;
 begin
-  RegisterOnTiler(False, SliceType, name, 2500);
+  RegisterOnTiler(False, SliceType, name, 2500, fPalette.Clone);
 end;
 
 procedure TSesmiTrackLayer.RegisterSlice;
 begin
-  tilerLayer.signalAddSlice(nil);
+  tilerLayer.signalAddSlice();
+end;
+
+procedure TSesmiTrackLayer.Reset;
+begin
+  ClearObjects;
+  tilerLayer.signalSliceAction(tsaClearSlice);
 end;
 
 function TSesmiTrackLayer.SliceType: Integer;
 begin
   Result := stLocation;
 end;
-*)
-{ TSesmiWindData }
-
-constructor TSesmiWindData.Create(aProject: TProject);
-begin
-  inherited Create;
-  fProject := aProject;
-  fDataEvent := project.Connection.eventEntry('meteodata').subscribe;
-  fDataEvent.OnEvent.Add(handleMeteoDataEvent);
-end;
-
-procedure TSesmiWindData.handleMeteoDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-var
-  fieldInfo: UInt32;
-begin
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aPayload.bb_read_uint32(aCursor);
-    case fieldInfo of
-      ((icehWorldCommandBase+2) shl 3) or wt64Bit:
-        fTimestamp := aPayload.bb_read_double(aCursor);
-      meteodata_winddirection:
-        fWindDirection := aPayload.bb_read_double(aCursor);
-      meteodata_windspeed:
-        fWindSpeed := aPayload.bb_read_double(aCursor);
-    else
-      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
-    end;
-  end;
-  project.SendString('{"winddata":{"speed":'+fWindSpeed.ToString(dotFormat)+',"direction":'+fWindDirection.ToString(dotFormat)+',"time":"'+FormatDateTime(isoDateTimeFormat, fTimestamp)+'"}}');
-end;
-
-{ TSesmiSpiderChart }
-
-constructor TSesmiSpiderChart.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aDataEvent: TEventEntry; aSegment: Integer; const aComponent: string);
-begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad);
-  fSegment := aSegment;
-  fComponent := aComponent;
-  fDataEvent := aDataEvent;
-  fDataEventHandler := handleDataEvent;
-  fDataEvent.OnEvent.Add(fDataEventHandler);
-end;
-
-destructor TSesmiSpiderChart.Destroy;
-begin
-  fDataEvent.OnEvent.Remove(fDataEventHandler);
-  inherited;
-end;
-
-procedure TSesmiSpiderChart.handleDataEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-var
-  fieldInfo: UInt32;
-//  timestamp: Double;
-//  roadSegementID: Integer;
-  transportMode: string;
-  componentName: string;
-  TimeCategory: string;
-  AvgConcentration: Double;
-  duration: Double;
-  objectID: TGUID;
-  sd: TSpiderDataValue;
-begin
-  duration := 0;
-//  AvgConcentration := 0;
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aPayload.bb_read_uint32(aCursor);
-    case fieldInfo of
-      (icehObjectID shl 3) or wtLengthDelimited:
-        objectID := aPayload.bb_read_guid(aCursor);
-//      ((icehWorldCommandBase+2) shl 3) or wt64Bit: // time stamp
-//        timestamp := aPayload.bb_read_double(aCursor);
-//      kpi_road_segment_id:
-//        roadSegementID := aPayload.bb_read_int32(aCursor);
-      kpi_TransportMode:
-        transportMode :=  aPayload.bb_read_string(aCursor);
-      kpi_ComponentName:
-        componentName :=  aPayload.bb_read_string(aCursor);
-      kpi_Time_Category:
-        TimeCategory :=  aPayload.bb_read_string(aCursor);
-      kpi_avg_concentration:
-        begin
-          AvgConcentration := aPayload.bb_read_double(aCursor);
-          if componentName=fComponent then
-          begin
-            // todo: not correct
-            sd := fData.GetOrAddValue('Average '+componentName, transportMode);
-            if not Assigned(sd.data)
-            then sd.data := TSpiderData.Create('Average '+componentName+' - '+transportMode);
-            sd.data.GetOrAddValue('Average '+componentName+' - '+transportMode, TimeCategory).value := AvgConcentration;
-
-            sd := fData.GetOrAddValue('Average exposure', transportMode);
-            if not Assigned(sd.data)
-            then sd.data := TSpiderData.Create('Average exposure'+' - '+transportMode);
-            sd.data.GetOrAddValue('Average exposure'+' - '+transportMode, TimeCategory).value := AvgConcentration*duration;
-
-//            fData.valueValue['Average '+componentName, transportMode] := AvgConcentration;
-//            fData.valueValue['Average exposure', transportMode] := AvgConcentration*duration;
-            //TimeCategory
-
-//            fData.AddOrSetData([], TimeCategory, AvgConcentration);
-//            fData.AddOrSetData(['Average exposure', transportMode], TimeCategory, AvgConcentration);
-            //AddOrSetSubCategory('Average '+componentName, transportMode, TimeCategory, AvgConcentration);
-            //AddOrSetSubCategory('Average exposure', transportMode, TimeCategory, AvgConcentration*duration);
-          end;
-        end;
-      kpi_duration:
-        begin
-          duration := aPayload.bb_read_double(aCursor);
-          if componentName=fComponent then
-          begin
-            // todo: not correct
-            sd := fData.GetOrAddValue('Average time', transportMode);
-            if not Assigned(sd.data)
-            then sd.data := TSpiderData.Create('Average time'+' - '+transportMode);
-            sd.data.GetOrAddValue('Average time'+' - '+transportMode, TimeCategory).value := duration;
-
-            fData.valueValue['Average time', transportMode] := duration;
-            //fData.AddOrSetData(['Average time', transportMode], TimeCategory, duration);
-            //AddOrSetSubCategory('Average time', transportMode, TimeCategory, duration);
-          end;
-        end;
-    else
-      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
-    end;
-  end;
-  // update averages
-  RecalculateAverages;
-
-end;
 
 { TSesmiScenario }
-
-procedure TSesmiScenario.addConcentrationLayer(
-  const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
-  aKey: UInt32; const aEventName: string;
-  aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean);
-var
-  layer: TSesmiTileLayer;
-begin
-  // create a layer and link to listener
-  layer := TSesmiTileLayer.Create(
-    Self, aDomain, aID, aName, aDescription, aDefaultLoad, '"receptor"', 'Point', stReceptor,
-    aKey, aEventName,
-    aPalette, aLegendJSON);
-  AddLayer(layer);
-  layer.RegisterLayer;
-end;
-
-procedure TSesmiScenario.AddLink(const aGuid: TGUID; const aGeometry: TWDGeometry);
-var
-  linkLayer: TSesmiLinkLayer;
-begin
-  TMonitor.Enter(fLinkLayers);
-  try
-    for linkLayer in fLinkLayers.Values do
-    begin
-      //linkLayer.AddLink(GuidToTWDID(aGuid), aGeometry);
-    end;
-  finally
-    TMonitor.Exit(fLinkLayers);
-  end;
-end;
-
-procedure TSesmiScenario.AddSesmiLinkLayer(const aKey: UInt32; const aDomain, aID, aName, aDescription: string; aPalette, aTrackPalette: TWDPalette; const aLegendJSON: string);
-var
-  layer: TSesmiLinkLayer;
-  trackLayer: TSesmiTrackLayer;
-  mobileChart, totalChart: TChartLines;
-begin
-  mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + aID, aName, aDescription, False, 'line',
-    TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
-    [TChartAxis.Create('concentratie', 'lightBlue', 'Concentration', 'mg/m3')], 'time');
-  AddChart(mobileChart);
-
-  totalChart := TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + aID + 'total', aName + '-total', aDescription + ' Total', False, 'line',
-    TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
-    [TChartAxis.Create('concentratie', 'lightBlue', 'Concentration', 'mg/m3')], 'time');
-  AddChart(totalChart);
-
-  layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'personal-' + aName, 'Personal ' + aName, aName, False, True, aPalette, BuildLegendJSON(aPalette), mobilechart, totalChart);
-  TMonitor.Enter(fLinkLayers);
-  try
-    begin
-      fLinkLayers.AddOrSetValue(aKey, layer);
-    end
-  finally
-    TMonitor.Exit(fLinkLayers);
-  end;
-  AddLayer(layer);
-  layer.RegisterLayer;
-
-  trackLayer := TSesmiTrackLayer.Create(Self, 'Personal exposure', fID + 'personal-track-' + aName, 'Personal Track ' + aName, aName, True, True, aTrackPalette, BuildLegendJSON(aTrackPalette));
-  TMonitor.Enter(fTrackLayers);
-  try
-    begin
-      fTrackLayers.AddOrSetValue(aKey, trackLayer);
-    end
-  finally
-    TMonitor.Exit(fTrackLayers);
-  end;
-  AddLayer(trackLayer);
-  trackLayer.RegisterLayer;
-end;
 
 constructor TSesmiScenario.Create(aProject: TProject; const aID, aName,
   aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView;
@@ -1107,23 +452,26 @@ begin
   end
   else
     fGUID := TGUID.Empty;
-  fLive := True;
+  //fLive := True;
   fQueryCounter := 0;
   fQuerySubscribed := False;
   fQueryEventHandler := handleQueryEvent;
   fLiveCounter := 0;
   fDBCounter := 0;
-  fLinkLayers := TDictionary<Integer, TSesmiLinkLayer>.Create;
+  //fLinkLayers := TDictionary<Integer, TSesmiLinkLayer>.Create;
   fTrackLayers := TDictionary<Integer, TSesmiTrackLayer>.Create;
   fLastLats := TDictionary<TGUID, Double>.Create;
   fLastLons := TDictionary<TGUID, Double>.Create;
   fSensorsDataSet := TSensorsDataSet.Create;
   fTimeSliderDataTimer := aProject.Timers.CreateInactiveTimer;
+  fFirstTimeSliderUpdate := True;
+  fFiltered := False;
   inherited;
   fPubEvent := aProject.Connection.eventEntry('mobilesensordata').publish;
   fLiveEvent := aProject.Connection.eventEntry('mobilesensordata').subscribe;
   fLiveEventHandler := handleLiveEvent;
   fLiveEvent.OnEvent.Add(fLiveEventHandler);
+  InquireDB('', Double.NaN, Double.NaN);
 end;
 
 destructor TSesmiScenario.Destroy;
@@ -1137,7 +485,6 @@ begin
   fLiveEvent.OnEvent.Remove(fLiveEventHandler);
   project.Connection.unSubscribe(fLiveEvent);
   project.Connection.unPublish(fPubEvent);
-  FreeAndNil(fLinkLayers);
   FreeAndNil(fTrackLayers);
   FreeAndNil(fLastLons);
   FreeAndNil(fLastLats);
@@ -1145,48 +492,33 @@ begin
   inherited;
 end;
 
-procedure TSesmiScenario.GoDB(const aInquire: string; const aLowerTimestamp,
-  aUpperTimestamp: Double);
-begin
-  EnableControl(goLiveControl);
-  fLive := False;
-  Reset;
-  InquireDB(aInquire, aLowerTimestamp, aUpperTimestamp);
-end;
-
-procedure TSesmiScenario.GoLive(const first: Boolean = False);
-var
-  currentTime: TDateTime;
-begin
-  DisableControl(goLiveControl);
-  fLive := True;
-  if not first then
-    Reset;
-  currentTime := Now;
-  InquireDB('', currentTime - GetSetting(TimeSpanSwitch, DefaultTimeSpan), currentTime);
-end;
-
 function TSesmiScenario.HandleClientSubscribe(aClient: TClient): Boolean;
 var
   jsonTSData: string;
   palette: TWDPalette;
+  extent: TWDExtent;
 begin
   Result := inherited;
   // send data to time slider
-  palette := CreateHansPalette('NO2');
+  palette := CreateGrayPalette('NO2 slider');
   try
-    jsonTSData := jsonTimesliderData(sensordata_no2 shr 3, palette);
+    extent := TWDExtent.Create;
+    jsonTSData := jsonTimesliderData(sensordata_no2 shr 3, palette, extent);
   finally
     palette.Free;
   end;
   aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+  // set map view according data set
+  if not (extent.CenterY.IsNaN or extent.CenterX.IsNaN) then
+  begin
+    fMapView := TMapView.Create(extent.CenterY, extent.CenterX, fMapView.zoom);
+    aClient.SendView(fMapView.lat, fMapView.lon, Double.NaN);
+  end;
 end;
 
 procedure TSesmiScenario.handleLiveEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
 begin
   fLiveCounter := fLiveCounter + 1;
-  if not Live then
-    exit;
   handleUniEvent(aEventEntry, aPayload, aCursor, aLimit);
 end;
 
@@ -1196,7 +528,145 @@ begin
   handleUniEvent(aEventEntry, aPayload, aCursor, aLimit);
 end;
 
-procedure TSesmiScenario.handleTimeSliderEventData(
+procedure TSesmiScenario.ProcessRecord(
+  aTrackLayer: TSesmiTrackLayer; aMobileChart, aTotalChart: TChartLines;
+  aCursor: TCursor;
+  var aLat, aLon: Double;
+  var aTimeStamp: TDateTime;
+  var aValue, aTotalValue: Double);
+var
+  srp: TPair<TSensor, Integer>;
+  sr: TSensorsRecord;
+  sensorValue: Double;
+  _totalValue: Double;
+  average: Double;
+  delta: Double;
+begin
+  for srp in aCursor.SensorRecords do
+  begin
+    sr := fSensorsDataSet.Data[srp.Value];
+    sr.values[srp.Key].TryGetValue(sensordata_latitude shr 3, aLat);
+    sr.values[srp.Key].TryGetValue(sensordata_longitude shr 3, aLon);
+    if not(aLat.IsNan or aLon.IsNan) then
+    begin
+      if sr.values[srp.Key].TryGetValue(sensordata_no2 shr 3, sensorValue) then
+      begin
+        aTrackLayer.AddPoint(srp.Key.IDAsGUID, aLat, aLon, sensorValue);
+        aMobileChart.AddValue(aCursor.CurrentTimeStamp, [sensorValue]);
+        if not aValue.IsNan then
+        begin
+          average := (aValue+sensorValue)/2.0;
+          delta := aCursor.CurrentTimeStamp-aTimeStamp;
+          _totalValue := average * delta * 24 * 60;
+          if aTotalValue.IsNan
+          then aTotalValue := _totalValue
+          else aTotalValue := aTotalValue + _totalValue;
+          aTotalChart.AddValue(aCursor.CurrentTimeStamp, [aTotalValue]);
+        end;
+        aValue := sensorValue;
+        aTimeStamp := aCursor.CurrentTimeStamp;
+      end;
+    end;
+  end;
+end;
+
+procedure TSesmiScenario.HandleTimeSliderEvent(aClient: TClient; const aType: string; aPayload: TJSONObject);
+var
+  brush: TJSONValue;
+  extent: TJSONValue;
+  a: TJSONArray;
+  qfrom: string;
+  qto: string;
+  selectedEvent: TJSONValue;
+  lat, lon: TJSONValue;
+  trackLayer: TSesmiTrackLayer;
+  cursor: TCursor;
+  qdtFrom: TDateTime;
+  qdtTo: TDateTime;
+  loopLat: Double;
+  loopLon: Double;
+  loopValue: Double;
+  loopTimeStamp: TDateTime;
+  loopTotalValue: Double;
+begin
+  if aPayload.TryGetValue<TJSONValue>('brush', brush) then
+  begin
+    if brush.TryGetValue('extent', extent) then
+    begin
+      // HandleTimeSliderEvent: timeslider: {"brush":{"extent":["2017-10-13 18:09","2017-11-07 16:14"]}}
+      // HandleTimeSliderEvent: timeslider: {"brush":{"extent":{}}}
+
+      // add selected points to tracklayer
+      if fTrackLayers.TryGetValue(sensordata_no2, trackLayer) then
+      begin
+        cursor := fSensorsDataSet.NewCursor;
+        try
+          // clear layer and chart
+          trackLayer.Reset;
+          fTotalChart.reset;
+          fMobileChart.reset;
+          loopLat := Double.NaN;
+          loopLon := Double.NaN;
+          loopValue  := Double.NaN;
+          loopTimeStamp := Double.NaN;
+          loopTotalValue  := Double.NaN;
+          TMonitor.Enter(fSensorsDataSet.Cursors);
+          try
+            if extent is TJSONArray then
+            begin // enter query
+              fFiltered := True;
+              a := extent as TJSONArray;
+              if a.Count>=2 then
+              qfrom := a.Items[0].ToString;
+              qdtFrom := StrToDateTime(qfrom, isoDateTimeFormatSettings);
+              // check if not before first entry
+              if cursor.First and (qdtFrom<cursor.CurrentTimeStamp)
+              then qdtFrom := cursor.CurrentTimeStamp;
+              qto := a.Items[a.Count-1].ToString;
+              qdtTo := StrToDateTime(qto, isoDateTimeFormatSettings);
+              Log.WriteLn('HandleTimeSliderEvent: brush: '+qfrom+' - '+qto);
+              // goto start time and add points till end of data or over to-timestamp
+              if cursor.MoveTo(qdtFrom) then
+              begin
+                repeat
+                  ProcessRecord(trackLayer, fMobileChart, fTotalChart, cursor, loopLat, loopLon, loopTimeStamp, loopValue, loopTotalValue);
+                until (not cursor.Next) or (cursor.CurrentTimeStamp>qdtTo);
+              end;
+            end
+            else
+            begin // reset query
+              fFiltered := False;
+              Log.WriteLn('HandleTimeSliderEvent: brush: reset');
+              // add all points
+              if cursor.First then
+              begin
+                repeat
+                  ProcessRecord(trackLayer, fMobileChart, fTotalChart, cursor, loopLat, loopLon, loopTimeStamp, loopValue, loopTotalValue);
+                until not cursor.Next;
+              end;
+            end;
+          finally
+            TMonitor.Exit(fSensorsDataSet.Cursors);
+          end;
+        finally
+          fSensorsDataSet.RemoveCursor(cursor);
+        end;
+      end;
+    end;
+  end
+  else if aPayload.TryGetValue<TJSONValue>('selectedEvent', selectedEvent) then
+  begin
+    // HandleTimeSliderEvent: timeslider: {"selectedEvent":{"start":"2017-10-21T11:54:00.000Z","end":"2017-10-22T08:31:00.000Z","color":"#B2B2B2","lat":51.465481431,"lon":5.49652172}}
+    if selectedEvent.TryGetValue<TJSONValue>('lat', lat) and (selectedEvent.TryGetValue<TJSONValue>('lon', lon)) then
+    begin
+      if (lat is TJSONNumber) and (lon is TJSONNumber)
+      then aCLient.SendView((lat as TJSONNumber).AsDouble,(lon as TJSONNumber).AsDouble, Double.NaN);
+    end;
+  end
+  else Log.WriteLn('HandleTimeSliderEvent: '+aType+': '+aPayload.ToJSON);
+end;
+
+procedure TSesmiScenario.addToSensorDataSet(
   const aSensorid: TGUID; aTimestamp: TDateTime; aFieldInfo: UInt32; aLat, aLon, aValue: Double);
 var
   id: TWDID;
@@ -1225,14 +695,15 @@ end;
 
 procedure TSesmiScenario.handleUniEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
 var
-  layer: TSesmiLinkLayer;
   trackLayer: TSesmiTrackLayer;
   fieldInfo: UInt32;
   value, timestamp: Double;
-  id: TWDID;
   sensorid: TGUID;
   lastLat: Double;
   lastLon: Double;
+  average: Double;
+  delta: Double;
+  _totalValue: Double;
 begin
   timestamp := 0;
   while aCursor<aLimit do
@@ -1252,16 +723,33 @@ begin
       sensordata_no2, sensordata_pm10, sensordata_pm25:
         begin
           value := aPayload.bb_read_double(aCursor);
-          if fLinkLayers.TryGetValue(fieldInfo, layer) then
-            layer.AddValue(timestamp, value);
+          // correct for negative sensor values (just ignore)
+          if value<0
+          then value := 0;
           if fLastLons.TryGetValue(sensorid, lastLon) and fLastLats.TryGetValue(sensorid, lastLat) then
           begin
-            if fTrackLayers.TryGetValue(fieldInfo, trackLayer) then
-              trackLayer.AddPoint(sensorid, lastLat, lastLon, value);
-            handleTimeSliderEventData(sensorid, timestamp, fieldInfo, lastLat, lastLon, value);
+            addToSensorDataSet(sensorid, timestamp, fieldInfo, lastLat, lastLon, value);
             triggerUpdateTimesliderData();
+
+            if not fFiltered then
+            begin
+              if fTrackLayers.TryGetValue(fieldInfo, trackLayer) then
+                trackLayer.AddPoint(sensorid, lastLat, lastLon, value);
+              fMobileChart.AddValue(timeStamp, [value]);
+              if fMobileChart.allValues.Count>=2 then
+              begin
+                average := (value+fMobileChart.allValues[fMobileChart.allValues.Count-2].y[0])/2.0;
+                delta := timeStamp-fMobileChart.allValues[fMobileChart.allValues.Count-2].x;
+                _totalValue := average * delta * 24 * 60;
+                if fTotalChart.allValues.Count>0
+                then _totalValue := _totalValue + fTotalChart.allValues[fTotalChart.allValues.Count-1].y[0];
+                fTotalChart.AddValue(timeStamp, [_totalValue])
+              end;
+            end;
+
           end;
         end;
+      {
       sensordata_linkid:
         begin
           id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
@@ -1273,6 +761,7 @@ begin
             TMonitor.Exit(fLinkLayers);
           end;
         end;
+      }
       sensordata_latitude:
         begin
           value := aPayload.bb_read_double(aCursor);
@@ -1311,49 +800,76 @@ begin
     buffer := TByteBuffer.bb_tag_guid(icehObjectID, fGUID)
   else //constant non-empty Guid, prevents people using the empty guid to access all data
     buffer := TByteBuffer.bb_tag_guid(icehObjectID, TGUID.Create('{00000000-0000-0000-0000-000000000001}'));
-  buffer := buffer + TByteBuffer.bb_tag_double(wDatTimeStampLower shr 3, aLowerTimeStamp);
-  buffer := buffer + TByteBuffer.bb_tag_double(wDatTimeStampUpper shr 3, aUpperTimeStamp);
+  if not aLowerTimeStamp.IsNaN
+  then buffer := buffer + TByteBuffer.bb_tag_double(wDatTimeStampLower shr 3, aLowerTimeStamp);
+  if not aUpperTimeStamp.IsNan
+  then buffer := buffer + TByteBuffer.bb_tag_double(wDatTimeStampUpper shr 3, aUpperTimeStamp);
   buffer := buffer + TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, returnString);
   buffer := buffer + TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, aInquire);
   fPubEvent.signalEvent(buffer);
 end;
 
-function TSesmiScenario.jsonTimesliderData(aTag: Integer; aPalette: TWDPalette): string;
+{
+type
+  TTimeSliderStep = class
+  constructor Create(aPalette: TWDPalette);
+  destructor Destroy; override;
+  private
+    fPalette: TWDPalette;
+    fPrevTimeStamp: TDateTime;
+    fPrevValue: Double;
+  public
+    function nextValue(aTimeStamp: TDateTime; aValue: Double): string;
+  end;
+}
+
+function TSesmiScenario.jsonTimesliderData(aTag: Integer; aPalette: TWDPalette; var aExtent: TWDExtent): string;
 var
   entry: string;
   loopSensorValue: Double;
-  fillColorPrev: string;
-  fillColor: string;
-  startTime: string;
-  endTime: string;
+//  fillColorPrev: string;
+//  fillColor: string;
+//  startTime: string;
+//  endTime: string;
   cursor: TCursor;
   srp: TPair<TSensor, Integer>;
   sensorValue: Double;
   sr: TSensorsRecord;
-  prevMax: Double;
+//  prevMax: Double;
   loopLat: Double;
   loopLon: Double;
-  fct: Boolean;
-  fc: TAlphaRGBPixel;
-  fctp: Boolean;
+//  fct: Boolean;
+//  fc: TAlphaRGBPixel;
+//  fctp: Boolean;
+  prevTimeStamp: TDateTime;
+  stepSize: TDateTime;
+  entryStartTimeStamp: TDateTime;
+  loopSensorValueColor: TAlphaRGBPixel;
+  entryColor: TAlphaRGBPixel;
+  entryEndTimeStamp: TDateTime;
 begin
   // todo: use cursor, if a sensor has no value on a specific time it is not accounted for and a higher value
   // could be shown then calculated for the time stamp
   Result := '';
   //srPRev := nil;
-  startTime := '';
-  endTime := '';
-  fillColorPrev := '';
-  fctp := True;
-  fillColor := '';
-  prevMax := Double.NaN;
+//  startTime := '';
+//  endTime := '';
+//  fillColorPrev := '';
+//  fctp := True;
+//  fillColor := '';
+//  prevMax := Double.NaN;
+  //aExtent := TWDExtent.Create;
   cursor := fSensorsDataSet.NewCursor;
   try
     TMonitor.Enter(fSensorsDataSet);
     try
+      entryStartTimeStamp := Double.NaN;
+      entryColor := 0;
+      prevTimeStamp := Double.NaN;
       if cursor.First then
       begin
         repeat
+          // init step values
           loopSensorValue := Double.NaN;
           loopLat := Double.NaN;
           loopLon := Double.NaN;
@@ -1370,9 +886,51 @@ begin
                 loopSensorValue := sensorValue;
                 sr.values[srp.Key].TryGetValue(sensordata_latitude shr 3, loopLat);
                 sr.values[srp.Key].TryGetValue(sensordata_longitude shr 3, loopLon);
+                if not (loopLat.IsNan or loopLon.IsNan)
+                then aExtent.Expand(loopLon, loopLat);
               end;
             end;
           end;
+
+          // color with value
+          loopSensorValueColor := aPalette.ValueToColors(loopSensorValue).fillColor;
+
+          // calculate length of step
+          if Double(prevTimeStamp).IsNaN then
+          begin
+            // FIRST step, init entry
+            stepSize := 0;
+            entryStartTimeStamp := cursor.CurrentTimeStamp;
+            entryColor := loopSensorValueColor;
+          end
+          else stepSize := cursor.CurrentTimeStamp-prevTimeStamp; // NOT first step
+
+          // check if entry should be closed (added)
+          if (stepSize>MaxNoSensorValueTime) or (loopSensorValueColor<>entryColor) then
+          begin
+            // check for transparancy
+            if (entryColor and $FF000000)<>0 then
+            begin
+              // calculate end time for entry
+              if stepSize>MaxNoSensorValueTime
+              then entryEndTimeStamp := prevTimeStamp+MaxNoSensorValueTime
+              else entryEndTimeStamp := cursor.CurrentTimeStamp;
+              // build entry
+              entry :=
+                '"start":"'+FormatDateTime(publisherDateTimeFormat, entryStartTimeStamp)+'"'+','+
+                '"end":"'+FormatDateTime(publisherDateTimeFormat, entryEndTimeStamp)+'"'+','+
+                '"color":"'+ColorToJSON(entryColor)+'"'+','+
+                //'"tooltip":'+'"max value: '+prevmax.toString+'"'+','+ // localized double
+                '"lat":'+DoubleToJSON(loopLat)+','+
+                '"lon":'+DoubleToJSON(loopLon);
+              jsonAdd(Result, '{'+entry+'}');
+            end;
+            // start new entry
+            entryStartTimeStamp := cursor.CurrentTimeStamp;
+            entryColor := loopSensorValueColor;
+          end;
+          (*
+          // add entry for step (or entries)
           fc := aPalette.ValueToColors(loopSensorValue).fillColor;
           fct := (fc and $FF000000)=0;
           fillColor := ColorToJSON(fc);
@@ -1389,7 +947,9 @@ begin
                 '"start":"'+startTime+'"'+','+
                 '"end":"'+endTime+'"'+','+
                 '"color":"'+fillColorPrev+'"'+','+
-                '"tooltip":'+'"max value: '+prevmax.toString+'"'; // localized double
+                //'"tooltip":'+'"max value: '+prevmax.toString+'"'+','+ // localized double
+                '"lat":'+DoubleToJSON(loopLat)+','+
+                '"lon":'+DoubleToJSON(loopLon);
               jsonAdd(Result, '{'+entry+'}');
             end;
             // start new range
@@ -1403,8 +963,26 @@ begin
             if CompareLessOrIsNaN(prevMax, loopSensorValue)
             then prevMax := loopSensorValue;
           end;
+          *)
+          // prepare next step
+          prevTimeStamp := cursor.CurrentTimeStamp;
         until not cursor.Next;
         // add last step
+        // check for transparancy
+        if (entryColor and $FF000000)<>0 then
+        begin
+          entryEndTimeStamp := cursor.CurrentTimeStamp+MaxNoSensorValueTime;
+          entry :=
+            '"start":"'+FormatDateTime(publisherDateTimeFormat, entryStartTimeStamp)+'"'+','+
+            '"end":"'+FormatDateTime(publisherDateTimeFormat, entryEndTimeStamp)+'"'+','+
+            '"color":"'+ColorToJSON(entryColor)+'"'+','+
+            //'"tooltip":'+'"max value: '+prevmax.toString+'"'+','+ // localized double
+            '"lat":'+DoubleToJSON(loopLat)+','+
+            '"lon":'+DoubleToJSON(loopLon);
+          jsonAdd(Result, '{'+entry+'}');
+        end;
+
+        (*
         endTime := FormatDateTime(publisherDateTimeFormat, cursor.CurrentTimeStamp+1/24); // 1 hour
         if (startTime<>'') and (startTime<>endTime) then
         begin
@@ -1412,9 +990,12 @@ begin
             '"start":"'+startTime+'"'+','+
             '"end":"'+endTime+'"'+','+
             '"color":"'+fillColorPrev+'"'+','+
-            '"tooltip":'+'"max value: '+prevmax.toString+'"'; // localized double
+            //'"tooltip":'+'"max value: '+prevmax.toString+'"'+','+ // localized double
+            '"lat":'+DoubleToJSON(loopLat)+','+
+            '"lon":'+DoubleToJSON(loopLon);
           jsonAdd(Result, '{'+entry+'}');
         end;
+        *)
       end;
     finally
       TMonitor.Exit(fSensorsDataSet);
@@ -1426,72 +1007,27 @@ end;
 
 procedure TSesmiScenario.ReadBasicData;
 var
-  palette, trackpalette: TWDPalette;
-//  layer: TSesmiLinkLayer;
-begin
-
-  // Group exposure
-  palette := CreateNiekPalette('NO2');//  CreateNO2Palette;
-  addConcentrationLayer(
-    'Group exposure', 'no2', 'NO2', 'Total exposure to NO2', false,
-    sensordata_no2_total, 'receptordata', palette, BuildLegendJSON(palette));
-
-  //palette := CreateNiekPalette('PM10'); // CreatePM10Palette;
-  //addConcentrationLayer(
-  //  'Group exposure', 'pm10', 'PM10', 'Total exposure to PM10', false,
-  //  sensordata_pm10_total, 'receptordata', palette, BuildLegendJSON(palette));
-
-  palette := CreateNiekPalette('NO2'); // CreateNO2Palette;
-  addConcentrationLayer(
-    'Group exposure',  'no2assim', 'NO2 assim', 'Total assimilated exposure to NO2', false,
-    sensordata_assim_no2_total, 'receptordata', palette, BuildLegendJSON(palette));
-
-  //palette := CreateNiekPalette('PM10'); // CreatePM10Palette;
-  //addConcentrationLayer(
-  //  'Group exposure', 'pm10assim', 'PM10 assim', 'Total assimilated exposure to PM10', false,
-  //  sensordata_assim_pm10_total, 'receptordata', palette, BuildLegendJSON(palette));
-
-  // Personal exposure
-//  mobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts', 'Mobile sensors', '', False, 'line',
-//    TChartAxis.Create('minutes', 'lightBlue', 'Time', 'min'),
-//    [TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')]);
-//
-//  AddChart(mobileChart);
-
-  palette := CreateHansPalette('NO2');
-  trackpalette := CreateNiekPalette('Track NO2');
-  AddSesmiLinkLayer(sensordata_no2, 'Personal exposure', 'NO2', 'NO2', 'Personal NO2', palette, trackpalette, BuildLegendJSON(palette));
-  //palette := CreateHansPalette('PM10');
-  //trackpalette := CreateNiekPalette('Track PM10');
-  //AddSesmiLinkLayer(sensordata_pm10, 'Personal exposure', 'PM10', 'PM10', 'Personal PM10', palette, trackpalette, BuildLegendJSON(palette));
-  //palette := CreateHansPalette('PM25');
-  //trackpalette := CreateNiekPalette('Track PM25');
-  //AddSesmiLinkLayer(sensordata_pm25, 'Personal exposure', 'PM25', 'PM25', 'Personal PM25', palette, trackpalette, BuildLegendJSON(palette));
-  //layer := TSesmiLinkLayer.Create(Self, 'Personal exposure', fID + 'personal-no2', 'Personal NO2', 'NO2', False, True, palette, BuildLegendJSON(palette), mobilechart);
-  //fLinkLayers.Add(sensordata_no2, layer);
-  //AddLayer(layer);
-  //layer.RegisterLayer;
-end;
-
-procedure TSesmiScenario.Reset;
-var
-  linkLayer: TSesmiLinkLayer;
+  trackpalette: TWDPalette;
   trackLayer: TSesmiTrackLayer;
 begin
-  TMonitor.Enter(fLinkLayers);
-  try
-    for linkLayer in fLinkLayers.Values do
-      linkLayer.Reset;
-  finally
-    TMonitor.Exit(fLinkLayers);
-  end;
-  TMonitor.Enter(fTrackLayers);
-  try
-    for trackLayer in fTrackLayers.Values do
-      trackLayer.Reset;
-  finally
-    TMonitor.Exit(fTrackLayers);
-  end;
+  trackpalette := CreateNiekPalette('Track NO2');
+
+  fMobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'NO2', 'NO2', 'Personal NO2', False, 'line',
+    TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
+    [TChartAxis.Create('concentratie', 'lightBlue', 'Concentration', 'mg/m3')], 'time');
+  AddChart(fMobileChart);
+
+  fTotalChart := TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'NO2' + 'total', 'NO2' + '-total', 'Personal NO2' + ' Total', False, 'line',
+    TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
+    [TChartAxis.Create('concentratie', 'lightBlue', 'Concentration', 'mg/m3')], 'time');
+  AddChart(fTotalChart);
+
+  trackLayer := TSesmiTrackLayer.Create(
+    Self, 'Personal exposure', 'NO2' + 'personal-track-' + 'NO2', 'Personal Track ' + 'NO2', 'NO2',
+    True, True, BuildLegendJSON(trackPalette), trackPalette);
+  fTrackLayers.AddOrSetValue(sensordata_no2, trackLayer);
+  AddLayer(trackLayer);
+  trackLayer.RegisterLayer;
 end;
 
 procedure TSesmiScenario.triggerUpdateTimesliderData;
@@ -1502,17 +1038,26 @@ begin
       jsonTSData: string;
       client: TClient;
       palette: TWDPalette;
+      extent: TWDExtent;
     begin
-      palette := CreateHansPalette('NO2');
+      palette := CreateGrayPalette('NO2 slider');
       try
-        jsonTSData := jsonTimesliderData(sensordata_no2 shr 3, palette);
+        extent := TWDExtent.Create;
+        jsonTSData := jsonTimesliderData(sensordata_no2 shr 3, palette, extent);
       finally
         palette.Free;
       end;
       for client in clients do
       begin
         client.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+        // set map view according data set if this is the first time time slider data is send to clients ie after inquire
+        if fFirstTimeSliderUpdate and not (extent.CenterY.IsNaN or extent.CenterX.IsNaN) then
+        begin
+          client.SendView(extent.CenterY, extent.CenterX, Double.NaN);
+        end;
       end;
+      if not (extent.CenterY.IsNaN or extent.CenterX.IsNaN)
+      then fFirstTimeSliderUpdate := False;
     end);
 end;
 
@@ -1530,72 +1075,28 @@ begin
 end;
 
 constructor TSesmiProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
-  aTilerStatusURL: string; aAddBasicLayers: Boolean; const aDateFormData: string; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
+  aTilerStatusURL: string; aAddBasicLayers: Boolean; {const aDateFormData: string; }aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
 begin
-  mapView := aMapView;
-  //fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
-  fSourceProjection := nil;
   fExpertScenarioGUID := aExpertScenarioGUID;
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
-    aTilerStatusURL, nil, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, mapView, nil, nil); // todo: check projectCurrentScenario
+    aTilerStatusURL, nil, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView, nil, nil); // todo: check projectCurrentScenario
   fTiler.onTilerStatus := handleTilerStatus;
-
   //Set Sesmi controls
   SetControl('timeslider', '1');
-  SetControl(dateFormControl, '{"data":' + aDateFormData + '}');
-  fLinks := TDictionary<TGUID, TWDGeometry>.Create;
-  fPubEvent := aConnection.eventEntry('geometry_roads').publish;
-  InquireNetwork;
-  fWindData := TSesmiWindData.Create(Self);
+  clientMessageHandlers.Add('timeslider',
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    begin
+      if Assigned(aClient.currentScenario) and (aClient.currentScenario is TSesmiScenario)  then
+      begin
+        (aClient.currentScenario as TSesmiScenario).HandleTimeSliderEvent(aClient, aType, aPayload);
+      end;
+    end);
 end;
 
-function TSesmiProject.CreateSesmiScenario(
-  const aScenarioID: string): TSesmiScenario;
-var
-  guid: TGUID;
-  scenario: TSesmiScenario;
-//  palette: TWDPalette;
-//  layer: TSesmiMobileSensorLayer;
+function TSesmiProject.CreateSesmiScenario(const aScenarioID: string): TSesmiScenario;
 begin
-  scenario := TSesmiScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView, False);
-  TMonitor.Enter(fLinks);
-  try
-    for guid in fLinks.Keys
-    do scenario.AddLink(guid, fLinks[guid]);
-  finally
-    TMonitor.Exit(fLinks);
-  end;
-
-  //AddSesmiLinkLayer(sensordata_no2, 'Personal exposure', 'NO2', 'NO2', 'Personal NO2', palette, BuildLegendJSON(palette));
-
-  // todo: remove when ready tested; should show links but for testing show track also
-  {
-  palette := CreateNiekPalette('NO2');
-  layer := TSesmiMobileSensorLayer.Create(
-      scenario, 'sensor', 'mobilesensor', 'Mobile sensor', 'Mobile sensor',
-      False, True, palette, BuildLegendJSON(palette), nil);
-  scenario.AddLayer(layer);
-  layer.RegisterLayer;
-
-  scenarios.Add(aScenarioID, scenario);
-  }
-  // **** scenario.GoLive(True);
-  scenario.GoDB('',Double.NegativeInfinity, Double.PositiveInfinity);
-  Result := scenario;
-end;
-
-destructor TSesmiProject.Destroy;
-begin
-  fWindData.Free;
-  FreeAndNil(fLinks);
-  //fComplaints.Free;
-  inherited;
-end;
-
-function TSesmiProject.getMeasuresJSON: string;
-begin
-  Result := '{}';
+  Result := TSesmiScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView, False);
 end;
 
 function TSesmiProject.handleTilerStatus(aTiler: TTiler): string;
@@ -1604,485 +1105,22 @@ begin
   Result := 'project '+projectName+' ('+projectID+')';
 end;
 
-procedure TSesmiProject.InquireNetwork;
-var
-  buffer: TByteBuffer;
-  returnEventName: string;
-begin
-  returnEventName := TGuid.NewGuid.ToString + '.networkInquire';
-  //returnEventName := 'Ensel2.' + 'geometry_roads'; //todo: dynamically read prefix!
-  fNetworkEvent := fConnection.eventEntry(returnEventName, False).subscribe;
-  fNetworkEvent.OnEvent.Add(HandleNetworkEvent);
-  buffer := TByteBuffer.bb_tag_double(wDatTimeStampLower shr 3, -1.5);
-  buffer := buffer + TByteBuffer.bb_tag_double(wDatTimeStampUpper shr 3, -0.5);
-  buffer := buffer + TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, returnEventName);
-  buffer := buffer + TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, '');
-  fPubEvent.signalEvent(buffer);
-end;
-
-procedure TSesmiProject.handleClientMessage(aClient: TClient;
-  aScenario: TScenario; aJSONObject: TJSONObject);
-  const
-    parameterNames: array[0..4] of string = ('daysSelect', 'fromHour', 'toHour', 'fromDate', 'toDate');
-
-  function ParseDays(const aParameterValue: string; out aDays: string) : Boolean;
-  var
-    selection: Boolean;
-  begin
-    Result := True;
-    try
-      selection := False;
-      if aParameterValue.Contains('Zo') then
-        aDays := aDays + '1'
-      else
-        selection := True;
-      if aParameterValue.Contains('Ma') then
-      begin
-        if aDays <> '' then
-          aDays := aDays + ', ';
-        aDays := aDays + '2';
-      end
-      else
-        selection := True;
-      if aParameterValue.Contains('Di') then
-      begin
-        if aDays <> '' then
-          aDays := aDays + ', ';
-        aDays := aDays + '3';
-      end
-      else
-        selection := True;
-      if aParameterValue.Contains('Wo') then
-      begin
-        if aDays <> '' then
-          aDays := aDays + ', ';
-        aDays := aDays + '4';
-      end
-      else
-        selection := True;
-      if aParameterValue.Contains('Do') then
-      begin
-        if aDays <> '' then
-          aDays := aDays + ', ';
-        aDays := aDays + '5';
-      end
-      else
-        selection := True;
-      if aParameterValue.Contains('Vr') then
-      begin
-        if aDays <> '' then
-          aDays := aDays + ', ';
-        aDays := aDays + '6';
-      end
-      else
-        selection := True;
-      if aParameterValue.Contains('Za') then
-      begin
-        if aDays <> '' then
-          aDays := aDays + ', ';
-        aDays := aDays + '0';
-      end
-      else
-        selection := True;
-      if not selection then
-        aDays := '';
-    except
-      aDays := '';
-    end;
-  end;
-
-  function ParseHours(const aParameterValue: string; out aHours: Double) : Boolean;
-  begin
-    Result := True;
-    try
-      aHours := strtofloat(aParameterValue) / 24;//todo: set delimiter?
-    except
-      aHours := -1;
-      Result := False;
-    end;
-  end;
-
-  function ParseDate(const aParameterValue: string; out aDate: TDateTime) : Boolean;
-  var
-    day, month, year: string;
-    stringSplit: TArray<string>;
-    formatSettings: TFormatSettings;
-  begin
-    Result := True;
-    try
-      stringSplit := aParameterValue.Split(['-']);
-      day := stringSplit[0];
-      month := stringSplit[1];
-      year := stringSplit[2];
-      formatSettings := TFormatSettings.Create;
-      formatSettings.ShortDateFormat := 'dd/mm/yyyy';
-      formatSettings.DateSeparator := '/';
-      aDate := StrToDate(day + '/' + month + '/' + year, formatSettings);
-    except
-      aDate := 0;
-      Result := False;
-    end;
-  end;
-var
-  jsonValue: TJSONValue;
-  //isp: TPair<string, TScenario>;
-
-  // Date Form
-  formatSettings: TFormatSettings;
-  valid: Boolean;
-  parameters: TJSONArray;
-  parameter: TJSONValue;
-  parameterName: string;
-  parameterNameValue: string;
-  parameterValue: string;
-  parameterType: string;
-  fromDate, toDate: TDateTime;
-  fromHour, toHour: Double;
-  daysSelect: string;
-  queryString: string;
+procedure TSesmiProject.handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject);
 begin
   if assigned(aClient.currentScenario) and (aClient.currentScenario is TSesmiScenario) then
   begin
-    if aJSONObject.TryGetValue<TJSONValue>('formResult', jsonValue) then
-    begin
-      if jsonValue.TryGetValue<TJSONArray>('parameters', parameters) then
-      begin
-        valid := True;
-        for parameterName in parameterNames do
-        begin
-          if valid then
-          begin
-            for parameter in parameters do
-            begin
-              if parameter.TryGetValue<string>('name', parameterNameValue) then
-              begin
-                if not parameter.TryGetValue<string>('value', parameterValue)
-                then parameterValue := '';
-                if not parameter.TryGetValue<string>('type', parameterType)
-                then parameterType := '';
-                if parameterName = parameterNameValue then
-                begin
-                  if parameterName = 'daysSelect' then valid := ParseDays(parameterValue, daysSelect)
-                  else if parameterName = 'fromHour' then valid := ParseHours(parameterValue, fromHour)
-                  else if parameterName = 'toHour' then valid := ParseHours(parameterValue, toHour)
-                  else if parameterName = 'fromDate' then valid := ParseDate(parameterValue, fromDate)
-                  else if parameterName = 'toDate' then valid := ParseDate(parameterValue, toDate)
-                  else; //unknown stuff
-                end;
-              end
-              else
-              valid := False;
-            end;
-          end;
-        end;
-        if valid then //build query;
-        begin
-          formatSettings := TFormatSettings.Create;
-          formatSettings.DecimalSeparator := '.';
-          queryString := '';
-          if daysSelect.Length > 0 then
-            queryString := queryString + '(mod(floor(ts)::Integer, 7) in (' + daysSelect + '))';
-          if (fromHour <> toHour) then
-          begin
-            if queryString.Length > 0 then
-            queryString := queryString + ' AND ';
-            queryString := queryString + '(ts - floor(ts) > ' + fromHour.ToString(formatSettings);
-            if fromHour < toHour then
-              queryString := queryString + ' AND '
-            else
-              queryString := queryString + ' OR ';
-            queryString := queryString + 'ts - floor(ts) < ' + toHour.ToString(formatSettings) + ')';
-          end;
-          (aClient.currentScenario as TSesmiScenario).GoDB(queryString, fromDate, toDate);
-        end;
-      end;
-    end
-    else if aJSONObject.TryGetValue<TJSONValue>('goLive', jsonValue) then
-    begin
-      (aClient.currentScenario as TSesmiScenario).GoLive;
-    end;
-  end;
-end;
-
-procedure TSesmiProject.handleNetworkEvent(aEventEntry: TEventEntry;
-  const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-var
-  geometry: TWDGeometry;
-  guid: TGUID;
-  scenario: Tscenario;
-  fieldInfo: UInt32;
-  len: UInt64;
-begin
-  guid := TGUID.Empty;
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aPayload.bb_read_uint32(aCursor);
-    case fieldInfo of
-    (icehTilerGeometry shl 3) or wtLengthDelimited:
-    begin
-      geometry := TWDGeometry.Create;
-      len := aPayload.bb_read_uint64(aCursor);
-      geometry.Decode(aPayload, aCursor, aCursor + Integer(len));
-      TMonitor.Enter(scenarios);
-      try
-      begin
-        for scenario in scenarios.Values do
-          if scenario is TSesmiScenario then
-            (scenario as TSesmiScenario).AddLink(guid, geometry);
-      end;
-      finally
-        TMonitor.Exit(scenarios);
-      end;
-      TMonitor.Enter(fLinks);
-      try
-        fLinks.Add(guid, geometry);
-      finally
-        TMonitor.Exit(fLinks);
-      end;
-
-    end;
-    (icehObjectID shl 3) or wtLengthDelimited:
-    begin
-      guid := aPayload.bb_read_guid(aCursor);
-    end;
-    else
-      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
-    end;
+    // todo: ?
   end;
 end;
 
 procedure TSesmiProject.handleNewClient(aClient: TClient);
-var
-  scenario: TScenario;
 begin
-  // send new sensors
-  for scenario in fScenarios.Values do
-  begin
-    if scenario is TSesmiScenario then
-    begin
-//      if Assigned((scenario as TSesmiScenario).fSensorsLayer) then
-//      begin
-        //(scenario as TSesmiScenario).fSensorsLayer.fGUIDToID
-
-//      end;
-    end;
-  end;
-end;
-
-procedure TSesmiProject.ReadBasicData;
-var
-  scenario: TScenario;
-begin
-  scenario := ReadScenario('basic'); //TSesmiScenario.Create(Self, '1', '1', '1', false, Self.mapView);
-  scenarios.Add(scenario.id, scenario);
-  fProjectCurrentScenario := scenario;
-end;
-
-procedure TSesmiProject.ReadObjects(aSender: TObject);
-begin
-  // todo:
-end;
-
-function TSesmiProject.ReadScenario(const aID: string): TScenario;
-begin
-  // todo: dependent on project? Utrecht <> Eindhven..
-  Result := TSesmiScenario.Create(Self, aID, 'Eindhoven', 'Luchtkwaliteit in Eindhoven - Geen persoonlijke data', false, Self.mapView, False); // todo:
-end;
-
-{ TSesmiModule }
-
-constructor TSesmiModule.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aTilerFQDN, aTilerStatusURL: string;
-  aMaxNearestObjectDistanceInMeters: Integer; const aExpertScenarioGUID: TGUID;
-  const aProjectName: string; aMapView: TMapView);
-var
-  project: TProject;
-  dateFormData: string;
-begin
-  inherited Create;
-  fSessionModel := aSessionModel;
-  fConnection := aConnection;
-  fTilerFQDN := aTilerFQDN;
-  fTilerStatusURL := aTilerStatusURL;
-  fProjects := TDictionary<string, TProject>.Create;
-  fMaxNearestObjectDistanceInMeters := aMaxNearestObjectDistanceInMeters;
-  dateFormData := '[{ "formElement": "checkbox", "type": "string", "required": "y", "optionsArray": ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"], "labelText": "Dagen van de week", "idName": "daysSelect", "extraOptions": false },'+
-            '{"formElement":"slider", "type":"int", "required":"y", "optionsArray":["0", "24"], "labelText":"Vanaf (tijd):", "idName":"fromHour", "extraOptions":[1, "uur"]},'+
-            '{"formElement": "slider", "type": "int", "required": "y", "optionsArray": ["0", "24"], "labelText": "Tot (tijd):", "idName": "toHour", "extraOptions": [1, "uur"]},'+
-            '{"formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Van datum [dd-mm-jjjj]", "idName": "fromDate", "extraOptions": {"defaultValue": "13-10-2017"} },'+
-            '{"formElement": "input", "type": "string", "required": "y", "optionsArray": false, "labelText": "Tot en met datum [dd-mm-jjjj]", "idName": "toDate", "extraOptions": {"defaultValue": "20-10-2017"}}'+
-            ']';
-  //InitPG;
-  project := TSesmiProject.Create(aSessionModel, aConnection, 'Sesmi', aProjectName, aTilerFQDN, aTilerStatusURL,
-    False, dateFormData, aMaxNearestObjectDistanceInMeters, aMapView, aExpertScenarioGUID);
-  fProjects.Add(project.ProjectID, project);
-end;
-
-destructor TSesmiModule.Destroy;
-begin
-  // todo:
-  FreeAndNil(fProjects);
-  inherited;
-end;
-
-{ TSesmiMobileSensorLayer }
-
-constructor TSesmiMobileSensorLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad,
-  aShowInDomains: Boolean; aPalette: TWDPalette; aLegendJSON: string; aChart: TChartLines);
-begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"mobilesensor"', 'Point', ltTile, aShowInDomains, 0);
-  // mobile sensor points
-  fChart := aChart;
-  fPalette :=  aPalette;
-  fLegendJSON := aLegendJSON;
-  fDataEventHandler := HandleEvent;
-  fDataEvent := scenario.project.connection.eventEntry('mobilesensordata').Subscribe;
-  fDataEvent.OnEvent.Add(fDataEventHandler);
-  fPrivateDataEvent := scenario.project.connection.eventEntry(scenario.project.Connection.privateEventName+'.'+'mobilesensordata', false).Subscribe;
-  fPrivateDataEvent.OnEvent.Add(fDataEventHandler);
-  // inquire
-  fDataEvent.signalEvent(
-    TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, fPrivateDataEvent.eventName)+
-    TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, 'ORDER BY ts')); //'ts>=42700 ORDER BY ts'));
-end;
-
-destructor TSesmiMobileSensorLayer.Destroy;
-begin
-  if Assigned(fDataEvent) then
-  begin
-    if fDataEvent.OnEvent.Contains(fDataEventHandler)
-    then fDataEvent.OnEvent.Remove(fDataEventHandler);
-  end;
-  inherited;
-end;
-
-function TSesmiMobileSensorLayer.HandleClientSubscribe(aClient: TClient): Boolean;
-begin
-  Result := True;
-end;
-
-function TSesmiMobileSensorLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
-begin
-  Result := True;
-end;
-
-procedure TSesmiMobileSensorLayer.AddPoint(aObjectID: TGUID; aTimeStamp, aLat, aLon: Double; aSubstance: UInt32; aValue: Double);
-var
-  wdid: TWDID;
-  geometryPoint: TWDGeometryPoint;
-//  o: TLayerObject;
-begin
-  //wdid := TWDID(aObjectID.ToString());
-  wdid := TWDID(TGUID.NewGuid.ToString);
-  //if not objects.TryGetValue(wdid, o) then
-  //begin
-  geometryPoint := TWDGeometryPoint.Create;
-  geometryPoint.x := aLon;
-  geometryPoint.y := aLat;
-  AddObject(TGeometryPointLayerObject.Create(Self, wdid, geometryPoint, aValue));
-  //Log.WriteLn('ms: '+aLat.ToString()+' x '+aLon.ToString()+': '+aSubstance.ToString()+': '+aValue.ToString());
-  if Assigned(fChart)
-  then fChart.AddValue(aTimeStamp, [aValue]);
-//  end
-//  else
-//  begin
-//    o
-//  end;
-end;
-
-procedure TSesmiMobileSensorLayer.HandleEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-var
-  fieldInfo: UInt32;
-  objectID: TGUID;
-  timestamp: Double;
-//  pm1: double;
-//  pm10: double;
-  no2: double;
-//  pm25: double;
-//  co2: double;
-begin
-  timestamp := 0;
-  while aCursor<aLimit do
-  begin
-    fieldInfo := aPayload.bb_read_uint32(aCursor);
-    case fieldInfo of
-      (icehObjectID shl 3) or wtLengthDelimited:
-        objectID := aPayload.bb_read_guid(aCursor);
-      ((icehWorldCommandBase+2) shl 3) or wt64Bit: // time stamp
-        timestamp := aPayload.bb_read_double(aCursor);
-      sensordata_longitude:
-        fLastLon := aPayload.bb_read_double(aCursor);
-      sensordata_latitude:
-        fLastLat := aPayload.bb_read_double(aCursor);
-      sensordata_no2:
-        begin
-          no2 := aPayload.bb_read_double(aCursor);
-          if ((fScenario.project is TSesmiProject) and (fScenario is TSesmiScenario) and ((fScenario.project as TSesmiProject).ExpertScenarioGUID = (fScenario as TSesmiScenario).fGUID)) or (objectID.ToString = fScenario.ID) then //check if we need to add this point
-          begin
-            if (fLastLat<>0) and (fLastLon<>0) and (timestamp > Now-1)
-            then AddPoint(objectID, timestamp, fLastLat, fLastLon, sensordata_no2, no2);
-            // todo: ignoring values on 0,0 for now
-          end;
-        end;
-
-      {
-      sensordata_pm1:
-        pm1 := aPayload.bb_read_double(aCursor);
-      sensordata_pm10:
-        pm10  := aPayload.bb_read_double(aCursor);
-      sensordata_pm25:
-        pm25 := aPayload.bb_read_double(aCursor);
-      137: // CO2
-        co2 := aPayload.bb_read_double(aCursor);
-      }
-
-
-      {
-      kpi_road_segment_id:
-        roadSegementID := aPayload.bb_read_int32(aCursor);
-      kpi_TransportMode:
-        transportMode :=  aPayload.bb_read_string(aCursor);
-      kpi_ComponentName:
-        componentName :=  aPayload.bb_read_string(aCursor);
-      kpi_Time_Category:
-        TimeCategory :=  aPayload.bb_read_string(aCursor);
-      kpi_avg_concentration:
-        begin
-          AvgConcentration := aPayload.bb_read_double(aCursor);
-          AddOrSetSubCategory('Average '+componentName, transportMode, TimeCategory, AvgConcentration);
-          AddOrSetSubCategory('Average exposure', transportMode, TimeCategory, AvgConcentration*duration);
-        end;
-      kpi_duration:
-        begin
-          duration := aPayload.bb_read_double(aCursor);
-          AddOrSetSubCategory('Average time', transportMode, TimeCategory, duration);
-        end;
-      }
-    else
-      aPayload.bb_read_skip(aCursor, fieldInfo and 7);
-    end;
-  end;
-end;
-
-procedure TSesmiMobileSensorLayer.RegisterLayer;
-begin
-  RegisterOnTiler(False, SliceType, name, 2500, fPalette);
-  fTilerLayer.signalSliceAction();
-end;
-
-procedure TSesmiMobileSensorLayer.RegisterSlice;
-begin
-  tilerLayer.signalAddSlice(nil);
-end;
-
-function TSesmiMobileSensorLayer.SliceType: Integer;
-begin
-  Result := stLocation;
+  // todo: ?
 end;
 
 { TSesmiClient }
 
-constructor TSesmiClient.Create(aProject: TProject; aCurrentScenario,
-  aRefScenario: TScenario; const aClientID: string);
+constructor TSesmiClient.Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
 begin
   inherited;
 end;
@@ -2093,276 +1131,22 @@ var
   userID: string;
   scenario: TScenario;
 begin
+  userID := aJSONObject.GetValue<string>('userid');
   scenarioID := aJSONObject.GetValue<string>('scenario'); //todo: check if scenarioID is valid GUID?
   if not TRegEx.IsMatch(scenarioID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$') then
     exit;
-  userID := aJSONObject.GetValue<string>('userid');
   if not fProject.scenarios.TryGetValue(scenarioID, scenario) then
   begin
     scenario := (fProject as TSesmiProject).CreateSesmiScenario(scenarioID);
+    fProject.scenarios.Add(scenario.ID, scenario);
   end;
   removeClient(fCurrentScenario);
   fCurrentScenario := scenario;
   addClient(fCurrentScenario);
   Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
-  // retry
   SendSession();
-  //SendMeasures(); // todo:?
   fProject.SendDomains(self, 'domains');
 end;
 
-{ TSesmiLinkLayer }
 
-procedure TSesmiLinkLayer.AddLink(const aID: TWDID; aGeometry: TWDGeometry);
-begin
-  if not objects.ContainsKey(aID) then
-    AddObject(TSesmiLink.Create(Self, aID, aGeometry));
-end;
-
-procedure TSesmiLinkLayer.AddLinkID(const aTimeStamp: Double; const aID: TWDID);
-var
-  value: Double;
-begin
-  //check if we can make a match
-  if valueList.ContainsKey(aTimeStamp) then //match
-  begin
-    value := valueList[aTimeStamp];
-    valueList.Remove(aTimeStamp);
-    ProcessMatch(aTimeStamp, value, aID);
-  end
-  else //add to list so we can match later
-  begin
-    linkidList.AddOrSetValue(aTimeStamp, aID);
-  end;
-end;
-
-procedure TSesmiLinkLayer.AddValue(const aTimeStamp, aValue: Double);
-var
-  linkID: TWDID;
-//  lastValue: TChartValue;
-  average, delta: Double;
-//  total: Double;
-begin
-  //check if we can make a match
-  if linkidList.ContainsKey(aTimeStamp) then //match
-  begin
-    linkID := linkidList[aTimeStamp];
-    linkidList.Remove(aTimeStamp);
-    ProcessMatch(aTimeStamp, aValue, linkID);
-  end
-  else //add to list so we can match later
-  begin
-    valueList.AddOrSetValue(aTimeStamp, aValue);
-  end;
-
-  //always add value to charts
-  TMonitor.Enter(fChart);
-  try
-//    if fChart.values.Count > 0 then
-//    begin
-//      lastValue := fChart.values[fChart.values.Count - 1];
-//      average := (aValue + lastValue.y[0]) / 2;
-//      delta := aTimeStamp - lastValue.x;
-//      total := average * delta * 24 * 60;
-//      if fTotalChart.values.Count > 0 then
-//        total := total + fTotalChart.values[fTotalChart.values.Count -1].y[0];
-//      fTotalChart.AddValue(aTimeStamp, [total]);
-//    end;
-    if not Double.IsNaN(fPrevValue) then
-    begin
-      average := (aValue + fPrevValue) / 2;
-      delta := aTimestamp - fPrevTime;
-      fTotalValue := fTotalValue + (average * delta * 24 * 60);
-      fTotalChart.AddValue(aTimeStamp, [fTotalValue]);
-    end;
-    fPrevValue := aValue;
-    fPrevTime := aTimeStamp;
-    fChart.AddValue(aTimeStamp, [aValue]);
-  finally
-    TMonitor.Exit(fChart);
-  end;
-end;
-
-constructor TSesmiLinkLayer.Create(aScenario: TScenario; const aDomain, aID,
-  aName, aDescription: string; aDefaultLoad, aShowInDomains: Boolean;
-  aPalette: TWDPalette; aLegendJSON: string; aChart, aTotalChart: TChartLines);
-begin
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"Link"', 'LineString', ltTile, aShowInDomains, 0);
-  valueList := TDictionary<Double, Double>.Create;
-  linkidList := TDictionary<Double, TWDID>.Create;
-  fPalette := aPalette;
-  fLegendJSON := aLegendJSON;
-  fChart := aChart;
-  fTotalChart := aTotalChart;
-  fTotalValue := 0;
-  fPrevTime := Double.NaN;
-  fPrevValue := Double.NaN;
-end;
-
-destructor TSesmiLinkLayer.Destroy;
-begin
-  inherited;
-end;
-
-procedure TSesmiLinkLayer.ProcessMatch(const aTimeStamp, aValue: Double;
-  aID: TWDID);
-var
-  link: TLayerObject;
-begin
-  TMonitor.Enter(objects);
-  try
-    if objects.TryGetValue(aID, link) then
-    begin
-      (link as TSesmiLink).UpdateValue(aTimeStamp, aValue);
-    end;
-  finally
-    TMonitor.Exit(objects);
-  end;
-end;
-
-procedure TSesmiLinkLayer.RegisterLayer;
-begin
-  RegisterOnTiler(False, SliceType, name, 2500);
-end;
-
-procedure TSesmiLinkLayer.RegisterSlice;
-begin
-  if Assigned(fPalette)
-  then tilerLayer.signalAddSlice(fPalette.Clone)
-  else tilerLayer.signalAddSlice(nil);
-end;
-
-procedure TSesmiLinkLayer.Reset;
-var
-  link: TLayerObject;
-begin
-  TMonitor.Enter(objects);
-  try
-  for link in objects.Values do
-    (link as TSesmiLink).Reset;
-  finally
-    TMonitor.Exit(objects);
-  end;
-  TMonitor.Enter(fChart);
-  try
-    fChart.reset;
-    fTotalChart.reset;
-  finally
-    TMonitor.Exit(fChart);
-  end;
-end;
-
-function TSesmiLinkLayer.SliceType: Integer;
-begin
-  Result := stGeometryI;
-end;
-
-{ TSesmiLink }
-
-constructor TSesmiLink.Create(aLayer: TLayer;
-  const aID: TWDID; aGeometry: TWDGeometry);
-begin
-  inherited Create(aLayer, aID, aGeometry, Double.NaN);
-  fValueList := TList<TTimedValue>.Create;
-end;
-
-destructor TSesmiLink.Destroy;
-begin
-  inherited;
-end;
-
-procedure TSesmiLink.Reset;
-begin
-  if fValue <> Double.NaN then
-  begin
-    fValue := Double.NaN;
-    fTotalValue := 0;
-    fValueList.Clear;
-    layer.signalObject(Self);
-  end;
-end;
-
-procedure TSesmiLink.UpdateValue(aTimeStamp, aValue: Double);
-var
-  timedValue: TTimedValue;
-  i: Integer;
-begin
-    //check if we need to remove values that are too old
-    if (layer.scenario is TSesmiScenario) and (layer.scenario as TSesmiScenario).Live and (fValueList.Count > 0) then
-    for i := fValueList.Count - 1 to 0  do
-        if fValueList[i].time < (aTimeStamp - GetSetting(TimeSpanSwitch, DefaultTimeSpan)) then
-        begin
-          fTotalValue := fTotalValue - fValueList[i].value;
-          fValueList.Delete(i);
-        end;
-
-    //add new value
-    timedValue.time := aTimeStamp;
-    timedValue.value := aValue;
-    fValueList.Add(timedValue);
-    fTotalValue := fTotalValue + aValue;
-
-    if fValue <> (fTotalValue / fValueList.Count) then
-    begin
-      fValue := fTotalValue / fValueList.Count;
-      layer.signalObject(Self);
-    end;
-end;
-
-{ TSesmiTrackLayer }
-
-procedure TSesmiTrackLayer.AddPoint(aObjectID: TGUID; aLat, aLon,
-  aValue: Double);
-var
-  wdid: TWDID;
-  geometryPoint: TWDGeometryPoint;
-//  o: TLayerObject;
-begin
-  //wdid := TWDID(aObjectID.ToString());
-  wdid := TWDID(TGUID.NewGuid.ToString);
-  //if not objects.TryGetValue(wdid, o) then
-  //begin
-  geometryPoint := TWDGeometryPoint.Create;
-  geometryPoint.x := aLon;
-  geometryPoint.y := aLat;
-  AddObject(TGeometryPointLayerObject.Create(Self, wdid, geometryPoint, aValue));
-end;
-
-constructor TSesmiTrackLayer.Create(aScenario: TScenario; const aDomain, aID,
-  aName, aDescription: string; aDefaultLoad, aShowInDomains: Boolean;
-  aPallette: TWDPalette; aLegendJSON: string);
-begin
-  //fLastLats := TDictionary<TGUID, Double>.Create;
-  //fLastLons := TDictionary<TGUID, Double>.Create;
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, '"mobilesensor"', 'Point', ltTile, aShowInDomains, 0);
-  fPalette := aPallette;
-  fLegendJSON := aLegendJSON;
-end;
-
-destructor TSesmiTrackLayer.Destroy;
-begin
-  //FreeAndNil(fLastLons);
-  //FreeAndNil(fLastLats);
-  inherited;
-end;
-
-procedure TSesmiTrackLayer.RegisterLayer;
-begin
-  RegisterOnTiler(False, SliceType, name, 2500, fPalette);
-end;
-
-procedure TSesmiTrackLayer.RegisterSlice;
-begin
-  tilerLayer.signalAddSlice(nil);
-end;
-
-procedure TSesmiTrackLayer.Reset;
-begin
-  tilerLayer.signalSliceAction();
-end;
-
-function TSesmiTrackLayer.SliceType: Integer;
-begin
-  Result := stLocation;
-end;
 end.

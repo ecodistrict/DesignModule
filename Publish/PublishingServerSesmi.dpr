@@ -38,9 +38,10 @@ var
   imbConnection: TConnection;
   sessionModel: TSessionModel;
   tilerFQDN: string;
-  SesmiModule: TSesmiModule;
+  //sesmiModule: TSesmiModule;
+  project: TProject;
 begin
-  SesmiModule := nil; // sentinel
+  //sesmiModule := nil; // sentinel
   FileLogger.SetLogDef(AllLogLevels, [llsTime]);
   try
     try
@@ -54,7 +55,7 @@ begin
 //        'EnSel2',
 //        GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
       imbConnection := TSocketConnection.Create(
-        'PublishingServerSesmiUtrecht', 12,
+        'PublishingServerSesmi', 12,
         'ensel_utrecht',
         GetSetting(RemoteHostSwitch, imbDefaultRemoteHost), GetSetting(RemotePortSwitch, imbDefaultRemoteSocketPort));
       try
@@ -63,52 +64,28 @@ begin
         sessionModel := TSessionModel.Create(imbConnection);
         try
           tilerFQDN := GetSetting(TilerNameSwitch, DefaultTilerName);
-          Log.WriteLn('Tiler name: '+tilerFQDN);
+          Log.WriteLn('Tiler: '+tilerFQDN);
           // nwb live feed
 //          CreateSessionProject(sessionModel, '1234'{'rotterdam'}, 'Rotterdam dashboard', ptNWBLiveFeed, tilerFQDN, '', '',
 //            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters)); {todo: NWBLiveFeedProjectName}
 
           // Sesmi module
-          SesmiModule := TSesmiModule.Create(
+          {
+          sesmiModule := TSesmiModule.Create(
             sessionModel,
             imbConnection,
             tilerFQDN,
             GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
             TGUID.Create(GetSetting(ExpertScenarioSwitch, DefaultExpertScenario)),
-            //'Fietsproject Eindhoven', TMapView.Create(51.4475, 5.4808, 13));
-            'Fietsproject Utrecht Uithof', TMapView.Create(52.0915, 5.12013, 13));
-
-          // every project has own listener for clients -> global list not needed anymore
-          {
-          // inquire existing session and rebuild internal sessions..
-          imbConnection.subscribe(imbConnection.privateEventName, False).OnIntString.Add(
-            procedure(event: TEventEntry; aInt: Integer; const aString: string)
-            var
-              projectEventPrefix: string;
-              p: TProject;
-            begin
-              // find project with client
-              for p in SesmiModule.Projects.Values do
-              begin
-                projectEventPrefix := p.ProjectEvent.eventName+'.';
-                if aString.StartsWith(projectEventPrefix) then
-                begin
-                  p.AddClient(aString.Split(['&'])[0]);
-                  Log.WriteLn('linked existing client: '+aString.Substring(projectEventPrefix.Length));
-                  Log.WriteLn('to project: '+p.ProjectName, llNormal, 1);
-                  exit;
-                end;
-              end;
-              Log.WriteLn('could not link existing ws2imb client to project: '+aString, llWarning);
-            end);
-
-
-
-
-          // inquire existing sessions
-          imbConnection.publish(WS2IMBEventName, False).signalIntString(actionInquire, imbConnection.privateEventName);
+            'Fietsproject', TMapView.Create(52.0915, 5.12013, 13));
           }
+          project := TSesmiProject.Create(
+            sessionModel, imbConnection, 'Sesmi', 'Fietsproject',
+            tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+            False, GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+            TMapView.Create(52.0915, 5.12013, 13), TGUID.Create(GetSetting(ExpertScenarioSwitch, DefaultExpertScenario)));
+          sessionModel.Projects.Add(project);
 
           // main loop
           WriteLn('Press return to quit');
@@ -116,7 +93,7 @@ begin
 
         finally
           FinalizeCommandQueue();
-          SesmiModule.Free;
+          //sesmiModule.Free;
           sessionModel.Free;
         end;
       finally
