@@ -1092,13 +1092,6 @@ begin
           project := TProjectEarlyWarning.Create(sessionModel, connection, 'EarlyWarning', 'EarlyWarning', '', '', nil, False, 250, mapView, nil, nil);
           sessionModel.Projects.Add(project);
 
-          (*
-          project.projectCurrentScenario.AddLayer(TExternalTilesLayer.Create(
-            project.projectCurrentScenario, 'Cycling', 'OCM', 'OCM', 'Open Cycle Map',
-            'http://a.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png',
-            False, '', True, False));
-          *)
-
           WriteLn('Press return to quit..');
           Readln;
 
