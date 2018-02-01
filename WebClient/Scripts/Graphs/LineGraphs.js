@@ -13,8 +13,8 @@ function LineBottomLeft(graphObject) {
 
         if (this.graphObject.x.set)
             {
-                this.graphObject.minX = 0//this.graphObject.x.min;
-                this.graphObject.maxX = 1//this.graphObject.x.max;
+                this.graphObject.minX = this.graphObject.x.min;
+                this.graphObject.maxX = this.graphObject.x.max;
             }
 
         var ySet = false;
@@ -31,8 +31,8 @@ function LineBottomLeft(graphObject) {
             }
         if (ySet && minY != Number.POSITIVE_INFINITY && maxY != Number.NEGATIVE_INFINITY)
         {
-            this.graphObject.minY = 20//minY;
-            this.graphObject.maxY = 40//maxY;
+            this.graphObject.minY = minY;
+            this.graphObject.maxY = maxY;
         }
 
         //var svgHolder = container.appendChild(document.createElement('div'));
