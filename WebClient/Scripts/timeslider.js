@@ -85,6 +85,9 @@ L.Control.TimeSlider = L.Control.extend({
 
         // group to store events in
         var eventContainer = svg.append('g');
+        eventContainer.style('cursor', 'crosshair');
+        eventContainer.style('stroke-width', '1');
+        eventContainer.style('stroke', 'black');
 
         // tooltip element for showing event info
         var tip = d3.tip()
