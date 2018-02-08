@@ -13,18 +13,12 @@ L.control.projectDescription.showOptions = function (e) {
 
     var container = L.DomUtil.create("div", "optionsContainer", dialog);
 
-    modelDialogAddButton(container, 'Refresh', function () { wsSend({ scenarioRefresh: DataManager.sessionInfo.scenario }); });
-
-    modelDialogAddButton(container, 'Scenario Overzicht', function () {
-        modalDialogClose();
-        ScenarioControlsManager.showScenarios(options);
+    modelDialogAddButton(container, 'Refresh', function () {
+        wsSend({
+            type: "scenarioRefresh",
+            payload: { scenario: DataManager.sessionInfo.scenario }
+        });
     });
-
-    modelDialogAddButton(container, 'Scenario Planning', function () {
-        modalDialogClose();
-        ScenarioControlsManager.showScenario(options);
-    });
-
 }
 
 L.control.projectDescription.showScenarios = function () {
