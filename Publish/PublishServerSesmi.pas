@@ -128,6 +128,7 @@ type
   public
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
     procedure HandleTimeSliderEvent(aClient: TClient; const aType: string; aPayload: TJSONObject);
+    procedure HandleScenarioRefresh(aClient: TClient; const aType: string; aPayload: TJSONObject);
     procedure ProcessRecord(
       aTrackLayer: TSesmiTrackLayer; aMobileChart, aTotalChart: TChartLines;
       aCursor: TCursor;
@@ -452,6 +453,30 @@ begin
     end;
   finally
     fSensorsDataSet.RemoveCursor(cursor);
+  end;
+end;
+
+procedure TSesmiScenario.HandleScenarioRefresh(aClient: TClient; const aType: string; aPayload: TJSONObject);
+var
+  scenario: TJSONValue;
+begin
+  // todo: right button project description -> refresh clicked
+  if aPayload.TryGetValue<TJSONValue>('scenario', scenario) then
+  begin
+    if scenario is TJSONString then
+    begin
+      try
+        if string.CompareText(id, scenario.Value)=0 then
+        begin
+          Log.WriteLn('HandleScenarioRefresh: initiated scenario refresh');
+          // todo: implement scenario refresh
+
+        end
+        else Log.WriteLn('HandleScenarioRefresh: wrong id? "'+scenario.value+'" <> "'+id+'"', llError);
+      except
+        Log.WriteLn('HandleScenarioRefresh: could not decode scenario from "'+scenario.value+'"', llWarning);
+      end;
+    end;
   end;
 end;
 
@@ -878,6 +903,14 @@ begin
       if Assigned(aClient.currentScenario) and (aClient.currentScenario is TSesmiScenario)  then
       begin
         (aClient.currentScenario as TSesmiScenario).HandleTimeSliderEvent(aClient, aType, aPayload);
+      end;
+    end);
+  clientMessageHandlers.Add('scenarioRefresh',
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    begin
+      if Assigned(aClient.currentScenario) and (aClient.currentScenario is TSesmiScenario)  then
+      begin
+        (aClient.currentScenario as TSesmiScenario).HandleScenarioRefresh(aClient, aType, aPayload);
       end;
     end);
 end;
