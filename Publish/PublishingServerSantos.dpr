@@ -222,7 +222,7 @@ begin
 
     projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
     projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
-    mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.31567, 4.90321, 13));
+    mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.35264, 4.89544, 13));
     Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
     preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
     tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
