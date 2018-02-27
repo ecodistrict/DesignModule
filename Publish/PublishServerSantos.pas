@@ -252,7 +252,6 @@ type
     fPowerConsumptionHVAC: Double;
     procedure LoadBusDefaults;
   protected
-    //procedure HandleDataUpdate(aSession: TOrasession; aScenario: TScenario; aLayer: TSantosLayer; const aTablePrefix: string);
     function  ReadScenario(const aID: string): TScenario; override;
     procedure ReadChartBlockSoC(aSession: TOraSession; aScenario: TScenario; const aTablePrefix: string; aBlockID: Integer);
 
@@ -1051,11 +1050,8 @@ begin
               (self as TMCProject).controlInterface.DataSource, tablePrefix, fIMB3Connection.Publish('EBUS_CHARGELOCATION'), indic_event, soc_event);
           if FileExists(ExtractFilePath(ParamStr(0))+'previews\Santos.png') then
             santosLayer.previewBase64 := PNGFileToBase64(ExtractFilePath(ParamStr(0))+'previews\Santos.png');
-          { todo:
-          TMonitor.Enter(santosLayer.fBusStops);
+          TMonitor.Enter(santosLayer.fSliderData);
           try
-            for stop in santosLayer.fBusStops do
-            }
             for bs in santosLayer.fSliderData.BusStops.Values do
             begin
               //if stop.Value.isCharger then
@@ -1066,11 +1062,9 @@ begin
                 ReadChartChargerWarnings(oraSession, Result, tablePrefix, bs.charger.objectID, bs.name);// stop.Value.objectID, stop.Value.name);
               end;
             end;
-            {
           finally
-            TMonitor.Exit(santosLayer.fBusStops);
+            TMonitor.Exit(santosLayer.fSliderData);
           end;
-          }
         finally
           oraSession.Free;
         end;
@@ -1125,46 +1119,51 @@ begin
   Log.WriteLn('addDrivingBussesToPreviousStop');
   // add busses to slider data to inbetween time table entries
   // first get all times as list
-  ttt := fSliderData.fTimeTable.Keys.ToArray;
-  TArray.Sort<TDateTime>(ttt);
-  for t := 1 to length(ttt)-1 do
-  begin
-    // add bus info from previous step when not changed here
-    fSliderData.fTimeTable.TryGetValue(ttt[t-1], prevSL);
-    fSliderData.fTimeTable.TryGetValue(ttt[t], curSL);
-    curBusses := TDictionary<Integer, TBusStop2>.Create;
-    try
-      // build list of current busses and stops they are at
-      for curBSBRP in curSL.BusStops do
-      begin
-        for b in curBSBRP.Value.Keys.ToArray
-        do curBusses.AddOrSetValue(b, curBSBRP.Key);
-      end;
-      // create entries for all busses at the previous time step that do not exist in this time step
-      for prevBSBRP in prevSL.BusStops do
-      begin
-        curBR := nil;
-        // add all busses from the previous time step that do not exist in the current time step
-        for bbdep in prevBSBRP.Value do
+  TMonitor.Enter(fSliderData);
+  try
+    ttt := fSliderData.fTimeTable.Keys.ToArray;
+    TArray.Sort<TDateTime>(ttt);
+    for t := 1 to length(ttt)-1 do
+    begin
+      // add bus info from previous step when not changed here
+      fSliderData.fTimeTable.TryGetValue(ttt[t-1], prevSL);
+      fSliderData.fTimeTable.TryGetValue(ttt[t], curSL);
+      curBusses := TDictionary<Integer, TBusStop2>.Create;
+      try
+        // build list of current busses and stops they are at
+        for curBSBRP in curSL.BusStops do
         begin
-          if not curBusses.ContainsKey(bbdep.Key) then
+          for b in curBSBRP.Value.Keys.ToArray
+          do curBusses.AddOrSetValue(b, curBSBRP.Key);
+        end;
+        // create entries for all busses at the previous time step that do not exist in this time step
+        for prevBSBRP in prevSL.BusStops do
+        begin
+          curBR := nil;
+          // add all busses from the previous time step that do not exist in the current time step
+          for bbdep in prevBSBRP.Value do
           begin
-            if not Assigned(curBR) then
+            if not curBusses.ContainsKey(bbdep.Key) then
             begin
-              // make sure a entry for the bus stop exists
-              if not curSL.BusStops.TryGetValue(prevBSBRP.Key, curBR) then
+              if not Assigned(curBR) then
               begin
-                curBR := TBussesRecords.Create();
-                curSL.BusStops.Add(prevBSBRP.Key, curBR);
+                // make sure a entry for the bus stop exists
+                if not curSL.BusStops.TryGetValue(prevBSBRP.Key, curBR) then
+                begin
+                  curBR := TBussesRecords.Create();
+                  curSL.BusStops.Add(prevBSBRP.Key, curBR);
+                end;
               end;
+              curBR.AddOrSetValue(bbdep.Key, bbdep.Value);
             end;
-            curBR.AddOrSetValue(bbdep.Key, bbdep.Value);
           end;
         end;
+      finally
+        curBusses.Free;
       end;
-    finally
-      curBusses.Free;
     end;
+  finally
+    TMonitor.Exit(fSliderData);
   end;
 end;
 
@@ -1290,36 +1289,40 @@ begin
     TMonitor.Exit(fBusStops);
   end;
   }
-  if fSliderData.BusStops.TryGetValue(aChargeLocation, stop) and Assigned(stop.charger) then
-  begin
-    // ID for callback event
-    formID := stop.id; // .objectID.ToString + '.' + stop.id;
-    // Title of form
-    formTitle := 'Edit chargelocation: ' + stop.name;
-    // Create form elements
-    _formElements := openFormElement_select('LOCATION', 'LOCATION:',
-                                           [stop.id], stop.id, true, true);
-    _formElements := _formElements + ',' + openFormElement_select('CHARGEPOLETYPE', 'Charger type:',
-                                           chargerTypes, '' {stop.chargePoleType}, true, false);
-    _formElements := _formElements + ',' + openFormElement_input('NUMBEROFCHARGINGPOLES', 'Number of charging poles:', 'int',
-                                           stop.charger.numberOfPoles.ToString, true, false);
-    _formElements := _formElements + ',' + openFormElement_input('MAXPOWER', 'Maximum power:', 'int',
-                                           stop.charger.maxPower.ToString, true, false);
-    // Put (name?), objectID, chargertype and chargercount in form
-    _openformdialog :=
-      '{'+
-        '"type" : "openformdialog",'+
-        '"payload" : {'+
-          '"id" : "'+formID+'",'+
-          '"title" : "'+formTitle+'",'+
-          '"data" : ['+_formElements+']'+
-        '}'+
-      '}';
+  TMonitor.Enter(fSliderData);
+  try
+    if fSliderData.BusStops.TryGetValue(aChargeLocation, stop) and Assigned(stop.charger) then
+    begin
+      // ID for callback event
+      formID := stop.id; // .objectID.ToString + '.' + stop.id;
+      // Title of form
+      formTitle := 'Edit chargelocation: ' + stop.name;
+      // Create form elements
+      _formElements := openFormElement_select('LOCATION', 'LOCATION:',
+                                             [stop.id], stop.id, true, true);
+      _formElements := _formElements + ',' + openFormElement_select('CHARGEPOLETYPE', 'Charger type:',
+                                             chargerTypes, '' {stop.chargePoleType}, true, false);
+      _formElements := _formElements + ',' + openFormElement_input('NUMBEROFCHARGINGPOLES', 'Number of charging poles:', 'int',
+                                             stop.charger.numberOfPoles.ToString, true, false);
+      _formElements := _formElements + ',' + openFormElement_input('MAXPOWER', 'Maximum power:', 'int',
+                                             stop.charger.maxPower.ToString, true, false);
+      // Put (name?), objectID, chargertype and chargercount in form
+      _openformdialog :=
+        '{'+
+          '"type" : "openformdialog",'+
+          '"payload" : {'+
+            '"id" : "'+formID+'",'+
+            '"title" : "'+formTitle+'",'+
+            '"data" : ['+_formElements+']'+
+          '}'+
+        '}';
 
-    // Push json to client
-    aClient.signalString(_openformdialog);
+      // Push json to client
+      aClient.signalString(_openformdialog);
+    end;
+  finally
+    TMonitor.Exit(fSliderData);
   end;
-
 end;
 
 function TSantosLayer.HandleClientSubscribe(aClient: TClient): Boolean;
@@ -1393,35 +1396,40 @@ begin
 
         if strLocation<>'' then
         begin
-          if fSliderData.BusStops.TryGetValue(strLocation, stop) then
-          begin
-            stop.charger.poleType := strPoleType;
-            stop.charger.numberOfPoles := poleCount;
-            stop.charger.maxPower := maxPower;
-            oraSession := TOraSession.Create(nil);
-            try
-              oraSession.connectString := fConnectString;
-              oraSession.Open;
-              oraQuery := TOraQuery.Create(nil);
+          TMonitor.Enter(fSliderData);
+          try
+            if fSliderData.BusStops.TryGetValue(strLocation, stop) then
+            begin
+              stop.charger.poleType := strPoleType;
+              stop.charger.numberOfPoles := poleCount;
+              stop.charger.maxPower := maxPower;
+              oraSession := TOraSession.Create(nil);
               try
-                oraQuery.Session := oraSession;
-                oraQuery.SQL.Text :=
-                    'UPDATE ' + fTablePrefix + 'EBUS_CHARGELOCATION SET ' +
-                      'CHARGEPOLETYPE='''+strPoleType+''', ' +
-                      'NUMBEROFCHARGINGPOLES='+poleCount.ToString+', ' +
-                      'MAXPOWER='+maxPower.ToString+' '+
-                    'WHERE OBJECT_ID='+stop.charger.objectID.ToString;
-                oraQuery.Execute;
-                oraSession.Commit;
+                oraSession.connectString := fConnectString;
+                oraSession.Open;
+                oraQuery := TOraQuery.Create(nil);
+                try
+                  oraQuery.Session := oraSession;
+                  oraQuery.SQL.Text :=
+                      'UPDATE ' + fTablePrefix + 'EBUS_CHARGELOCATION SET ' +
+                        'CHARGEPOLETYPE='''+strPoleType+''', ' +
+                        'NUMBEROFCHARGINGPOLES='+poleCount.ToString+', ' +
+                        'MAXPOWER='+maxPower.ToString+' '+
+                      'WHERE OBJECT_ID='+stop.charger.objectID.ToString;
+                  oraQuery.Execute;
+                  oraSession.Commit;
+                finally
+                  oraQuery.free;
+                end;
               finally
-                oraQuery.free;
+                oraSession.Free;
               end;
-            finally
-              oraSession.Free;
-            end;
 
-            fEventEntry.SignalChangeObject(actionChange, stop.charger.objectID);
-            log.WriteLn('UPDATED CHARGELOCATION ' + stop.id + ' to ' + polecount.ToString + ' chargers of type: ' + strPoleType);
+              fEventEntry.SignalChangeObject(actionChange, stop.charger.objectID);
+              log.WriteLn('UPDATED CHARGELOCATION ' + stop.id + ' to ' + polecount.ToString + ' chargers of type: ' + strPoleType);
+            end;
+          finally
+            TMonitor.Exit(fSliderData);
           end;
         end
       end;
@@ -1586,13 +1594,17 @@ begin
   }
 end;
 
-procedure TSantosLayer.HandleOnChangeObject(aAction, aObjectID: Integer;
-  const aObjectName, aAttribute: string);
+procedure TSantosLayer.HandleOnChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string);
 var
   delta: THighResTicks;
 begin
-  delta := Max(DateTimeDelta2HRT(dtOneSecond*3),DateTimeDelta2HRT(dtOneSecond*20) - (hrtNow - fLastUpdate));
-  fUpdateTimer.Arm(delta, HandleDataUpdate);
+  try
+    delta := Max(DateTimeDelta2HRT(dtOneSecond*3),DateTimeDelta2HRT(dtOneSecond*20) - (hrtNow - fLastUpdate));
+    fUpdateTimer.Arm(delta, HandleDataUpdate);
+  except
+    on e: Exception
+    do Log.WriteLn('Exception in TSantosLayer.HandleOnChangeObject: '+e.Message);
+  end;
 end;
 
 procedure TSantosLayer.HandleSelectedEvent(aClient: TClient; aMessage: TJSONValue);
@@ -1650,27 +1662,32 @@ begin
   begin
     if contextmenuClick.TryGetValue<Integer>('busid', busid) then
     begin
-      if fSliderData.BusStops.TryGetValue(objectID, bs) then
-      begin
-        if fSliderData.fTimeTable.TryGetValue(fCurrentTime, sr) then
+      TMonitor.Enter(fSliderData);
+      try
+        if fSliderData.BusStops.TryGetValue(objectID, bs) then
         begin
-          if sr.BusStops.TryGetValue(bs, br) then
+          if fSliderData.fTimeTable.TryGetValue(fCurrentTime, sr) then
           begin
-            if br.TryGetValue(busid, bde) then
+            if sr.BusStops.TryGetValue(bs, br) then
             begin
-              oraSession := TOraSession.Create(nil);
-              try
-                oraSession.connectString := fConnectString;
-                oraSession.Open;
+              if br.TryGetValue(busid, bde) then
+              begin
+                oraSession := TOraSession.Create(nil);
+                try
+                  oraSession.connectString := fConnectString;
+                  oraSession.Open;
 
-                (scenario.project as TSantosProject).ReadChartBlockSoC(oraSession, scenario, fTablePrefix, busid);
-              finally
-                oraSession.Free;
+                  (scenario.project as TSantosProject).ReadChartBlockSoC(oraSession, scenario, fTablePrefix, busid);
+                finally
+                  oraSession.Free;
+                end;
               end;
             end;
+            //sr.BusStops.TryGetValue()
           end;
-          //sr.BusStops.TryGetValue()
         end;
+      finally
+        TMonitor.Exit(fSliderData);
       end;
     end
     else if contextmenuClick.TryGetValue<string>('tag', tag) then
@@ -1734,70 +1751,74 @@ begin
   end;
   *)
   Result := '';
-  times := fSliderData.TimeTable.Keys.ToArray;
-  TArray.Sort<TDateTime>(times);
-  lastColor := '';
-  lastTime := -1;
-  curTime := -1;
-  if length(times)>0 then
-  begin
-    for t in times do
+  TMonitor.Enter(fSliderData);
+  try
+    times := fSliderData.TimeTable.Keys.ToArray;
+    TArray.Sort<TDateTime>(times);
+    lastColor := '';
+    lastTime := -1;
+    curTime := -1;
+    if length(times)>0 then
     begin
-      sr := fSliderData.TimeTable[t];
-      curTime := t; //Date+t; // update date/time to today
-      soc := Max(sr.MinSoc, 0);
-      color := ColorToJSON(fSoCPalette.ValueToColors(soc).fillColor);
-      if lastColor='' then
+      for t in times do
       begin
-        lastTime := curTime;
-        lastColor := color;
-      end
-      else
-      begin
-        if lastColor<>color then
+        sr := fSliderData.TimeTable[t];
+        curTime := t; //Date+t; // update date/time to today
+        soc := Max(sr.MinSoc, 0);
+        color := ColorToJSON(fSoCPalette.ValueToColors(soc).fillColor);
+        if lastColor='' then
         begin
-          entry := TJSONObject.Create;
-          try
-            entry.AddPair('start', TJSONString.Create(FormatDateTime(publisherDateTimeFormat, lastTime)));
-            entry.AddPair('end', TJSONString.Create(FormatDateTime(publisherDateTimeFormat, curTime)));
-            entry.AddPair('color', TJSONString.Create(lastColor));
-            jsonAdd(Result, entry.ToJSON);
-          finally
-            entry.Free;
-          end;
-          {
-          entry :=
-            '"start":"'+FormatDateTime(publisherDateTimeFormat, lastTime)+'"'+','+
-            '"end":"'+FormatDateTime(publisherDateTimeFormat, curTime)+'"'+','+
-            '"color":"'+lastColor+'"';
-            // '"tooltip":"'+tt+'"';
-            // '"id":"'+stop.+'"'+','+
-            // stop.location; // localized double
-          }
           lastTime := curTime;
           lastColor := color;
+        end
+        else
+        begin
+          if lastColor<>color then
+          begin
+            entry := TJSONObject.Create;
+            try
+              entry.AddPair('start', TJSONString.Create(FormatDateTime(publisherDateTimeFormat, lastTime)));
+              entry.AddPair('end', TJSONString.Create(FormatDateTime(publisherDateTimeFormat, curTime)));
+              entry.AddPair('color', TJSONString.Create(lastColor));
+              jsonAdd(Result, entry.ToJSON);
+            finally
+              entry.Free;
+            end;
+            {
+            entry :=
+              '"start":"'+FormatDateTime(publisherDateTimeFormat, lastTime)+'"'+','+
+              '"end":"'+FormatDateTime(publisherDateTimeFormat, curTime)+'"'+','+
+              '"color":"'+lastColor+'"';
+              // '"tooltip":"'+tt+'"';
+              // '"id":"'+stop.+'"'+','+
+              // stop.location; // localized double
+            }
+            lastTime := curTime;
+            lastColor := color;
+          end;
+        end;
+      end;
+      if lastTime<>curTime then
+      begin
+  //      entry :=
+  //        '"start":"'+FormatDateTime(publisherDateTimeFormat, lastTime)+'"'+','+
+  //        '"end":"'+FormatDateTime(publisherDateTimeFormat, curTime)+'"'+','+
+  //        '"color":"'+lastColor+'"';
+  //      jsonAdd(Result, '{'+entry+'}');
+        entry := TJSONObject.Create;
+        try
+          entry.AddPair('start', TJSONString.Create(FormatDateTime(publisherDateTimeFormat, lastTime)));
+          entry.AddPair('end', TJSONString.Create(FormatDateTime(publisherDateTimeFormat, curTime)));
+          entry.AddPair('color', TJSONString.Create(lastColor));
+          jsonAdd(Result, entry.ToJSON);
+        finally
+          entry.Free;
         end;
       end;
     end;
-    if lastTime<>curTime then
-    begin
-//      entry :=
-//        '"start":"'+FormatDateTime(publisherDateTimeFormat, lastTime)+'"'+','+
-//        '"end":"'+FormatDateTime(publisherDateTimeFormat, curTime)+'"'+','+
-//        '"color":"'+lastColor+'"';
-//      jsonAdd(Result, '{'+entry+'}');
-      entry := TJSONObject.Create;
-      try
-        entry.AddPair('start', TJSONString.Create(FormatDateTime(publisherDateTimeFormat, lastTime)));
-        entry.AddPair('end', TJSONString.Create(FormatDateTime(publisherDateTimeFormat, curTime)));
-        entry.AddPair('color', TJSONString.Create(lastColor));
-        jsonAdd(Result, entry.ToJSON);
-      finally
-        entry.Free;
-      end;
-    end;
+  finally
+    TMonitor.Exit(fSliderData);
   end;
-
 end;
 
 procedure TSantosLayer.readBusData(aSession: TOraSession; const aTablePrefix: string);
@@ -1812,45 +1833,50 @@ var
   at: TDateTime;
   curDate: TDateTime;
 begin
-  curDate := Date;
-  //Log.WriteLn('Loading bus soc data');
-  query := TOraTable.Create(nil);
+  TMonitor.Enter(fBusData);
   try
-    query.Session := aSession;
-    query.ReadOnly := True;
-    query.FetchRows := 1000;
-    query.UniDirectional := True;
-    query.SQL.Text :=
-      'SELECT BLOCK_ID, ARRIVAL_TIME, TRIP_NAME, STOP_ID, STATE_OF_CHARGE '+
-      'FROM '+aTablePrefix+'EBUS_SOC '+
-      'ORDER BY BLOCK_ID, ARRIVAL_TIME';
-    query.Execute;
-    query.First;
-    while not query.Eof do
-    begin
-      blockID := query.Fields[0].AsInteger;
-      arrivalTime := query.Fields[1].AsString;
-      tripName := query.Fields[2].AsString;
-      stopID := query.Fields[3].AsString;
-      soc := query.Fields[4].AsFloat;
-      if not fBusData.BusRecords.TryGetValue(blockID, bdes) then
+    curDate := Date;
+    //Log.WriteLn('Loading bus soc data');
+    query := TOraTable.Create(nil);
+    try
+      query.Session := aSession;
+      query.ReadOnly := True;
+      query.FetchRows := 1000;
+      query.UniDirectional := True;
+      query.SQL.Text :=
+        'SELECT BLOCK_ID, ARRIVAL_TIME, TRIP_NAME, STOP_ID, STATE_OF_CHARGE '+
+        'FROM '+aTablePrefix+'EBUS_SOC '+
+        'ORDER BY BLOCK_ID, ARRIVAL_TIME';
+      query.Execute;
+      query.First;
+      while not query.Eof do
       begin
-        bdes := TBusTimeTable.Create([doOwnsValues]);
-        fBusData.BusRecords.Add(blockID, bdes);
+        blockID := query.Fields[0].AsInteger;
+        arrivalTime := query.Fields[1].AsString;
+        tripName := query.Fields[2].AsString;
+        stopID := query.Fields[3].AsString;
+        soc := query.Fields[4].AsFloat;
+        if not fBusData.BusRecords.TryGetValue(blockID, bdes) then
+        begin
+          bdes := TBusTimeTable.Create([doOwnsValues]);
+          fBusData.BusRecords.Add(blockID, bdes);
+        end;
+        at :=
+          curDate+
+          Integer.Parse(Copy(arrivalTime,1,2))/24+
+          Integer.Parse(Copy(arrivalTime,4,2))/(24*60)+
+          Integer.Parse(Copy(arrivalTime,7,2))/(24*60*60);
+        // ignore double entries and use last (drop of/pickup problems?)
+        bdes.AddOrSetValue(at, TBusDataEntry.Create(at, tripName, stopID, soc));
+        query.Next;
       end;
-      at :=
-        curDate+
-        Integer.Parse(Copy(arrivalTime,1,2))/24+
-        Integer.Parse(Copy(arrivalTime,4,2))/(24*60)+
-        Integer.Parse(Copy(arrivalTime,7,2))/(24*60*60);
-      // ignore double entries and use last (drop of/pickup problems?)
-      bdes.AddOrSetValue(at, TBusDataEntry.Create(at, tripName, stopID, soc));
-      query.Next;
+    finally
+      query.Free;
     end;
+    Log.WriteLn('Loaded bus soc data');
   finally
-    query.Free;
+    TMonitor.Exit(fBusData);
   end;
-  Log.WriteLn('Loaded bus soc data');
 end;
 
 procedure TSantosLayer.readSliderData(aSession: TOraSession; const aTablePrefix: string);
@@ -1884,117 +1910,127 @@ var
 begin
   Log.WriteLn('Loading slider bus stop data');
   curDate := Date;
-  query := TOraTable.Create(nil);
+  TMonitor.Enter(fSliderData);
   try
-    query.Session := aSession;
-    query.ReadOnly := True;
-    query.FetchRows := 1000;
-    query.UniDirectional := True;
-    query.SQL.Text :=
-      'SELECT '+
-         aTablePrefix+'EBUS_CHARGELOCATION.OBJECT_ID EBUS_CHARGELOCATION_OBJECT_ID, '+aTablePrefix+'GENE_NODE.OBJECT_ID GENE_NODE_OBJECT_ID, '+
-         'CHARGEPOLETYPE, NUMBEROFCHARGINGPOLES, MAXPOWER,  XCOORD x, YCOORD y, HALTE_NAME, HALTE_ID '+
-      'FROM '+aTablePrefix+'EBUS_CHARGELOCATION '+
-             'JOIN '+
-              aTablePrefix+'GENE_NODE '+
-              'ON '+aTablePrefix+'EBUS_CHARGELOCATION.GENE_NODE_ID='+aTablePrefix+'GENE_NODE.OBJECT_ID';
-    query.Execute;
-    query.First;
-    while not query.Eof do
-    begin
-      chargeLocationObjectID := query.Fields[0].AsInteger;
-      geneNodeObjectID := query.Fields[1].AsInteger;
-      chargePoleType := query.Fields[2].AsString;
-      numberOfChargingPoles := query.Fields[3].AsInteger;
-      maxPower := query.Fields[4].AsFloat;
-      x := query.Fields[5].AsFloat;
-      y := query.Fields[6].AsFloat;
-      stopName := query.Fields[7].AsString;
-      stopID := query.Fields[8].AsString;
-
-
-      p.X := x;
-      P.Y := y;
-      P := fSourceProjection.ToGeocs(P);
-      lat := p.Y ;
-      lon := p.X ;
-      charger := TCharger.Create(chargeLocationObjectID, chargePoleType, numberOfChargingPoles, maxPower);
-//      if numberOfChargingPoles>0
-//      then charger := TCharger.Create(chargeLocationObjectID, chargePoleType, numberOfChargingPoles, maxPower)
-//      else charger := nil;
-      // only add when not known.. should always add
-      if not fSliderData.BusStops.TryGetValue(stopID, bs) then
+    query := TOraTable.Create(nil);
+    try
+      query.Session := aSession;
+      query.ReadOnly := True;
+      query.FetchRows := 1000;
+      query.UniDirectional := True;
+      query.SQL.Text :=
+        'SELECT '+
+           aTablePrefix+'EBUS_CHARGELOCATION.OBJECT_ID EBUS_CHARGELOCATION_OBJECT_ID, '+aTablePrefix+'GENE_NODE.OBJECT_ID GENE_NODE_OBJECT_ID, '+
+           'CHARGEPOLETYPE, NUMBEROFCHARGINGPOLES, MAXPOWER,  XCOORD x, YCOORD y, HALTE_NAME, HALTE_ID '+
+        'FROM '+aTablePrefix+'EBUS_CHARGELOCATION '+
+               'JOIN '+
+                aTablePrefix+'GENE_NODE '+
+                'ON '+aTablePrefix+'EBUS_CHARGELOCATION.GENE_NODE_ID='+aTablePrefix+'GENE_NODE.OBJECT_ID';
+      query.Execute;
+      query.First;
+      while not query.Eof do
       begin
-        bs := TBusStop2.Create(lat, lon, stopID, stopName, geneNodeObjectID, charger);
-        fSliderData.BusStops.Add(stopID, bs);
-      end;
+        chargeLocationObjectID := query.Fields[0].AsInteger;
+        geneNodeObjectID := query.Fields[1].AsInteger;
+        chargePoleType := query.Fields[2].AsString;
+        numberOfChargingPoles := query.Fields[3].AsInteger;
+        maxPower := query.Fields[4].AsFloat;
+        x := query.Fields[5].AsFloat;
+        y := query.Fields[6].AsFloat;
+        stopName := query.Fields[7].AsString;
+        stopID := query.Fields[8].AsString;
 
-      query.Next;
-    end;
-  finally
-    query.Free;
-  end;
 
-  // fSliderData.fTimeTable
-  Log.WriteLn('Loading slider time table data');
-  query := TOraTable.Create(nil);
-  try
-    query.Session := aSession;
-    query.ReadOnly := True;
-    query.FetchRows := 1000;
-    query.UniDirectional := True;
-    query.SQL.Text :=
-      'SELECT BLOCK_ID, ARRIVAL_TIME, TRIP_SHORT_NAME, STOP_ID '+
-      'FROM '+aTablePrefix+'EBUS_TIMETABLE '+
-      'WHERE PICKUP_TYPE=0 '+
-      'ORDER BY BLOCK_ID, ARRIVAL_TIME';
-    query.Execute;
-    query.First;
-    while not query.Eof do
-    begin
-      blockID := query.Fields[0].AsInteger;
-      arrivalTime := query.Fields[1].AsString;
-      tripName := query.Fields[2].AsString;
-      stopID := query.Fields[3].AsString;
+        p.X := x;
+        P.Y := y;
+        P := fSourceProjection.ToGeocs(P);
+        lat := p.Y ;
+        lon := p.X ;
+        charger := TCharger.Create(chargeLocationObjectID, chargePoleType, numberOfChargingPoles, maxPower);
+  //      if numberOfChargingPoles>0
+  //      then charger := TCharger.Create(chargeLocationObjectID, chargePoleType, numberOfChargingPoles, maxPower)
+  //      else charger := nil;
+        // only add when not known.. should always add
 
-      at :=
-        curDate+
-        Integer.Parse(Copy(arrivalTime,1,2))/24+
-        Integer.Parse(Copy(arrivalTime,4,2))/(24*60)+
-        Integer.Parse(Copy(arrivalTime,7,2))/(24*60*60);
-      // create base slider record
-      if not fSliderData.TimeTable.TryGetValue(at, sr) then
-      begin
-        sr := TSliderRecord.Create;
-        fSliderData.TimeTable.Add(at, sr);
-      end;
-      // lookup bus stop info
-      if fSliderData.BusStops.TryGetValue(stopID, bs) then
-      begin
-        // lookup bus time table
-        if fBusData.BusRecords.TryGetValue(blockID, tt) then
+        if not fSliderData.BusStops.TryGetValue(stopID, bs) then
         begin
-          // lookup bus data entry
-          if tt.TryGetValue(at, bde) then
-          begin
-            // find or create busses record in slider record: bus stops
-            if not sr.BusStops.TryGetValue(bs, bussesRecords) then
+          bs := TBusStop2.Create(lat, lon, stopID, stopName, geneNodeObjectID, charger);
+          fSliderData.BusStops.Add(stopID, bs);
+        end;
+        query.Next;
+      end;
+    finally
+      query.Free;
+    end;
+
+    // fSliderData.fTimeTable
+    Log.WriteLn('Loading slider time table data');
+    query := TOraTable.Create(nil);
+    try
+      query.Session := aSession;
+      query.ReadOnly := True;
+      query.FetchRows := 1000;
+      query.UniDirectional := True;
+      query.SQL.Text :=
+        'SELECT BLOCK_ID, ARRIVAL_TIME, TRIP_SHORT_NAME, STOP_ID '+
+        'FROM '+aTablePrefix+'EBUS_TIMETABLE '+
+        'WHERE PICKUP_TYPE=0 '+
+        'ORDER BY BLOCK_ID, ARRIVAL_TIME';
+      query.Execute;
+      query.First;
+      while not query.Eof do
+      begin
+        blockID := query.Fields[0].AsInteger;
+        arrivalTime := query.Fields[1].AsString;
+        tripName := query.Fields[2].AsString;
+        stopID := query.Fields[3].AsString;
+
+        at :=
+          curDate+
+          Integer.Parse(Copy(arrivalTime,1,2))/24+
+          Integer.Parse(Copy(arrivalTime,4,2))/(24*60)+
+          Integer.Parse(Copy(arrivalTime,7,2))/(24*60*60);
+        // create base slider record
+        if not fSliderData.TimeTable.TryGetValue(at, sr) then
+        begin
+          sr := TSliderRecord.Create;
+          fSliderData.TimeTable.Add(at, sr);
+        end;
+        // lookup bus stop info
+        if fSliderData.BusStops.TryGetValue(stopID, bs) then
+        begin
+          // lookup bus time table
+          TMonitor.Enter(fBusData);
+          try
+            if fBusData.BusRecords.TryGetValue(blockID, tt) then
             begin
-              bussesRecords := TBussesRecords.Create();
-              sr.BusStops.Add(bs, bussesRecords);
-            end;
-            // add found bus data entry as ref to busses records
-            bussesRecords.AddOrSetValue(blockID, bde);
-          end
-          else Log.WriteLn('Bus data entry not found '+blockID.ToString+' @ '+DateTimeToStr(at), llError);
+              // lookup bus data entry
+              if tt.TryGetValue(at, bde) then
+              begin
+                // find or create busses record in slider record: bus stops
+                if not sr.BusStops.TryGetValue(bs, bussesRecords) then
+                begin
+                  bussesRecords := TBussesRecords.Create();
+                  sr.BusStops.Add(bs, bussesRecords);
+                end;
+                // add found bus data entry as ref to busses records
+                bussesRecords.AddOrSetValue(blockID, bde);
+              end
+              else Log.WriteLn('Bus data entry not found '+blockID.ToString+' @ '+DateTimeToStr(at), llError);
+            end
+            else Log.WriteLn('Bus time table not found: '+blockID.ToString, llError);
+          finally
+            TMonitor.Exit(fBusData);
+          end;
         end
-        else Log.WriteLn('Bus time table not found: '+blockID.ToString, llError);
-      end
-      else Log.WriteLn('Bus stop not found: '+stopID, llError);
-      query.Next;
+        else Log.WriteLn('Bus stop not found: '+stopID, llError);
+        query.Next;
+      end;
+    finally
+      query.Free;
     end;
   finally
-    query.Free;
+    TMonitor.Exit(fSliderData);
   end;
 end;
 
@@ -2003,16 +2039,21 @@ var
   ibsp: TPair<string, TBusStop2>;
   marker: TCircleMarker;
 begin
-  for ibsp in fSliderData.fBusStops do
-  begin
-    marker :=
-        TCircleMarker.Create(Self, ibsp.key,
-          ibsp.Value.lat, ibsp.Value.lon, 8, Nan,
-          [],
-          [ [sojnTooltip, '"'+ibsp.Value.name+'"'] ]);
+  TMonitor.Enter(fSliderData);
+  try
+    for ibsp in fSliderData.fBusStops do
+    begin
+      marker :=
+          TCircleMarker.Create(Self, ibsp.key,
+            ibsp.Value.lat, ibsp.Value.lon, 8, Nan,
+            [],
+            [ [sojnTooltip, '"'+ibsp.Value.name+'"'] ]);
 
-    UpdateStop(ibsp.key, ibsp.Value, marker);
-    AddObject(marker, marker.jsonNewObject);
+      UpdateStop(ibsp.key, ibsp.Value, marker);
+      AddObject(marker, marker.jsonNewObject);
+    end;
+  finally
+    TMonitor.Exit(fSliderData);
   end;
 end;
 
@@ -2055,13 +2096,18 @@ var
   ibsp: TPair<string, TBusStop2>;
   marker: TSimpleObject;
 begin
-  for ibsp in fSliderData.fBusStops do
-  begin
-    if objects.TryGetValue(ibsp.key, marker) then
+  TMonitor.Enter(fSliderData);
+  try
+    for ibsp in fSliderData.fBusStops do
     begin
-      UpdateStop(ibsp.key, ibsp.Value, marker);
-      UpdateObject(marker, sojnOptions, marker.jsonOptionsValue)
+      if objects.TryGetValue(ibsp.key, marker) then
+      begin
+        UpdateStop(ibsp.key, ibsp.Value, marker);
+        UpdateObject(marker, sojnOptions, marker.jsonOptionsValue)
+      end;
     end;
+  finally
+    TMonitor.Exit(fSliderData);
   end;
 end;
 
@@ -2078,85 +2124,90 @@ var
   context: string;
   bbdep: TPair<Integer, TBusDataEntry>;
 begin
-  ttt := fSliderData.fTimeTable.Keys.ToArray;
-  TArray.Sort<TDateTime>(ttt);
-  if length(ttt)>0 then
-  begin
-    // find time on or below slider time
-    sliderTime := ttt[0]; // sentinel: lowest value
-    for t := length(ttt)-1  downto 0 do
+  TMonitor.Enter(fSliderData);
+  try
+    ttt := fSliderData.fTimeTable.Keys.ToArray;
+    TArray.Sort<TDateTime>(ttt);
+    if length(ttt)>0 then
     begin
-      if ttt[t]<=aTime then
+      // find time on or below slider time
+      sliderTime := ttt[0]; // sentinel: lowest value
+      for t := length(ttt)-1  downto 0 do
       begin
-        sliderTime := ttt[t];
-        break;
-      end;
-    end;
-    // process data on slider time
-    if fSliderData.TimeTable.TryGetValue(sliderTime, sl) then
-    begin
-      for ibsp in fSliderData.BusStops do
-      begin
-        if objects.TryGetValue(ibsp.Key, marker) then
+        if ttt[t]<=aTime then
         begin
-          minSoc := Double.NaN;
-          if sl.BusStops.TryGetValue(ibsp.Value, bde) then
+          sliderTime := ttt[t];
+          break;
+        end;
+      end;
+      // process data on slider time
+      if fSliderData.TimeTable.TryGetValue(sliderTime, sl) then
+      begin
+        for ibsp in fSliderData.BusStops do
+        begin
+          if objects.TryGetValue(ibsp.Key, marker) then
           begin
-            context := '';
-            for bbdep in bde do
+            minSoc := Double.NaN;
+            if sl.BusStops.TryGetValue(ibsp.Value, bde) then
             begin
-              if minSoc.IsNaN or (minSoc<bbdep.Value.soc)
-              then minSoc := Max(bbdep.Value.soc, 0);
-              // add  entry in sub menu for bus
-              jsonAdd(context, '{"text": "'+bbdep.Value.tripName+' ('+bbdep.Key.ToString+')","busid":'+bbdep.Key.ToString+'}');
-            end;
-            if Assigned(ibsp.Value.charger)
-            then jsonAdd(context, '{"text": "Edit charge location","tag":"'+tagEditChargeLocation+'"}');
+              context := '';
+              for bbdep in bde do
+              begin
+                if minSoc.IsNaN or (minSoc<bbdep.Value.soc)
+                then minSoc := Max(bbdep.Value.soc, 0);
+                // add  entry in sub menu for bus
+                jsonAdd(context, '{"text": "'+bbdep.Value.tripName+' ('+bbdep.Key.ToString+')","busid":'+bbdep.Key.ToString+'}');
+              end;
+              if Assigned(ibsp.Value.charger)
+              then jsonAdd(context, '{"text": "Edit charge location","tag":"'+tagEditChargeLocation+'"}');
 
-            marker.addOptionString(sojnContextMenu, 'true');
-            marker.addOptionString(sojnContextmenuInheritItems, 'false');
-            marker.addOptionStructure(sojnContextmenuItems, '['+context+']');
-            //marker.addOptionString('interactive', 'true');
-
-            marker.addOptionDouble('opacity', 1.0);
-            marker.addOptionDouble('fillOpacity', 1.0);
-          end
-          else
-          begin
-            if Assigned(ibsp.Value.charger) then
-            begin
               marker.addOptionString(sojnContextMenu, 'true');
               marker.addOptionString(sojnContextmenuInheritItems, 'false');
-              marker.addOptionStructure(sojnContextmenuItems, '[{"text": "Edit charge location","id": "'+ibsp.Key+'", "tag":"'+tagEditChargeLocation+'"}]');
+              marker.addOptionStructure(sojnContextmenuItems, '['+context+']');
               //marker.addOptionString('interactive', 'true');
 
-              if ibsp.Value.charger.numberOfPoles>0 then
-              begin
-                marker.addOptionDouble('opacity', 0.5);
-                marker.addOptionDouble('fillOpacity', 0.2);
-              end
-              else
-              begin
-                marker.addOptionDouble('opacity', 0.3);
-                marker.addOptionDouble('fillOpacity', 0.2);
-              end;
+              marker.addOptionDouble('opacity', 1.0);
+              marker.addOptionDouble('fillOpacity', 1.0);
             end
             else
             begin
-              marker.options.Remove(sojnContextMenu);
-              marker.options.Remove(sojnContextmenuInheritItems);
-              marker.options.Remove(sojnContextmenuItems);
-              //marker.addOptionString('interactive', 'false');
+              if Assigned(ibsp.Value.charger) then
+              begin
+                marker.addOptionString(sojnContextMenu, 'true');
+                marker.addOptionString(sojnContextmenuInheritItems, 'false');
+                marker.addOptionStructure(sojnContextmenuItems, '[{"text": "Edit charge location","id": "'+ibsp.Key+'", "tag":"'+tagEditChargeLocation+'"}]');
+                //marker.addOptionString('interactive', 'true');
 
-              marker.addOptionDouble('opacity', 0.2);
-              marker.addOptionDouble('fillOpacity', 0.2);
+                if ibsp.Value.charger.numberOfPoles>0 then
+                begin
+                  marker.addOptionDouble('opacity', 0.5);
+                  marker.addOptionDouble('fillOpacity', 0.2);
+                end
+                else
+                begin
+                  marker.addOptionDouble('opacity', 0.3);
+                  marker.addOptionDouble('fillOpacity', 0.2);
+                end;
+              end
+              else
+              begin
+                marker.options.Remove(sojnContextMenu);
+                marker.options.Remove(sojnContextmenuInheritItems);
+                marker.options.Remove(sojnContextmenuItems);
+                //marker.addOptionString('interactive', 'false');
+
+                marker.addOptionDouble('opacity', 0.2);
+                marker.addOptionDouble('fillOpacity', 0.2);
+              end;
             end;
+            marker.addOptionString('fillColor', ColorToJSON(fSoCPalette.ValueToColors(minSoc).fillColor));
+            UpdateObject(marker, sojnOptions, marker.jsonOptionsValue);
           end;
-          marker.addOptionString('fillColor', ColorToJSON(fSoCPalette.ValueToColors(minSoc).fillColor));
-          UpdateObject(marker, sojnOptions, marker.jsonOptionsValue);
         end;
       end;
     end;
+  finally
+    TMonitor.Exit(fSliderData);
   end;
 end;
 
@@ -2165,29 +2216,36 @@ var
   jsonTSData: string;
   oraSession: TOraSession;
 begin
-  fLastUpdate := aTime;
-  // read data
-  oraSession := TOraSession.Create(nil);
   try
-    Log.WriteLn('Data changed. Updating');
-    oraSession.connectString := fConnectString;
-    oraSession.Open;
-    readBusData(oraSession , fTablePrefix);
-  finally
-    oraSession.Free;
+    fLastUpdate := aTime;
+
+    // read data
+    oraSession := TOraSession.Create(nil);
+    try
+      Log.WriteLn('Data changed. Updating');
+      oraSession.connectString := fConnectString;
+      oraSession.Open;
+      readBusData(oraSession , fTablePrefix);
+    finally
+      oraSession.Free;
+    end;
+
+    // update slider
+    jsonTSData := jsonTimesliderData;
+    scenario.forEachClient(
+      procedure(aClient: TClient)
+      begin
+        // send data to time slider
+        aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+      end);
+    // update base stop options
+    updateStopsBase;
+    // update stops based on time slider time
+    UpdateStopsOnTime(fCurrentTime);
+  except
+    on e: Exception
+    do Log.WriteLn('Exception in TSantosLayer.HandleDataUpdate: '+e.Message, llError);
   end;
-  // update slider
-  jsonTSData := jsonTimesliderData;
-  scenario.forEachClient(
-    procedure(aClient: TClient)
-    begin
-      // send data to time slider
-      aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
-    end);
-  // update base stop options
-  updateStopsBase;
-  // update stops based on time slider time
-  UpdateStopsOnTime(fCurrentTime);
 end;
 
 procedure TSantosLayer.initChargerTypes(aSession: TOraSession);
