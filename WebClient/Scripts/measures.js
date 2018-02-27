@@ -232,6 +232,17 @@ L.Control.Measures = L.Control.extend({
                       getSelectedObjects(),
                       _this.options.selectCategories
                     );
+                    wsSend({
+                        type: 'measure',
+                        payload: {
+                            apply: {
+                                id: selectedRadio.value,
+                                name: selectedRadio.action,
+                                description: selectedRadio.title,
+                                measure: measureDefinition.measure
+                            }
+                        }
+                    });
                     _this._collapse();
                     modalDialogClose();
                 }

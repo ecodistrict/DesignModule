@@ -75,6 +75,7 @@ const
   cINDIC_DAT_GRID_PEAK_BUSSES_WARN = '04';
 
   tagEditChargeLocation = 'EDTCHG';
+  tagEditBusParameters = 'EDTBUSPARAM';
 
   sNoRoute = 'NONE/UNKNOWN';
 
@@ -225,6 +226,8 @@ type
     function  HandleClientSubscribe(aClient: TClient): Boolean; override;
     procedure HandleFormResult(aFormResult: TJSONObject);
     procedure HandleTimeSliderEvent(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject);
+
+    procedure SignalRecalc;
   end;
 
   TSantosProject = class(TUSProject)
@@ -238,6 +241,12 @@ type
     fCurrentBusBlock: Integer;
     fSantosLayers: TObjectDictionary<TScenario, TSantosLayer>; // ref
     fBaseDay: Array of Word;
+    // base bus parameters
+    fBatteryCapacity: Double;
+    fAverageEnergyConsumption: Double;
+    fDriverEfficiency: Double;
+    fPowerConsumptionHVAC: Double;
+    procedure LoadBusDefaults;
   protected
     //procedure HandleDataUpdate(aSession: TOrasession; aScenario: TScenario; aLayer: TSantosLayer; const aTablePrefix: string);
     function  ReadScenario(const aID: string): TScenario; override;
@@ -253,6 +262,7 @@ type
   public
     procedure ReadBasicData(); override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
+    procedure UpdateBusDefaults;
   end;
 
 implementation
@@ -296,6 +306,74 @@ end;
 function MD5Sum(s: String): string;
 begin
    Result := System.hash.THashMD5.GetHashString(s);
+end;
+
+{ web form helpers }
+
+function openFormElement_input(const aID, aLabel, aType: string; aDefaultValue: string = ''; aRequired: boolean = true; aHidden: boolean = false): string;
+var
+  required: string;
+  hidden: string;
+  options: string;
+begin
+  if aRequired
+  then required := 'y'
+  else required := 'n';
+
+  if aDefaultValue.IsEmpty
+  then options := 'false'
+  else options := '{ "defaultValue" : "'+aDefaultValue+'" }';
+
+  if aHidden
+  then hidden := 'true'
+  else hidden := 'false';
+
+  Result :=  '{'+
+              '"formElement" : "input",'+
+              '"type" : "'+aType+'",'+
+              '"required" : "'+required+'",'+
+              '"optionsArray" : false,'+
+              '"labelText" : "'+aLabel+'",'+
+              '"idName" : "'+aID+'",'+
+              '"hidden" : '+hidden+','+
+              '"extraOptions" : '+options+
+            '}';
+end;
+
+function openFormElement_select(const aID, aLabel: string;
+  aOptions: TArray<string>;
+  const aDefaultValue: string = '';
+  aRequired: boolean = true; aHidden: boolean = false): string;
+var
+  required: string;
+  hidden: string;
+  options: string;
+  choices: string;
+begin
+  if aRequired
+  then required := 'y'
+  else required := 'n';
+
+  if aDefaultValue.IsEmpty
+  then options := 'false'
+  else options := '{ "defaultValue" : "'+aDefaultValue+'" }';
+
+  if aHidden
+  then hidden := 'true'
+  else hidden := 'false';
+
+  choices  := '["' + String.Join('","', aOptions) + '"]';
+
+  Result :=  '{'+
+              '"formElement" : "select",'+
+              '"type" : "string",'+
+              '"required" : "'+required+'",'+
+              '"optionsArray" : '+choices+','+
+              '"labelText" : "'+aLabel+'",'+
+              '"idName" : "'+aID+'",'+
+              '"hidden" : '+hidden+','+
+              '"extraOptions" : '+options+
+            '}';
 end;
 
 { TCharger }
@@ -419,6 +497,8 @@ constructor TSantosProject.Create(aSessionModel: TSessionModel;
   aDBConnection: TCustomConnection; aMapView: TMapView;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
   aStartScenario: string);
+var
+  measureCat: TMeasureCategory;
 begin
   fSantosLayers := TObjectDictionary<TScenario, TSantosLayer>.Create([]);
   fCurrentBusBlock := 2; // Param?
@@ -468,6 +548,47 @@ begin
 //        end;
       end;
     end);
+
+  measureCat := TMeasureCategory.Create('bus', 'Bus', 'Adjust e-bus parameters', 'Adjust e-bus parameters', '', 'Set', 'BatteryCapacity, AverageEnergyConsumption,DriverEfficiency,PowerConsumptionHVAC', 1);
+  Measures.Add(tagEditBusParameters, measureCat);
+  EnableControl(measuresControl);
+
+  LoadBusDefaults;
+
+  ClientMessageHandlers.Add('measure',
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    var
+      formID: string;
+    formTitle: string;
+    _formElements: string;
+    _openformdialog: string;
+    begin
+      // show form to edit bus parameters
+      // ID for callback event
+      formID := 'DefaultBus';
+      // Title of form
+      formTitle := 'Edit default bus parameters';
+      // Create form elements
+      _formElements :=
+        openFormElement_input('BatteryCapacity', 'Battery capacity (0 - 600 kWh)', 'float', fBatteryCapacity.ToString(dotFormat))+','+
+        openFormElement_input('AverageEnergyConsumption', 'Average energy consumption (1.0 - 2.0 kWh/km)', 'float', fAverageEnergyConsumption.ToString(dotFormat))+','+
+        openFormElement_input('DriverEfficiency', 'Driver efficiency (90 - 125)', 'float', fDriverEfficiency.ToString(dotFormat))+','+
+        openFormElement_input('PowerConsumptionHVAC', 'Power consumption HVAC (0 - 20 kW)', 'float', fPowerConsumptionHVAC.ToString(dotFormat));
+
+      _openformdialog :=
+        '{'+
+          '"type" : "openformdialog",'+
+          '"payload" : {'+
+            '"id" : "'+formID+'",'+
+            '"title" : "'+formTitle+'",'+
+            '"data" : ['+_formElements+']'+
+          '}'+
+        '}';
+
+      // Push json to client
+      aClient.signalString(_openformdialog);
+    end);
+
 end;
 
 destructor TSantosProject.Destroy;
@@ -492,6 +613,31 @@ begin
     finally
       TMonitor.Exit(fSantosLayers);
     end;
+  end;
+end;
+
+procedure TSantosProject.LoadBusDefaults;
+var
+  oraTable: TOraTable;
+begin
+  oraTable := TOraTable.Create(nil);
+  try
+    oraTable.Session := OraSession;
+    oraTable.SQL.Text :=
+      'SELECT BATTERYCAPACITYKWH, OEM_KWH_KM, FINALDRIVEEFFICIENCY, MAXHVACPOWER_KW '+
+      'FROM EBUS_BUSINFO';
+    oraTable.Execute;
+    if not oraTable.Eof then
+    begin
+      fBatteryCapacity := oraTable.Fields[0].AsFloat;
+      fAverageEnergyConsumption := oraTable.Fields[1].AsFloat;
+      fDriverEfficiency := oraTable.Fields[2].AsFloat; // adjust
+      fPowerConsumptionHVAC := oraTable.Fields[3].AsFloat;
+    end
+    else
+      Log.WriteLn('NO bus defaults', llError);
+  finally
+    oraTable.Free;
   end;
 end;
 
@@ -909,7 +1055,7 @@ begin
             for bs in santosLayer.fSliderData.BusStops.Values do
             begin
               //if stop.Value.isCharger then
-              if Assigned(bs.charger) then
+              if Assigned(bs.charger) and (bs.charger.numberOfPoles>0) then
               begin
                 ReadChartChargerTotalPower(oraSession, Result, tablePrefix, bs.charger.objectID, bs.name);// stop.Value.objectID, stop.Value.name);
                 ReadChartChargerPeakBusses(oraSession, Result, tablePrefix, bs.charger.objectID, bs.name);// stop.Value.objectID, stop.Value.name);
@@ -931,6 +1077,30 @@ begin
     finally
       System.TMonitor.Exit(fSantosLayers);
     end;
+  end;
+end;
+
+procedure TSantosProject.UpdateBusDefaults;
+var
+  sl: TSantosLayer;
+begin
+  Log.WriteLn('Bus defaults changed');
+  OraSession.ExecSQL(
+    'UPDATE EBUS_BUSINFO '+
+    'SET BATTERYCAPACITYKWH='+fBatteryCapacity.ToString(dotFormat)+', '+
+        'OEM_KWH_KM='+fAverageEnergyConsumption.ToString(dotFormat)+', '+
+        'FINALDRIVEEFFICIENCY='+fDriverEfficiency.ToString(dotFormat)+', '+
+        'MAXHVACPOWER_KW='+fPowerConsumptionHVAC.ToString(dotFormat));
+  OraSession.Commit;
+  // signal imb event on chargers so recalc is triggered
+  TMonitor.Enter(fSantosLayers);
+  try
+    for sl in fSantosLayers.Values.ToArray do
+    begin
+      sl.SignalRecalc;
+    end;
+  finally
+    TMonitor.Exit(fSantosLayers);
   end;
 end;
 
@@ -1064,6 +1234,12 @@ begin
   finally
     oraSession.Free;
   end;
+
+  (*
+  options.AddOrSetValue(sojnContextMenu, '"true"');
+  options.AddOrSetValue(sojnContextmenuInheritItems, '"false"');
+  options.AddOrSetValue(sojnContextmenuItems, '[{"text": "Edit bus parameters","tag":"'+tagEditBusParameters+'"}]');
+  *)
 end;
 
 destructor TSantosLayer.Destroy;
@@ -1088,71 +1264,7 @@ var
   _openformdialog: string;
   _formElements: string;
 
-  function openFormElement_input(const aID, aLabel, aType: string; aDefaultValue: string = ''; aRequired: boolean = true; aHidden: boolean = false): string;
-  var
-    required: string;
-    hidden: string;
-    options: string;
-  begin
-    if aRequired
-    then required := 'y'
-    else required := 'n';
 
-    if aDefaultValue.IsEmpty
-    then options := 'false'
-    else options := '{ "defaultValue" : "'+aDefaultValue+'" }';
-
-    if aHidden
-    then hidden := 'true'
-    else hidden := 'false';
-
-    Result :=  '{'+
-                '"formElement" : "input",'+
-                '"type" : "'+aType+'",'+
-                '"required" : "'+required+'",'+
-                '"optionsArray" : false,'+
-                '"labelText" : "'+aLabel+'",'+
-                '"idName" : "'+aID+'",'+
-                '"hidden" : '+hidden+','+
-                '"extraOptions" : '+options+
-              '}';
-  end;
-
-  function openFormElement_select(const aID, aLabel: string;
-    aOptions: TArray<string>;
-    const aDefaultValue: string = '';
-    aRequired: boolean = true; aHidden: boolean = false): string;
-  var
-    required: string;
-    hidden: string;
-    options: string;
-    choices: string;
-  begin
-    if aRequired
-    then required := 'y'
-    else required := 'n';
-
-    if aDefaultValue.IsEmpty
-    then options := 'false'
-    else options := '{ "defaultValue" : "'+aDefaultValue+'" }';
-
-    if aHidden
-    then hidden := 'true'
-    else hidden := 'false';
-
-    choices  := '["' + String.Join('","', aOptions) + '"]';
-
-    Result :=  '{'+
-                '"formElement" : "select",'+
-                '"type" : "string",'+
-                '"required" : "'+required+'",'+
-                '"optionsArray" : '+choices+','+
-                '"labelText" : "'+aLabel+'",'+
-                '"idName" : "'+aID+'",'+
-                '"hidden" : '+hidden+','+
-                '"extraOptions" : '+options+
-              '}';
-  end;
 
 
 begin
@@ -1174,12 +1286,9 @@ begin
   if fSliderData.BusStops.TryGetValue(aChargeLocation, stop) and Assigned(stop.charger) then
   begin
     // ID for callback event
-    //(* todo:
     formID := stop.id; // .objectID.ToString + '.' + stop.id;
-
     // Title of form
     formTitle := 'Edit chargelocation: ' + stop.name;
-
     // Create form elements
     _formElements := openFormElement_select('LOCATION', 'LOCATION:',
                                            [stop.id], stop.id, true, true);
@@ -1189,9 +1298,7 @@ begin
                                            stop.charger.numberOfPoles.ToString, true, false);
     _formElements := _formElements + ',' + openFormElement_input('MAXPOWER', 'Maximum power:', 'int',
                                            stop.charger.maxPower.ToString, true, false);
-
     // Put (name?), objectID, chargertype and chargercount in form
-
     _openformdialog :=
       '{'+
         '"type" : "openformdialog",'+
@@ -1232,109 +1339,86 @@ var
   maxPower: integer;
   oraSession: TOraSession;
   oraQuery: TOraQuery;
-  marker: TSimpleObject;
+  formID: string;
+//  marker: TSimpleObject;
 //  o: TSimpleObject;
 begin
-  if aFormResult.TryGetValue<TJSONArray>('parameters', parameters) then
+  if aFormResult.TryGetValue<string>('id', formID) then
   begin
-    for parameter in parameters do
+    if formID='DefaultBus' then
     begin
-
-      name := parameter.GetValue<string>('name');
-
-      if name.Equals('LOCATION') then
-        strLocation := parameter.GetValue<string>('value')
-      else if name.Equals('CHARGEPOLETYPE') then
-        strPoleType := parameter.GetValue<string>('value')
-      else if name.Equals('NUMBEROFCHARGINGPOLES') then
-        poleCount :=  parameter.GetValue<integer>('value')
-      else if name.Equals('MAXPOWER') then
-        maxPower :=  parameter.GetValue<integer>('value');
-    end;
-
-    if fSliderData.BusStops.TryGetValue(strLocation, stop) then
-    begin
-//    TMonitor.Enter(fBusStops);
-//    try
-//      if not fBusStops.TryGetValue(strLocation, stop) then
-//        raise Exception.Create('Unknown charge location: ' + strLocation);
-//
-//      TMonitor.Enter(fChargerTypes);
-//      try
-//        if fChargerTypes.IndexOf(strPoleType)<0 then
-//          raise Exception.Create('Unknown charger type: ' + strPoleType);
-        stop.charger.poleType := strPoleType;
-//      finally
-//        TMonitor.Exit(fChargerTypes);
-//      end;
-
-//      if poleCount<0 then
-//        raise Exception.Create('Invalid number of chargers: ' + polecount.ToString);
-//      if maxPower<0 then
-//        raise Exception.Create('Invalid max power ' + maxPower.ToString);
-
-      stop.charger.numberOfPoles := poleCount;
-      stop.charger.maxPower := maxPower;
-
-//        fBusStops.Remove(stop.id);
-      //fBusStops.TryGetValue(stop.id, stopOrig);
-
-
-//      if not stopOrig.chargePoleType.Equals(stop.chargePoleType) or
-//         (stopOrig.numberOfPoles <> stop.numberOfPoles) or
-//         (stopOrig.maxPower <> stop.maxPower) then
-//      begin // something has changed
-        //fBusStops.AddOrSetValue(stop.id, stop);
-      oraSession := TOraSession.Create(nil);
-      try
-        oraSession.connectString := fConnectString;
-        oraSession.Open;
-        oraQuery := TOraQuery.Create(nil);
-        try
-          oraQuery.Session := oraSession;
-          oraQuery.SQL.Text :=
-              'UPDATE ' + fTablePrefix + 'EBUS_CHARGELOCATION SET ' +
-                'CHARGEPOLETYPE='''+strPoleType+''', ' +
-                'NUMBEROFCHARGINGPOLES='+poleCount.ToString+', ' +
-                'MAXPOWER='+maxPower.ToString+' '+
-              'WHERE OBJECT_ID='+stop.charger.objectID.ToString;
-          oraQuery.Execute;
-          oraSession.Commit;
-//            oraQuery.CommitUpdates;
-        finally
-          oraQuery.free;
-        end;
-      finally
-        oraSession.Free;
-      end;
-
-      fEventEntry.SignalChangeObject(actionChange, stop.charger.objectID);
-      // charger values are not shown in tooltip for now so no need to update
-//      if objects.TryGetValue(stop.id, marker) then
-//      begin
-
-        //UpdateObject(marker, )
-//      end;
-      {
-        TMonitor.Enter(fObjects);
-        try
-          fObjects.TryGetValue(idPrefixBusStop+stop.id, o);
-        finally
-          TMonitor.Exit(fObjects);
-        end;
-        updateObject(o, sojnTooltip, '"' + stop.tooltip + '"');
-
-        forEachClient(procedure(aClient: TClient)
+      if aFormResult.TryGetValue<TJSONArray>('parameters', parameters) then
+      begin
+        // parse form parameters and update project parameters
+        for parameter in parameters do
         begin
-          aClient.SendMessage('Updated chargelocation ' + stop.name, mtSucces);
-        end);
-      }
-      log.WriteLn('UPDATED CHARGELOCATION ' + stop.id + ' to ' + polecount.ToString + ' chargers of type: ' + strPoleType);
-    end;
-//    finally
-//      TMonitor.Exit(fBusStops);
-//    end;
+          name := parameter.GetValue<string>('name');
+          if name='BatteryCapacity'
+          then (scenario.project as TSantosProject).fBatteryCapacity := parameter.GetValue<double>('value')
+          else if name='AverageEnergyConsumption'
+          then (scenario.project as TSantosProject).fAverageEnergyConsumption := parameter.GetValue<double>('value')
+          else if name='DriverEfficiency'
+          then (scenario.project as TSantosProject).fDriverEfficiency := parameter.GetValue<double>('value')
+          else if name='PowerConsumptionHVAC'
+          then (scenario.project as TSantosProject).fPowerConsumptionHVAC := parameter.GetValue<double>('value');
+        end;
+        (scenario.project as TSantosProject).UpdateBusDefaults;
+      end;
+    end
+    else // if formID='xx' other forms
+    begin
+      if aFormResult.TryGetValue<TJSONArray>('parameters', parameters) then
+      begin
+        strLocation := '';
+        for parameter in parameters do
+        begin
+          name := parameter.GetValue<string>('name');
 
+          if name.Equals('LOCATION') then
+            strLocation := parameter.GetValue<string>('value')
+          else if name.Equals('CHARGEPOLETYPE') then
+            strPoleType := parameter.GetValue<string>('value')
+          else if name.Equals('NUMBEROFCHARGINGPOLES') then
+            poleCount :=  parameter.GetValue<integer>('value')
+          else if name.Equals('MAXPOWER') then
+            maxPower :=  parameter.GetValue<integer>('value');
+        end;
+
+        if strLocation<>'' then
+        begin
+          if fSliderData.BusStops.TryGetValue(strLocation, stop) then
+          begin
+            stop.charger.poleType := strPoleType;
+            stop.charger.numberOfPoles := poleCount;
+            stop.charger.maxPower := maxPower;
+            oraSession := TOraSession.Create(nil);
+            try
+              oraSession.connectString := fConnectString;
+              oraSession.Open;
+              oraQuery := TOraQuery.Create(nil);
+              try
+                oraQuery.Session := oraSession;
+                oraQuery.SQL.Text :=
+                    'UPDATE ' + fTablePrefix + 'EBUS_CHARGELOCATION SET ' +
+                      'CHARGEPOLETYPE='''+strPoleType+''', ' +
+                      'NUMBEROFCHARGINGPOLES='+poleCount.ToString+', ' +
+                      'MAXPOWER='+maxPower.ToString+' '+
+                    'WHERE OBJECT_ID='+stop.charger.objectID.ToString;
+                oraQuery.Execute;
+                oraSession.Commit;
+              finally
+                oraQuery.free;
+              end;
+            finally
+              oraSession.Free;
+            end;
+
+            fEventEntry.SignalChangeObject(actionChange, stop.charger.objectID);
+            log.WriteLn('UPDATED CHARGELOCATION ' + stop.id + ' to ' + polecount.ToString + ' chargers of type: ' + strPoleType);
+          end;
+        end
+      end;
+    end;
   end;
 end;
 
@@ -1386,6 +1470,7 @@ begin
   TArray.Sort<TDateTime>(ttt);
   if length(ttt)>0 then
   begin
+    // find time on or below slider time
     sliderTime := ttt[0]; // sentinel: lowest value
     for t := length(ttt)-1  downto 0 do
     begin
@@ -1395,6 +1480,7 @@ begin
         break;
       end;
     end;
+    // process data on slider time
     if fSliderData.TimeTable.TryGetValue(sliderTime, sl) then
     begin
       for ibsp in fSliderData.BusStops do
@@ -1409,9 +1495,7 @@ begin
             begin
               if minSoc.IsNaN or (minSoc<bbdep.Value.soc)
               then minSoc := Max(bbdep.Value.soc, 0);
-              //context := context+
               // add  entry in sub menu for bus
-
               jsonAdd(context, '{"text": "'+bbdep.Value.tripName+' ('+bbdep.Key.ToString+')","busid":'+bbdep.Key.ToString+'}');
             end;
             if Assigned(ibsp.Value.charger)
@@ -1420,11 +1504,10 @@ begin
             marker.addOptionString(sojnContextMenu, 'true');
             marker.addOptionString(sojnContextmenuInheritItems, 'false');
             marker.addOptionStructure(sojnContextmenuItems, '['+context+']');
+            //marker.addOptionString('interactive', 'true');
 
             marker.addOptionDouble('opacity', 1.0);
             marker.addOptionDouble('fillOpacity', 1.0);
-            //opacity := 1.0;
-            //fillOpacity := 1.0;
           end
           else
           begin
@@ -1433,42 +1516,32 @@ begin
               marker.addOptionString(sojnContextMenu, 'true');
               marker.addOptionString(sojnContextmenuInheritItems, 'false');
               marker.addOptionStructure(sojnContextmenuItems, '[{"text": "Edit charge location","id": "'+ibsp.Key+'", "tag":"'+tagEditChargeLocation+'"}]');
+              //marker.addOptionString('interactive', 'true');
 
-              marker.addOptionDouble('opacity', 0.2);
-              marker.addOptionDouble('fillOpacity', 0.2);
-              //opacity := 0.2;
-              //fillOpacity := 0.2;
-              //UpdateObject(ibsp.Key, sojnOptions, '{"opacity":0.2}');
-              //UpdateObject(ibsp.Key, sojnOptions, '{"fillOpacity":0.2}');
+              if ibsp.Value.charger.numberOfPoles>0 then
+              begin
+                marker.addOptionDouble('opacity', 0.5);
+                marker.addOptionDouble('fillOpacity', 0.2);
+              end
+              else
+              begin
+                marker.addOptionDouble('opacity', 0.3);
+                marker.addOptionDouble('fillOpacity', 0.2);
+              end;
             end
             else
             begin
               marker.options.Remove(sojnContextMenu);
               marker.options.Remove(sojnContextmenuInheritItems);
               marker.options.Remove(sojnContextmenuItems);
+              //marker.addOptionString('interactive', 'false');
 
-              marker.addOptionDouble('opacity', 0.8);
-              marker.addOptionDouble('fillOpacity', 0.5);
-              //opacity := 0.8;
-              //fillOpacity := 0.5;
-              //UpdateObject(ibsp.Key, sojnOptions, '{"opacity":0.8}');
-              //UpdateObject(ibsp.Key, sojnOptions, '{"fillOpacity":0.8}');
+              marker.addOptionDouble('opacity', 0.2);
+              marker.addOptionDouble('fillOpacity', 0.2);
             end;
           end;
           marker.addOptionString('fillColor', ColorToJSON(fSoCPalette.ValueToColors(minSoc).fillColor));
           UpdateObject(marker, sojnOptions, marker.jsonOptionsValue);
-  //        marker.addOptionString(sojnContextMenu, 'true');
-  //        marker.addOptionString(sojnContextmenuInheritItems, 'false');
-  //        marker.addOptionStructure(sojnContextmenuItems, '[{"text": "Edit charge location","id": "'+ibsp.Key+'", "tag":"'+tagEditChargeLocation+'"}]');
-          (*
-          UpdateObject(ibsp.Key, sojnOptions,
-            '{'+
-                context+
-                '"fillColor":"'+ColorToJSON(fSoCPalette.ValueToColors(minSoc).fillColor)+'",'+
-                '"opacity":'+DoubleToJSON(opacity)+','+
-                '"fillOpacity":'+DoubleToJSON(fillOpacity)+
-            '}');
-          *)
         end;
       end;
     end;
@@ -1918,9 +1991,10 @@ begin
       P := fSourceProjection.ToGeocs(P);
       lat := p.Y ;
       lon := p.X ;
-      if numberOfChargingPoles>0
-      then charger := TCharger.Create(chargeLocationObjectID, chargePoleType, numberOfChargingPoles, maxPower)
-      else charger := nil;
+      charger := TCharger.Create(chargeLocationObjectID, chargePoleType, numberOfChargingPoles, maxPower);
+//      if numberOfChargingPoles>0
+//      then charger := TCharger.Create(chargeLocationObjectID, chargePoleType, numberOfChargingPoles, maxPower)
+//      else charger := nil;
       // only add when not known.. should always add
       if not fSliderData.BusStops.TryGetValue(stopID, bs) then
       begin
@@ -2017,12 +2091,20 @@ begin
       marker.addOptionString(sojnContextMenu, 'true');
       marker.addOptionString(sojnContextmenuInheritItems, 'false');
       marker.addOptionStructure(sojnContextmenuItems, '[{"text": "Edit charge location","id": "'+ibsp.Key+'", "tag":"'+tagEditChargeLocation+'"}]');
-      marker.addOptionGeoColor(TGeoColors.Create($FFCCCCCC, $FFFF00FF));
-      marker.addOptionInteger('weight', 2);
+
+      if ibsp.Value.charger.numberOfPoles>0 then
+      begin
+        marker.addOptionGeoColor(TGeoColors.Create($FFCCCCCC, $FFFF00FF));
+        marker.addOptionInteger('weight', 2);
+      end
+      else
+      begin
+        marker.addOptionGeoColor(TGeoColors.Create($FFCCCCCC, $FF999999));
+        marker.addOptionInteger('weight', 1);
+      end;
     end
     else
     begin
-      //marker.addOptionStructure(sojnContextmenuItems, '[]');
       marker.addOptionGeoColor(TGeoColors.Create($FFCCCCCC, $FF999999));
       marker.addOptionInteger('weight', 1);
     end;
@@ -2030,10 +2112,15 @@ begin
   end;
 end;
 
+procedure TSantosLayer.SignalRecalc;
+begin
+  fEventEntry.SignalChangeObject(actionChange, 0);
+end;
+
 procedure TSantosLayer.HandleDataUpdate(aTimer: TTimer; aTime: THighResTicks);
 var
   jsonTSData: string;
-  client: TClient;
+//  client: TClient;
   oraSession: TOraSession;
 begin
   fLastUpdate := aTime;
