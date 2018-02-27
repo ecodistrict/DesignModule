@@ -212,7 +212,11 @@ type
     procedure readBusData(aSession: TOraSession; const aTablePrefix: string);
     procedure readSliderData(aSession: TOraSession; const aTablePrefix: string);
     procedure addDrivingBussesToPreviousStop;
+
+    procedure updateStop(const aID: string; aStop: TBusStop2; aObject: TSimpleObject);
     procedure showStops;
+    procedure updateStopsBase;
+    procedure UpdateStopsOnTime(aTime: TDateTime);
 
     procedure formEditChargeLocation(const aChargeLocation: string; aClient: TClient);
 
@@ -1179,8 +1183,6 @@ begin
   fBlockID := aBusBlock;
   fEventEntry := aPubEntry;
   fConnectString := aConnectString;
-  // todo: link to update of chart aIndicEntry.OnChangeObject := HandleOnChangeObject;
-  aSocEntry.OnChangeObject := HandleOnChangeObject;
   fUpdateTimer := fScenario.project.Timers.CreateInactiveTimer;
   //fUpdateTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneMinute*5);
   fUpdateTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*10);
@@ -1234,6 +1236,11 @@ begin
   finally
     oraSession.Free;
   end;
+
+  // last: go live
+  // todo: link to update of chart aIndicEntry.OnChangeObject := HandleOnChangeObject;
+  aIndicEntry.OnChangeObject := HandleOnChangeObject;
+  aSocEntry.OnChangeObject := HandleOnChangeObject;
 
   (*
   options.AddOrSetValue(sojnContextMenu, '"true"');
@@ -1424,7 +1431,6 @@ end;
 
 procedure TSantosLayer.handleNewTime(aClient: TClient; aTime: string);
 var
-  time: TDateTime;
   // todo: item: TTimeStop;
 //  stopID: string;
 //  o: TSimpleObject;
@@ -1438,23 +1444,21 @@ var
   // todo: stop: TBusStop;
 //  ssid: string;
   client: TClient;
-  ttt: TArray<TDateTime>;
-  t: Integer;
-  sliderTime: TDateTime;
-  sl: TSliderRecord;
+  //ttt: TArray<TDateTime>;
+  //t: Integer;
+  //sliderTime: TDateTime;
+  //sl: TSliderRecord;
   //bsbrp: TPair<TBusStop2, TBussesRecords>;
-  minSoc: Double;
-  bbdep: TPair<Integer, TBusDataEntry>;
-  ibsp: TPair<string, TBusStop2>;
-  bde: TBussesRecords;
+  //minSoc: Double;
+  //bbdep: TPair<Integer, TBusDataEntry>;
+  //ibsp: TPair<string, TBusStop2>;
+  //bde: TBussesRecords;
 //  opacity: Double;
 //  fillOpacity: Double;
-  context: string;
-  marker: TSimpleObject;
+  //context: string;
+  //marker: TSimpleObject;
 begin
-  time := StrToDateTime(aTime, isoDateTimeFormatSettings);
-
-  fCurrentTime := time;
+  fCurrentTime := StrToDateTime(aTime, isoDateTimeFormatSettings);
   TMonitor.Enter(fScenario.clients);
   try
     for client in fScenario.clients do
@@ -1466,86 +1470,9 @@ begin
   finally
     TMonitor.Exit(fScenario.clients);
   end;
-  ttt := fSliderData.fTimeTable.Keys.ToArray;
-  TArray.Sort<TDateTime>(ttt);
-  if length(ttt)>0 then
-  begin
-    // find time on or below slider time
-    sliderTime := ttt[0]; // sentinel: lowest value
-    for t := length(ttt)-1  downto 0 do
-    begin
-      if ttt[t]<=time then
-      begin
-        sliderTime := ttt[t];
-        break;
-      end;
-    end;
-    // process data on slider time
-    if fSliderData.TimeTable.TryGetValue(sliderTime, sl) then
-    begin
-      for ibsp in fSliderData.BusStops do
-      begin
-        if objects.TryGetValue(ibsp.Key, marker) then
-        begin
-          minSoc := Double.NaN;
-          if sl.BusStops.TryGetValue(ibsp.Value, bde) then
-          begin
-            context := '';
-            for bbdep in bde do
-            begin
-              if minSoc.IsNaN or (minSoc<bbdep.Value.soc)
-              then minSoc := Max(bbdep.Value.soc, 0);
-              // add  entry in sub menu for bus
-              jsonAdd(context, '{"text": "'+bbdep.Value.tripName+' ('+bbdep.Key.ToString+')","busid":'+bbdep.Key.ToString+'}');
-            end;
-            if Assigned(ibsp.Value.charger)
-            then jsonAdd(context, '{"text": "Edit charge location","tag":"'+tagEditChargeLocation+'"}');
 
-            marker.addOptionString(sojnContextMenu, 'true');
-            marker.addOptionString(sojnContextmenuInheritItems, 'false');
-            marker.addOptionStructure(sojnContextmenuItems, '['+context+']');
-            //marker.addOptionString('interactive', 'true');
+  UpdateStopsOnTime(fCurrentTime);
 
-            marker.addOptionDouble('opacity', 1.0);
-            marker.addOptionDouble('fillOpacity', 1.0);
-          end
-          else
-          begin
-            if Assigned(ibsp.Value.charger) then
-            begin
-              marker.addOptionString(sojnContextMenu, 'true');
-              marker.addOptionString(sojnContextmenuInheritItems, 'false');
-              marker.addOptionStructure(sojnContextmenuItems, '[{"text": "Edit charge location","id": "'+ibsp.Key+'", "tag":"'+tagEditChargeLocation+'"}]');
-              //marker.addOptionString('interactive', 'true');
-
-              if ibsp.Value.charger.numberOfPoles>0 then
-              begin
-                marker.addOptionDouble('opacity', 0.5);
-                marker.addOptionDouble('fillOpacity', 0.2);
-              end
-              else
-              begin
-                marker.addOptionDouble('opacity', 0.3);
-                marker.addOptionDouble('fillOpacity', 0.2);
-              end;
-            end
-            else
-            begin
-              marker.options.Remove(sojnContextMenu);
-              marker.options.Remove(sojnContextmenuInheritItems);
-              marker.options.Remove(sojnContextmenuItems);
-              //marker.addOptionString('interactive', 'false');
-
-              marker.addOptionDouble('opacity', 0.2);
-              marker.addOptionDouble('fillOpacity', 0.2);
-            end;
-          end;
-          marker.addOptionString('fillColor', ColorToJSON(fSoCPalette.ValueToColors(minSoc).fillColor));
-          UpdateObject(marker, sojnOptions, marker.jsonOptionsValue);
-        end;
-      end;
-    end;
-  end;
 
   { todo:
   stopID := '';
@@ -2079,35 +2006,12 @@ begin
   for ibsp in fSliderData.fBusStops do
   begin
     marker :=
-      TCircleMarker.Create(Self, ibsp.key,
-        ibsp.Value.lat, ibsp.Value.lon, 8, Nan,
-        [],
-        [ [sojnTooltip, '"'+ibsp.Value.name+'"'] ]);
-    //marker.addOptionGeoColor(stop.geoColors);
-    marker.addOptionString(sojnContextMenu, 'true');
-    marker.addOptionString(sojnContextmenuInheritItems, 'false');
-    if Assigned(ibsp.Value.charger) then
-    begin
-      marker.addOptionString(sojnContextMenu, 'true');
-      marker.addOptionString(sojnContextmenuInheritItems, 'false');
-      marker.addOptionStructure(sojnContextmenuItems, '[{"text": "Edit charge location","id": "'+ibsp.Key+'", "tag":"'+tagEditChargeLocation+'"}]');
+        TCircleMarker.Create(Self, ibsp.key,
+          ibsp.Value.lat, ibsp.Value.lon, 8, Nan,
+          [],
+          [ [sojnTooltip, '"'+ibsp.Value.name+'"'] ]);
 
-      if ibsp.Value.charger.numberOfPoles>0 then
-      begin
-        marker.addOptionGeoColor(TGeoColors.Create($FFCCCCCC, $FFFF00FF));
-        marker.addOptionInteger('weight', 2);
-      end
-      else
-      begin
-        marker.addOptionGeoColor(TGeoColors.Create($FFCCCCCC, $FF999999));
-        marker.addOptionInteger('weight', 1);
-      end;
-    end
-    else
-    begin
-      marker.addOptionGeoColor(TGeoColors.Create($FFCCCCCC, $FF999999));
-      marker.addOptionInteger('weight', 1);
-    end;
+    UpdateStop(ibsp.key, ibsp.Value, marker);
     AddObject(marker, marker.jsonNewObject);
   end;
 end;
@@ -2117,31 +2021,162 @@ begin
   fEventEntry.SignalChangeObject(actionChange, 0);
 end;
 
+procedure TSantosLayer.updateStop(const aID: string; aStop: TBusStop2; aObject: TSimpleObject);
+begin
+  aObject.addOptionString(sojnContextMenu, 'true');
+  aObject.addOptionString(sojnContextmenuInheritItems, 'false');
+  if Assigned(aStop.charger) then
+  begin
+    aObject.addOptionString(sojnContextMenu, 'true');
+    aObject.addOptionString(sojnContextmenuInheritItems, 'false');
+    aObject.addOptionStructure(sojnContextmenuItems, '[{"text": "Edit charge location","id": "'+aID+'", "tag":"'+tagEditChargeLocation+'"}]');
+
+    if aStop.charger.numberOfPoles>0 then
+    begin
+      aObject.addOptionGeoColor(TGeoColors.Create($FFCCCCCC, $FFFF00FF));
+      aObject.addOptionInteger('weight', 2);
+    end
+    else
+    begin
+      aObject.addOptionGeoColor(TGeoColors.Create($FFCCCCCC, $FF999999));
+      aObject.addOptionInteger('weight', 1);
+    end;
+  end
+  else
+  begin
+    aObject.addOptionGeoColor(TGeoColors.Create($FFCCCCCC, $FF999999));
+    aObject.addOptionInteger('weight', 1);
+  end;
+
+end;
+
+procedure TSantosLayer.updateStopsBase;
+var
+  ibsp: TPair<string, TBusStop2>;
+  marker: TSimpleObject;
+begin
+  for ibsp in fSliderData.fBusStops do
+  begin
+    if objects.TryGetValue(ibsp.key, marker) then
+    begin
+      UpdateStop(ibsp.key, ibsp.Value, marker);
+      UpdateObject(marker, sojnOptions, marker.jsonOptionsValue)
+    end;
+  end;
+end;
+
+procedure TSantosLayer.UpdateStopsOnTime(aTime: TDateTime);
+var
+  ttt: TArray<TDateTime>;
+  sliderTime: TDateTime;
+  t: Integer;
+  sl: TSliderRecord;
+  ibsp: TPair<string, TBusStop2>;
+  marker: TSimpleObject;
+  minSoc: Double;
+  bde: TBussesRecords;
+  context: string;
+  bbdep: TPair<Integer, TBusDataEntry>;
+begin
+  ttt := fSliderData.fTimeTable.Keys.ToArray;
+  TArray.Sort<TDateTime>(ttt);
+  if length(ttt)>0 then
+  begin
+    // find time on or below slider time
+    sliderTime := ttt[0]; // sentinel: lowest value
+    for t := length(ttt)-1  downto 0 do
+    begin
+      if ttt[t]<=aTime then
+      begin
+        sliderTime := ttt[t];
+        break;
+      end;
+    end;
+    // process data on slider time
+    if fSliderData.TimeTable.TryGetValue(sliderTime, sl) then
+    begin
+      for ibsp in fSliderData.BusStops do
+      begin
+        if objects.TryGetValue(ibsp.Key, marker) then
+        begin
+          minSoc := Double.NaN;
+          if sl.BusStops.TryGetValue(ibsp.Value, bde) then
+          begin
+            context := '';
+            for bbdep in bde do
+            begin
+              if minSoc.IsNaN or (minSoc<bbdep.Value.soc)
+              then minSoc := Max(bbdep.Value.soc, 0);
+              // add  entry in sub menu for bus
+              jsonAdd(context, '{"text": "'+bbdep.Value.tripName+' ('+bbdep.Key.ToString+')","busid":'+bbdep.Key.ToString+'}');
+            end;
+            if Assigned(ibsp.Value.charger)
+            then jsonAdd(context, '{"text": "Edit charge location","tag":"'+tagEditChargeLocation+'"}');
+
+            marker.addOptionString(sojnContextMenu, 'true');
+            marker.addOptionString(sojnContextmenuInheritItems, 'false');
+            marker.addOptionStructure(sojnContextmenuItems, '['+context+']');
+            //marker.addOptionString('interactive', 'true');
+
+            marker.addOptionDouble('opacity', 1.0);
+            marker.addOptionDouble('fillOpacity', 1.0);
+          end
+          else
+          begin
+            if Assigned(ibsp.Value.charger) then
+            begin
+              marker.addOptionString(sojnContextMenu, 'true');
+              marker.addOptionString(sojnContextmenuInheritItems, 'false');
+              marker.addOptionStructure(sojnContextmenuItems, '[{"text": "Edit charge location","id": "'+ibsp.Key+'", "tag":"'+tagEditChargeLocation+'"}]');
+              //marker.addOptionString('interactive', 'true');
+
+              if ibsp.Value.charger.numberOfPoles>0 then
+              begin
+                marker.addOptionDouble('opacity', 0.5);
+                marker.addOptionDouble('fillOpacity', 0.2);
+              end
+              else
+              begin
+                marker.addOptionDouble('opacity', 0.3);
+                marker.addOptionDouble('fillOpacity', 0.2);
+              end;
+            end
+            else
+            begin
+              marker.options.Remove(sojnContextMenu);
+              marker.options.Remove(sojnContextmenuInheritItems);
+              marker.options.Remove(sojnContextmenuItems);
+              //marker.addOptionString('interactive', 'false');
+
+              marker.addOptionDouble('opacity', 0.2);
+              marker.addOptionDouble('fillOpacity', 0.2);
+            end;
+          end;
+          marker.addOptionString('fillColor', ColorToJSON(fSoCPalette.ValueToColors(minSoc).fillColor));
+          UpdateObject(marker, sojnOptions, marker.jsonOptionsValue);
+        end;
+      end;
+    end;
+  end;
+end;
+
 procedure TSantosLayer.HandleDataUpdate(aTimer: TTimer; aTime: THighResTicks);
 var
   jsonTSData: string;
-//  client: TClient;
   oraSession: TOraSession;
 begin
   fLastUpdate := aTime;
-
+  // read data
   oraSession := TOraSession.Create(nil);
   try
     Log.WriteLn('Data changed. Updating');
     oraSession.connectString := fConnectString;
     oraSession.Open;
     readBusData(oraSession , fTablePrefix);
-
-    // reload timetable
-    {
-    initTimeTable(oraSession);
-    if (scenario.project is TSantosProject) then
-      (scenario.project as TSantosProject).HandleDataUpdate(oraSession, scenario, self, fTablePrefix);
-    }
   finally
     oraSession.Free;
   end;
-
+  // update slider
   jsonTSData := jsonTimesliderData;
   scenario.forEachClient(
     procedure(aClient: TClient)
@@ -2149,6 +2184,10 @@ begin
       // send data to time slider
       aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
     end);
+  // update base stop options
+  updateStopsBase;
+  // update stops based on time slider time
+  UpdateStopsOnTime(fCurrentTime);
 end;
 
 procedure TSantosLayer.initChargerTypes(aSession: TOraSession);

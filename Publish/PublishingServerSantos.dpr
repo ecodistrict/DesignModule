@@ -64,7 +64,7 @@ type
     procedure StartModel(aParameters: TModelParameters); override;
     procedure StopModel; override;
   // manual start
-    procedure CheckManualStart;
+    function CheckManualStart: Boolean;
   private
     fSessionModel: TSessionModel;
     fIMBConnection: TConnection; // imb connection to websocket etc.
@@ -293,7 +293,7 @@ begin
   end;
 end;
 
-procedure TModel.CheckManualStart;
+function TModel.CheckManualStart: Boolean;
 var
   Parameters: TModelParameters;
   Session: TOraSession;
@@ -340,7 +340,8 @@ begin
     end;
   end
   else }
-  if not CommandLine.TestSwitch(ControllerSwitch) then
+  Result := not CommandLine.TestSwitch(ControllerSwitch);
+  if Result then
   begin
     Log.WriteLn('Started in manual mode', llOk);
     Parameters := TModelParameters.Create;
@@ -471,57 +472,63 @@ begin
         SetConsoleCtrlHandler(@ConsoleCtrlHandler, True);
         try
           // check if we are started directly or via node controller
-          Model.CheckManualStart;
-          ShowMenu;
-          // wait until we received a quit signal
-          while Model.QuitApplicationEvent.WaitFor(200)=TWaitResult.wrTimeout do
+          if Model.CheckManualStart then
           begin
-            // extra mainloop actions..
-            if CheckKeyPressed2 then
+            ShowMenu;
+            // wait until we received a quit signal
+            while Model.QuitApplicationEvent.WaitFor(200)=TWaitResult.wrTimeout do
             begin
-              key := KeyPressed2;
-              System.TMonitor.Enter(Log);
-              try
-                case key of
-                  '?':
-                    ShowMenu;
-                  'Q', 'q', #27:
-                    Model.QuitApplication;
-                  'R', 'r':
-                    begin
-                      for project in Model.sessionModel.Projects
-                      do project.SendRefresh;
-                    end;
-                  'P', 'p':
-                    begin
-                      for project in Model.sessionModel.Projects
-                      do project.SendPreview;
-                    end;
-                  'C', 'c':
-                    begin
-                      for project in Model.sessionModel.Projects do
+              // extra mainloop actions..
+              if CheckKeyPressed2 then
+              begin
+                key := KeyPressed2;
+                System.TMonitor.Enter(Log);
+                try
+                  case key of
+                    '?':
+                      ShowMenu;
+                    'Q', 'q', #27:
+                      Model.QuitApplication;
+                    'R', 'r':
                       begin
-                        WriteLn('Project: '+project.ProjectName);
-                        TMonitor.Enter(project.clients);
-                        try
-                          for client in project.clients do
-                          begin
-                            WriteLn('   '+client.clientID);
+                        for project in Model.sessionModel.Projects
+                        do project.SendRefresh;
+                      end;
+                    'P', 'p':
+                      begin
+                        for project in Model.sessionModel.Projects
+                        do project.SendPreview;
+                      end;
+                    'C', 'c':
+                      begin
+                        for project in Model.sessionModel.Projects do
+                        begin
+                          WriteLn('Project: '+project.ProjectName);
+                          TMonitor.Enter(project.clients);
+                          try
+                            for client in project.clients do
+                            begin
+                              WriteLn('   '+client.clientID);
+                            end;
+                          finally
+                            TMonitor.Exit(project.clients);
                           end;
-                        finally
-                          TMonitor.Exit(project.clients);
                         end;
                       end;
-                    end;
-                  'X', 'x':
-                    begin
-                      Model.TestConnection();
-                    end;
+                    'X', 'x':
+                      begin
+                        Model.TestConnection();
+                      end;
+                  end;
+                finally
+                  System.TMonitor.Exit(Log);
                 end;
-              finally
-                System.TMonitor.Exit(Log);
               end;
             end;
+          end
+          else
+          begin
+            Model.QuitApplicationEvent.WaitFor(); // just wait for quit
           end;
         finally
           SetConsoleCtrlHandler(@ConsoleCtrlHandler, False);
