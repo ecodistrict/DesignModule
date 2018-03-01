@@ -77,7 +77,6 @@ type
   public
     property sessionModel: TSessionModel read fSessionModel;
     property imbConnection: TConnection read fIMBConnection;
-    property imbLogger: TIMBLogger read fIMBLogger;
 
     procedure TestConnection();
   end;
@@ -135,13 +134,20 @@ begin
     // add parameters with default values
     // DataSourceParameterName and FederationParameterName parameters should be set to
     // enable looking up parameter values in database
-    WriteLn('Parameters request');
-    if aParameters.Count>0
-    then WriteLn('   parameters')
-    else WriteLn('## NO parameters defined');
-    for p := 0 to aParameters.Count - 1 do
-    begin
-      WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
+    try
+      WriteLn('Parameters request');
+      if aParameters.Count>0
+      then WriteLn('   parameters')
+      else WriteLn('## NO parameters defined');
+      for p := 0 to aParameters.Count - 1 do
+      begin
+        WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
+      end;
+    except
+      on e: Exception do
+      begin
+        Log.WriteLn('Exception parsing parameters in TModel.ParameterRequest: '+E.Message, llError);
+      end;
     end;
 
     //projectName := GetSetting(ProjectNameSwitch,
@@ -172,7 +178,7 @@ begin
     else
     begin
       projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
-      projectName := GetSetting(ProjectNameSwitch, 'test ams'); //aParameters.ParameterByName[FederationParameterName].ValueAsString
+      projectName := GetSetting(ProjectNameSwitch, 'E-bus');
     end;
     aParameters.Add(TModelParameter.Create(TilerNameSwitch, GetSetting(TilerNameSwitch, DefaultTilerName)));
     aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
@@ -202,19 +208,8 @@ var
   tilerName: string;
 begin
   try
-    // execute actions needed to stop the model
-    WriteLn('Start model');
-    if aParameters.Count>0
-    then WriteLn('   parameters')
-    else WriteLn('## NO parameters defined');
-    {
-    for p := 0 to aParameters.Count - 1 do
-    begin
-      WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
-      standardIni.WriteString(RecoverySection, aParameters[p].Name, aParameters[p].ValueAsStore);
-    end;
-    }
     fIMBLogger := AddIMBLogger(Self.Connection);
+    Log.WriteLn('Started');
 
     dbConnection := TOraSession.Create(nil);
     dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
@@ -241,12 +236,6 @@ begin
     fSantosProject.Timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fSantosProject);
 
-//    dbConnection := TOraSession.Create(nil);
-//    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-//    dbConnection.Open;
-
-    // todo: relink existing clients
-
     // for now
     Log.WriteLn('URL: '+GetSetting(WebClientURISwitch, DefaultWebClientURI)+'?session='+projectID, llOK);
 
@@ -264,9 +253,6 @@ begin
   try
     fSantosProject := nil;
     FreeAndNil(fIMBLogger);
-    // erase recovery section to NOT start in recovery mode next time
-    //StandardIni.EraseSection(RecoverySection);
-    // execute actions needed to stop the model
 
     fSessionModel.Projects.Clear;
 

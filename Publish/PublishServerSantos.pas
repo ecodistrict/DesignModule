@@ -1595,12 +1595,9 @@ begin
 end;
 
 procedure TSantosLayer.HandleOnChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string);
-var
-  delta: THighResTicks;
 begin
   try
-    delta := Max(DateTimeDelta2HRT(dtOneSecond*3),DateTimeDelta2HRT(dtOneSecond*20) - (hrtNow - fLastUpdate));
-    fUpdateTimer.Arm(delta, HandleDataUpdate);
+    fUpdateTimer.Arm(DateTimeDelta2HRT(dtOneSecond), HandleDataUpdate);
   except
     on e: Exception
     do Log.WriteLn('Exception in TSantosLayer.HandleOnChangeObject: '+e.Message);
