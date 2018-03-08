@@ -123,7 +123,15 @@ namespace WS2IMBSvc
 
         private void handle_exception(TConnection aConnection, Exception e)
         {
-            Debug.WriteLine(DateTime.Now + ": ## exception in IMB reader thread: " + e.Message);
+            if (e is System.IO.IOException)
+            {
+                // try to close imb connection and reconnect again
+                Debug.WriteLine(DateTime.Now + ": >> Recovering from IO exception in IMB reader thread: " + e.Message);
+                aConnection.recover();
+                Debug.WriteLine(DateTime.Now + ":    Recovered");
+            }
+            else
+                Debug.WriteLine(DateTime.Now + ": ## exception in IMB reader thread: " + e.Message);
         }
 
         protected override void OnStop()

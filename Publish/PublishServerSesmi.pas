@@ -72,7 +72,7 @@ const
   TimeSpanSwitch = 'timespan';
   DefaultTimeSpan = 7;
 
-  MaxNoSensorValueTime = 5/(60*24); // 5 minutes
+  MaxNoSensorValueTime = 5.0/(60.0*24.0); // 5 minutes
 
 type
   TSesmiClient = class(TClient)
@@ -145,9 +145,11 @@ type
     aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
   private
     fExpertScenarioGUID: TGUID;
+    fScenarioCleanupTimer: TTimer;
   protected
     function handleTilerStatus(aTiler: TTiler): string;
     procedure handleNewClient(aClient: TClient); override;
+    procedure handleRemoveClient(aClient: TClient); override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
   public
     function addClient(const aClientID: string): TClient; override;
@@ -208,12 +210,19 @@ var
   factor: Double;
 begin
   factor := 1 / 1000000000;
+  Result := TDiscretePalette.Create(aTitle, [
+    TDiscretePaletteEntry.Create(TGeoColors.Create($FFDDDDDD), 0 * factor, 30 * factor, '0 - 40'),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($FF888888), 40 * factor, 80 * factor, '40 - 80'),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($FF000000), 80 * factor, Double.PositiveInfinity, '80+')],
+      TGeoColors.Create($FFDDDDDD));
+  {
   Result := TRampPalette.Create(aTitle, [
     TRampPaletteEntry.Create($FFDDDDDD, 0 * factor, '0'),
     TRampPaletteEntry.Create($FF000000, 120 * factor, '120')],
       $FFDDDDDD,
       $00000000,
       $FF000000);
+  }
 end;
 
 function BuildLegendJSON(aPalette: TWDPalette): string;
@@ -247,7 +256,8 @@ begin
   inherited Create(
     aScenario, aDomain, aID, aName, aDescription,
     aDefaultLoad, '"mobilesensor"', 'Point', ltTile, aShowInDomains, 0, False, 0.8,
-    'default', aLegendJSON, '', aPalette);
+    'default', aLegendJSON, '', aPalette, 0.10{every 10 seconds}, 10);
+  tilerRefreshTime := 5;
 end;
 
 procedure TSesmiTrackLayer.RegisterLayer;
@@ -305,8 +315,6 @@ end;
 
 destructor TSesmiScenario.Destroy;
 begin
-  CancelTimer(fTimeSliderDataTimer);
-  CancelTimer(fShowDataSelectionTimer);
   if fQuerySubscribed then //unsubscribe from the previous returnEvent
   begin
     fqueryEvent.OnEvent.Remove(fQueryEventHandler);
@@ -315,6 +323,8 @@ begin
   fLiveEvent.OnEvent.Remove(fLiveEventHandler);
   project.Connection.unSubscribe(fLiveEvent);
   project.Connection.unPublish(fPubEvent);
+  CancelTimer(fTimeSliderDataTimer);
+  CancelTimer(fShowDataSelectionTimer);
   FreeAndNil(fTrackLayers);
   FreeAndNil(fLastLons);
   FreeAndNil(fLastLats);
@@ -718,10 +728,12 @@ var
   loopSensorValueColor: TAlphaRGBPixel;
   entryColor: TAlphaRGBPixel;
   entryEndTimeStamp: TDateTime;
+  c: Integer;
 begin
   // todo: use cursor, if a sensor has no value on a specific time it is not accounted for and a higher value
   // could be shown then calculated for the time stamp
   Result := '';
+  c := 0;
   cursor := fSensorsDataSet.NewCursor;
   try
     TMonitor.Enter(fSensorsDataSet);
@@ -769,7 +781,7 @@ begin
           else stepSize := cursor.CurrentTimeStamp-prevTimeStamp; // NOT first step
 
           // check if entry should be closed (added)
-          if (stepSize>MaxNoSensorValueTime) or (loopSensorValueColor<>entryColor) then
+          if {(stepSize>MaxNoSensorValueTime) or }(loopSensorValueColor<>entryColor) then
           begin
             // check for transparancy
             if (entryColor and $FF000000)<>0 then
@@ -787,6 +799,7 @@ begin
                 '"lat":'+DoubleToJSON(loopLat)+','+
                 '"lon":'+DoubleToJSON(loopLon);
               jsonAdd(Result, '{'+entry+'}');
+              c := c+1;
             end;
             // start new entry
             entryStartTimeStamp := cursor.CurrentTimeStamp;
@@ -808,6 +821,7 @@ begin
             '"lat":'+DoubleToJSON(loopLat)+','+
             '"lon":'+DoubleToJSON(loopLon);
           jsonAdd(Result, '{'+entry+'}');
+          c := c+1;
         end;
       end;
     finally
@@ -816,6 +830,7 @@ begin
   finally
     fSensorsDataSet.RemoveCursor(cursor);
   end;
+  Log.WriteLn('Create timeslider data: '+c.ToString+' elements');
 end;
 
 procedure TSesmiScenario.ReadBasicData;
@@ -828,6 +843,7 @@ begin
   fMobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'NO2', 'NO2', 'Personal NO2', False, 'line',
     TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
     [TChartAxis.Create('concentratie', 'lightBlue', 'Concentration', 'mg/m3')], 'time');
+  // todo: fMobileChart.chartUpdateTime := 10; // seconds
   AddChart(fMobileChart);
 
   fTotalChart := TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'NO2' + 'total', 'NO2' + '-total', 'Personal NO2' + ' Total', False, 'line',
@@ -845,33 +861,36 @@ end;
 
 procedure TSesmiScenario.triggerUpdateTimesliderData;
 begin
-  fTimeSliderDataTimer.Arm(DateTimeDelta2HRT(2*dtOneSecond),
-    procedure (aTimer: TTimer; aTime: THighResTicks)
-    var
-      jsonTSData: string;
-      palette: TWDPalette;
-      extent: TWDExtent;
-    begin
-      palette := CreateGrayPalette('NO2 slider');
-      try
-        extent := TWDExtent.Create;
-        jsonTSData := jsonTimesliderData(sensordata_no2 shr 3, palette, extent);
-      finally
-        palette.Free;
-      end;
-      ForEachClient(
-        procedure(aClient: TClient)
-        begin
-          aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
-          // set map view according data set if this is the first time time slider data is send to clients ie after inquire
-          if fFirstTimeSliderUpdate and not (extent.CenterY.IsNaN or extent.CenterX.IsNaN) then
+  if Assigned(fTimeSliderDataTimer) then
+  begin
+    fTimeSliderDataTimer.Arm(DateTimeDelta2HRT(2*dtOneSecond),
+      procedure (aTimer: TTimer; aTime: THighResTicks)
+      var
+        jsonTSData: string;
+        palette: TWDPalette;
+        extent: TWDExtent;
+      begin
+        palette := CreateGrayPalette('NO2 slider');
+        try
+          extent := TWDExtent.Create;
+          jsonTSData := jsonTimesliderData(sensordata_no2 shr 3, palette, extent);
+        finally
+          palette.Free;
+        end;
+        ForEachClient(
+          procedure(aClient: TClient)
           begin
-            aClient.SendView(extent.CenterY, extent.CenterX, Double.NaN);
-          end;
-        end);
-      if not (extent.CenterY.IsNaN or extent.CenterX.IsNaN)
-      then fFirstTimeSliderUpdate := False;
-    end);
+            aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+            // set map view according data set if this is the first time time slider data is send to clients ie after inquire
+            if fFirstTimeSliderUpdate and not (extent.CenterY.IsNaN or extent.CenterX.IsNaN) then
+            begin
+              aClient.SendView(extent.CenterY, extent.CenterX, Double.NaN);
+            end;
+          end);
+        if not (extent.CenterY.IsNaN or extent.CenterX.IsNaN)
+        then fFirstTimeSliderUpdate := False;
+      end);
+  end;
 end;
 
 { TSesmiProject }
@@ -913,6 +932,7 @@ begin
         (aClient.currentScenario as TSesmiScenario).HandleScenarioRefresh(aClient, aType, aPayload);
       end;
     end);
+  fScenarioCleanupTimer := Timers.CreateInactiveTimer;
 end;
 
 function TSesmiProject.CreateSesmiScenario(const aScenarioID: string): TSesmiScenario;
@@ -939,6 +959,37 @@ begin
   // todo: ?
 end;
 
+procedure TSesmiProject.handleRemoveClient(aClient: TClient);
+var
+  scenario: TSesmiScenario;
+  _scenarioID: string;
+  _scenarios: TObjectDictionary<string, TScenario>;
+begin
+  if aClient.currentScenario is TSesmiScenario then
+  begin
+    scenario := aClient.currentScenario as TSesmiScenario;
+    if scenario.clients.Count=0 then
+    begin
+      _scenarioID := scenario.ID;
+      _scenarios := Self.Scenarios;
+      fScenarioCleanupTimer.Arm(DateTimeDelta2HRT({$IFDEF DEBUG}dtOneMinute{$ELSE}dtOneHour{$ENDIF}),
+        procedure(aTimer: TTimer; aTime: THighResTicks)
+        begin
+          TMonitor.Enter(_scenarios);
+          try
+            if _scenarios.ContainsKey(_scenarioID) then
+            begin
+              _scenarios.Remove(_scenarioID);
+              Log.WriteLn('Removed scenario '+_scenarioID);
+            end;
+          finally
+            TMonitor.Exit(_scenarios);
+          end;
+        end);
+    end;
+  end;
+end;
+
 { TSesmiClient }
 
 constructor TSesmiClient.Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
@@ -956,10 +1007,15 @@ begin
   scenarioID := aJSONObject.GetValue<string>('scenario'); //todo: check if scenarioID is valid GUID?
   if not TRegEx.IsMatch(scenarioID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$') then
     exit;
-  if not fProject.scenarios.TryGetValue(scenarioID, scenario) then
-  begin
-    scenario := (fProject as TSesmiProject).CreateSesmiScenario(scenarioID);
-    fProject.scenarios.Add(scenario.ID, scenario);
+  TMonitor.Enter(fProject.scenarios);
+  try
+    if not fProject.scenarios.TryGetValue(scenarioID, scenario) then
+    begin
+      scenario := (fProject as TSesmiProject).CreateSesmiScenario(scenarioID);
+      fProject.scenarios.Add(scenario.ID, scenario);
+    end;
+  finally
+    TMonitor.Exit(fProject.scenarios);
   end;
   removeClient(fCurrentScenario);
   fCurrentScenario := scenario;
