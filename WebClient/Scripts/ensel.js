@@ -12,6 +12,7 @@ DataManager = {
     drawLayer: null,
     session: null,
     queryDialogData: null, // used in queryDialog.js
+    activeBasicLayers: {},
 
 
     _addSensor: function (sensor) {

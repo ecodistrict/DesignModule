@@ -21,10 +21,13 @@ function modalDialogCreate(aTitle, aDescription) {
     return div;
 }
 
-function createRequestDialog(aTitle, aDescription, type, buildFunction)
+function createRequestDialog(aTitle, aDescription, type, buildFunction, data)
 {
     var id = Date.now().toString(); //todo: make better id?
-    var request = { dialogDataRequest: {id: id, type: type} };
+    //var request = { dialogDataRequest: { id: id, type: type } };
+    var request = { type: "dialogDataRequest", payload: { id: id, type: type } };
+    if (typeof data !== "undefined")
+        request.payload.data = data;
 
     var dialogDiv = modalDialogCreate(aTitle, aDescription);
     dialogDiv.requestId = id;

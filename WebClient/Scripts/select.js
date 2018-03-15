@@ -14,6 +14,8 @@ var selectedPointMarker = {
     fillOpacity: 0.8
 };
 
+var propertiesTables = {};
+
 
 
 
@@ -40,10 +42,15 @@ function initSelectedObjectsProperties(e) {
     //modelDialogAddButton(mddb, 'Close', modalDialogClose);
     // build request for retrieving object properties
     var command = {};
-    command.selectObjectsProperties = {};
-    command.selectObjectsProperties.selectCategories = selectCategories = measuresControl.options.selectCategories;
-    command.selectObjectsProperties.selectedObjects = getSelectedObjects();
-    wsSend(command);
+    //command.selectObjectsProperties = {};
+    command.selectCategories = selectCategories = measuresControl.options.selectCategories;
+    command.selectedObjects = getSelectedObjects();
+    
+    //wsSend(command);
+    if (command.selectedObjects.length > 0)
+        createRequestDialog('Object Properties', 'Properties of the selected objects', 'selectObjectsProperties', showSelectedObjectsProperties, command);
+    else
+        AddErrorMessage('Unable to get properties: no objects selected', 'warning', 10000);
 
     //
     // debug only, read the JSON file for the properties of selected objects
@@ -61,35 +68,22 @@ function initSelectedObjectsProperties(e) {
 
 }
 
-function showSelectedObjectsProperties(aSelectedObjectsProperties) {
-
-    var objectPropertiesDialog = modalDialogCreate("Object properties");
-    objectPropertiesDialog.appendChild(document.createElement('hr'));
-
-    //var objectPropertiesDialog = document.getElementById('modalDialog');
+function showSelectedObjectsProperties(container, aSelectedObjectsProperties) {
+    propertiesTables = {};
+    aSelectedObjectsProperties = aSelectedObjectsProperties.selectedObjectsProperties;
 
     objProps = aSelectedObjectsProperties;
 
-    document.querySelector(".modalDialog h2").innerText = objProps.selectedCategories[0] + " properties";
+    var title = container.appendChild(document.createElement('h2'));
+    title.innerText = 'Selected object properties';
 
-    var modalDialogDiv = document.querySelector(".modalDialog div");
+    container.appendChild(document.createElement('HR'))
 
-    var container = modalDialogDiv.appendChild(document.createElement("div"));
+    tableContainer = container.appendChild(document.createElement('div'));
 
-    container.id = "attributesContainer";
+    tableContainer.id = "attributesContainer";
 
-    if (window.outerWidth < 500) {
-        modalDialogDiv.style.width = '100%';
-        modalDialogDiv.style.boxSizing = "border-box";
-        //div.style.margin = '5% auto';
-    } else {
-        modalDialogDiv.style.maxWidth = '90%';
-        //div.style.margin = '5% auto';
-    }
-
-
-
-    buildAttributesTable(container);
+    buildAttributesTable(tableContainer);
     // attribute names are used as rows
 }
 
@@ -100,6 +94,8 @@ function buildAttributesTable(container) {
     tableContainer.id = "tableContainer";
     for (var i = 0; i < objProps.properties.length; i++) {
         objProps.properties[i].id = objProps.properties[i].name.replace(/\s+/g, '');
+        //if (i > 0)
+        //    tableContainer.appendChild(document.createElement('BR'));
         createAttributeTable(objProps.properties[i], tableContainer);
     }
 
@@ -134,7 +130,8 @@ function ApplyNewProperties() {
 
     for (var i = 0; i < properties.length; i++) {
 
-        var table = document.querySelectorAll("#" + properties[i].id + "Table")[0];
+        //var table = document.querySelectorAll("#" + properties[i].id + "Table")[0];
+        var table = propertiesTables[properties[i].id];
 
 
         let inputNode = table.querySelectorAll("input")[0];
@@ -338,6 +335,8 @@ function createEmptyTable(aElem, aAttribute, type) {
     var rightCell = row.appendChild(document.createElement("td"));
     rightCell.className = "attributeRightCell " + type + "RightCell";
 
+    propertiesTables[aAttribute.id] = table;
+
     return table;
 }
 
@@ -359,11 +358,11 @@ var selectedItems = L.geoJson(undefined,
       pointToLayer: function (feature, latlng) { return L.circleMarker(latlng, selectedPointMarker); },
       style: function (feature) { return { color: '#f06eaa' }; },
 
-      contextmenu: true,
-      contextmenuWidth: 140,
-      contextmenuItems: [
-        '-',
-        { text: 'Properties', icon: 'Content/images/info.png', callback: initSelectedObjectsProperties }]
+      //contextmenu: true,
+      //contextmenuWidth: 140,
+      //contextmenuItems: [
+      //  '-',
+      //  { text: 'Properties', icon: 'Content/images/info.png', callback: initSelectedObjectsProperties }]
   });
 selectedItems.setZIndex(1000);
 selectedItems.addTo(map);
@@ -413,6 +412,9 @@ map.on('draw:created', function (e) {
     sessionRequest.selectObjects.mode = controlKey ? '+' : '=';
 
     sessionRequest.selectObjects.selectCategories = measuresControl.options.selectCategories;
+    sessionRequest.selectObjects.activeBasicLayers = [];
+    for (layer in DataManager.activeBasicLayers)
+        sessionRequest.selectObjects.activeBasicLayers.push(layer);
     wsSend(sessionRequest);
     inDraw = false;
     delete DataManager.event;
@@ -441,8 +443,12 @@ map.on('click', function (e) {
         sessionRequest.selectObjects.geometry = {};
         sessionRequest.selectObjects.geometry.geometry = {};
         sessionRequest.selectObjects.geometry.geometry.coordinates = [e.latlng.lng, e.latlng.lat];
+        sessionRequest.selectObjects.zoom = map.getZoom();
         sessionRequest.selectObjects.mode = ctrlPressed ? '~' : '=';
         sessionRequest.selectObjects.selectCategories = ctrlPressed ? measuresControl.options.selectCategories : measuresControl.setSelectCategories([]); // reset selected object type
+        sessionRequest.selectObjects.activeBasicLayers = [];
+        for (layer in DataManager.activeBasicLayers)
+            sessionRequest.selectObjects.activeBasicLayers.push(layer);
         wsSend(sessionRequest);
     }
 });
@@ -462,10 +468,13 @@ function addSelectControl() {
     selectControl._container.children[0].children[0].appendChild(selectByQueryButton);
     canSelect = true;
     if (typeof DataManager.selectContextItem == 'undefined' || DataManager.selectContextItem == null)
+    {
         DataManager.selectContextItem = map.contextmenu.addItem({
-        text: 'Deselect objects',
-        callback: handleObjectsDeselect
+            text: 'Deselect objects',
+            callback: handleObjectsDeselect
         });
+        DataManager.propertiesContextItem = map.contextmenu.addItem({ text: 'Properties', icon: 'Content/images/info.png', callback: initSelectedObjectsProperties });
+    }
 }
 
 function removeSelectControl() {

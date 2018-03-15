@@ -3741,9 +3741,50 @@ begin
 end;
 
 function TSliceDiffLocation.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+var
+  isgop: TPair<TWDID, TSliceLocationObject>;
+  refLoc: TSliceLocationObject;
+  point: TPointF;
+  rect: TRectF;
+  bufferExtent: TExtent;
+  colors: TGeoColors;
 begin
-  // todo: implement
   Result := gtsFailed;
+  if Assigned(fPalette) then
+  begin
+    aBitmap.Canvas.BeginScene;
+    try
+      aBitmap.Canvas.Clear(0);
+      aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+      bufferExtent := aExtent.Inflate(1.2);
+      for isgop in (fCurrentSlice as TSliceLocation).fLocations do
+      begin
+        if bufferExtent.Intersects(isgop.Value.fExtent) and (fRefSlice as TSliceLocation).fLocations.TryGetValue(isgop.Key, refLoc) then
+        begin
+          point := GeometryToPoint(aExtent, aPixelWidth, aPixelHeight, isgop.Value.lcoation);
+          rect.Create(point);
+          rect.Inflate(isgop.Value.radius, isgop.Value.radius);
+          colors := fPalette.ValueToColors(isgop.Value.value-refLoc.value);
+          if colors.fillColor<>0 then
+          begin
+            aBitmap.Canvas.Fill.Color := colors.fillColor;
+            aBitmap.Canvas.FillEllipse(rect, 1);
+          end;
+          if colors.outlineColor<>0 then
+          begin
+            aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+            //aBitmap.Canvas.StrokeThickness := 1; // todo: default width?
+            aBitmap.Canvas.Stroke.Thickness := 1; // todo: default width?
+            aBitmap.Canvas.DrawEllipse(rect, 1);
+          end;
+        end;
+      end;
+      Result := gtsOk;
+    finally
+      aBitmap.Canvas.EndScene;
+    end;
+  end
+  else Log.WriteLn('TSliceDiffLocation layer '+fLayer.LayerID.ToString+': no palette defined', llError);
 end;
 
 { TLayer }

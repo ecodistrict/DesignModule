@@ -322,6 +322,8 @@ function addBasicLayer(layer) {
     // else.. add other types of layers
     if (thisLayer != null) {
         thisLayer.basicLayer = true;
+        if (layer.basicID)
+            thisLayer.basicID = layer.basicID;
         layerControl.addOverlay(thisLayer, layer.name);
         if (layer.default && layer.default == 1) {
             thisLayer.addTo(map);

@@ -82,6 +82,16 @@ L.control.projectDescription.showScenarios = function () {
             });
             modalDialogClose();
         });
+        if (DataManager.canCopyScenario)
+            modelDialogAddButton(mddb, 'Copy Scenario', function () {
+                var selectedRadio = document.querySelector('input[name=activeScenario]:checked');
+                wsSend({
+                    type: "copyScenario",
+                    payload: {
+                        scenario: selectedRadio.value
+                    }
+                })
+            });
 
         L.control.projectDescription.CheckCurrentScenarios(options);
     }
@@ -275,7 +285,7 @@ L.control.projectDescription.FillTable = function (aScenario, li) {
     textSpan.className = "textSpan";
     textSpan.id = "scenariotext" + aScenario.id;
     textSpan.value = aScenario.id;
-    if (aScenario.name.length > 3) {
+    if (aScenario.name.length <= 5) {
         var spanText = textSpan.appendChild(document.createTextNode(aScenario.name + ", " + aScenario.description));
     }
     else {

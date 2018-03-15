@@ -24,6 +24,7 @@ uses
   WorldTilerConsts,
   CommandQueue,
   TimerPool,
+  USCopyLib,
 
   PublishServerLib,
   PublishServerGIS,
@@ -58,6 +59,7 @@ type
   TUSScenario = class; //forward
 
   TIMBEventEntryArray = array of TIMBEventEntry;
+  TStringArray = array of string;
 
   TMetaLayerEntry = record
     valid: Boolean;
@@ -129,6 +131,7 @@ type
     LAYER_DESCRIPTION: string;
     SELECT_PROPERTY: string;
     PROPERTY_DESCRIPTION: string;
+    PROPERTY_CATEGORY: string;
     OBJECT_TYPE: string;
     GEOMETRY_TYPE: string;
     EDITABLE: Integer;
@@ -452,8 +455,8 @@ type
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
   public
     // select objects
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string; overload; override;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
+    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aX, aY, aRadius, aMaxZoom: Double): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aSelectedIDs: TArray<string>): string; overload; override;
     // select object properties
@@ -496,6 +499,7 @@ type
   destructor Destroy; override;
   private
     fUSDBScenarios: TObjectDictionary<string, TUSDBScenario>;
+    fUSScenarioFilters: TStringArray;
     fUSControls: TObjectDictionary<Integer, TUSControl>; //locks with TMonitor
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
     fPreLoadScenarios: Boolean;
@@ -525,11 +529,14 @@ type
   end;
 
 
-function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapView;
+function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView; const aProjectID: string = ''): TMapView;
 function getUSProjectID(aOraSession: TOraSession; const aDefault: string): string;
+function getUSProjectTypes(aOraSession: TORaSession): TStringArray;
+function getUSProjectIDByType(aOraSession: TOraSession; aProjectType: string): string;
 function getUSSourceESPG(aOraSession: TOraSession; const aDefault: Integer): Integer;
 procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon, aZoomLevel: Double);
-function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer): Integer;
+function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer; const aProjectID: string): Integer;
+function getUSScenarioFilter(aOraSession: TOraSession; const aProjectID: string): TStringArray;
 
 function Left(const s: string; n: Integer): string;
 function Right(const s: string; n: Integer): string;
@@ -952,7 +959,7 @@ begin
       begin
         objectTypes := '"location"';
         geometryType := 'Point';
-        diffRange := diffRange; // todo:
+        diffRange := defaultValue(diffRange, autoDiffRange*0.3);
       end;
     21:
       begin
@@ -1827,16 +1834,19 @@ begin
                 if not FindObject(wdid, o) then
                 begin
                   ChangeStack.Push(entry.objectID.ToString);
-                end;
+                end
+                else
+                  Log.WriteLn('TUSLayer.handleChangeObject: Received actionNew on existing object: ('+entry.objectID.toString+')', llWarning);
               end
               else if entry.action=actionChange then
               begin
-//                changeCount := changeCount+1;
-                if FindObject(wdid, o) then
-                begin
+                //Especially for Han, no check if object actually exists:-)
+                //Todo: do we also want to remove the check from actionNew?
+                //if FindObject(wdid, o) then
+                //begin
                   ChangeStack.Push(entry.objectID.ToString);
-                end
-                else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+entry.objectID.toString+') query', llWarning);
+                //end
+                //else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+entry.objectID.toString+')', llWarning);
               end;
             end;
           except
@@ -1912,7 +1922,7 @@ begin
             oid := AnsiString(query.Fields[0].AsInteger.ToString);
             objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
             if (objects.Count mod 10000) = 0 then
-              Log.WriteLn('Busy reading objects: ' + objects.Count.ToString + ' for ' + name);
+              Log.WriteLn('Busy reading objects: ' + objects.Count.ToString + ' for ' + fScenario.ID + '-' + name);
             query.Next;
           end
           except
@@ -1973,6 +1983,7 @@ begin
         }
       end;
   end;
+  tilerLayer.signalSliceAction(tsaClearSlice); //force clear of our current slice
 end;
 
 function TUSLayer.SliceType: Integer;
@@ -2417,7 +2428,7 @@ begin
         begin
           AddBasicLayer(mblp.Value.ObjectType, mblp.Value.LayerDescription, mblp.Value.LayerDescription, 'basic structures', mblp.Value.ObjectType, mblp.Value.GeometryType,
             'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+fTablePrefix.ToUpper+ mblp.Value.TableName + ' t', GetBasicLayerType(mblp.Value.GeometryType),
-            connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, mblp.Value.TableName), sourceProjection, fTablePrefix.ToUpper+ mblp.Value.TableName, mblp.Value.GetSelectProperties);
+            connectString, '', 'SELECT OBJECT_ID, 0 AS VALUE, SHAPE FROM '+fTablePrefix.ToUpper+ mblp.Value.TableName + ' WHERE OBJECT_ID IN ', oraSession, SubscribeDataEvents(oraSession.Username, mblp.Value.TableName), sourceProjection, fTablePrefix.ToUpper+ mblp.Value.TableName, mblp.Value.GetSelectProperties);
         end;
       end;
       //-> add base layers
@@ -2751,7 +2762,7 @@ begin
   aClient.signalString('{"type":"scenarioControlsMessage", "payload": { "scenarioControls": ' + GetUSControlsJSON + '}}');
 end;
 
-function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aGeometry: TWDGeometry): string;
+function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aGeometry: TWDGeometry): string;
 var
   layers: TList<TLayerBase>;
   categories: string;
@@ -2761,47 +2772,48 @@ var
   l: TLayerBase;
   objectCount: Integer;
 begin
-  Result := '';
-  layers := TList<TLayerBase>.Create;
-  try
-    if selectLayersOnCategories(aSelectCategories, layers) then
-    begin
-      categories := '';
-      objectsGeoJSON := '';
-      totalObjectCount := 0;
-      extent := TWDExtent.FromGeometry(aGeometry);
-      for l in layers do
-      begin
-        if l is TLayer then
-        begin
-          objectCount := (l as TLayer).findObjectsInGeometry(extent, aGeometry, objectsGeoJSON);
-          if objectCount>0 then
-          begin
-            if categories=''
-            then categories := '"'+l.id+'"'
-            else categories := categories+',"'+l.id+'"';
-            totalObjectCount := totalObjectCount+objectCount;
-          end;
-        end;
-      end;
-      if totalObjectCount >300 then
-      begin
-        objectsGeoJSON := '';
-        aClient.SendMessage('Selected too many objects to display', mtWarning);
-      end;
-      Result :=
-        '{"selectedObjects":{"selectCategories":['+categories+'],'+
-         '"mode":"'+aMode+'",'+
-         '"objects":['+objectsGeoJSON+']}}';
-      Log.WriteLn('select on geometry:  found '+totalObjectCount.ToString+' objects in '+categories);
-    end;
-    // todo: else warning?
-  finally
-    layers.Free;
-  end;
+  Result := inherited;
+//  Result := '';
+//  layers := TList<TLayerBase>.Create;
+//  try
+//    if selectLayersOnCategories(aSelectCategories, layers) then
+//    begin
+//      categories := '';
+//      objectsGeoJSON := '';
+//      totalObjectCount := 0;
+//      extent := TWDExtent.FromGeometry(aGeometry);
+//      for l in layers do
+//      begin
+//        if l is TLayer then
+//        begin
+//          objectCount := (l as TLayer).findObjectsInGeometry(extent, aGeometry, objectsGeoJSON);
+//          if objectCount>0 then
+//          begin
+//            if categories=''
+//            then categories := '"'+l.id+'"'
+//            else categories := categories+',"'+l.id+'"';
+//            totalObjectCount := totalObjectCount+objectCount;
+//          end;
+//        end;
+//      end;
+//      if totalObjectCount >300 then
+//      begin
+//        objectsGeoJSON := '';
+//        aClient.SendMessage('Selected too many objects to display', mtWarning);
+//      end;
+//      Result :=
+//        '{"selectedObjects":{"selectCategories":['+categories+'],'+
+//         '"mode":"'+aMode+'",'+
+//         '"objects":['+objectsGeoJSON+']}}';
+//      Log.WriteLn('select on geometry:  found '+totalObjectCount.ToString+' objects in '+categories);
+//    end;
+//    // todo: else warning?
+//  finally
+//    layers.Free;
+//  end;
 end;
 
-function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aX, aY, aRadius: Double): string;
+function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aX, aY, aRadius, aMaxZoom: Double): string;
 var
   layers: TList<TLayerBase>;
   dist: TDistanceLatLon;
@@ -2815,71 +2827,72 @@ var
   totalObjectCount: Integer;
   objectCount: Integer;
 begin
-  Result := '';
-  layers := TList<TLayerBase>.Create;
-  try
-    if selectLayersOnCategories(aSelectCategories, layers) then
-    begin
-      dist := TDistanceLatLon.Create(aY, aY);
-      if (aRadius=0) then
-      begin
-        nearestObject := nil;
-        nearestObjectLayer := nil;
-        nearestObjectDistanceInMeters := Infinity;
-        for l in layers do
-        begin
-          if l is TLayer then
-          begin
-            o := (l as TLayer).findNearestObject(dist, aX, aY, nearestObjectDistanceInMeters);
-            if assigned(o) then
-            begin
-              nearestObjectLayer := l as TLayer;
-              nearestObject := o;
-              if nearestObjectDistanceInMeters=0
-              then break;
-            end;
-          end;
-        end;
-        if Assigned(nearestObject) then
-        begin
-          // todo:
-          Result :=
-            '{"selectedObjects":{"selectCategories":['+nearestObjectLayer.objectTypes+'],'+
-             '"mode":"'+aMode+'",'+
-             '"objects":['+nearestObject.JSON2D[nearestObjectLayer.geometryType, '']+']}}';
-          Log.WriteLn('found nearest object layer: '+nearestObjectLayer.ID+', object: '+string(nearestObject.ID)+', distance: '+nearestObjectDistanceInMeters.toString);
-        end;
-      end
-      else
-      begin
-        categories := '';
-        objectsGeoJSON := '';
-        totalObjectCount := 0;
-        for l in layers do
-        begin
-          if l is TLayer then
-          begin
-            objectCount := (l as TLayer).findObjectsInCircle(dist, aX, aY, aRadius, objectsGeoJSON);
-            if objectCount>0 then
-            begin
-              if categories=''
-              then categories := '"'+l.id+'"'
-              else categories := categories+',"'+l.id+'"';
-              totalObjectCount := totalObjectCount+objectCount;
-            end;
-          end;
-        end;
-        Result :=
-          '{"selectedObjects":{"selectCategories":['+categories+'],'+
-           '"mode":"'+aMode+'",'+
-           '"objects":['+objectsGeoJSON+']}}';
-        Log.WriteLn('select on radius:  found '+totalObjectCount.ToString+' objects in '+categories);
-      end;
-    end;
-    // todo: else warning?
-  finally
-    layers.Free;
-  end;
+  Result := inherited;
+//  Result := '';
+//  layers := TList<TLayerBase>.Create;
+//  try
+//    if selectLayersOnCategories(aSelectCategories, layers) then
+//    begin
+//      dist := TDistanceLatLon.Create(aY, aY);
+//      if (aRadius=0) then
+//      begin
+//        nearestObject := nil;
+//        nearestObjectLayer := nil;
+//        nearestObjectDistanceInMeters := Infinity;
+//        for l in layers do
+//        begin
+//          if l is TLayer then
+//          begin
+//            o := (l as TLayer).findNearestObject(dist, aX, aY, nearestObjectDistanceInMeters);
+//            if assigned(o) then
+//            begin
+//              nearestObjectLayer := l as TLayer;
+//              nearestObject := o;
+//              if nearestObjectDistanceInMeters=0
+//              then break;
+//            end;
+//          end;
+//        end;
+//        if Assigned(nearestObject) then
+//        begin
+//          // todo:
+//          Result :=
+//            '{"selectedObjects":{"selectCategories":['+nearestObjectLayer.objectTypes+'],'+
+//             '"mode":"'+aMode+'",'+
+//             '"objects":['+nearestObject.JSON2D[nearestObjectLayer.geometryType, '']+']}}';
+//          Log.WriteLn('found nearest object layer: '+nearestObjectLayer.ID+', object: '+string(nearestObject.ID)+', distance: '+nearestObjectDistanceInMeters.toString);
+//        end;
+//      end
+//      else
+//      begin
+//        categories := '';
+//        objectsGeoJSON := '';
+//        totalObjectCount := 0;
+//        for l in layers do
+//        begin
+//          if l is TLayer then
+//          begin
+//            objectCount := (l as TLayer).findObjectsInCircle(dist, aX, aY, aRadius, objectsGeoJSON);
+//            if objectCount>0 then
+//            begin
+//              if categories=''
+//              then categories := '"'+l.id+'"'
+//              else categories := categories+',"'+l.id+'"';
+//              totalObjectCount := totalObjectCount+objectCount;
+//            end;
+//          end;
+//        end;
+//        Result :=
+//          '{"selectedObjects":{"selectCategories":['+categories+'],'+
+//           '"mode":"'+aMode+'",'+
+//           '"objects":['+objectsGeoJSON+']}}';
+//        Log.WriteLn('select on radius:  found '+totalObjectCount.ToString+' objects in '+categories);
+//      end;
+//    end;
+//    // todo: else warning?
+//  finally
+//    layers.Free;
+//  end;
 end;
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string;
@@ -3228,6 +3241,50 @@ end;
 
 procedure TUSProject.handleTypedClientMessage(aClient: TClient;
   const aMessageType: string; var aJSONObject: TJSONObject);
+
+  function MakeThreadedScenarioCopy(aSrcID, aConnectString: string; aClient: TClient; aProject: TUSProject): TProc;
+  begin
+    Result := procedure ()
+    var
+      dbConnection: TOraSession;
+      scenario: TUSScenario;
+      dstID, dstDescription: string;
+    begin
+      dbConnection := TOraSession.Create(nil);
+      try
+        dbConnection.ConnectString := aConnectString;
+        dbConnection.Open;
+        aClient.SendMessage('Starting scenario copy', mtSucces, 10000);
+        if CopyScenario(aSrcID, dbConnection.Username, dbConnection, dstID, dstDescription) then
+        begin
+          aClient.SendMessage('Done copying scenario V' + aSrcID + ' to V' + dstID, mtSucces);
+
+          scenario := TUSScenario.Create(Self, dstID, 'V' + dstID, dstDescription, dbConnection.Username.ToUpper + '#V' + dstID, aProject.addBasicLayers, aProject.mapView, fIMB3Connection, 'V' + dstID + '#');
+          aProject.fScenarios.Add(dstID, scenario);
+
+          aProject.fScenarioLinks.children.Add(TScenarioLink.Create(
+              dstID, aSrcID, aSrcID,
+              'V' + dstID, dstDescription, 'OPEN', scenario));
+          if GetSetting(UseScenarioHierarchySwitch, False)
+          then aProject.fScenarioLinks.buildHierarchy() // todo: use hierarchy via setting?
+          else aProject.fScenarioLinks.sortChildren(); // todo: sort scenario links?
+          aProject.forEachClient(procedure(aClient: TClient)
+          begin;
+            SendDomains(aClient, 'updatedomains');
+            aClient.UpdateSession; //todo check if this works
+          end);
+        end
+        else //error copying scenario
+        begin
+          aClient.SendMessage('Error copying scenario', mtError);
+        end;
+        //handle scenario add
+      finally
+        dbConnection.Free
+      end;
+    end;
+  end;
+
 var
   jsonArrayItem, payloadValue: TJSONValue;
   controlActive, controlID: Integer;
@@ -3237,6 +3294,9 @@ var
   queryText: string;
   publishEventName: string;
   publishEvent: TIMBEventEntry;
+  scenarioID: Integer;
+  baseScenario: TScenario;
+  requestID, requestType, responseJSON: string;
 begin
   inherited;
   if aJSONObject.TryGetValue<TJSONValue>('payload', payloadValue) then
@@ -3271,6 +3331,37 @@ begin
           TMonitor.Exit(scenario.USControlStatuses);
         end;
       end;
+    end
+    else if (aMessageType = 'copyScenario') and payloadValue.TryGetValue<Integer>('scenario', scenarioID) then
+    begin
+      TMonitor.Enter(fScenarios);
+      try
+        if fScenarios.TryGetValue(AnsiString(scenarioID.ToString), baseScenario) then
+        begin
+          TThread.CreateAnonymousThread(MakeThreadedScenarioCopy(baseScenario.ID, ConnectStringFromSession(Self.oraSession), aClient, Self)).Start;
+        end;
+      finally
+        TMonitor.Exit(fScenarios);
+      end;
+    end
+    else if (aMessageType = 'dialogDataRequest') and payloadValue.TryGetValue<string>('id', requestID) and payloadValue.TryGetValue<string>('type', requestType) then
+    begin
+      if requestType = 'controls' then
+      begin
+        responseJSON := getUSControlsJSON;
+        responseJSON := '{"type": "dialogDataResponse", "payload": { "data": ' + responseJSON +
+                            ', "id": "' + requestID + '"' +
+                            ', "type": "' + requestType + '" }}';
+        aClient.signalString(responseJSON);
+      end
+      else if (requestType = 'scenarioControls') and (aClient.currentScenario is TUSScenario) then
+      begin
+        responseJSON := (aClient.currentScenario as TUSScenario).GetUSControlsJSON;
+        responseJSON := '{"type": "dialogDataResponse", "payload": { "data": ' + responseJSON +
+                            ', "id": "' + requestID + '"' +
+                            ', "type": "' + requestType + '" }}';
+        aClient.signalString(responseJSON);
+      end;
     end;
   end;
 end;
@@ -3279,12 +3370,14 @@ procedure TUSProject.ReadBasicData;
 var
   scenarioID: Integer;
   s: string;
+  filter: string;
 begin
+  fUSScenarioFilters := getUSScenarioFilter(OraSession, fProjectID);
   ReadScenarios;
   ReadMeasures;
   ReadUSControls;
   // load current scenario and ref scenario first
-  scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession));
+  scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession), fProjectID);
   fProjectCurrentScenario := ReadScenario(scenarioID.ToString);
   Log.WriteLn('current US scenario: '+fProjectCurrentScenario.ID+' ('+(fProjectCurrentScenario as TUSScenario).fTableprefix+'): "'+fProjectCurrentScenario.description+'"', llOk);
   // ref
@@ -3299,8 +3392,12 @@ begin
   begin
     for s in fUSDBScenarios.Keys do
     begin
-      if fUSDBScenarios[s]._published>0
-      then ReadScenario(s);
+      for filter in fUSScenarioFilters do
+        if fUSDBScenarios[s]._published.ToString = filter then
+        begin
+          ReadScenario(s);
+          exit;
+        end;
     end;
   end;
 end;
@@ -3379,6 +3476,7 @@ procedure TUSProject.ReadScenarios;
 var
   scenarios: TAllRowsResults;
   s: Integer;
+  filterID: string;
   usdbScenario: TUSDBScenario;
   isp: TPair<string, TUSDBScenario>;
 begin
@@ -3402,12 +3500,14 @@ begin
       usdbScenario := TUSDBScenario.Create(scenarios[s][0], scenarios[s][1], scenarios[s][5],
         scenarios[s][3], scenarios[s][4], scenarios[s][1]+'#', scenarios[s][2], scenarios[s][6], StrToIntDef(scenarios[s][7], 0));
       fUSDBScenarios.Add(usdbScenario.id, usdbScenario);
-      if scenarios[s][7]='1' then
-      begin
-        fScenarioLinks.children.Add(TScenarioLink.Create(
-          usdbScenario.ID, usdbScenario.parentID, usdbScenario.referenceID,
-          usdbScenario.name, usdbScenario.description, scenarios[s][6], nil));
-      end;
+      for filterID in fUSScenarioFilters do
+        if scenarios[s][7]=filterID then
+        begin
+          fScenarioLinks.children.Add(TScenarioLink.Create(
+            usdbScenario.ID, usdbScenario.parentID, usdbScenario.referenceID,
+            usdbScenario.name, usdbScenario.description, scenarios[s][6], nil));
+          break;
+        end;
     end;
   except
     Log.WriteLn('Could not read scenarios, could be published field -> try without', llWarning);
@@ -3475,19 +3575,22 @@ begin
   //TODO: Subscribe to IMB updates
 end;
 
-function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView): TMapView;
+function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView; const aProjectID: string = ''): TMapView;
 var
   table: TOraTable;
+  queryText : string;
 begin
   if TableExists(aOraSession, PROJECT_TABLE_NAME) then
   begin
     // try to read view from database
     table := TOraTable.Create(nil);
     try
-      table.Session := aOraSession;
-      table.SQL.Text :=
-        'SELECT Lat, Lon, Zoom '+
+      queryText := 'SELECT Lat, Lon, Zoom '+
         'FROM '+PROJECT_TABLE_NAME;
+      if aProjectID <> '' then
+        queryText := queryText + ' WHERE PROJECTID='''+aProjectID+'''';
+      table.Session := aOraSession;
+      table.SQL.Text := queryText;
       try
         table.Execute;
         try
@@ -3584,6 +3687,78 @@ begin
   else Result := aDefault;
 end;
 
+function getUSProjectTypes(aOraSession: TOraSession): TStringArray;
+var
+  query: TOraQuery;
+begin
+  SetLength(Result, 0);
+  if TableExists(aOraSession, PROJECT_TABLE_NAME) then
+  begin
+    if FieldExists(aOraSession, PROJECT_TABLE_NAME, 'PROJECT_TYPE') then
+    begin
+      query := TOraQuery.Create(nil);
+      try
+        query.Session := aOraSession;
+        query.SQL.Text :=
+          'SELECT PROJECT_TYPE '+
+            'FROM '+PROJECT_TABLE_NAME + ' ' +
+            'WHERE NOT ACTIVE = 0 AND NOT PROJECT_TYPE IS NULL';
+        query.ExecSQL;
+        while not query.Eof do
+        begin
+          if not query.FieldByName('PROJECT_TYPE').IsNull then //unneeded check...leave to make sure?
+          begin
+            SetLength(Result, Length(Result) + 1);
+            Result[Length(Result) - 1] := query.FieldByName('PROJECT_TYPE').AsString;
+          end;
+          query.Next;
+        end;
+      finally
+        query.Free;
+      end;
+    end
+    else
+    begin
+      aOraSession.ExecSQL(
+        'ALTER TABLE '+PROJECT_TABLE_NAME+' '+
+        'ADD (PROJECT_TYPE VARCHAR(100 BYTE),'+
+             'ACTIVE INTEGER,'+
+             'SCENARIO_FILTER VARCHAR(100 BYTE))');
+      aOraSession.Commit;
+    end;
+
+
+  end;
+end;
+
+function getUSProjectIDByType(aOraSession: TOraSession; aProjectType: string): string;
+var
+  query: TOraQuery;
+begin
+  Result := '';
+  if TableExists(aOraSession, PROJECT_TABLE_NAME) and FieldExists(aOraSession, PROJECT_TABLE_NAME, 'PROJECT_TYPE') then
+  begin
+    // try to read project info from database
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := aOraSession;
+      query.SQL.Text :=
+        'SELECT ProjectID '+
+          'FROM '+PROJECT_TABLE_NAME+' '+
+          'WHERE PROJECT_TYPE = :TYPE';
+      query.Params.ParamByName('TYPE').AsString := aProjectType;
+      query.ExecSQL;
+      if not query.Eof then
+      begin
+        Result := query.FieldByName('ProjectID').AsString;
+      end;
+    finally
+      query.Free;
+    end;
+  end;
+end;
+
+
 procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon, aZoomLevel: Double);
 var
 //  tryUpdate: Boolean;
@@ -3640,7 +3815,7 @@ begin
   end;
 end;
 
-function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer): Integer;
+function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer; const aProjectID: string): Integer;
 var
   table: TOraTable;
 begin
@@ -3650,7 +3825,8 @@ begin
     table.Session := aOraSession;
     table.SQL.Text :=
       'SELECT StartPublishedScenarioID '+
-      'FROM '+PROJECT_TABLE_NAME;
+      'FROM '+PROJECT_TABLE_NAME + ' '+
+      'WHERE PROJECTID='''+aProjectID+'''';
     table.Execute;
     try
       if table.FindFirst then
@@ -3660,6 +3836,44 @@ begin
         else Result := aDefault;
       end
       else Result := aDefault;
+    finally
+      table.Close;
+    end;
+  finally
+    table.Free;
+  end;
+end;
+
+function getUSScenarioFilter(aOraSession: TOraSession; const aProjectID: string): TStringArray;
+var
+  table: TOraTable;
+  splitArray: TArray<string>;
+  id: string;
+  i: Integer;
+begin
+  // try to read project info from database
+  table := TOraTable.Create(nil);
+  try
+    table.Session := aOraSession;
+    table.SQL.Text :=
+      'SELECT SCENARIO_FILTER '+
+      'FROM '+PROJECT_TABLE_NAME + ' '+
+      'WHERE PROJECTID='''+aProjectID+'''';
+    table.Execute;
+    try
+      if table.FindFirst then
+      begin
+        if not table.Fields[0].IsNull
+        then
+        begin
+          splitArray := table.Fields[0].AsString.Split([';', ',', ':']);
+          SetLength(Result, Length(splitArray));
+          for I := 0 to Length(Result) - 1 do
+            Result[i] := splitArray[i];
+        end
+        else SetLength(Result, 0);
+      end
+      else SetLength(Result, 0);
     finally
       table.Close;
     end;
@@ -4216,6 +4430,7 @@ begin
   LAYER_DESCRIPTION := StringField('LAYER_DESCRIPTION');
   SELECT_PROPERTY := StringField('PROPERTY');
   PROPERTY_DESCRIPTION := StringField('PROPERTY_DESCRIPTION');
+  PROPERTY_CATEGORY := StringField('PROPERTY_CATEGORY');
   OBJECT_TYPE := StringField('OBJECT_TYPE');
   GEOMETRY_TYPE := StringField('GEOMETRY_TYPE');
   EDITABLE := IntField('EDITABLE', 0);
@@ -4654,7 +4869,7 @@ begin
           aOraSession.Commit;
           for commitProperty in fChangedProperties.Values do
           begin
-            publishEvent.SignalChangeObject(actionChange, objectID, commitProperty.fName);
+            publishEvent.SignalChangeObject(actionChange, objectID, commitProperty.fName.ToUpper);
           end;
           aChangedCount := aChangedCount + 1;
         end;

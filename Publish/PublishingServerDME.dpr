@@ -50,6 +50,8 @@ const
   IMB4RemoteHostSwitch = 'IMB4RemoteHost';
   IMB4RemotePortSwitch = 'IMB4RemotePort';
 
+  ProjectTypeSwitch = 'ProjectType';
+
   DesignBaseScenarioIDSwitch = 'DesignBaseScenarioID';
     DefaultDesignBaseScenarioID = '13';
   MonitorBaseScenarioIDSwitch = 'MonitorBaseScenarioID';
@@ -140,6 +142,7 @@ var
   p: Integer;
   projectID: string;
   projectName: string;
+  projectTypes: TStringArray;
   i: Integer;
   dbConnection: TOraSession;
 begin
@@ -167,6 +170,7 @@ begin
         projectID := getUSProjectID(dbConnection, '');
         if projectID=''
         then projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
+        projectTypes := getUSProjectTypes(dbConnection);
       finally
         dbConnection.Free;
       end;
@@ -193,6 +197,8 @@ begin
     aParameters.Add(TModelParameter.Create(DesignBaseScenarioIDSwitch, mpvtInteger, GetSetting(DesignBaseScenarioIDSwitch, DefaultDesignBaseScenarioID)));
     aParameters.Add(TModelParameter.Create(MonitorBaseScenarioIDSwitch, mpvtInteger, GetSetting(MonitorBaseScenarioIDSwitch, DefaultMonitorBaseScenarioID)));
     aParameters.Add(TModelParameter.Create(EvaluateBaseScenarioIDSwitch, mpvtInteger, GetSetting(EvaluateBaseScenarioIDSwitch, DefaultEvaluateBaseScenarioID)));
+    if Length(projectTypes) > 0 then
+      aParameters.Add(TModelParameter.Create(ProjectTypeSwitch, GetSetting(ProjectTypeSwitch, projectTypes[0]), projectTypes));
   except
     on E: Exception
     do log.WriteLn('Exception in TModel.ParameterRequest: '+E.Message, llError);
@@ -212,6 +218,7 @@ var
   dbConnection: TOraSession;
   projectID: string;
   projectName: string;
+  projectType: string;
   mapView: TMapView;
   preLoadScenarios: Boolean;
   tilerName: string;
@@ -235,60 +242,131 @@ begin
     dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
     dbConnection.Open;
 
-    projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
-    projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
-    mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.31567, 4.90321, 13));
-    Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
-    preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
-    tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
-    setUSProjectID(dbConnection, projectID, mapView.lat, mapView.lon, mapView.zoom); // store project properties in database
+    if aParameters.ParameterExists(ProjectTypeSwitch) then
+    begin
+      projectType := aParameters.ParameterByName[ProjectTypeSwitch].ValueAsString;
+      projectID := getUSProjectIDByType(dbConnection, projectType);
+      if projectID <> '' then
+      begin
+        projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString + '-' + projectType;
+        mapView := getUSMapView(dbConnection, TMapView.Create(52.31567, 4.90321, 13), projectID);
+        Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
+        preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
+        tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
+        setUSProjectID(dbConnection, projectID, mapView.lat, mapView.lon, mapView.zoom); // store project properties in database
 
-    fProjectDesign := TUSDesignProject.Create(
-      fSessionModel, fSessionModel.Connection, connection,
-      projectID + '-Design', projectName + '-Design',
-      tilerName,
-      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-      dbConnection.ConnectString,
-      dbConnection,
-      mapView,
-      preLoadScenarios,
-      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[DesignBaseScenarioIDSwitch].ValueAsString);
-    fProjectDesign.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-    fSessionModel.Projects.Add(fProjectDesign);
+        if projectType.ToUpper = 'DESIGN' then
+        begin
+          fProjectDesign := TUSDesignProject.Create(
+            fSessionModel, fSessionModel.Connection, connection,
+            projectID, projectName,
+            tilerName,
+            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+            dbConnection.ConnectString,
+            dbConnection,
+            mapView,
+            preLoadScenarios,
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+          fProjectDesign.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+          fSessionModel.Projects.Add(fProjectDesign);
+        end
+        else if projectType.ToUpper = 'MONITOR' then
+        begin
+          fProjectMonitor := TUSMonitorProject.Create(
+            fSessionModel, fSessionModel.Connection, connection,
+            projectID, projectName,
+            tilerName,
+            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+            dbConnection.ConnectString,
+            dbConnection,
+            mapView,
+            preLoadScenarios,
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+          fProjectMonitor.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+          fSessionModel.Projects.Add(fProjectMonitor);
+        end
+        else if projectType.ToUpper = 'EVALUATE' then
+        begin
+          fProjectEvaluate := TUSEvaluateProject.Create(
+            fSessionModel, fSessionModel.Connection, connection,
+            projectID, projectName,
+            tilerName,
+            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+            dbConnection.ConnectString,
+            dbConnection,
+            mapView,
+            preLoadScenarios,
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+          fProjectEvaluate.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+          fSessionModel.Projects.Add(fProjectEvaluate);
+        end;
+      end
+      else
+      begin
+        //something went wrong! logging and don't start publisher
+      end;
+    end
+    else
+    begin
+      projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
+      projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
+      mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.31567, 4.90321, 13));
+      Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
+      preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
+      tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
+      setUSProjectID(dbConnection, projectID, mapView.lat, mapView.lon, mapView.zoom); // store project properties in database
 
-    dbConnection := TOraSession.Create(nil);
-    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-    dbConnection.Open;
+      fProjectDesign := TUSDesignProject.Create(
+        fSessionModel, fSessionModel.Connection, connection,
+        projectID, projectName + '-Design',
+        tilerName,
+        GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+        dbConnection.ConnectString,
+        dbConnection,
+        mapView,
+        preLoadScenarios,
+        GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+      fProjectDesign.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+      fSessionModel.Projects.Add(fProjectDesign);
 
-    fProjectMonitor := TUSMonitorProject.Create(
-      fSessionModel, fSessionModel.Connection, connection,
-      projectID + '-Monitor', projectName + '-Monitor',
-      tilerName,
-      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-      dbConnection.ConnectString,
-      dbConnection,
-      mapView,
-      preLoadScenarios,
-      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[MonitorBaseScenarioIDSwitch].ValueAsString);
-    fProjectMonitor.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-    fSessionModel.Projects.Add(fProjectMonitor);
+      {
+      dbConnection := TOraSession.Create(nil);
+      dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
+      dbConnection.Open;
 
-    dbConnection := TOraSession.Create(nil);
-    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-    dbConnection.Open;
+      fProjectMonitor := TUSMonitorProject.Create(
+        fSessionModel, fSessionModel.Connection, connection,
+        projectID + '-Monitor', projectName + '-Monitor',
+        tilerName,
+        GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+        dbConnection.ConnectString,
+        dbConnection,
+        mapView,
+        preLoadScenarios,
+        GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[MonitorBaseScenarioIDSwitch].ValueAsString);
+      fProjectMonitor.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+      fSessionModel.Projects.Add(fProjectMonitor);
 
-    fProjectEvaluate := TUSEvaluateProject.Create(
-      fSessionModel, fSessionModel.Connection, connection,
-      projectID + '-Evaluate', projectName + '-Evaluate',
-      tilerName,
-      GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-      dbConnection.ConnectString,
-      dbConnection,
-      mapView,
-      preLoadScenarios,
-      GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[EvaluateBaseScenarioIDSwitch].ValueAsString);
-    fProjectEvaluate.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-    fSessionModel.Projects.Add(fProjectEvaluate);
+      dbConnection := TOraSession.Create(nil);
+      dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
+      dbConnection.Open;
+
+      fProjectEvaluate := TUSEvaluateProject.Create(
+        fSessionModel, fSessionModel.Connection, connection,
+        projectID + '-Evaluate', projectName + '-Evaluate',
+        tilerName,
+        GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+        dbConnection.ConnectString,
+        dbConnection,
+        mapView,
+        preLoadScenarios,
+        GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), aParameters.ParameterByName[EvaluateBaseScenarioIDSwitch].ValueAsString);
+      fProjectEvaluate.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
+      fSessionModel.Projects.Add(fProjectEvaluate);
+      }
+    end;
+
+
 
     // todo: relink existing clients
 
