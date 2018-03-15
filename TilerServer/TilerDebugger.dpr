@@ -203,6 +203,13 @@ begin
             then log.WriteLn('refresh: main slice (0)')
             else log.WriteLn('refresh: slice '+FormatDateTime('yyyy-mm-dd hh:nn', timeStamp));
           end;
+        (icehTilerRefreshImmediate shl 3) or wt64Bit:
+          begin
+            timeStamp := aBuffer.bb_read_double(aCursor);
+            if timeStamp=0
+            then log.WriteLn('refresh immediate: main slice (0)')
+            else log.WriteLn('refresh immediate: slice '+FormatDateTime('yyyy-mm-dd hh:nn', timeStamp));
+          end;
         (icehTilerPreviewImage shl 3) or wtLengthDelimited:
           begin
             aBuffer.bb_read_tbytes(aCursor);

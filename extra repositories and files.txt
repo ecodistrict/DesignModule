@@ -11,7 +11,10 @@ Publish
 	oracletools	https://tf.tno.nl/svn/repos/urban_strategy/trunk/Common/OracleTools
 
 
+Delphi 10.1
 	TatukGIS_11	https://tf.tno.nl/svn/repos/effects_main/thirdparty/TatukGIS/DK_11_6/DX10.2
+Delphi 10.2.2
+	TatukGIS_11	https://tf.tno.nl/svn/repos/effects_main/thirdparty/TatukGIS/DK_11_12/DX10.2
 
 TilerServer: fixed delphi files, see source
 	FMX.Canvas.D2D.my.pas		delphi 10

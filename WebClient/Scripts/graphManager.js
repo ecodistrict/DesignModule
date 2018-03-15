@@ -347,30 +347,30 @@ var GraphManager = {
                 graph = new SpiderChart(graphObject);
                 break;
 
-                // todo
-                // # line
-                // preview aanpassen
-                // # Bar
-                // preview aanpassen
-                // grouped check
-                // # spline
-                // preview aanpassen
-                // # Area
-                // preview aanpassen
-                // # step
-                // preview aanpassen
-                // # area-step
-                // preview aanpassen
-                // # area-spline
-                // preview aanpassen
-                // # scatter
-                // preview aanpassen
-                // # donut
-                // preview aanpassen
-                // # gauge
-                // preview aanpassen
+            // todo
+            // # line
+            // preview aanpassen
+            // # Bar
+            // preview aanpassen
+            // grouped check
+            // # spline
+            // preview aanpassen
+            // # Area
+            // preview aanpassen
+            // # step
+            // preview aanpassen
+            // # area-step
+            // preview aanpassen
+            // # area-spline
+            // preview aanpassen
+            // # scatter
+            // preview aanpassen
+            // # donut
+            // preview aanpassen
+            // # gauge
+            // preview aanpassen
 
-                // NEW
+            // NEW
             case 'line':
                 graph = new LineBottomLeft(graphObject);
                 break;
@@ -438,6 +438,14 @@ var GraphManager = {
                 continue;
             graph.graph.Update(dataArray[i].data);
             //GraphManager.UpdateGraph(graph.graph, dataArray[i]);
+        }
+    },
+
+    ShowGraphs: function (dataArray) {
+        for (var i = 0; i < dataArray.length; i++) {
+            var graph = GraphManager._getGraph(dataArray[i]);
+            if (graph != null && !graph.graph.visible)
+                graph.graph.ShowGraph();
         }
     },
 

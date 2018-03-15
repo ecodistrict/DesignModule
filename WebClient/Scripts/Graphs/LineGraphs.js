@@ -122,6 +122,8 @@ function LineBottomLeft(graphObject) {
     this.Reset = function () {
         this.graphObject.data = [];
         this.graphObject.displayData = [];
+        if (this.graphObject.holdminmax) 
+            delete this.graphObject.holdvalues;
         for (var i = 0; i < this.graphObject.y.length; i++) {
             this.graphObject.data.push([]);
             this.graphObject.displayData.push([]);

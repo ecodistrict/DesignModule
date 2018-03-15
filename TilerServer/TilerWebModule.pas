@@ -14,7 +14,7 @@
 // http://wiki.openstreetmap.org/wiki/Zoom_levels
 
 // iis install:
-//   enable webseockets, isapi modules..
+//   enable websockets, isapi modules..
 // iis config:
 //   add site: DesignTiler binding to specific port (4503)
 //     add default document TilerWebService.dll
@@ -592,7 +592,7 @@ type
     function findSlice(aTimeStamp: TDateTime): TSLice; overload;
     function findSlice(aLayerID: Integer; aTimeStamp: TDateTime): TSLice; overload;
     procedure handleDataEvent(aEventEntry: TEventEntry; const aBuffer: TByteBuffer; aCursor, aLimit: Integer);
-    procedure signalRefresh(aTimeStamp: TDateTime);
+    procedure signalRefresh(aTimeStamp: TDateTime; aImmediate: Boolean);
   public
     property Model: TModel read fModel;
     property LayerID: Integer read fLayerID;
@@ -1307,7 +1307,7 @@ begin
           begin
             // todo: if specified do recalc of data now (triangulate for receptors)?
             fDataVersion := fDataVersion+1; // trigger new set of tiles in cache
-            fLayer.SignalRefresh(timeStamp);
+            fLayer.SignalRefresh(timeStamp, False);
             HandleUpdateOfParents;
           end;
         finally
@@ -2874,7 +2874,7 @@ begin
   fCurrentSlice.AddParent(self);
   fRefSlice.AddParent(self);
   // send refresh if both cur and ref are already ok after this follow updates of cur and ref
-  aLayer.signalRefresh(aTimeStamp);
+  aLayer.signalRefresh(aTimeStamp, true);
 end;
 
 destructor TDiffSlice.Destroy;
@@ -3042,7 +3042,7 @@ begin
   // recalc extent
   fMaxExtent := fCurrentSlice.fMaxExtent.Intersection(fRefSlice.fMaxExtent);
   fDataVersion := fDataVersion+1; // trigger new set of tiles in cache
-  fLayer.signalRefresh(timeStamp);
+  fLayer.signalRefresh(timeStamp, false);
 end;
 
 procedure TDiffSlice.RemoveChild(aChild: TSlice);
@@ -4088,7 +4088,7 @@ begin
                     if Assigned(palette) then
                     begin
                       if slice.UpdatePalette(palette.Clone)
-                      then signalRefresh(timeStamp);
+                      then signalRefresh(timeStamp, true);
                     end;
                   end;
                 end;
@@ -4200,7 +4200,7 @@ begin
                           finally
                             slice.fDataLock.EndWrite;
                           end;
-                          signalRefresh(timeStamp);
+                          signalRefresh(timeStamp, true);
                         end;
                       end;
                   end;
@@ -4264,9 +4264,11 @@ begin
   end;
 end;
 
-procedure TLayer.signalRefresh(aTimeStamp: TDateTime);
+procedure TLayer.signalRefresh(aTimeStamp: TDateTime; aImmediate: Boolean);
 begin
-  fDataEvent.signalEvent(TByteBuffer.bb_tag_double(icehTilerRefresh, aTimeStamp));
+  if aImmediate
+  then fDataEvent.signalEvent(TByteBuffer.bb_tag_double(icehTilerRefreshImmediate, aTimeStamp))
+  else fDataEvent.signalEvent(TByteBuffer.bb_tag_double(icehTilerRefresh, aTimeStamp));
 end;
 
 procedure TLayer.signalTilerInfo;

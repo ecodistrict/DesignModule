@@ -64,7 +64,7 @@ type
     procedure StartModel(aParameters: TModelParameters); override;
     procedure StopModel; override;
   // manual start
-    procedure CheckManualStart;
+    function CheckManualStart: Boolean;
   private
     fSessionModel: TSessionModel;
     fIMBConnection: TConnection; // imb connection to websocket etc.
@@ -77,7 +77,6 @@ type
   public
     property sessionModel: TSessionModel read fSessionModel;
     property imbConnection: TConnection read fIMBConnection;
-    property imbLogger: TIMBLogger read fIMBLogger;
 
     procedure TestConnection();
   end;
@@ -135,13 +134,20 @@ begin
     // add parameters with default values
     // DataSourceParameterName and FederationParameterName parameters should be set to
     // enable looking up parameter values in database
-    WriteLn('Parameters request');
-    if aParameters.Count>0
-    then WriteLn('   parameters')
-    else WriteLn('## NO parameters defined');
-    for p := 0 to aParameters.Count - 1 do
-    begin
-      WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
+    try
+      WriteLn('Parameters request');
+      if aParameters.Count>0
+      then WriteLn('   parameters')
+      else WriteLn('## NO parameters defined');
+      for p := 0 to aParameters.Count - 1 do
+      begin
+        WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
+      end;
+    except
+      on e: Exception do
+      begin
+        Log.WriteLn('Exception parsing parameters in TModel.ParameterRequest: '+E.Message, llError);
+      end;
     end;
 
     //projectName := GetSetting(ProjectNameSwitch,
@@ -172,7 +178,7 @@ begin
     else
     begin
       projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
-      projectName := GetSetting(ProjectNameSwitch, 'test ams'); //aParameters.ParameterByName[FederationParameterName].ValueAsString
+      projectName := GetSetting(ProjectNameSwitch, 'E-bus');
     end;
     aParameters.Add(TModelParameter.Create(TilerNameSwitch, GetSetting(TilerNameSwitch, DefaultTilerName)));
     aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
@@ -202,19 +208,8 @@ var
   tilerName: string;
 begin
   try
-    // execute actions needed to stop the model
-    WriteLn('Start model');
-    if aParameters.Count>0
-    then WriteLn('   parameters')
-    else WriteLn('## NO parameters defined');
-    {
-    for p := 0 to aParameters.Count - 1 do
-    begin
-      WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
-      standardIni.WriteString(RecoverySection, aParameters[p].Name, aParameters[p].ValueAsStore);
-    end;
-    }
     fIMBLogger := AddIMBLogger(Self.Connection);
+    Log.WriteLn('Started');
 
     dbConnection := TOraSession.Create(nil);
     dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
@@ -222,7 +217,7 @@ begin
 
     projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
     projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
-    mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.31567, 4.90321, 13));
+    mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.35264, 4.89544, 13));
     Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
     preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
     tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
@@ -241,12 +236,6 @@ begin
     fSantosProject.Timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fSantosProject);
 
-//    dbConnection := TOraSession.Create(nil);
-//    dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-//    dbConnection.Open;
-
-    // todo: relink existing clients
-
     // for now
     Log.WriteLn('URL: '+GetSetting(WebClientURISwitch, DefaultWebClientURI)+'?session='+projectID, llOK);
 
@@ -264,9 +253,6 @@ begin
   try
     fSantosProject := nil;
     FreeAndNil(fIMBLogger);
-    // erase recovery section to NOT start in recovery mode next time
-    //StandardIni.EraseSection(RecoverySection);
-    // execute actions needed to stop the model
 
     fSessionModel.Projects.Clear;
 
@@ -293,7 +279,7 @@ begin
   end;
 end;
 
-procedure TModel.CheckManualStart;
+function TModel.CheckManualStart: Boolean;
 var
   Parameters: TModelParameters;
   Session: TOraSession;
@@ -340,7 +326,8 @@ begin
     end;
   end
   else }
-  if not CommandLine.TestSwitch(ControllerSwitch) then
+  Result := not CommandLine.TestSwitch(ControllerSwitch);
+  if Result then
   begin
     Log.WriteLn('Started in manual mode', llOk);
     Parameters := TModelParameters.Create;
@@ -471,57 +458,63 @@ begin
         SetConsoleCtrlHandler(@ConsoleCtrlHandler, True);
         try
           // check if we are started directly or via node controller
-          Model.CheckManualStart;
-          ShowMenu;
-          // wait until we received a quit signal
-          while Model.QuitApplicationEvent.WaitFor(200)=TWaitResult.wrTimeout do
+          if Model.CheckManualStart then
           begin
-            // extra mainloop actions..
-            if CheckKeyPressed2 then
+            ShowMenu;
+            // wait until we received a quit signal
+            while Model.QuitApplicationEvent.WaitFor(200)=TWaitResult.wrTimeout do
             begin
-              key := KeyPressed2;
-              System.TMonitor.Enter(Log);
-              try
-                case key of
-                  '?':
-                    ShowMenu;
-                  'Q', 'q', #27:
-                    Model.QuitApplication;
-                  'R', 'r':
-                    begin
-                      for project in Model.sessionModel.Projects
-                      do project.SendRefresh;
-                    end;
-                  'P', 'p':
-                    begin
-                      for project in Model.sessionModel.Projects
-                      do project.SendPreview;
-                    end;
-                  'C', 'c':
-                    begin
-                      for project in Model.sessionModel.Projects do
+              // extra mainloop actions..
+              if CheckKeyPressed2 then
+              begin
+                key := KeyPressed2;
+                System.TMonitor.Enter(Log);
+                try
+                  case key of
+                    '?':
+                      ShowMenu;
+                    'Q', 'q', #27:
+                      Model.QuitApplication;
+                    'R', 'r':
                       begin
-                        WriteLn('Project: '+project.ProjectName);
-                        TMonitor.Enter(project.clients);
-                        try
-                          for client in project.clients do
-                          begin
-                            WriteLn('   '+client.clientID);
+                        for project in Model.sessionModel.Projects
+                        do project.SendRefresh;
+                      end;
+                    'P', 'p':
+                      begin
+                        for project in Model.sessionModel.Projects
+                        do project.SendPreview;
+                      end;
+                    'C', 'c':
+                      begin
+                        for project in Model.sessionModel.Projects do
+                        begin
+                          WriteLn('Project: '+project.ProjectName);
+                          TMonitor.Enter(project.clients);
+                          try
+                            for client in project.clients do
+                            begin
+                              WriteLn('   '+client.clientID);
+                            end;
+                          finally
+                            TMonitor.Exit(project.clients);
                           end;
-                        finally
-                          TMonitor.Exit(project.clients);
                         end;
                       end;
-                    end;
-                  'X', 'x':
-                    begin
-                      Model.TestConnection();
-                    end;
+                    'X', 'x':
+                      begin
+                        Model.TestConnection();
+                      end;
+                  end;
+                finally
+                  System.TMonitor.Exit(Log);
                 end;
-              finally
-                System.TMonitor.Exit(Log);
               end;
             end;
+          end
+          else
+          begin
+            Model.QuitApplicationEvent.WaitFor(); // just wait for quit
           end;
         finally
           SetConsoleCtrlHandler(@ConsoleCtrlHandler, False);

@@ -1686,6 +1686,7 @@ begin
       else Log.WriteLn('Could not build SQL to apply measure '+measureId+' ('+categories+'): '+objectIDs);
     end;
   end
+  // todo: renamed scenarioRefresh to new format: code still to be changed!
   else if isObject(aJSONObject, 'scenarioRefresh', jsonPair) then
   begin
     // determine id used for dictionary
