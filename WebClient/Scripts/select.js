@@ -500,6 +500,7 @@ function handleObjectSelection(aSelectedObjects) {
     if (aSelectedObjects.mode == '=') {
         selectedItems.clearLayers();
         selectedItems.addData(aSelectedObjects.objects);
+        DataManager.selectedObjectIDs = {};
     }
     else {
         for (var o = 0; o < aSelectedObjects.objects.length; o++) {
@@ -525,18 +526,29 @@ function handleObjectSelection(aSelectedObjects) {
         if (lid2 == undefined)
             measuresControl.setSelectCategories([]);
     }
+
+    if (typeof aSelectedObjects.ids != "undefined") //set the selected object ids
+    {
+        for (var o = 0; o < aSelectedObjects.ids.length; o++)
+            DataManager.selectedObjectIDs[aSelectedObjects.ids[o]] = aSelectedObjects.ids[o];
+    }
 }
 
 function handleObjectsDeselect() {
 
     selectedItems.clearLayers();
     measuresControl.setSelectCategories([]);
-
+    DataManager.selectedObjectIDs = {};
 }
 
 function getSelectedObjects() {
     var objects = [];
-    for (var lid in selectedItems._layers)
-        objects.push(selectedItems._layers[lid].feature.properties.id);
+    for (let id in DataManager.selectedObjectIDs)
+        objects.push(DataManager.selectedObjectIDs[id]);
+
+    if (objects.length == 0) {
+        for (var lid in selectedItems._layers)
+            objects.push(selectedItems._layers[lid].feature.properties.id);
+    }
     return objects;
 }

@@ -475,16 +475,6 @@ begin
                       ShowMenu;
                     'Q', 'q', #27:
                       Model.QuitApplication;
-                    'R', 'r':
-                      begin
-                        for project in Model.sessionModel.Projects
-                        do project.SendRefresh;
-                      end;
-                    'P', 'p':
-                      begin
-                        for project in Model.sessionModel.Projects
-                        do project.SendPreview;
-                      end;
                     'C', 'c':
                       begin
                         for project in Model.sessionModel.Projects do

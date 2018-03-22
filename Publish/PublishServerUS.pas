@@ -231,7 +231,7 @@ type
     fChangedProperties: TObjectDictionary<string, TUSCommitProperty>;
   public
     procedure ParseJSONProperties(aJSONProperties: TJSONArray);
-    function CommitChangesToDB(aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; aBasicLayer: TUSBasicLayer; out aChangedCount: Integer): Boolean;
+    function CommitChangesToDB(aLayer: TUSBasicLayer; aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; aBasicLayer: TUSBasicLayer; out aChangedCount: Integer): Boolean;
   end;
 
   TUSRoadIC = class(TGeometryLayerObject)
@@ -380,6 +380,7 @@ type
     function UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
   public
     procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
+    procedure handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
     property ChangeMultipleQuery: string read fChangeMultipleQuery;
     procedure ReadObjects(aSender: TObject);
     procedure RegisterLayer; override;
@@ -501,6 +502,7 @@ type
     fUSDBScenarios: TObjectDictionary<string, TUSDBScenario>;
     fUSScenarioFilters: TStringArray;
     fUSControls: TObjectDictionary<Integer, TUSControl>; //locks with TMonitor
+    fUSTableSync: TObjectDictionary<string, TSubscribeObject>; //owns, locks with TMonitor
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
     fPreLoadScenarios: Boolean;
     fIMB3Connection: TIMBConnection;
@@ -526,6 +528,8 @@ type
   public
     function GetUSControlsJSON: string;
     function GetUSControlJSONFromDB(aTablePrefix: string): string;
+  public
+    function GetTableSync(const aUSFederation: string): TSubscribeObject;
   end;
 
 
@@ -1537,6 +1541,7 @@ begin
   begin
     fDataEvents[i] := aDataEvent[i];
     fDataEvents[i].OnChangeObject := handleChangeObject;
+    SubscribeTo((aScenario.Project as TUSProject).GetTableSync(fDataEvents[i].EventName), handleTableChange);
   end;
 end;
 
@@ -1557,22 +1562,7 @@ end;
 
 procedure TUSLayer.handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string);
 begin
-  TMonitor.Enter(fUpdateQueueEvent);
-  try
-    begin
-      try
-        fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
-        fUpdateQueueEvent.SetEvent;
-      except
-        on e: Exception do
-        begin
-          Log.WriteLn('TUSLayer.handleChangeObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
-        end
-      end;
-    end
-  finally
-    TMonitor.Exit(fUpdateQueueEvent);
-  end;
+  handleTableChange(nil, aAction, aObjectID);
   {
   try
     wdid := AnsiString(aObjectID.ToString);
@@ -1611,6 +1601,26 @@ begin
     do log.WriteLn('Exception in TUSLayer.handleChangeObject: '+e.Message, llError);
   end;
   }
+end;
+
+procedure TUSLayer.handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
+begin
+  TMonitor.Enter(fUpdateQueueEvent);
+    try
+      begin
+        try
+          fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
+          fUpdateQueueEvent.SetEvent;
+        except
+          on e: Exception do
+          begin
+            Log.WriteLn('TUSLayer.handleChangeObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
+          end
+        end;
+      end
+    finally
+      TMonitor.Exit(fUpdateQueueEvent);
+    end;
 end;
 
 function TUSLayer.UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
@@ -2763,14 +2773,14 @@ begin
 end;
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aGeometry: TWDGeometry): string;
-var
-  layers: TList<TLayerBase>;
-  categories: string;
-  objectsGeoJSON: string;
-  totalObjectCount: Integer;
-  extent: TWDExtent;
-  l: TLayerBase;
-  objectCount: Integer;
+//var
+  //layers: TList<TLayerBase>;
+  //categories: string;
+  //objectsGeoJSON: string;
+  //totalObjectCount: Integer;
+  //extent: TWDExtent;
+  //l: TLayerBase;
+  //objectCount: Integer;
 begin
   Result := inherited;
 //  Result := '';
@@ -2814,18 +2824,18 @@ begin
 end;
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aX, aY, aRadius, aMaxZoom: Double): string;
-var
-  layers: TList<TLayerBase>;
-  dist: TDistanceLatLon;
-  nearestObject: TLayerObject;
-  nearestObjectLayer: TLayer;
-  nearestObjectDistanceInMeters: Double;
-  l: TLayerBase;
-  o: TLayerObject;
-  categories: string;
-  objectsGeoJSON: string;
-  totalObjectCount: Integer;
-  objectCount: Integer;
+//var
+//  layers: TList<TLayerBase>;
+//  dist: TDistanceLatLon;
+//  nearestObject: TLayerObject;
+//  nearestObjectLayer: TLayer;
+//  nearestObjectDistanceInMeters: Double;
+//  l: TLayerBase;
+//  o: TLayerObject;
+//  categories: string;
+//  objectsGeoJSON: string;
+//  totalObjectCount: Integer;
+//  objectCount: Integer;
 begin
   Result := inherited;
 //  Result := '';
@@ -2963,6 +2973,7 @@ begin
   fIMB3Connection := aIMB3Connection;
   fUSDBScenarios := TObjectDictionary<string, TUSDBScenario>.Create;
   fUSControls := TObjectDictionary<Integer, TUSControl>.Create([doOwnsValues]);
+  fUSTableSync := TObjectDictionary<string, TSubscribeObject>.Create([doOwnsValues]);
   mapView := aMapView;
 
   if aSourceEPSG>0
@@ -2992,6 +3003,7 @@ begin
   inherited;
   FreeAndNil(fUSDBScenarios);
   FreeAndNil(fUSControls);
+  FreeAndNil(fUSTableSync);
 end;
 
 function TUSProject.FindMeasure(const aActionID: string;
@@ -3018,6 +3030,20 @@ end;
 function TUSProject.getOraSession: TOraSession;
 begin
   Result := fDBConnection as TOraSession;
+end;
+
+function TUSProject.GetTableSync(const aUSFederation: string): TSubscribeObject;
+begin
+  TMonitor.Enter(fUSTableSync);
+  try
+    if not fUSTableSync.TryGetValue(aUSFederation, Result) then
+    begin
+      Result := TSubscribeObject.Create;
+      fUSTableSync.Add(aUSFederation, Result);
+    end;
+  finally
+    TMonitor.Exit(fUSTableSync);
+  end;
 end;
 
 function TUSProject.GetUSControlJSONFromDB(aTablePrefix: string): string;
@@ -3204,7 +3230,7 @@ begin
       jsonProperties := jsonValue.GetValue<TJSONArray>('properties');
       commitBuilder := TUSCommitPropertyBuilder.Create(selectionLayer.BasicTableName, selectionLayer.SelectProperties);
       commitBuilder.ParseJSONProperties(jsonProperties);
-      if commitBuilder.CommitChangesToDB(OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
+      if commitBuilder.CommitChangesToDB(selectionLayer, OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
         aClient.SendMessage('Succesfully applied changes. Objects changed: ' + changedCount.toString, mtSucces, 10000)
       else
         aClient.SendMessage('Error applying changes. Objects changed before error: ' + changedCount.toString, mtError);
@@ -3336,7 +3362,7 @@ begin
     begin
       TMonitor.Enter(fScenarios);
       try
-        if fScenarios.TryGetValue(AnsiString(scenarioID.ToString), baseScenario) then
+        if fScenarios.TryGetValue(scenarioID.ToString, baseScenario) then
         begin
           TThread.CreateAnonymousThread(MakeThreadedScenarioCopy(baseScenario.ID, ConnectStringFromSession(Self.oraSession), aClient, Self)).Start;
         end;
@@ -3396,7 +3422,7 @@ begin
         if fUSDBScenarios[s]._published.ToString = filter then
         begin
           ReadScenario(s);
-          exit;
+          break;
         end;
     end;
   end;
@@ -3745,7 +3771,7 @@ begin
       query.SQL.Text :=
         'SELECT ProjectID '+
           'FROM '+PROJECT_TABLE_NAME+' '+
-          'WHERE PROJECT_TYPE = :TYPE';
+          'WHERE UPPER(PROJECT_TYPE) = UPPER(:TYPE)';
       query.Params.ParamByName('TYPE').AsString := aProjectType;
       query.ExecSQL;
       if not query.Eof then
@@ -3848,7 +3874,6 @@ function getUSScenarioFilter(aOraSession: TOraSession; const aProjectID: string)
 var
   table: TOraTable;
   splitArray: TArray<string>;
-  id: string;
   i: Integer;
 begin
   // try to read project info from database
@@ -4601,7 +4626,7 @@ begin
   begin
     counter := 0;
     ids := '';
-    while (amount > index) and (counter <= 1000) do
+    while (amount > index) and (counter < 1000) do
     begin
       if ids <> '' then
         ids := ids + ',';
@@ -4828,7 +4853,7 @@ end;
 
 { TUSCommitPropertyBuilder }
 
-function TUSCommitPropertyBuilder.CommitChangesToDB(aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; aBasicLayer: TUSBasicLayer; out aChangedCount: Integer): Boolean;
+function TUSCommitPropertyBuilder.CommitChangesToDB(aLayer: TUSBasicLayer; aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; aBasicLayer: TUSBasicLayer; out aChangedCount: Integer): Boolean;
 var
   baseQuery: string;
   valueArray: array of Variant;
@@ -4838,6 +4863,7 @@ var
   selectedID: TJSONValue;
   publishEvent: TIMBEventEntry;
   obj: TLayerObject;
+  subObj: TSubscribeObject;
 begin
   Result := True;
   aChangedCount := 0;
@@ -4872,6 +4898,8 @@ begin
             publishEvent.SignalChangeObject(actionChange, objectID, commitProperty.fName.ToUpper);
           end;
           aChangedCount := aChangedCount + 1;
+          for subObj in aLayer.Subscriptions.Values do
+            subObj.SendEvent(aLayer, 2 , objectID);
         end;
       except
         on E: Exception do

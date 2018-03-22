@@ -466,9 +466,15 @@ function wsConnect() {
         wsLastConnectDateTime = new Date();
     };
     ws.onmessage = function (evt) {
-
-        var message = JSON.parse(evt.data);
-        
+        try {
+            var message = JSON.parse(evt.data);
+        }
+        catch (err)
+        {
+            console.log("Error parsing json! Message: ")
+            console.log(evt.data);
+            throw err;
+        }
         var messages = message;
 
         if (!(Object.prototype.toString.call(message) === '[object Array]')) {
@@ -481,6 +487,10 @@ function wsConnect() {
             //check if message is of the new type, if so direct call otherwise
             if (typeof message.type !== "undefined") {
                 // { type: "type", payload: xx }
+                if (location.hostname == 'localhost') {
+                    console.log('received message, type: ' + message.type);
+                    console.log(message);
+                }
                 if (typeof wsLookup[message.type] !== "undefined") //only access functions that are defined!
                     wsLookup[message.type](message.payload);
             }
@@ -627,6 +637,10 @@ function wsConnect() {
                     console.log(message);
                     break; //unknown message
                 }
+                if (location.hostname == 'localhost') {
+                    console.log('received old message, type: ' + messageBuilder.type);
+                    console.log(messageBuilder);
+                }
                 if (typeof wsLookup[messageBuilder.type] !== "undefined")
                     wsLookup[messageBuilder.type](messageBuilder.payload); //only access functions that are defined!
             }
@@ -657,6 +671,13 @@ function wsConnect() {
 
 function wsSend(obj) {
     if (ws) {
+        if (location.hostname == 'localhost') {
+            if (typeof obj.type !== "undefined")
+                console.log('Send message, type: ' + obj.type);
+            else
+                console.log("Send untyped message");
+            console.log(obj);
+        }
         return ws.readyState && ws.readyState == WebSocket.OPEN ? ws.send(JSON.stringify(obj)) : -1;
     }
     else
