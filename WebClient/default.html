@@ -96,6 +96,10 @@
 
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
     <!-- load scripts -->
+    <script>
+        //DebugLogging = true;
+        DebugLogging = false;
+    </script>
     <!-- leaflet js -->
     <script src="Scripts/leaflet-src.js"></script>
     <script src="Scripts/leaflet.draw-src.js"></script>
@@ -206,8 +210,6 @@
             //session = '67AC10799B044C01B552DB44283990D7'; //Hans test database evaluate
             //session = 'HenkTest';
             //session = 'D937BA6603B64147BDA2C8CFED9D973F'; //app-usmodel01 AMS
-
-
         }
         var clientType = getParameterByName('clientType', '');
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');

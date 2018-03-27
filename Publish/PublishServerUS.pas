@@ -2220,7 +2220,7 @@ begin
                   changestring := changestring + ', ' + ChangeStack.Pop;
                 ReadMultipleControls(changestring, oraSession);
               end;
-              forEachClient(SendUSControlsMessage);
+              forEachSubscriber<TClient>(SendUSControlsMessage);
             end;
             finally
               TMonitor.Exit(fUSControlStatuses);
@@ -4311,7 +4311,7 @@ var
   dataCols, dataCol: TStringList;
   chartSeries: TUSChartSeries;
   datQuery: string;
-  client: TClient;
+//  client: TClient;
   chart: TUSChart;
   clientMessage: string;
 begin
@@ -4367,6 +4367,7 @@ begin
     FreeAndNil(data);
     if charts.Count > 0 then
     begin
+     {
       TMonitor.Enter(fScenario.clients);
       fLastUpdate := aTime;
       try
@@ -4375,6 +4376,12 @@ begin
       finally
         TMonitor.Exit(fScenario.clients);
       end;
+      }
+      fLastUpdate := aTime;
+      fScenario.forEachSubscriber<TClient>(procedure (aClient: TClient)
+        begin
+          aClient.signalString(clientMessage);
+        end);
     end;
   end;
 end;

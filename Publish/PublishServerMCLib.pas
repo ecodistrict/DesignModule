@@ -341,10 +341,10 @@ begin
 end;
 
 procedure TMCScenario.HandleRefreshMC;
-var
-  client: TClient;
+//var
+//  client: TClient;
 begin
-
+  {
   TMonitor.Enter(clients);
   try
     for client in clients
@@ -352,6 +352,8 @@ begin
   finally
     TMonitor.Exit(clients);
   end;
+  }
+  forEachSubscriber<TClient>(FillModelControl);
 end;
 
 { TMCProjectModelManager }

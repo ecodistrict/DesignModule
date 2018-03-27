@@ -976,13 +976,14 @@ LayerManager.BaseLayer = function (layer, detailsLayer, crd) {
     this.detailsLayer = detailsLayer;
     this.type = layer.type;
 
-    //register for updates
+    //register for updates, todo: also build way to remove layer?
     LayerManager.AddBaseLayer(this);
 
     this.showLegend = function () {
+        //todo: rework? add parameter that says if this is a layer that has a legend. At the moment it is possible a layer will get a legend but only later
         if (!this.legend) {
             legendControl.clearLegend(false, this.detailsLayer.id);
-            return false;
+            return true;
         }
         else {
             legendControl.createLegend(this.legend, this.detailsLayer.id);

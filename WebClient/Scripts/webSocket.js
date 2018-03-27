@@ -487,7 +487,7 @@ function wsConnect() {
             //check if message is of the new type, if so direct call otherwise
             if (typeof message.type !== "undefined") {
                 // { type: "type", payload: xx }
-                if (location.hostname == 'localhost') {
+                if (DebugLogging) {
                     console.log('received message, type: ' + message.type);
                     console.log(message);
                 }
@@ -637,7 +637,7 @@ function wsConnect() {
                     console.log(message);
                     break; //unknown message
                 }
-                if (location.hostname == 'localhost') {
+                if (DebugLogging) {
                     console.log('received old message, type: ' + messageBuilder.type);
                     console.log(messageBuilder);
                 }
@@ -671,7 +671,7 @@ function wsConnect() {
 
 function wsSend(obj) {
     if (ws) {
-        if (location.hostname == 'localhost') {
+        if (DebugLogging) {
             if (typeof obj.type !== "undefined")
                 console.log('Send message, type: ' + obj.type);
             else
