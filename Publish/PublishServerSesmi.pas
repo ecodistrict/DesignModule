@@ -74,6 +74,9 @@ const
 
   MaxNoSensorValueTime = 5.0/(60.0*24.0); // 5 minutes
 
+  DefaultTimeSliderUpdateTime = 7; // seconds
+    MaxTimeSliderUpdateTime = 20; // seconds
+
 type
   TSesmiClient = class(TClient)
   constructor Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
@@ -121,6 +124,7 @@ type
     fLiveEventHandler: TOnEvent;
     fLiveCounter: Integer;
     fDBCounter: Integer;
+    fLastClient: TDateTime;
     procedure handleLiveEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleQueryEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleUniEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
@@ -151,6 +155,7 @@ type
     procedure handleNewClient(aClient: TClient); override;
     procedure handleRemoveClient(aClient: TClient); override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
+    procedure checkForEmptyScenarios(aTimer: TTimer; aTime: THighResTicks);
   public
     function addClient(const aClientID: string): TClient; override;
     function CreateSesmiScenario(const aScenarioID: string): TSesmiScenario;
@@ -208,12 +213,16 @@ end;
 function CreateGrayPalette(const aTitle: string): TWDPalette;
 var
   factor: Double;
+const
+  step1 = 80;
 begin
   factor := 1 / 1000000000;
   Result := TDiscretePalette.Create(aTitle, [
-    TDiscretePaletteEntry.Create(TGeoColors.Create($FFDDDDDD), 0 * factor, 30 * factor, '0 - 40'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($FF888888), 40 * factor, 80 * factor, '40 - 80'),
-    TDiscretePaletteEntry.Create(TGeoColors.Create($FF000000), 80 * factor, Double.PositiveInfinity, '80+')],
+    TDiscretePaletteEntry.Create(TGeoColors.Create($FFDDDDDD), 0 * factor, step1 * factor, '0 - '+step1.ToString),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($FF000000), step1 * factor, Double.PositiveInfinity, step1.toString+'+')],
+//    TDiscretePaletteEntry.Create(TGeoColors.Create($FFDDDDDD), 0 * factor, 30 * factor, '0 - 40'),
+//    TDiscretePaletteEntry.Create(TGeoColors.Create($FF888888), 40 * factor, 80 * factor, '40 - 80'),
+//    TDiscretePaletteEntry.Create(TGeoColors.Create($FF000000), 80 * factor, Double.PositiveInfinity, '80+')],
       TGeoColors.Create($FFDDDDDD));
   {
   Result := TRampPalette.Create(aTitle, [
@@ -302,6 +311,7 @@ begin
   fLastLons := TDictionary<TGUID, Double>.Create;
   fSensorsDataSet := TSensorsDataSet.Create;
   fTimeSliderDataTimer := aProject.Timers.CreateInactiveTimer;
+  fTimeSliderDataTimer.DueTimeDelta := DateTimeDelta2HRT(MaxTimeSliderUpdateTime*dtOneSecond);
   fShowDataSelectionTimer := aProject.Timers.CreateInactiveTimer;
   fFirstTimeSliderUpdate := True;
   fFiltered := False;
@@ -510,24 +520,33 @@ begin
       // HandleTimeSliderEvent: timeslider: {"brush":{"extent":{}}}
 
       // add selected points to tracklayer
-      if fTrackLayers.TryGetValue(sensordata_no2, trackLayer) then
+      if Assigned(fTrackLayers) then
       begin
-        if not fShowDataSelectionTimer.Enabled then
+        if fTrackLayers.TryGetValue(sensordata_no2, trackLayer) then
         begin
-          // clear layer and chart
-          trackLayer.reset;
-          fTotalChart.reset;
-          fMobileChart.reset;
-        end;
-        // check extent of data to show
-        if extent is TJSONArray then
-        begin
-          a := extent as TJSONArray;
-          if a.Count>=2 then
+          if not fShowDataSelectionTimer.Enabled then
           begin
-            qdtFrom := StrToDateTime(a.Items[0].ToString, isoDateTimeFormatSettings);
-            qdtTo := StrToDateTime(a.Items[a.Count-1].ToString, isoDateTimeFormatSettings);
-            fFiltered := True;
+            // clear layer and chart
+            trackLayer.reset;
+            fTotalChart.reset;
+            fMobileChart.reset;
+          end;
+          // check extent of data to show
+          if extent is TJSONArray then
+          begin
+            a := extent as TJSONArray;
+            if a.Count>=2 then
+            begin
+              qdtFrom := StrToDateTime(a.Items[0].ToString, isoDateTimeFormatSettings);
+              qdtTo := StrToDateTime(a.Items[a.Count-1].ToString, isoDateTimeFormatSettings);
+              fFiltered := True;
+            end
+            else
+            begin
+              qdtFrom := 0;
+              qdtTo := 0;
+              fFiltered := False;
+            end;
           end
           else
           begin
@@ -535,21 +554,16 @@ begin
             qdtTo := 0;
             fFiltered := False;
           end;
-        end
-        else
-        begin
-          qdtFrom := 0;
-          qdtTo := 0;
-          fFiltered := False;
-        end;
-        // schedule job to show data
-        fShowDataSelectionTimer.Arm(DateTimeDelta2HRT(dtOneSecond),
-          procedure (aTimer: TTimer; aTime: THighResTicks)
-          begin
-            ShowDataSelection(trackLayer, fMobileChart, fTotalChart, qdtFrom, qdtTo);
-          end);
+          // schedule job to show data
+          fShowDataSelectionTimer.Arm(DateTimeDelta2HRT(dtOneSecond),
+            procedure (aTimer: TTimer; aTime: THighResTicks)
+            begin
+              ShowDataSelection(trackLayer, fMobileChart, fTotalChart, qdtFrom, qdtTo);
+            end);
 
-      end;
+        end;
+      end
+      else Log.WriteLn('No track layers defined: '+self.ID, llWarning);
     end;
   end
   else if aPayload.TryGetValue<TJSONValue>('selectedEvent', selectedEvent) then
@@ -863,7 +877,7 @@ procedure TSesmiScenario.triggerUpdateTimesliderData;
 begin
   if Assigned(fTimeSliderDataTimer) then
   begin
-    fTimeSliderDataTimer.Arm(DateTimeDelta2HRT(2*dtOneSecond),
+    fTimeSliderDataTimer.Arm(DateTimeDelta2HRT(DefaultTimeSliderUpdateTime*dtOneSecond),
       procedure (aTimer: TTimer; aTime: THighResTicks)
       var
         jsonTSData: string;
@@ -906,6 +920,35 @@ begin
   end;
 end;
 
+procedure TSesmiProject.checkForEmptyScenarios(aTimer: TTimer; aTime: THighResTicks);
+var
+  scenario: TScenario;
+  id: string;
+begin
+  TMonitor.Enter(scenarios);
+  try
+    for scenario in scenarios.Values do
+    begin
+      if (scenario.clientAmount=0) and
+         (scenario is TSesmiScenario) and
+         ((scenario as TSesmiScenario).fLastClient<=Now-{$IFDEF DEBUG}dtOneMinute/4{$ELSE}dtOneMinute*5{$ENDIF}) then
+      begin
+        try
+          id := scenario.ID;
+          scenarios.Remove(id);
+          Log.WriteLn('Removing scenario '+id);
+          exit; // only 1 at the time because we are within for loop
+        except
+          on E: Exception
+          do Log.WriteLn('Could not remove scenario '+id+': '+E.Message, llError);
+        end;
+      end;
+    end;
+  finally
+    TMonitor.Exit(scenarios);
+  end;
+end;
+
 constructor TSesmiProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
   aTilerStatusURL: string; aAddBasicLayers: Boolean; {const aDateFormData: string; }aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
 begin
@@ -932,7 +975,11 @@ begin
         (aClient.currentScenario as TSesmiScenario).HandleScenarioRefresh(aClient, aType, aPayload);
       end;
     end);
-  fScenarioCleanupTimer := Timers.CreateInactiveTimer;
+
+  fScenarioCleanupTimer := Timers.SetTimer(
+    CheckForEmptyScenarios,
+    DateTimeDelta2HRT({$IFDEF DEBUG}dtOneMinute/4{$ELSE}dtOneHour/4{$ENDIF}), // first
+    DateTimeDelta2HRT({$IFDEF DEBUG}dtOneMinute/4{$ELSE}dtOneHour/4{$ENDIF})); // repeat
 end;
 
 function TSesmiProject.CreateSesmiScenario(const aScenarioID: string): TSesmiScenario;
@@ -962,30 +1009,13 @@ end;
 procedure TSesmiProject.handleRemoveClient(aClient: TClient);
 var
   scenario: TSesmiScenario;
-  _scenarioID: string;
-  _scenarios: TObjectDictionary<string, TScenario>;
 begin
   if aClient.currentScenario is TSesmiScenario then
   begin
     scenario := aClient.currentScenario as TSesmiScenario;
-    if scenario.ClientAmount=0 then
+    if Assigned(scenario) and (scenario.ClientAmount=0) then
     begin
-      _scenarioID := scenario.ID;
-      _scenarios := Self.Scenarios;
-      fScenarioCleanupTimer.Arm(DateTimeDelta2HRT({$IFDEF DEBUG}dtOneMinute{$ELSE}dtOneHour{$ENDIF}),
-        procedure(aTimer: TTimer; aTime: THighResTicks)
-        begin
-          TMonitor.Enter(_scenarios);
-          try
-            if _scenarios.ContainsKey(_scenarioID) then
-            begin
-              _scenarios.Remove(_scenarioID);
-              Log.WriteLn('Removed scenario '+_scenarioID);
-            end;
-          finally
-            TMonitor.Exit(_scenarios);
-          end;
-        end);
+      scenario.fLastClient := Now;
     end;
   end;
 end;
@@ -1027,3 +1057,4 @@ end;
 
 
 end.
+

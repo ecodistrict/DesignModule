@@ -403,14 +403,14 @@ type
   end;
 
   TUSControl = class
-  constructor Create(aID: Integer; aName, aDescription: string; aLat, aLon: Double);
+  constructor Create(aID: TWDID; aName, aDescription: string; aLat, aLon: Double);
   destructor Destroy; override;
   private
-    fID: Integer;
+    fID: TWDID;
     fName, fDescription: string;
     fLat, fLon: Double;
   public
-    property ID: Integer read fID;
+    property ID: TWDID read fID;
     property Name: string read fName;
     property Description: string read fDescription;
     property Lat: Double read fLat;
@@ -501,7 +501,7 @@ type
   private
     fUSDBScenarios: TObjectDictionary<string, TUSDBScenario>;
     fUSScenarioFilters: TStringArray;
-    fUSControls: TObjectDictionary<Integer, TUSControl>; //locks with TMonitor
+    fUSControls: TObjectDictionary<TWDID, TUSControl>; //locks with TMonitor
     fUSTableSync: TObjectDictionary<string, TSubscribeObject>; //owns, locks with TMonitor
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
     fPreLoadScenarios: Boolean;
@@ -528,6 +528,7 @@ type
   public
     function GetUSControlsJSON: string;
     function GetUSControlJSONFromDB(aTablePrefix: string): string;
+    property USControls: TObjectDictionary<TWDID, TUSControl> read fUSControls;
   public
     function GetTableSync(const aUSFederation: string): TSubscribeObject;
   end;
@@ -1205,14 +1206,14 @@ begin
     10, 98: //control, for now hardcoded the base table
     begin
       Result := 'SELECT ' +
-                  't1.ID as OBJECT_ID, '+
+                  't1.OBJECT_ID as OBJECT_ID, '+
                   't1.ACTIVE as VALUE, '+
-                  't2.LAT as LAT, '+
-                  't2.LON as LON '+
-                  'FROM ' + aTablePrefix +'PBLS_CONTROLS t1 '+
-                  'INNER JOIN '+
-                  'PBLS_CONTROLS t2 '+
-                  'on t1.ID = t2.ID';
+                  't2.Y as Y, '+
+                  't2.X as X '+
+                  'FROM ' + aTablePrefix +'GENE_CONTROL t1 '+
+                  'LEFT JOIN '+
+                  'GENE_CONTROL t2 '+
+                  'on t1.OBJECT_ID = t2.OBJECT_ID';
     end;
   else
     Result :=
@@ -1334,15 +1335,15 @@ begin
     10, 98: //control
       begin
         Result := 'SELECT ' +
-                  't1.ID as OBJECT_ID, '+
+                  't1.OBJECT_ID as OBJECT_ID, '+
                   't1.ACTIVE as VALUE, '+
-                  't2.LAT as LAT, '+
-                  't2.LON as LON '+
-                  'FROM ' + aTablePrefix +'PBLS_CONTROLS t1 '+
-                  'INNER JOIN '+
-                  'PBLS_CONTROLS t2 '+
-                  'on t1.ID = t2.ID '+
-                  'where t1.ID in ';
+                  't2.Y as Y, '+
+                  't2.X as X '+
+                  'FROM ' + aTablePrefix +'GENE_CONTROL t1 '+
+                  'LEFT JOIN '+
+                  'GENE_CONTROL t2 '+
+                  'on t1.OBJECT_ID = t2.OBJECT_ID '+
+                  'where t1.OBJECT_ID in ';
       end;
   else
     Result :=
@@ -1409,15 +1410,15 @@ begin
     10, 98: //control
       begin
         Result:= 'SELECT ' +
-                  't1.ID as OBJECT_ID, '+
+                  't1.OBJECT_ID as OBJECT_ID, '+
                   't1.ACTIVE as VALUE, '+
-                  't2.LAT as LAT, '+
-                  't2.LON as LON '+
-                  'FROM ' + aTablePrefix +'PBLS_CONTROLS t1 '+
-                  'INNER JOIN '+
-                  'PBLS_CONTROLS t2 '+
-                  'on t1.ID = t2.ID '+
-                  'where t1.ID=:OBJECT_ID';
+                  't2.Y as Y, '+
+                  't2.X as X '+
+                  'FROM ' + aTablePrefix +'GENE_CONTROL t1 '+
+                  'LEFT JOIN '+
+                  'GENE_CONTROL t2 '+
+                  'on t1.OBJECT_ID = t2.OBJECT_ID '+
+                  'where t1.OBJECT_ID=:OBJECT_ID';
       end;
   else
     Result :=
@@ -1733,8 +1734,8 @@ begin
         value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
         if not Assigned(aObject) then
         begin
-          geometryPoint := TWDGeometryPoint.Create(FieldFloatValueOrNaN(aQuery.FieldByName('LON')),
-                          FieldFloatValueOrNaN(aQuery.FieldByName('LAT')),
+          geometryPoint := TWDGeometryPoint.Create(FieldFloatValueOrNaN(aQuery.FieldByName('X')),
+                          FieldFloatValueOrNaN(aQuery.FieldByName('Y')),
                           NaN);
           projectGeometryPoint(geometryPoint, fSourceProjection);
           Result := TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value);
@@ -2047,7 +2048,7 @@ begin
   fControlsUpdateEvent := fIMBConnection.Subscribe((aProject as TUSProject).OraSession.Username+
           fTableprefix.Substring(fTableprefix.Length-1)+ // #
           fTableprefix.Substring(0, fTablePrefix.length-1)+
-          '.PBLS_CONTROLS', False);
+          '.GENE_CONTROL', False);
   fControlsUpdateEvent.OnChangeObject := HandleControlsUpdate;
 end;
 
@@ -2066,6 +2067,7 @@ var
   layerObject: TLayerObject;
   controlObject : TGeometryPointLayerObject;
   active: Integer;
+  usControl: TUSControl;
 begin
   Result := '';
 //  TMonitor.Enter(fUSControlStatuses);
@@ -2096,9 +2098,16 @@ begin
           begin
             controlObject := layerObject as TGeometryPointLayerObject;
             active := Round(controlObject.value);
-            if Result <> '' then
+            TMonitor.Enter((fProject as TUSProject).USControls);
+            try
+              if not (fProject as TUSProject).USControls.TryGetValue(layerObject.ID, usControl) then
+                usControl := nil;
+            finally
+              TMonitor.Exit((fProject as TUSProject).USControls);
+            end;
+            if (Result <> '') and (usControl <> nil) then
               Result := Result + ',';
-            Result := Result + '"' + string(layerObject.ID) + '":{"active":' + active.ToString + '}';
+            Result := Result + '"' + string(layerObject.ID) + '":{"active":' + active.ToString + ', "name": "' + usControl.Description + '"}';
           end;
         finally
           usLayer.objectsLock.EndRead;
@@ -2127,13 +2136,13 @@ procedure TUSScenario.HandleControlsQueueEvent;
     query := TOraQuery.Create(nil);
     try
       query.Session := oraSession;
-      query.SQL.Text := 'SELECT ID, ACTIVE FROM ' + fTablePrefix + 'PBLS_CONTROLS where ID in (' + aIdString + ')';
+      query.SQL.Text := 'SELECT OBJECT_ID, ACTIVE FROM ' + fTablePrefix + 'GENE_CONTROL where OBJECT_ID in (' + aIdString + ')';
       query.UniDirectional := True;
       query.Open;
       query.First;
       while (not query.Eof) do
         begin
-          id := query.FieldByName('ID').AsInteger;
+          id := query.FieldByName('OBJECT_ID').AsInteger;
           active := query.FieldByName('ACTIVE').AsInteger;
           controlStatus := TUSControlStatus.Create(id, active = 1);
           fUSControlStatuses.AddOrSetValue(id, controlStatus);
@@ -2972,7 +2981,7 @@ var
 begin
   fIMB3Connection := aIMB3Connection;
   fUSDBScenarios := TObjectDictionary<string, TUSDBScenario>.Create;
-  fUSControls := TObjectDictionary<Integer, TUSControl>.Create([doOwnsValues]);
+  fUSControls := TObjectDictionary<TWDID, TUSControl>.Create([doOwnsValues]);
   fUSTableSync := TObjectDictionary<string, TSubscribeObject>.Create([doOwnsValues]);
   mapView := aMapView;
 
@@ -3054,7 +3063,7 @@ var
  Active: Boolean;
 begin
   Result := '';
-  Table := aTablePrefix + 'PBLS_CONTROLS';
+  Table := aTablePrefix + 'GENE_CONTROL';
   if TableExists(OraSession, Table) then
   begin
     query := TOraQuery.Create(nil);
@@ -3064,7 +3073,7 @@ begin
       query.Open;
       while not query.EoF do
       begin
-        ID := query.FieldByName('ID').AsInteger;
+        ID := query.FieldByName('OBJECT_ID').AsInteger;
         Active := query.FieldByName('ACTIVE').AsInteger = 1;
         if Result <> '' then
           Result := Result + ',';
@@ -3095,7 +3104,7 @@ begin
     begin
       if ControlsJSON <> '' then
         ControlsJSON := ControlsJSON + ',';
-      ControlsJSON := ControlsJSON + '"' + USControl.ID.ToString + '":{' +
+      ControlsJSON := ControlsJSON + '"' + string(USControl.ID) + '":{' +
         '"name":"' + USControl.Name + '",' +
         '"description":"' + USControl.Description + '",' +
         '"lat":' + DoubleToJSON(USControl.Lat) + ',' +
@@ -3334,11 +3343,11 @@ begin
       begin
         scenario := aClient.currentScenario as TUSScenario;
         oraSession := fDBConnection as TOraSession;
-        queryText := 'update ' + scenario.Tableprefix + 'PBLS_CONTROLS ' +
-                        'set active = :A where ID = :B';
+        queryText := 'update ' + scenario.Tableprefix + 'GENE_CONTROL ' +
+                        'set active = :A where OBJECT_ID = :B';
         TMonitor.Enter(scenario.USControlStatuses);
         try
-          publishEventName := oraSession.Username + '#' + scenario.Name + '.PBLS_CONTROLS';
+          publishEventName := oraSession.Username + '#' + scenario.Name + '.GENE_CONTROL';
           publishEvent := IMB3Connection.publish(publishEventName, false);
           try
             for jsonArrayItem in payloadArray do
@@ -3571,24 +3580,24 @@ var
  Name, Description: string;
  Lat, Lon: Double;
 begin
-  Table := 'PBLS_CONTROLS';
+  Table := 'GENE_CONTROL';
   if TableExists(OraSession, Table) then
   begin
     query := TOraQuery.Create(nil);
     try
       query.Session := OraSession;
-      query.SQL.Text := 'SELECT ID, NAME, DESCRIPTION, LAT, LON FROM ' + Table;
+      query.SQL.Text := 'SELECT OBJECT_ID, NAME, DESCRIPTION, Y, X FROM ' + Table;
       query.Open;
       try
         TMonitor.Enter(fUSControls);
         while not query.EoF do
         begin
-          ID := query.FieldByName('ID').AsInteger;
+          ID := query.FieldByName('OBJECT_ID').AsInteger;
           Name := query.FieldByName('NAME').AsString;
           Description := query.FieldByName('DESCRIPTION').AsString;
-          Lat := query.FieldByName('LAT').AsFloat;
-          Lon := query.FieldByName('LON').AsFloat;
-          fUSControls.Add(ID, TUSControl.Create(ID, Name, Description, Lat, Lon));
+          Lat := query.FieldByName('Y').AsFloat;
+          Lon := query.FieldByName('X').AsFloat;
+          fUSControls.Add(AnsiString(ID.ToString), TUSControl.Create(AnsiString(ID.ToString), Name, Description, Lat, Lon));
           query.Next;
         end;
       finally
@@ -4394,7 +4403,7 @@ end;
 
 { TUSControl }
 
-constructor TUSControl.Create(aID: Integer; aName, aDescription: string; aLat,
+constructor TUSControl.Create(aID: TWDID; aName, aDescription: string; aLat,
   aLon: Double);
 begin
   fID := aID;

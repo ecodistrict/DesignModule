@@ -539,7 +539,8 @@ L.control.projectDescription.showInfoPopup = function (scenario) {
 
     var textDiv = popUpDiv.appendChild(document.createElement("div"));
     textDiv.className = "description-popup-textspan";
-    textDiv.innerHTML = "Hier komt dan iets van text enzo, <BR>scenario: <BR>" + scenario.description;
+    textDiv.innerHTML = "MDMA 1.0 (Statisch)<P>scenario: " + scenario.description +
+          "<P>Vaste werkzaamheden:<BR>A10-Zuid(HRL) - 5%<BR>A10-Zuid(HRR) - 3%<BR>Metro -avl<BR>A9 BaHo -5%<BR>A9 GDW +10%";
 
     var closeButton = popUpDiv.appendChild(document.createElement("button"));
     closeButton.addEventListener("click", function (e) { popUpContainer.style.display = "none"; });

@@ -14,12 +14,12 @@ var
   connection: TNDWConnection;
   scenario: string;
 begin
-  scenario := 'v11';
+  scenario := 'v7';
 
   connection := TNDWConnection.Create(
     'app-usmodel01.tsn.tno.nl', 4000, 'NDW',
     'vps17642.public.cloudvps.com', 4000, 'us_ams_2017#'+scenario,
-    scenario+'#', 'us_ams_2017/us_ams_2017@app-usdata01.tsn.tno.nl/uspsde');
+    scenario+'#', 'us_ams_2017/us_ams_2017@139.63.116.164/uspsde');
   try
     WriteLn('Waiting for events');
     ReadLn;

@@ -56,6 +56,16 @@ const
 
   ORA_BATCHED_QUERY_ARRAY_LENGTH = 1000;
 
+  const
+  dotFormat: TFormatSettings = (DecimalSeparator:'.');
+  isoDateTimeFormat = 'yyyy-mm-dd hh:nn:ss';
+  isoDateTimeFormatSettings: TFormatSettings = (
+    DateSeparator:'-';
+    TimeSeparator:':';
+    ShortDateFormat:'yyyy-mm-dd';
+    ShortTimeFormat:'hh:nn:ss'
+  );
+
 
 type
   TChangeObjectUpdateQuery = class
@@ -1003,12 +1013,12 @@ begin
         if (route.ID>=1) and (route.ID<=8) then
         begin
           stm.SQL.Text := stm.SQL.Text +
-            route.ID.ToString + ',''' + RouteNames[route.ID] + ''',' + traveltime.ToString + ')';
+            route.ID.ToString + ',''' + RouteNames[route.ID] + ''',' + traveltime.ToString(dotFormat) + ')';
         end
         else
         begin
           stm.SQL.Text := stm.SQL.Text +
-            route.ID.ToString + ', ''route_' + route.ID.ToString + ''',' + traveltime.ToString + ')';
+            route.ID.ToString + ', ''route_' + route.ID.ToString + ''',' + traveltime.ToString(dotFormat) + ')';
         end;
         stm.Execute;
       end;

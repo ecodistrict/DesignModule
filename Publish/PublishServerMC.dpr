@@ -105,7 +105,6 @@ begin
   //Log.WriteLn('FORCING halt', llError);
   //Halt; // todo: force restart in MC mode
   // todo: start reconnect
-
 end;
 
 procedure TModel.HandleException(aConnection: TConnection; aException: Exception);
