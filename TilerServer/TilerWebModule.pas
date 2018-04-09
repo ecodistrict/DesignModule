@@ -3999,6 +3999,7 @@ var
   width: UInt32;
   res: Integer;
   action: UInt32;
+  otherTilerURL: string;
 //  clear: Boolean;
 begin
   try
@@ -4204,6 +4205,19 @@ begin
                         end;
                       end;
                   end;
+                end;
+              (icehTilerID shl 3) or wtVarInt,
+              (icehTilerRefresh shl 3) or wt64Bit,
+              (icehTilerRefreshImmediate shl 3) or wt64Bit,
+              (icehTilerPreviewImage shl 3) or wtLengthDelimited:
+                begin
+                  aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+                  // received refresh etc. from other layer linked to same data event -> ignore
+                end;
+              (icehTilerURL shl 3) or wtLengthDelimited:
+                begin
+                  otherTilerURL := aBuffer.bb_read_string(aCursor);
+                  Log.WriteLn('Other tiler is linked to same event: '+otherTilerURL+' on '+aEventEntry.eventName, llWarning);
                 end
             else
               Log.WriteLn('unknown fields in layer ('+LayerID.ToString+') data: '+fieldInfo.toString, llWarning);
