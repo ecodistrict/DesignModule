@@ -96,6 +96,11 @@
 
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
     <!-- load scripts -->
+    <script>
+        //DebugLogging = true;
+        DebugLogging = false;
+        //DebugLogging = (location.hostname === "localhost");
+    </script>
     <!-- leaflet js -->
     <script src="Scripts/leaflet-src.js"></script>
     <script src="Scripts/leaflet.draw-src.js"></script>
@@ -203,9 +208,9 @@
             //session = "sesmi${e4fd1734-ce20-439f-bd60-b0a29fb744b6}$fietsuser"; // ensel fiets eindhoven, representatief
             //session = 'B9E738A9BCD94D3AABB051924A0E8F12'; //Hans test database design
             //session = 'C298FCB67045468CBCDA6CC2C415C041'; //Hans test database monitor
-            //session = '67AC10799B044C01B552DB44283990D7-Design'; //Hans test database evaluate
-
-
+            //session = '67AC10799B044C01B552DB44283990D7'; //Hans test database evaluate
+            //session = 'HenkTest';
+            //session = 'D937BA6603B64147BDA2C8CFED9D973F'; //app-usmodel01 AMS
         }
         var clientType = getParameterByName('clientType', '');
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');

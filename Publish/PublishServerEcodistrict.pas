@@ -2199,7 +2199,7 @@ begin
     Result := (project as TEcodistrictProject).ReadDIMeasures;
     for isp in project.scenarios do
     begin
-      isp.Value.forEachClient(procedure(aClient: TClient)
+      isp.Value.forEachSubscriber<TClient>(procedure(aClient: TClient)
         begin
           // todo: update measures? aClient.SendDomains('updatedomains');
         end);
@@ -2220,7 +2220,7 @@ begin
 
     for isp in project.scenarios do
     begin
-      isp.Value.forEachClient(procedure(aClient: TClient)
+      isp.Value.forEachSubscriber<TClient>(procedure(aClient: TClient)
         begin
           project.SendDomains(aClient, 'updatedomains');
         end);

@@ -355,7 +355,7 @@ end;
 
 function CopyScenario(const aSrcID, aOwner: string; aSession: TOraSession; out aNewID, aNewDescription: string): Boolean;
 var
-  dstID, srcDescription, postfix, srcTable, dstTable: string;
+  dstID, srcDescription: string;
   query: TOraQuery;
   succes: Boolean;
   start: TDateTime;

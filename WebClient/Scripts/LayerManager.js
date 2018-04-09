@@ -2,6 +2,7 @@
 var LayerManager = {
     _layers: {},
     _layersonid: {},
+    _baselayers: {},
     _subscribedLayers: {},
     _visibleLayers: [],
     _previousVisible: [],
@@ -20,6 +21,7 @@ var LayerManager = {
         LayerManager.ClearVisibleLayers();
         LayerManager._layers = {};
         LayerManager._layersonid = {};
+        LayerManager._baselayers = {};
         LayerManager._length = 0;
     },
 
@@ -44,6 +46,11 @@ var LayerManager = {
 
         //redundant? layers have already removed themselves! Maybe make a system where removeLayers not always removes it from the LayerManager._visibleLayers
         LayerManager.VisibleLayers = [];
+    },
+
+    AddBaseLayer: function (baseLayer)
+    {
+        LayerManager._baselayers[baseLayer.id] = baseLayer;
     },
 
     GetLayers: function () {
@@ -143,10 +150,19 @@ var LayerManager = {
         if (!payload.id)
             return;
 
-        if (!payload.diff && !payload.ref && typeof LayerManager._subscribedLayers[payload.id] !== "undefined") //check if compatible with system
-        {
-            LayerManager.UpdateSubscribedLayer(payload);
-        }
+        LayerManager.UpdateBaseLayer(payload);
+        //if (!payload.diff && !payload.ref && typeof LayerManager._subscribedLayers[payload.id] !== "undefined") //check if compatible with system
+        //{
+        //    LayerManager.UpdateSubscribedLayer(payload);
+        //}
+        //else
+        //{
+        //    if (typeof LayerManager._subscribedLayers[payload.id] === "undefined")
+        //        console.warn("LayerManager.UpdateData on unsubscribed layer:");
+        //    else
+        //        console.warn("LayerManager.UpdateData on old layer:");
+        //    console.warn(payload);
+        //}
     },
 
     updateDomains: function (activelayers)
@@ -167,9 +183,18 @@ var LayerManager = {
         //todo show/hide layers with update domains?
     },
 
-    UpdateSubscribedLayer: function (payload) {
-        if (typeof LayerManager._subscribedLayers[payload.id] !== "undefined") {
-            LayerManager._subscribedLayers[payload.id].updateData(payload);
+    //UpdateSubscribedLayer: function (payload) {
+    //    if (typeof LayerManager._subscribedLayers[payload.id] !== "undefined") {
+    //        LayerManager._subscribedLayers[payload.id].updateData(payload);
+    //    }
+    //},
+
+    UpdateBaseLayer: function (payload) {
+        if (typeof LayerManager._baselayers[payload.id] !== "undefined") {
+            LayerManager._baselayers[payload.id].updateData(payload);
+        }
+        else {
+            console.warn('LayerManager.UpdateLayer -> unknown id: ' + payload.id);
         }
     },
 
@@ -774,7 +799,7 @@ LayerManager.DetailsLayer = function (data) {
         if (this.showing) {
             map.removeLayer(this.maplayer);
             this.showing.hideLayer();
-            wsSend({ unsubscribe: this.id });
+            //wsSend({ unsubscribe: this.id });
             this.showing = null;
         }
         if (this.previewDisplay) {
@@ -801,7 +826,7 @@ LayerManager.DetailsLayer = function (data) {
                 this.active.showLayer(this.maplayer);
             this.showing = this.active;
         }
-        wsSend({ subscribe: this.id });
+        //wsSend({ subscribe: this.id });
         LayerManager.AddVisibleLayer(this);
     };
 
@@ -951,10 +976,14 @@ LayerManager.BaseLayer = function (layer, detailsLayer, crd) {
     this.detailsLayer = detailsLayer;
     this.type = layer.type;
 
+    //register for updates, todo: also build way to remove layer?
+    LayerManager.AddBaseLayer(this);
+
     this.showLegend = function () {
+        //todo: rework? add parameter that says if this is a layer that has a legend. At the moment it is possible a layer will get a legend but only later
         if (!this.legend) {
             legendControl.clearLegend(false, this.detailsLayer.id);
-            return false;
+            return true;
         }
         else {
             legendControl.createLegend(this.legend, this.detailsLayer.id);

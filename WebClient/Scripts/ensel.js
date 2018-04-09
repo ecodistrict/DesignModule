@@ -13,6 +13,7 @@ DataManager = {
     session: null,
     queryDialogData: null, // used in queryDialog.js
     activeBasicLayers: {},
+    selectedObjectIDs: {},
 
 
     _addSensor: function (sensor) {

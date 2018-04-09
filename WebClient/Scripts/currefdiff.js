@@ -52,7 +52,14 @@
         i.crd = this;
         //i.onchange = crd.clickCrd;
         i.addEventListener("change", this.clickCrd);
-        L.DomEvent.disableClickPropagation(i);
+
+        // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
+        button.setAttribute('aria-haspopup', true);
+        L.DomEvent.disableClickPropagation(button);
+        if (!L.Browser.touch) {
+            L.DomEvent.disableScrollPropagation(button);
+        }
+        
         var s = l.appendChild(document.createElement('span'));
         s.className = 'crdRadioButtonSpan';
         s.textContent = aTitle;

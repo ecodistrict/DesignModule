@@ -880,13 +880,18 @@ begin
     procedure (aTimer: TTimer; aTime: THighResTicks)
     var
       jsonTSData: string;
-      client: TClient;
+      //client: TClient;
     begin
       jsonTSData := jsonTimesliderData;
-      for client in clients do
-      begin
-        client.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
-      end;
+
+      //for client in clients do
+      //begin
+      //  client.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+      //end;
+      forEachSubscriber<TClient>(procedure (aClient: TClient)
+        begin
+          aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+        end);
     end);
 end;
 
@@ -894,12 +899,12 @@ procedure TSensorsLayer2.UpdateClientsOn(aTimeStamp: TDateTime);
 begin
   fClientsToUpdateTimer.Arm(DateTimeDelta2HRT(1*dtOneSecond),
     procedure (aTimer: TTimer; aTime: THighResTicks)
-    var
-      client: TClient;
-      cursor: TCursor;
+      //client: TClient;
+      //cursor: TCursor;
     begin
       TMonitor.Enter(fCursors);
       try
+        {
         for client in clients do
         begin
           if fCursors.TryGetValue(client, cursor) then
@@ -911,6 +916,20 @@ begin
             end;
           end;
         end;
+        }
+        forEachSubscriber<TClient>(procedure (aClient: TClient)
+          var
+            cursor: TCursor;
+          begin
+            if fCursors.TryGetValue(aClient, cursor) then
+            begin
+              if not cursor.IsValid then
+              begin
+                if cursor.MoveTo(cursor.CurrentTimeStamp)
+                then signalCursorValues(aClient, cursor, nil, nil);
+              end;
+            end;
+          end);
       finally
         TMonitor.Exit(fCursors);
       end;

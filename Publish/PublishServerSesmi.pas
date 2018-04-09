@@ -891,7 +891,7 @@ begin
         finally
           palette.Free;
         end;
-        ForEachClient(
+        ForEachSubscriber<TClient>(
           procedure(aClient: TClient)
           begin
             aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
@@ -929,7 +929,7 @@ begin
   try
     for scenario in scenarios.Values do
     begin
-      if (scenario.clients.Count=0) and
+      if (scenario.clientAmount=0) and
          (scenario is TSesmiScenario) and
          ((scenario as TSesmiScenario).fLastClient<=Now-{$IFDEF DEBUG}dtOneMinute/4{$ELSE}dtOneMinute*5{$ENDIF}) then
       begin
@@ -1013,7 +1013,7 @@ begin
   if aClient.currentScenario is TSesmiScenario then
   begin
     scenario := aClient.currentScenario as TSesmiScenario;
-    if Assigned(scenario) and Assigned(scenario.Clients) and (scenario.clients.Count=0) then
+    if Assigned(scenario) and (scenario.ClientAmount=0) then
     begin
       scenario.fLastClient := Now;
     end;

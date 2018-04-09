@@ -1524,7 +1524,7 @@ var
 begin
   aPayload.Read(action);
   aPayload.Read(fSpeed);
-  forEachClient(procedure(aClient: TClient)
+  forEachSubscriber<TClient>(procedure(aClient: TClient)
     begin
       aClient.SignalString('{"simulationControl":{"speed":'+DoubleToJSON(fSpeed)+'}}');
     end);
@@ -1534,7 +1534,7 @@ procedure TSSMScenario.HandleSimStartEvent(aEvent: TIMBEventEntry; var aPayload:
 begin
   // action
   fRunning := True;
-  forEachClient(procedure(aClient: TClient)
+  forEachSubscriber<TClient>(procedure(aClient: TClient)
     begin
       aClient.SignalString('{"simulationControl":{"start":true}}');
     end);
@@ -1544,7 +1544,7 @@ procedure TSSMScenario.HandleSimStopEvent(aEvent: TIMBEventEntry; var aPayload: 
 begin
   // action
   fRunning := False;
-  forEachClient(procedure(aClient: TClient)
+  forEachSubscriber<TClient>(procedure(aClient: TClient)
     begin
       aClient.SignalString('{"simulationControl":{"stop":true}}');
     end);
@@ -1668,7 +1668,7 @@ begin
     scenario := genericScenario as TSSMScenario;
     scenarioClients := TList<TClient>.Create;
     try
-      scenario.forEachClient(procedure (aClient: TClient)
+      scenario.forEachSubscriber<TClient>(procedure (aClient: TClient)
       begin
         scenarioClients.Add(aClient);
       end
@@ -1860,7 +1860,7 @@ begin
       begin
         (aClient.currentScenario as TSSMScenario).fSIMStopEvent.SignalEvent(ekNormalEvent, EmptyPayload);
 
-        aClient.currentScenario.forEachClient(procedure(aClient: TClient)
+        aClient.currentScenario.forEachSubscriber<TClient>(procedure(aClient: TClient)
           begin
             aClient.SignalString('{"simulationControl":{"stop":true}}');
           end);
@@ -1869,7 +1869,7 @@ begin
       begin
         (aClient.currentScenario as TSSMScenario).fSIMStartEvent.SignalEvent(ekNormalEvent, EmptyPayload);
         // palyer starts itself so start call (which could never arive because of later subscribe of starting model) is not needed
-        aClient.currentScenario.forEachClient(procedure(aClient: TClient)
+        aClient.currentScenario.forEachSubscriber<TClient>(procedure(aClient: TClient)
           begin
             aClient.SignalString('{"simulationControl":{"start":true}}');
           end);
@@ -1880,7 +1880,7 @@ begin
         speedPayload.Clear();
         speedPayload.Write(speed);
         (aClient.currentScenario as TSSMScenario).fSIMSpeedEvent.SignalEvent(ekNormalEvent, speedPayload);
-        aClient.currentScenario.forEachClient(procedure(aClient: TClient)
+        aClient.currentScenario.forEachSubscriber<TClient>(procedure(aClient: TClient)
           begin
             aClient.SignalString('{"simulationControl":{"speed":'+DoubleToJSON(speed)+'}}');
           end);

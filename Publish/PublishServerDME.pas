@@ -31,6 +31,7 @@ uses
 
   System.JSON,
   System.SysUtils,
+  System.Generics.Collections,
 
   PublishServerLib,
   PublishServerGIS,
@@ -89,10 +90,10 @@ constructor TUSDesignProject.Create(aSessionModel: TSessionModel;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
 begin
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, True, aMaxNearestObjectDistanceInMeters);
-  fUSIMBConnection := TIMBConnection.Create(
+  fUSIMBConnection := aIMB3Connection;{TIMBConnection.Create(
       GetSetting('IMB3RemoteHost', 'vps17642.public.cloudvps.com'),
       GetSetting('IMB3RemotePort', 4000),
-      'PublisherDME-Design', 21, '');
+      'PublisherDME-Design', 21, '');}
   EnableControl(selectControl);
   EnableControl(measuresControl);
   EnableControl(measuresHistoryControl);
@@ -110,6 +111,7 @@ procedure TUSDesignProject.handleClientMessage(aClient: TClient;
   aScenario: TScenario; aJSONObject: TJSONObject);
 var
   oraSession: TOraSession;
+  oraQuery: TOraQuery;
   measure: TMeasureAction;
   jsonMeasures: TJSONArray;
   jsonMeasure, jsonAction: TJSONValue;
@@ -126,6 +128,7 @@ var
   publishEventName: string;
   publishEvent: TIMBEventEntry;
   succeeded: Boolean;
+  objectIDs: TList<Integer>;
 begin
   inherited;
   oraSession := fDBConnection as TOraSession;
@@ -463,6 +466,115 @@ begin
                     finally
                       publishEvent.UnPublish;
                     end;
+                  end;
+                end
+                else if (measure.ActionID >= -98) and (measure.ActionID <= -71) then
+                begin
+                  table := (aScenario as TUSScenario).Tableprefix + 'GENE_ROAD';
+                  case measure.ActionID of
+                    -71: value := 'A2020_1';
+                    -72: value := 'A2020_2';
+                    -73: value := 'A2020_3';
+                    -74: value := 'A2020_4';
+                    -75: value := 'A2020_5';
+                    -76: value := 'A2020_6';
+                    -77: value := 'A2020_7';
+                    -78: value := 'A2020_8';
+                    -79: value := 'A2020_9';
+                    -80: value := 'A2020_10';
+                    -81: value := 'A2020_11';
+                    -82: value := 'A2020_12';
+                    -83: value := 'B2022_1';
+                    -84: value := 'B2022_2';
+                    -85: value := 'B2022_3';
+                    -86: value := 'B2022_4';
+                    -87: value := 'B2022_5';
+                    -88: value := 'B2022_6';
+                    -89: value := 'B2022_7';
+                    -90: value := 'B2022_8';
+                    -91: value := 'B2022_9';
+                    -92: value := 'B2022_10';
+                    -93: value := 'B2022_11';
+                    -94: value := 'B2022_12';
+                  end;
+                  queryText := 'select OBJECT_ID FROM ' + table +
+                    ' where ZONE_TYPE=1 and (zone is null or not zone like ''%' + value + '%'')';
+
+                  objectIDs := TList<integer>.Create;
+                  try
+                    oraQuery := TOraQuery.Create(nil);
+                    try
+                      oraQuery.Session := oraSession;
+                      oraQuery.SQL.Text := queryText;
+                      oraQuery.ExecSQL;
+                      oraQuery.First;
+                      while not oraQuery.Eof do
+                      begin
+                        objectIDs.Add(oraQuery.FieldByName('OBJECT_ID').AsInteger);
+                        oraQuery.Next;
+                      end;
+                    finally
+                      oraQuery.Free;
+                    end;
+                    queryText := 'update ' + table +
+                      ' set' +
+                      ' ZONE  = CASE WHEN (ZONE is null or zone = '''') then ''' + value + ''' else zone || '';' +  value + ''' END' +
+                      ' where ZONE_TYPE=1 and (zone is null or not zone like ''%' + value + '%'')';
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    try
+                      oraSession.ExecSQL(queryText, [objectID]);
+                      oraSession.Commit;
+                      for objectID in ObjectIDs do
+                      begin
+                        publishEvent.SignalChangeObject(actionChange, objectID, 'ZONE');
+                      end;
+                    finally
+                      publishEvent.UnPublish;
+                    end;
+                  finally
+                    FreeAndNil(ObjectIDs);
+                  end;
+                end
+                else if (measure.ActionID = -99) then
+                begin
+                  table := (aScenario as TUSScenario).Tableprefix + 'GENE_ROAD';
+                  queryText := 'select OBJECT_ID FROM ' + table +
+                    ' where ZONE_TYPE=1 and (not zone is null or not zone = '''')';
+                  objectIDs := TList<integer>.Create;
+                  try
+                    oraQuery := TOraQuery.Create(nil);
+                    try
+                      oraQuery.Session := oraSession;
+                      oraQuery.SQL.Text := queryText;
+                      oraQuery.ExecSQL;
+                      oraQuery.First;
+                      while not oraQuery.Eof do
+                      begin
+                        objectIDs.Add(oraQuery.FieldByName('OBJECT_ID').AsInteger);
+                        oraQuery.Next;
+                      end;
+                    finally
+                      oraQuery.Free;
+                    end;
+                    queryText := 'update ' + table +
+                      ' set' +
+                      ' ZONE = null' +
+                      ' where ZONE_TYPE=1 and (not zone is null or not zone = '''')';
+                    publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
+                    publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                    try
+                      oraSession.ExecSQL(queryText, [objectID]);
+                      oraSession.Commit;
+                      for objectID in ObjectIDs do
+                      begin
+                        publishEvent.SignalChangeObject(actionChange, objectID, 'ZONE');
+                      end;
+                    finally
+                      publishEvent.UnPublish;
+                    end;
+                  finally
+                    FreeAndNil(ObjectIDs);
                   end;
                 end
               end

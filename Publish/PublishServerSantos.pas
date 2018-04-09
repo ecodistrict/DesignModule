@@ -1467,17 +1467,23 @@ var
   //marker: TSimpleObject;
 begin
   fCurrentTime := StrToDateTime(aTime, isoDateTimeFormatSettings);
-  TMonitor.Enter(fScenario.clients);
-  try
-    for client in fScenario.clients do
+//  TMonitor.Enter(fScenario.clients);
+//  try
+//    for client in fScenario.clients do
+//    begin
+//      // send new time to all other clients
+//      if Client<>aClient then
+//        client.signalString('{"type":"timesliderEvents","payload":{"setCurrentTime":"'+FormatDateTime(publisherDateTimeFormat, fCurrentTime)+'"}}');
+//    end;
+//  finally
+//    TMonitor.Exit(fScenario.clients);
+//  end;
+  client := aClient;
+  forEachSubscriber<TClient>(procedure (aClient: TClient)
     begin
-      // send new time to all other clients
-      if Client<>aClient then
-        client.signalString('{"type":"timesliderEvents","payload":{"setCurrentTime":"'+FormatDateTime(publisherDateTimeFormat, fCurrentTime)+'"}}');
-    end;
-  finally
-    TMonitor.Exit(fScenario.clients);
-  end;
+      if aClient <> client then
+        aClient.signalString('{"type":"timesliderEvents","payload":{"setCurrentTime":"'+FormatDateTime(publisherDateTimeFormat, fCurrentTime)+'"}}');
+    end);
 
   UpdateStopsOnTime(fCurrentTime);
 
@@ -2229,7 +2235,7 @@ begin
 
     // update slider
     jsonTSData := jsonTimesliderData;
-    scenario.forEachClient(
+    scenario.forEachSubscriber<TClient>(
       procedure(aClient: TClient)
       begin
         // send data to time slider

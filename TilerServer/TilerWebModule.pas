@@ -4280,7 +4280,7 @@ end;
 
 procedure TLayer.signalRefresh(aTimeStamp: TDateTime; aImmediate: Boolean);
 begin
-  if aImmediate
+  if aImmediate //set to False to revert changes
   then fDataEvent.signalEvent(TByteBuffer.bb_tag_double(icehTilerRefreshImmediate, aTimeStamp))
   else fDataEvent.signalEvent(TByteBuffer.bb_tag_double(icehTilerRefresh, aTimeStamp));
 end;

@@ -231,7 +231,7 @@ type
     fChangedProperties: TObjectDictionary<string, TUSCommitProperty>;
   public
     procedure ParseJSONProperties(aJSONProperties: TJSONArray);
-    function CommitChangesToDB(aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; aBasicLayer: TUSBasicLayer; out aChangedCount: Integer): Boolean;
+    function CommitChangesToDB(aLayer: TUSBasicLayer; aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; aBasicLayer: TUSBasicLayer; out aChangedCount: Integer): Boolean;
   end;
 
   TUSRoadIC = class(TGeometryLayerObject)
@@ -380,6 +380,7 @@ type
     function UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
   public
     procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
+    procedure handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
     property ChangeMultipleQuery: string read fChangeMultipleQuery;
     procedure ReadObjects(aSender: TObject);
     procedure RegisterLayer; override;
@@ -402,14 +403,14 @@ type
   end;
 
   TUSControl = class
-  constructor Create(aID: Integer; aName, aDescription: string; aLat, aLon: Double);
+  constructor Create(aID: TWDID; aName, aDescription: string; aLat, aLon: Double);
   destructor Destroy; override;
   private
-    fID: Integer;
+    fID: TWDID;
     fName, fDescription: string;
     fLat, fLon: Double;
   public
-    property ID: Integer read fID;
+    property ID: TWDID read fID;
     property Name: string read fName;
     property Description: string read fDescription;
     property Lat: Double read fLat;
@@ -500,7 +501,8 @@ type
   private
     fUSDBScenarios: TObjectDictionary<string, TUSDBScenario>;
     fUSScenarioFilters: TStringArray;
-    fUSControls: TObjectDictionary<Integer, TUSControl>; //locks with TMonitor
+    fUSControls: TObjectDictionary<TWDID, TUSControl>; //locks with TMonitor
+    fUSTableSync: TObjectDictionary<string, TSubscribeObject>; //owns, locks with TMonitor
     fSourceProjection: TGIS_CSProjectedCoordinateSystem;
     fPreLoadScenarios: Boolean;
     fIMB3Connection: TIMBConnection;
@@ -526,6 +528,9 @@ type
   public
     function GetUSControlsJSON: string;
     function GetUSControlJSONFromDB(aTablePrefix: string): string;
+    property USControls: TObjectDictionary<TWDID, TUSControl> read fUSControls;
+  public
+    function GetTableSync(const aUSFederation: string): TSubscribeObject;
   end;
 
 
@@ -1201,14 +1206,14 @@ begin
     10, 98: //control, for now hardcoded the base table
     begin
       Result := 'SELECT ' +
-                  't1.ID as OBJECT_ID, '+
+                  't1.OBJECT_ID as OBJECT_ID, '+
                   't1.ACTIVE as VALUE, '+
-                  't2.LAT as LAT, '+
-                  't2.LON as LON '+
-                  'FROM ' + aTablePrefix +'PBLS_CONTROLS t1 '+
-                  'INNER JOIN '+
-                  'PBLS_CONTROLS t2 '+
-                  'on t1.ID = t2.ID';
+                  't2.Y as Y, '+
+                  't2.X as X '+
+                  'FROM ' + aTablePrefix +'GENE_CONTROL t1 '+
+                  'LEFT JOIN '+
+                  'GENE_CONTROL t2 '+
+                  'on t1.OBJECT_ID = t2.OBJECT_ID';
     end;
   else
     Result :=
@@ -1330,15 +1335,15 @@ begin
     10, 98: //control
       begin
         Result := 'SELECT ' +
-                  't1.ID as OBJECT_ID, '+
+                  't1.OBJECT_ID as OBJECT_ID, '+
                   't1.ACTIVE as VALUE, '+
-                  't2.LAT as LAT, '+
-                  't2.LON as LON '+
-                  'FROM ' + aTablePrefix +'PBLS_CONTROLS t1 '+
-                  'INNER JOIN '+
-                  'PBLS_CONTROLS t2 '+
-                  'on t1.ID = t2.ID '+
-                  'where t1.ID in ';
+                  't2.Y as Y, '+
+                  't2.X as X '+
+                  'FROM ' + aTablePrefix +'GENE_CONTROL t1 '+
+                  'LEFT JOIN '+
+                  'GENE_CONTROL t2 '+
+                  'on t1.OBJECT_ID = t2.OBJECT_ID '+
+                  'where t1.OBJECT_ID in ';
       end;
   else
     Result :=
@@ -1405,15 +1410,15 @@ begin
     10, 98: //control
       begin
         Result:= 'SELECT ' +
-                  't1.ID as OBJECT_ID, '+
+                  't1.OBJECT_ID as OBJECT_ID, '+
                   't1.ACTIVE as VALUE, '+
-                  't2.LAT as LAT, '+
-                  't2.LON as LON '+
-                  'FROM ' + aTablePrefix +'PBLS_CONTROLS t1 '+
-                  'INNER JOIN '+
-                  'PBLS_CONTROLS t2 '+
-                  'on t1.ID = t2.ID '+
-                  'where t1.ID=:OBJECT_ID';
+                  't2.Y as Y, '+
+                  't2.X as X '+
+                  'FROM ' + aTablePrefix +'GENE_CONTROL t1 '+
+                  'LEFT JOIN '+
+                  'GENE_CONTROL t2 '+
+                  'on t1.OBJECT_ID = t2.OBJECT_ID '+
+                  'where t1.OBJECT_ID=:OBJECT_ID';
       end;
   else
     Result :=
@@ -1537,6 +1542,7 @@ begin
   begin
     fDataEvents[i] := aDataEvent[i];
     fDataEvents[i].OnChangeObject := handleChangeObject;
+    SubscribeTo((aScenario.Project as TUSProject).GetTableSync(fDataEvents[i].EventName), handleTableChange);
   end;
 end;
 
@@ -1557,22 +1563,7 @@ end;
 
 procedure TUSLayer.handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string);
 begin
-  TMonitor.Enter(fUpdateQueueEvent);
-  try
-    begin
-      try
-        fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
-        fUpdateQueueEvent.SetEvent;
-      except
-        on e: Exception do
-        begin
-          Log.WriteLn('TUSLayer.handleChangeObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
-        end
-      end;
-    end
-  finally
-    TMonitor.Exit(fUpdateQueueEvent);
-  end;
+  handleTableChange(nil, aAction, aObjectID);
   {
   try
     wdid := AnsiString(aObjectID.ToString);
@@ -1611,6 +1602,26 @@ begin
     do log.WriteLn('Exception in TUSLayer.handleChangeObject: '+e.Message, llError);
   end;
   }
+end;
+
+procedure TUSLayer.handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
+begin
+  TMonitor.Enter(fUpdateQueueEvent);
+    try
+      begin
+        try
+          fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
+          fUpdateQueueEvent.SetEvent;
+        except
+          on e: Exception do
+          begin
+            Log.WriteLn('TUSLayer.handleChangeObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
+          end
+        end;
+      end
+    finally
+      TMonitor.Exit(fUpdateQueueEvent);
+    end;
 end;
 
 function TUSLayer.UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
@@ -1723,8 +1734,8 @@ begin
         value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
         if not Assigned(aObject) then
         begin
-          geometryPoint := TWDGeometryPoint.Create(FieldFloatValueOrNaN(aQuery.FieldByName('LON')),
-                          FieldFloatValueOrNaN(aQuery.FieldByName('LAT')),
+          geometryPoint := TWDGeometryPoint.Create(FieldFloatValueOrNaN(aQuery.FieldByName('X')),
+                          FieldFloatValueOrNaN(aQuery.FieldByName('Y')),
                           NaN);
           projectGeometryPoint(geometryPoint, fSourceProjection);
           Result := TGeometryPointLayerObject.Create(Self, oid, geometryPoint, value);
@@ -2037,7 +2048,7 @@ begin
   fControlsUpdateEvent := fIMBConnection.Subscribe((aProject as TUSProject).OraSession.Username+
           fTableprefix.Substring(fTableprefix.Length-1)+ // #
           fTableprefix.Substring(0, fTablePrefix.length-1)+
-          '.PBLS_CONTROLS', False);
+          '.GENE_CONTROL', False);
   fControlsUpdateEvent.OnChangeObject := HandleControlsUpdate;
 end;
 
@@ -2056,6 +2067,7 @@ var
   layerObject: TLayerObject;
   controlObject : TGeometryPointLayerObject;
   active: Integer;
+  usControl: TUSControl;
 begin
   Result := '';
 //  TMonitor.Enter(fUSControlStatuses);
@@ -2086,9 +2098,16 @@ begin
           begin
             controlObject := layerObject as TGeometryPointLayerObject;
             active := Round(controlObject.value);
-            if Result <> '' then
+            TMonitor.Enter((fProject as TUSProject).USControls);
+            try
+              if not (fProject as TUSProject).USControls.TryGetValue(layerObject.ID, usControl) then
+                usControl := nil;
+            finally
+              TMonitor.Exit((fProject as TUSProject).USControls);
+            end;
+            if (Result <> '') and (usControl <> nil) then
               Result := Result + ',';
-            Result := Result + '"' + string(layerObject.ID) + '":{"active":' + active.ToString + '}';
+            Result := Result + '"' + string(layerObject.ID) + '":{"active":' + active.ToString + ', "name": "' + usControl.Description + '"}';
           end;
         finally
           usLayer.objectsLock.EndRead;
@@ -2117,13 +2136,13 @@ procedure TUSScenario.HandleControlsQueueEvent;
     query := TOraQuery.Create(nil);
     try
       query.Session := oraSession;
-      query.SQL.Text := 'SELECT ID, ACTIVE FROM ' + fTablePrefix + 'PBLS_CONTROLS where ID in (' + aIdString + ')';
+      query.SQL.Text := 'SELECT OBJECT_ID, ACTIVE FROM ' + fTablePrefix + 'GENE_CONTROL where OBJECT_ID in (' + aIdString + ')';
       query.UniDirectional := True;
       query.Open;
       query.First;
       while (not query.Eof) do
         begin
-          id := query.FieldByName('ID').AsInteger;
+          id := query.FieldByName('OBJECT_ID').AsInteger;
           active := query.FieldByName('ACTIVE').AsInteger;
           controlStatus := TUSControlStatus.Create(id, active = 1);
           fUSControlStatuses.AddOrSetValue(id, controlStatus);
@@ -2210,7 +2229,7 @@ begin
                   changestring := changestring + ', ' + ChangeStack.Pop;
                 ReadMultipleControls(changestring, oraSession);
               end;
-              forEachClient(SendUSControlsMessage);
+              forEachSubscriber<TClient>(SendUSControlsMessage);
             end;
             finally
               TMonitor.Exit(fUSControlStatuses);
@@ -2763,14 +2782,14 @@ begin
 end;
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aGeometry: TWDGeometry): string;
-var
-  layers: TList<TLayerBase>;
-  categories: string;
-  objectsGeoJSON: string;
-  totalObjectCount: Integer;
-  extent: TWDExtent;
-  l: TLayerBase;
-  objectCount: Integer;
+//var
+  //layers: TList<TLayerBase>;
+  //categories: string;
+  //objectsGeoJSON: string;
+  //totalObjectCount: Integer;
+  //extent: TWDExtent;
+  //l: TLayerBase;
+  //objectCount: Integer;
 begin
   Result := inherited;
 //  Result := '';
@@ -2814,18 +2833,18 @@ begin
 end;
 
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aX, aY, aRadius, aMaxZoom: Double): string;
-var
-  layers: TList<TLayerBase>;
-  dist: TDistanceLatLon;
-  nearestObject: TLayerObject;
-  nearestObjectLayer: TLayer;
-  nearestObjectDistanceInMeters: Double;
-  l: TLayerBase;
-  o: TLayerObject;
-  categories: string;
-  objectsGeoJSON: string;
-  totalObjectCount: Integer;
-  objectCount: Integer;
+//var
+//  layers: TList<TLayerBase>;
+//  dist: TDistanceLatLon;
+//  nearestObject: TLayerObject;
+//  nearestObjectLayer: TLayer;
+//  nearestObjectDistanceInMeters: Double;
+//  l: TLayerBase;
+//  o: TLayerObject;
+//  categories: string;
+//  objectsGeoJSON: string;
+//  totalObjectCount: Integer;
+//  objectCount: Integer;
 begin
   Result := inherited;
 //  Result := '';
@@ -2962,7 +2981,8 @@ var
 begin
   fIMB3Connection := aIMB3Connection;
   fUSDBScenarios := TObjectDictionary<string, TUSDBScenario>.Create;
-  fUSControls := TObjectDictionary<Integer, TUSControl>.Create([doOwnsValues]);
+  fUSControls := TObjectDictionary<TWDID, TUSControl>.Create([doOwnsValues]);
+  fUSTableSync := TObjectDictionary<string, TSubscribeObject>.Create([doOwnsValues]);
   mapView := aMapView;
 
   if aSourceEPSG>0
@@ -2992,6 +3012,7 @@ begin
   inherited;
   FreeAndNil(fUSDBScenarios);
   FreeAndNil(fUSControls);
+  FreeAndNil(fUSTableSync);
 end;
 
 function TUSProject.FindMeasure(const aActionID: string;
@@ -3020,6 +3041,20 @@ begin
   Result := fDBConnection as TOraSession;
 end;
 
+function TUSProject.GetTableSync(const aUSFederation: string): TSubscribeObject;
+begin
+  TMonitor.Enter(fUSTableSync);
+  try
+    if not fUSTableSync.TryGetValue(aUSFederation, Result) then
+    begin
+      Result := TSubscribeObject.Create;
+      fUSTableSync.Add(aUSFederation, Result);
+    end;
+  finally
+    TMonitor.Exit(fUSTableSync);
+  end;
+end;
+
 function TUSProject.GetUSControlJSONFromDB(aTablePrefix: string): string;
 var
   query: TOraQuery;
@@ -3028,7 +3063,7 @@ var
  Active: Boolean;
 begin
   Result := '';
-  Table := aTablePrefix + 'PBLS_CONTROLS';
+  Table := aTablePrefix + 'GENE_CONTROL';
   if TableExists(OraSession, Table) then
   begin
     query := TOraQuery.Create(nil);
@@ -3038,7 +3073,7 @@ begin
       query.Open;
       while not query.EoF do
       begin
-        ID := query.FieldByName('ID').AsInteger;
+        ID := query.FieldByName('OBJECT_ID').AsInteger;
         Active := query.FieldByName('ACTIVE').AsInteger = 1;
         if Result <> '' then
           Result := Result + ',';
@@ -3069,7 +3104,7 @@ begin
     begin
       if ControlsJSON <> '' then
         ControlsJSON := ControlsJSON + ',';
-      ControlsJSON := ControlsJSON + '"' + USControl.ID.ToString + '":{' +
+      ControlsJSON := ControlsJSON + '"' + string(USControl.ID) + '":{' +
         '"name":"' + USControl.Name + '",' +
         '"description":"' + USControl.Description + '",' +
         '"lat":' + DoubleToJSON(USControl.Lat) + ',' +
@@ -3204,7 +3239,7 @@ begin
       jsonProperties := jsonValue.GetValue<TJSONArray>('properties');
       commitBuilder := TUSCommitPropertyBuilder.Create(selectionLayer.BasicTableName, selectionLayer.SelectProperties);
       commitBuilder.ParseJSONProperties(jsonProperties);
-      if commitBuilder.CommitChangesToDB(OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
+      if commitBuilder.CommitChangesToDB(selectionLayer, OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
         aClient.SendMessage('Succesfully applied changes. Objects changed: ' + changedCount.toString, mtSucces, 10000)
       else
         aClient.SendMessage('Error applying changes. Objects changed before error: ' + changedCount.toString, mtError);
@@ -3308,11 +3343,11 @@ begin
       begin
         scenario := aClient.currentScenario as TUSScenario;
         oraSession := fDBConnection as TOraSession;
-        queryText := 'update ' + scenario.Tableprefix + 'PBLS_CONTROLS ' +
-                        'set active = :A where ID = :B';
+        queryText := 'update ' + scenario.Tableprefix + 'GENE_CONTROL ' +
+                        'set active = :A where OBJECT_ID = :B';
         TMonitor.Enter(scenario.USControlStatuses);
         try
-          publishEventName := oraSession.Username + '#' + scenario.Name + '.PBLS_CONTROLS';
+          publishEventName := oraSession.Username + '#' + scenario.Name + '.GENE_CONTROL';
           publishEvent := IMB3Connection.publish(publishEventName, false);
           try
             for jsonArrayItem in payloadArray do
@@ -3336,7 +3371,7 @@ begin
     begin
       TMonitor.Enter(fScenarios);
       try
-        if fScenarios.TryGetValue(AnsiString(scenarioID.ToString), baseScenario) then
+        if fScenarios.TryGetValue(scenarioID.ToString, baseScenario) then
         begin
           TThread.CreateAnonymousThread(MakeThreadedScenarioCopy(baseScenario.ID, ConnectStringFromSession(Self.oraSession), aClient, Self)).Start;
         end;
@@ -3396,7 +3431,7 @@ begin
         if fUSDBScenarios[s]._published.ToString = filter then
         begin
           ReadScenario(s);
-          exit;
+          break;
         end;
     end;
   end;
@@ -3545,24 +3580,24 @@ var
  Name, Description: string;
  Lat, Lon: Double;
 begin
-  Table := 'PBLS_CONTROLS';
+  Table := 'GENE_CONTROL';
   if TableExists(OraSession, Table) then
   begin
     query := TOraQuery.Create(nil);
     try
       query.Session := OraSession;
-      query.SQL.Text := 'SELECT ID, NAME, DESCRIPTION, LAT, LON FROM ' + Table;
+      query.SQL.Text := 'SELECT OBJECT_ID, NAME, DESCRIPTION, Y, X FROM ' + Table;
       query.Open;
       try
         TMonitor.Enter(fUSControls);
         while not query.EoF do
         begin
-          ID := query.FieldByName('ID').AsInteger;
+          ID := query.FieldByName('OBJECT_ID').AsInteger;
           Name := query.FieldByName('NAME').AsString;
           Description := query.FieldByName('DESCRIPTION').AsString;
-          Lat := query.FieldByName('LAT').AsFloat;
-          Lon := query.FieldByName('LON').AsFloat;
-          fUSControls.Add(ID, TUSControl.Create(ID, Name, Description, Lat, Lon));
+          Lat := query.FieldByName('Y').AsFloat;
+          Lon := query.FieldByName('X').AsFloat;
+          fUSControls.Add(AnsiString(ID.ToString), TUSControl.Create(AnsiString(ID.ToString), Name, Description, Lat, Lon));
           query.Next;
         end;
       finally
@@ -3745,7 +3780,7 @@ begin
       query.SQL.Text :=
         'SELECT ProjectID '+
           'FROM '+PROJECT_TABLE_NAME+' '+
-          'WHERE PROJECT_TYPE = :TYPE';
+          'WHERE UPPER(PROJECT_TYPE) = UPPER(:TYPE)';
       query.Params.ParamByName('TYPE').AsString := aProjectType;
       query.ExecSQL;
       if not query.Eof then
@@ -3848,7 +3883,6 @@ function getUSScenarioFilter(aOraSession: TOraSession; const aProjectID: string)
 var
   table: TOraTable;
   splitArray: TArray<string>;
-  id: string;
   i: Integer;
 begin
   // try to read project info from database
@@ -4286,7 +4320,7 @@ var
   dataCols, dataCol: TStringList;
   chartSeries: TUSChartSeries;
   datQuery: string;
-  client: TClient;
+//  client: TClient;
   chart: TUSChart;
   clientMessage: string;
 begin
@@ -4342,6 +4376,7 @@ begin
     FreeAndNil(data);
     if charts.Count > 0 then
     begin
+     {
       TMonitor.Enter(fScenario.clients);
       fLastUpdate := aTime;
       try
@@ -4350,6 +4385,12 @@ begin
       finally
         TMonitor.Exit(fScenario.clients);
       end;
+      }
+      fLastUpdate := aTime;
+      fScenario.forEachSubscriber<TClient>(procedure (aClient: TClient)
+        begin
+          aClient.signalString(clientMessage);
+        end);
     end;
   end;
 end;
@@ -4362,7 +4403,7 @@ end;
 
 { TUSControl }
 
-constructor TUSControl.Create(aID: Integer; aName, aDescription: string; aLat,
+constructor TUSControl.Create(aID: TWDID; aName, aDescription: string; aLat,
   aLon: Double);
 begin
   fID := aID;
@@ -4601,7 +4642,7 @@ begin
   begin
     counter := 0;
     ids := '';
-    while (amount > index) and (counter <= 1000) do
+    while (amount > index) and (counter < 1000) do
     begin
       if ids <> '' then
         ids := ids + ',';
@@ -4828,7 +4869,7 @@ end;
 
 { TUSCommitPropertyBuilder }
 
-function TUSCommitPropertyBuilder.CommitChangesToDB(aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; aBasicLayer: TUSBasicLayer; out aChangedCount: Integer): Boolean;
+function TUSCommitPropertyBuilder.CommitChangesToDB(aLayer: TUSBasicLayer; aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; aBasicLayer: TUSBasicLayer; out aChangedCount: Integer): Boolean;
 var
   baseQuery: string;
   valueArray: array of Variant;
@@ -4838,6 +4879,7 @@ var
   selectedID: TJSONValue;
   publishEvent: TIMBEventEntry;
   obj: TLayerObject;
+  subObj: TSubscribeObject;
 begin
   Result := True;
   aChangedCount := 0;
@@ -4872,6 +4914,8 @@ begin
             publishEvent.SignalChangeObject(actionChange, objectID, commitProperty.fName.ToUpper);
           end;
           aChangedCount := aChangedCount + 1;
+          for subObj in aLayer.Subscriptions.Values do
+            subObj.SendEvent(aLayer, 2 , objectID);
         end;
       except
         on E: Exception do
