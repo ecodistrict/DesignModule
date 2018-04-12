@@ -7,7 +7,7 @@
 {                                                       }
 {*******************************************************}
 
-unit FMX.Canvas.D2D;
+unit FMX.Canvas.D2D.my10_2_u3;
 
 {.$DEFINE DXDEBUG}
 {.$DEFINE D2DEBUG}
@@ -2795,7 +2795,7 @@ end;
 procedure RegisterCanvasClasses;
 begin
   if GlobalUseDirect2D and (TCustomCanvasD2D.Direct3DLevel >= TCustomCanvasD2D.TDirect3DLevel.Direct3D10) and
-    InitThemeLibrary and UseThemes and TCustomCanvasD2D.TryCreateDirect3DDevice then
+    {InitThemeLibrary and UseThemes and }TCustomCanvasD2D.TryCreateDirect3DDevice then
   begin
     TCustomCanvasD2D.DestroyDirect3DDevice;
     TCanvasManager.RegisterCanvas(TCanvasD2D, True, False);

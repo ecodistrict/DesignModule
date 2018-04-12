@@ -86,8 +86,8 @@ uses
   //FMX.Canvas.GDIP,
 
 //   theming problem on server where profile is loaded and D2D canvas is availble only test fails in orginal unit
-//   Delphi 10.2 version
-  FMX.Canvas.D2D.my10_2,
+//   Delphi 10.2 update 3 version
+  FMX.Canvas.D2D.my10_2_u3,
 //  Delphi 10.1 version
 //  FMX.Canvas.D2D.my10_1,
 //  Delphi 10 version
@@ -861,11 +861,13 @@ var
   currentReference: integer;
 begin
   // wait on writer to reset write flag so omrewReference.Bit0 must be 0 then set omrewReference.Bit0
+  //Log.WriteLn('>BWRL '+IntToHex(GetCurrentThreadID, 8));
   repeat
     currentReference := omrewReference AND NOT 1;
   until currentReference = InterlockedCompareExchange(omrewReference, currentReference + 1, currentReference);
   // now wait on all readers
   repeat until omrewReference = 1;
+  //Log.WriteLn('<BWRL '+IntToHex(GetCurrentThreadID, 8));
 end;
 
 procedure TOmniMREW.Create;
@@ -882,6 +884,7 @@ end;
 procedure TOmniMREW.EndWrite;
 begin
   omrewReference := 0;
+  //Log.WriteLn('EWRL '+IntToHex(GetCurrentThreadID, 8));
 end;
 
 // copy of EndWrite
