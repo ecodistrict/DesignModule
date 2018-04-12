@@ -210,7 +210,49 @@ begin
       $FF37005C);
 end;
 
-function CreateGrayPalette(const aTitle: string): TWDPalette;
+function CreateGrayTrackPalette(const aTitle: string): TWDPalette;
+var
+  factor: Double;
+begin
+  factor := 1 / 1000000000;
+  Result := TRampPalette.Create(aTitle, [
+    TRampPaletteEntry.Create($FFE0E0E0, 0 * factor, '0'),
+    TRampPaletteEntry.Create($FFA8A8A8, 30 * factor, '30'),
+    TRampPaletteEntry.Create($FF707070, 60 * factor, '60'),
+    TRampPaletteEntry.Create($FF383838, 90 * factor, '90'),
+    TRampPaletteEntry.Create($FF000000, 120 * factor, '120')],
+      $FFDDDDDD,
+      $00000000,
+      $FF000000);
+end;
+
+function CreateBlueTrackPalette(const aTitle: string): TWDPalette;
+const
+  LowColor = $FF9BFFFF;
+  HighColor = $FF2D38FF;
+var
+  factor: Double;
+
+begin
+  factor := 1 / 1000000000;
+  Result := TRampPalette.Create(aTitle, [
+//    TRampPaletteEntry.Create($FFE0E0FF, 0 * factor, '0'), 9BFFFF
+//    TRampPaletteEntry.Create($FFA8A8FF, 30 * factor, '30'),
+//    TRampPaletteEntry.Create($FF7070FF, 60 * factor, '60'),
+//    TRampPaletteEntry.Create($FF3838FF, 90 * factor, '90'),
+//    TRampPaletteEntry.Create($FF0000FF, 120 * factor, '120')], FF2D38FF
+
+    TRampPaletteEntry.Create(LowColor, 0 * factor, '0'),
+    TRampPaletteEntry.Create(ColorRamp(30, 0, 120, LowColor, HighColor), 30 * factor, '30'),
+    TRampPaletteEntry.Create(ColorRamp(60, 0, 120, LowColor, HighColor), 60 * factor, '60'),
+    TRampPaletteEntry.Create(ColorRamp(90, 0, 120, LowColor, HighColor), 90 * factor, '90'),
+    TRampPaletteEntry.Create(HighColor, 120 * factor, '120')],
+      LowColor,
+      $00000000,
+      HighColor);
+end;
+
+function CreateGraySliderPalette(const aTitle: string): TWDPalette;
 var
   factor: Double;
 const
@@ -350,7 +392,7 @@ var
 begin
   Result := inherited;
   // send data to time slider
-  palette := CreateGrayPalette('NO2 slider');
+  palette := CreateGraySliderPalette('NO2 slider');
   try
     extent := TWDExtent.Create;
     jsonTSData := jsonTimesliderData(sensordata_no2 shr 3, palette, extent);
@@ -852,7 +894,7 @@ var
   trackpalette: TWDPalette;
   trackLayer: TSesmiTrackLayer;
 begin
-  trackpalette := CreateColorTrackPalette('Track NO2');
+  trackpalette := CreateBlueTrackPalette('Track NO2');
 
   fMobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'NO2', 'NO2', 'Personal NO2', False, 'line',
     TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
@@ -884,7 +926,7 @@ begin
         palette: TWDPalette;
         extent: TWDExtent;
       begin
-        palette := CreateGrayPalette('NO2 slider');
+        palette := CreateGraySliderPalette('NO2 slider');
         try
           extent := TWDExtent.Create;
           jsonTSData := jsonTimesliderData(sensordata_no2 shr 3, palette, extent);

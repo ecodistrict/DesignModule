@@ -1517,19 +1517,19 @@ end;
 function TSlice.UpdatePalette(aPalette: TWDPalette): Boolean;
 begin
   // todo: check if data lock is needed, i think not..
-  fDataLock.BeginWrite;
+  fTileLock.BeginWrite;
   try
-    fTileLock.BeginWrite;
+    fDataLock.BeginWrite;
     try
       fPalette.Free;
       fPalette := aPalette;
       fDataVersion := fDataVersion+1; // trigger new set of tiles in cache
       Result := True;
     finally
-      fTileLock.EndWrite;
+      fDataLock.EndWrite;
     end;
   finally
-    fDataLock.EndWrite;
+    fTileLock.EndWrite;
   end;
 end;
 
