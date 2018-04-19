@@ -153,12 +153,11 @@ const
   rpLat = 'lat';
   rpLon = 'lon';
   rpTime = 'time'; // yyyymmddhhmmss
-  //rpNewURL = 'url';
 
   SliceTimeIDFormat = 'yyyymmdd.hhnn';
 
   HSC_SUCCESS_OK = 200;
-  HSC_SUCCESS_CREATED = 201;
+  //HSC_SUCCESS_CREATED = 201;
 
   HSC_ERROR_BADREQUEST = 400;
   HSC_ERROR_UNAUTHORIZED = 401;
@@ -182,6 +181,26 @@ type
 
     procedure Acquire; inline;
     procedure Release; inline;
+  end;
+
+  TTileCacheEntry = class
+  constructor Create(const aPath: string);
+  private
+    fPath: string;
+    fCreated: TDateTime;
+    fLastAccessed: TDateTime;
+    fStream: TStream;
+    function getStream: TStream;
+    procedure setStream(aValue: TStream);
+  public
+    property path: string read fPath;
+    property created: TDateTime read fCreated;
+    property lastAccessed: TDateTime read fLastAccessed;
+    property stream: TStream read getStream write setStream;
+
+    procedure FromBitmap(aBitmap: FMX.Graphics.TBitmap);
+    function SaveTile(): Boolean;
+    procedure ClearStream();
   end;
 
 const
@@ -318,12 +337,11 @@ type
     function TimeFolder: string;
   protected
     // tile generation
-    //procedure GenerateTileLock; virtual; abstract;
     function doGenerateTilePreCalc: Boolean; virtual;
     function GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean; virtual;
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; virtual; abstract;
-    //procedure GenerateTileUnLock; virtual; abstract;
     function getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus; virtual;
+    function GenerateTileCache(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer; const aFileName, aCacheFolder: string): TGenerateTileStatus;
   public
     function GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer; const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool=nil): Integer; virtual;
     function PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool=nil): Double; virtual;
@@ -893,6 +911,164 @@ begin
   omrewReference := 0;
 end;
 
+{ TilesCache }
+
+var
+  tilesCache: TObjectDictionary<string, TTileCacheEntry>;
+  monitorTilesCacheThread: TThread;
+  monitorTilesCacheWaitEvent: TEvent;
+
+const
+  dtOneHour = 1.0/24.0;
+  dtOneMinute = dtOneHour/60;
+
+  dtStreamClear = dtOneMinute*5;
+  dtTileCacheEntryOutOfDate = dtOneHour;
+
+  monitorTilesCacheCycle = 5*60*1000; // ms
+
+procedure MonitorTilesCache;
+var
+  _now: TDateTime;
+  removeEntries: TList<string>;
+  tcep: TPair<string, TTileCacheEntry>;
+  re: string;
+  unLock: Boolean;
+begin
+  while not TThread.CheckTerminated do
+  begin
+    if monitorTilesCacheWaitEvent.WaitFor(monitorTilesCacheCycle)=wrSignaled then
+    begin
+      if not TThread.CheckTerminated then
+      begin
+        _now := Now();
+        removeEntries := nil; // only create list when needed
+        try
+          // lock list: we maybe want to remove items
+          TMonitor.Enter(tilesCache);
+          try
+            // check all entries
+            for tcep in tilesCache do
+            begin
+              unLock := True; // default to: unlock entry so it can be used later
+              TMonitor.Enter(tcep.Value);
+              try
+                // check out-of-date
+                if tcep.Value.lastAccessed+dtTileCacheEntryOutOfDate<_now then
+                begin
+                  if not Assigned(removeEntries)
+                  then removeEntries := TList<string>.Create;
+                  removeEntries.Add(tcep.Key);
+                  unLock := False; // keep entry locked so it can never be used again
+                end
+                else
+                begin
+                  // check stream to be cleared (if path is set otherwise no way to re-create)
+                  if (length(tcep.Value.path)>0) and (tcep.Value.lastAccessed+dtStreamClear<_now)
+                  then tcep.Value.ClearStream();
+                end;
+              finally
+                if unLock
+                then TMonitor.Exit(tcep.Value);
+              end;
+            end;
+            // remove tile cache entries that are out-of-date
+            if Assigned(removeEntries) then
+            begin
+              for re in removeEntries
+              do tilesCache.Remove(re);
+            end;
+          finally
+            TMonitor.Exit(tilesCache);
+          end;
+        finally
+          removeEntries.Free;
+        end;
+      end;
+    end;
+  end;
+end;
+
+{ TTileCacheEntry }
+
+procedure TTileCacheEntry.ClearStream;
+begin
+  FreeAndNil(fStream);
+end;
+
+constructor TTileCacheEntry.Create(const aPath: string);
+begin
+  inherited Create;
+  fPath := aPath;
+  fCreated := Now;
+  fLastAccessed := fCreated;
+  fStream := nil;
+end;
+
+procedure TTileCacheEntry.FromBitmap(aBitmap: FMX.Graphics.TBitmap);
+var
+  s: TStream;
+begin
+  s := TMemoryStream.Create;
+  try
+    aBitmap.SaveToStream(s);
+  finally
+    stream := s;
+  end;
+end;
+
+function TTileCacheEntry.getStream: TStream;
+var
+  fileStream: TFileStream;
+begin
+  // if not stream defined load into file stream and copy to memory stream to be stored in cache
+  if not Assigned(fStream) then
+  begin
+    if path<>'' then
+    begin
+      fStream := TMemoryStream.Create;
+      fileStream := TFileStream.Create(path, fmOpenRead+fmShareDenyWrite);
+      try
+        fStream.CopyFrom(fileStream, 0);
+      finally
+        fileStream.Free;
+      end;
+    end;
+  end;
+  result := fStream;
+  fLastAccessed := Now;
+end;
+
+function TTileCacheEntry.SaveTile: Boolean;
+var
+  fileStream: TFileStream;
+begin
+  if Assigned(stream) then
+  begin
+    // make sure folder exists first
+    ForceDirectories(ExtractFileDir(path));
+    // save memory stream with btimap to file
+    fileStream := TFileStream.Create(path, fmCreate+fmShareExclusive);
+    try
+      fileStream.CopyFrom(stream, 0);
+    finally
+      fileStream.Free;
+    end;
+    Result := True;
+  end
+  else Result := False;
+end;
+
+procedure TTileCacheEntry.setStream(aValue: TStream);
+begin
+  if fStream<>aValue then
+  begin
+    fStream.Free;
+    fStream := aValue;
+    fLastAccessed := Now;
+  end;
+end;
+
 { TDistanceLatLon }
 
 class function TDistanceLatLon.Create(aLat1InDegrees, aLat2InDegrees: Double): TDistanceLatLon;
@@ -1325,15 +1501,10 @@ begin
   end;
 end;
 
-function TSlice.GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;{aBitmap: FMX.Graphics.TBitmap;} const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
+function TSlice.GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer; const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
 var
-  bitmapFileName: string;
-  fileStream: TStream;
-  bitmap: FMX.Graphics.TBitmap;
   status: TGenerateTileStatus;
 begin
-  Result := HSC_ERROR_NOT_FOUND; // sentinel
-  status  := gtsRestart; // sentinel
   repeat
     // pre calc phase, potentially write lock of tile -> only when not avoidable
     if doGenerateTilePreCalc then
@@ -1349,79 +1520,102 @@ begin
     fTileLock.BeginRead;
     try
       //Log.WriteLn('TSlice.GenerateTile '+TimeFolder+aFileName);
-      bitmapFileName := aCacheFolder+TimeFolder+aFileName;
-      // try cache first
-      if (aCacheFolder<>'') and FileExists(bitmapFileName) then
-      begin
-        try
-          fileStream := TFileStream.Create(bitmapFileName, fmOpenRead+fmShareDenyWrite);
-          try
-            aStream.CopyFrom(fileStream, fileStream.Size);
-          finally
-            fileStream.Free;
-          end;
-          Result := HSC_SUCCESS_OK;
-          status := gtsOk;
-        except
-          on E: Exception
-          do Log.WriteLn('Exception loading tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
-        end;
-      end
-      else
-      begin
-        try
-          bitmap := FMX.Graphics.TBitmap.Create(aWidthPixels, aHeightPixels);
-          try
-            try
-              status := GenerateTileCalc(aExtent, bitmap, (aExtent.XMax-aExtent.XMin)/bitmap.Width, (aExtent.YMax-aExtent.YMin)/bitmap.Height);
-              if status=gtsOk then
-              begin
-                if aCacheFolder<>'' then
-                begin
-                  // save tile bitmap
-                  try
-                    ForceDirectories(ExtractFileDir(bitmapFileName));
-                    fileStream := TFileStream.Create(bitmapFileName, fmCreate+fmShareExclusive);
-                    try
-                      bitmap.SaveToStream(fileStream);
-                    finally
-                      fileStream.Free;
-                    end;
-                  except
-                    on E: Exception do
-                    begin
-                      Log.WriteLn('Exception saving tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
-                    end;
-                  end;
-                end;
-                // return stream
-                bitmap.SaveToStream(aStream);
-                Result := HSC_SUCCESS_CREATED;
-                status := gtsOk;
-              end
-              else
-              begin
-                if status=gtsFailed
-                then Log.WriteLn('could not calculate tile '+TimeFolder+aFileName, llError)
-                else Log.WriteLn('retry on calculating tile '+TimeFolder+aFileName, llWarning);
-              end;
-            except
-              on E: Exception
-              do Log.WriteLn('Exception generating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
-            end;
-          finally
-            bitmap.Free;
-          end;
-        except
-          on E: Exception
-          do Log.WriteLn('Exception creating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
-        end;
-      end;
+      status := GenerateTileCache(aExtent, aStream, aWidthPixels, aHeightPixels, aFileName, aCacheFolder);
       //Log.WriteLn('end of TSlice.GenerateTile '+TimeFolder+aFileName+': '+Ord(status).ToString);
     finally
       fTileLock.EndRead;
     end;
   until status<>gtsRestart;
+  if status=gtsOk
+  then Result := HSC_SUCCESS_OK
+  else Result := HSC_ERROR_NOT_FOUND;
+end;
+
+function TSlice.GenerateTileCache(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer; const aFileName, aCacheFolder: string): TGenerateTileStatus;
+var
+  tileFileName: string;
+  bitmap: FMX.Graphics.TBitmap;
+  newTCE: Boolean;
+  tce: TTileCacheEntry;
+begin
+  Result  := gtsRestart; // sentinel
+  tileFileName := aCacheFolder+TimeFolder+aFileName;
+  // get or create tile cache entry
+  // lock list and then lock found or created item; unlock list first so items can be accessed in parallel
+  TMonitor.Enter(tilesCache);
+  try
+    newTCE := not tilesCache.TryGetValue(tileFileName, tce);
+    if newTCE then
+    begin
+      // create new entry
+      if aCacheFolder<>''
+      then tce := TTileCacheEntry.Create(tileFileName)
+      else tce := TTileCacheEntry.Create('');
+      // add to list
+      tilesCache.Add(tileFileName, tce);
+    end;
+    // lock now to make other users wait
+    TMonitor.Enter(tce);
+  finally
+    TMonitor.Exit(tilesCache);
+  end;
+  // no TMonitor.Enter because is pre-locked above
+  try
+    if newTCE then
+    begin
+      // build new tile
+      try
+        // create tile bitmap
+        bitmap := FMX.Graphics.TBitmap.Create(aWidthPixels, aHeightPixels);
+        try
+          try
+            // build tile bitmap contents
+            Result := GenerateTileCalc(aExtent, bitmap, (aExtent.XMax-aExtent.XMin)/bitmap.Width, (aExtent.YMax-aExtent.YMin)/bitmap.Height);
+            if Result=gtsOk then
+            begin
+              tce.FromBitmap(bitmap);
+              // check if we have to save the bitmap
+              if aCacheFolder<>'' then
+              begin
+                try
+                  if not tce.SaveTile
+                  then Log.WriteLn('No stream to save tile from '+TimeFolder+aFileName, llError);
+                except
+                  on E: Exception
+                  do Log.WriteLn('Could not save tile bitmap '+TimeFolder+aFileName+': '+E.Message, llWarning);
+                end;
+              end;
+              // return copy of tile stream
+              aStream.CopyFrom(tce.stream, 0);
+              Result := gtsOk;
+            end
+            else
+            begin
+              if Result=gtsFailed
+              then Log.WriteLn('Could not calculate tile '+TimeFolder+aFileName, llError)
+              else Log.WriteLn('Retry on calculating tile '+TimeFolder+aFileName, llWarning);
+            end;
+          except
+            on E: Exception
+            do Log.WriteLn('Exception generating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+          end;
+        finally
+          bitmap.Free;
+        end;
+      except
+        on E: Exception
+        do Log.WriteLn('Exception creating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+      end;
+    end
+    else
+    begin
+      // use existing tile from stream or file
+      aStream.CopyFrom(tce.stream, 0);
+      Result := gtsOk;
+    end;
+  finally
+    TMonitor.Exit(tce);
+  end;
 end;
 
 function TSlice.GenerateTilePreCalc(aThreadPool: TMyThreadPool): Boolean;
@@ -1473,7 +1667,6 @@ var
   status: TGenerateTileStatus;
 begin
   Result := NaN; // sentinel
-  //status  := gtsRestart; // sentinel
   repeat
     // pre calc phase, potentially write lock of tile -> only when not avoidable
     if doGenerateTilePreCalc then
@@ -1661,7 +1854,7 @@ begin
                   end;
                 end;
               end;
-              Result := gtsOk; //HSC_SUCCESS_CREATED;
+              Result := gtsOk;
             end
             else Log.WriteLn('TSliceReceptor layer '+fLayer.LayerID.ToString+': data=nil out of map bitmap', llError);
           finally
@@ -2659,7 +2852,7 @@ begin
           end;
         end;
         *)
-        Result := gtsOk; //HSC_SUCCESS_CREATED;
+        Result := gtsOk;
       end
       else Log.WriteLn('png layer '+fLayer.LayerID.ToString+': data=nil out of map bitmap', llError);
     finally
@@ -2738,7 +2931,6 @@ begin
           if colors.outlineColor<>0 then
           begin
             aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-            //aBitmap.Canvas.StrokeThickness := 1; // todo: default width?
             aBitmap.Canvas.Stroke.Thickness := 1; // todo: default width?
             aBitmap.Canvas.DrawEllipse(rect, 1);
           end;
@@ -2895,17 +3087,11 @@ begin
   inherited;
 end;
 
-function TDiffSlice.GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer; const aFileName,
-  aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
+function TDiffSlice.GenerateTile(const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;
+  const aFileName, aCacheFolder: string; aThreadPool: TMyThreadPool): Integer;
 var
-  bitmapFileName: string;
-  fileStream: TStream;
-  bitmap: FMX.Graphics.TBitmap;
   status: TGenerateTileStatus;
-
 begin
-  Result := HSC_ERROR_NOT_FOUND; // sentinel
-  status  := gtsRestart; // sentinel
   repeat
     // pre calc phase, potentially write lock of tile -> only when not avoidable
     if fCurrentSlice.doGenerateTilePreCalc then
@@ -2931,80 +3117,18 @@ begin
     fCurrentSlice.fTileLock.BeginRead;
     fRefSlice.fTileLock.BeginRead;
     try
-      bitmapFileName := aCacheFolder+TimeFolder+aFileName;
-      // try cache first
-      if (aCacheFolder<>'') and FileExists(bitmapFileName) then
-      begin
-        try
-          fileStream := TFileStream.Create(bitmapFileName, fmOpenRead+fmShareDenyWrite);
-          try
-            aStream.CopyFrom(fileStream, fileStream.Size);
-          finally
-            fileStream.Free;
-          end;
-          Result := HSC_SUCCESS_OK;
-          status := gtsOk;
-        except
-          on E: Exception do
-          begin
-            Log.WriteLn('Exception loading tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
-            //Result := HSC_ERROR_NOT_FOUND; // sentinel
-          end;
-        end;
-      end
-      else
-      begin
-        try
-          bitmap := FMX.Graphics.TBitmap.Create(aWidthPixels, aHeightPixels);
-          try
-            status := GenerateTileCalc(aExtent, bitmap, (aExtent.XMax-aExtent.XMin)/bitmap.Width, (aExtent.YMax-aExtent.YMin)/bitmap.Height);
-            if status=gtsOk then
-            begin
-              if aCacheFolder<>'' then
-              begin
-                // save tile bitmap
-                try
-                  ForceDirectories(ExtractFileDir(bitmapFileName));
-                  fileStream := TFileStream.Create(bitmapFileName, fmCreate+fmShareExclusive);
-                  try
-                    bitmap.SaveToStream(fileStream);
-                  finally
-                    fileStream.Free;
-                  end;
-                except
-                  on E: Exception do
-                  begin
-                    Log.WriteLn('Exception saving tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
-                  end;
-                end;
-              end;
-              // return stream
-              bitmap.SaveToStream(aStream);
-              Result := HSC_SUCCESS_CREATED;
-              status := gtsOk;
-            end
-            else
-            begin
-              if status=gtsFailed
-              then Log.WriteLn('could not calculate tile '+TimeFolder+aFileName, llError)
-              else Log.WriteLn('retry on calculating tile '+TimeFolder+aFileName, llWarning);
-            end;
-          finally
-            bitmap.Free;
-          end;
-        except
-          on E: Exception do
-          begin
-            Log.WriteLn('Exception creating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
-          end;
-        end;
-      end;
+      //Log.WriteLn('TDiffSlice.GenerateTile '+TimeFolder+aFileName);
+      status := GenerateTileCache(aExtent, aStream, aWidthPixels, aHeightPixels, aFileName, aCacheFolder);
+      //Log.WriteLn('end of TDiffSlice.GenerateTile '+TimeFolder+aFileName+': '+Ord(status).ToString);
     finally
       fTileLock.EndRead;
       fCurrentSlice.fTileLock.EndRead;
       fRefSlice.fTileLock.EndRead;
     end;
   until status<>gtsRestart;
+  if status=gtsOk
+  then Result := HSC_SUCCESS_OK
+  else Result := HSC_ERROR_NOT_FOUND;
 end;
 
 function TDiffSlice.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
@@ -3043,7 +3167,11 @@ end;
 procedure TDiffSlice.HandleDiffUpdate;
 begin
   // recalc extent
-  fMaxExtent := fCurrentSlice.fMaxExtent.Intersection(fRefSlice.fMaxExtent);
+  if Assigned(fCurrentSlice) and Assigned(fRefSlice)
+  then fMaxExtent := fCurrentSlice.fMaxExtent.Intersection(fRefSlice.fMaxExtent)
+  else if Assigned(fCurrentSlice)
+  then fMaxExtent := fCurrentSlice.fMaxExtent
+  else fMaxExtent := TExtent.Create;
   fDataVersion := fDataVersion+1; // trigger new set of tiles in cache
   fLayer.signalRefresh(timeStamp, false);
 end;
@@ -3222,7 +3350,6 @@ begin
             begin
               aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
             end;
-            //aBitmap.Canvas.StrokeThickness := 2; // todo: default width?
             aBitmap.Canvas.Stroke.Thickness := 2; // todo: default width?
             aBitmap.Canvas.DrawPath(path, 1);
           finally
@@ -3317,7 +3444,6 @@ begin
               path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
               try
                 aBitmap.Canvas.Stroke.Color := colors.mainColor;
-                //aBitmap.Canvas.StrokeThickness := width*capacityFactor;
                 aBitmap.Canvas.Stroke.Thickness := width*capacityFactor;
                 aBitmap.Canvas.DrawPath(path, 1);
               finally
@@ -3530,147 +3656,6 @@ begin
                 end;
               end;
             end;
-
-//            if (not Assigned(refObj)) or (IsNaN(isgop.Value.texture) and IsNaN(isgop.Value.texture2)) then
-//            begin // both values are NaN -> draw small black line
-//              path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
-//              try
-//                aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
-//                aBitmap.Canvas.StrokeThickness := 1;
-//                aBitmap.Canvas.DrawPath(path, 1);
-//              finally
-//                path.Free;
-//              end;
-//            end
-//            else
-//            begin
-//              // todo: add smart code for combinations of refObj=nil, texture values being NaN etc.
-//              if Assigned(refObj) and not IsNaN(refObj.texture2) then
-//              begin
-//                colors2 := fPalette.ValueToColors(isgop.Value.texture2-refObj.texture2);
-//                if IsNaN(isgop.Value.texture)
-//                then colors := colors2
-//                else colors := fPalette.ValueToColors(isgop.Value.texture-refObj.texture);
-//              end
-//              else
-//              begin
-//                colors2 := TGeoColors.Create(TAlphaColorRec.Black or TAlphaColorRec.Alpha, TAlphaColorRec.Black or TAlphaColorRec.Alpha);
-//                colors := colors2;
-//              end;
-//              setLength(polygon, 5);
-//              for part in isgop.Value.fGeometry.parts do
-//              begin
-//                x := NaN;
-//                for point in part.points do
-//                begin
-//                  // recalc coordinates relative to extent
-//                  xPrev := x;
-//                  yPrev := y;
-//                  x := (point.X-aExtent.XMin)/aPixelWidth;
-//                  y := (aExtent.YMax-point.Y)/aPixelHeight;
-//                  if not IsNaN(xPrev) then
-//                  begin
-//                    xn := y-yPrev;
-//                    yn := xPrev-x;
-//                    // normalize..
-//                    l := sqrt((xn*xn)+(yn*yn));
-//
-//                    if not (IsNaN(isgop.Value.value) or IsNaN(isgop.Value.value2)) then
-//                    begin
-//                      // add polygon to the right for x,y x2,y2
-//                      xn := {(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-//                      yn := {(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
-//
-//                      polygon[0].X := xPrev;
-//                      polygon[0].Y := yPrev;
-//                      polygon[1].X := x;
-//                      polygon[1].Y := y;
-//                      polygon[2].X := x+xn;
-//                      polygon[2].Y := y+yn;
-//                      polygon[3].X := xPrev+xn;
-//                      polygon[3].Y := yPrev+yn;
-//                      polygon[4].X := xPrev;
-//                      polygon[4].Y := yPrev;
-//
-//                      // draw
-//                      if colors.fillColor<>0  then
-//                      begin
-//                        aBitmap.Canvas.Fill.Color := colors.fillColor;
-//                        aBitmap.Canvas.FillPolygon(polygon, 1);
-//                      end;
-//                      if colors.outlineColor<>0 then
-//                      begin
-//                        aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-//                        aBitmap.Canvas.DrawPolygon(polygon, 1);
-//                      end;
-//
-//                      //left
-//                      // add polygon to the left for x,y x2,y2
-//                      xn := yPrev-y;
-//                      yn := x-xPrev;
-//                      // normalize..
-//                      l := sqrt((xn*xn)+(yn*yn));
-//                      xn := {(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-//                      yn := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
-//
-//                      // todo: wrong rotation direction..
-//                      polygon[2].X := x-xn;
-//                      polygon[2].Y := y-yn;
-//                      polygon[3].X := xPrev-xn;
-//                      polygon[3].Y := yPrev-yn;
-//                      // draw left
-//                      if colors2.fillColor<>0 then
-//                      begin
-//                        aBitmap.Canvas.Fill.Color := colors2.fillColor;
-//                        aBitmap.Canvas.FillPolygon(polygon, 1);
-//                      end;
-//                      if colors2.outlineColor<>0 then
-//                      begin
-//                        aBitmap.Canvas.Stroke.Color := colors2.outlineColor;
-//                        aBitmap.Canvas.DrawPolygon(polygon, 1);
-//                      end;
-//                    end
-//                    else
-//                    begin
-//                      // draw centered line around path with capacity as width
-//                      if IsNaN(isgop.Value.value) then
-//                      begin
-//                        xn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-//                        yn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
-//                      end
-//                      else
-//                      begin
-//                        xn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-//                        yn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*yn/l;
-//                      end;
-//
-//                      polygon[0].X := xPrev-xn;
-//                      polygon[0].Y := yPrev-yn;
-//                      polygon[1].X := x-xn;
-//                      polygon[1].Y := y-yn;
-//                      polygon[2].X := x+xn;
-//                      polygon[2].Y := y+yn;
-//                      polygon[3].X := xPrev+xn;
-//                      polygon[3].Y := yPrev+yn;
-//                      polygon[4].X := xPrev-xn;
-//                      polygon[4].Y := yPrev-yn;
-//
-//                      // draw
-//                      if colors.fillColor<>0 then
-//                      begin
-//                        aBitmap.Canvas.Fill.Color := colors.fillColor;
-//                        aBitmap.Canvas.FillPolygon(polygon, 1);
-//                      end;
-//                      if colors.outlineColor<>0 then
-//                      begin
-//                        aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-//                        aBitmap.Canvas.DrawPolygon(polygon, 1);
-//                      end;
-//                    end;
-//                  end;
-//                end;
-//              end;
-//            end;
           end;
         end;
         // todo: process ref geometries not in current? or just skip..
@@ -3776,7 +3761,6 @@ begin
           if colors.outlineColor<>0 then
           begin
             aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-            //aBitmap.Canvas.StrokeThickness := 1; // todo: default width?
             aBitmap.Canvas.Stroke.Thickness := 1; // todo: default width?
             aBitmap.Canvas.DrawEllipse(rect, 1);
           end;
@@ -3973,7 +3957,7 @@ var
 begin
   slice := findSlice(aTimeStamp);
   if Assigned(slice)
-  then Result := slice.GenerateTile(aExtent, aStream, aWidthPixels, aheightPixels, {aBitmap, }aFileName, aCacheFolder, aThreadPool)
+  then Result := slice.GenerateTile(aExtent, aStream, aWidthPixels, aheightPixels, aFileName, aCacheFolder, aThreadPool)
   else
   begin
     if aTimeStamp=0
@@ -4182,8 +4166,8 @@ begin
                   width := aBuffer.bb_read_uint32(aCursor);
                   stream := TMemoryStream.Create;
                   try
-                    res := GenerateTile(0, Self.extent.SquareInMeters, stream, width, width,{bitmap, }'preview.png', model.fCacheFolder);
-                    if (res=HSC_SUCCESS_OK) or (res=HSC_SUCCESS_CREATED)
+                    res := GenerateTile(0, Self.extent.SquareInMeters, stream, width, width, 'preview.png', model.fCacheFolder);
+                    if res=HSC_SUCCESS_OK
                     then aEventEntry.signalEvent(TByteBuffer.bb_tag_bytes(icehTilerPreviewImage, (stream as TMemoryStream).Memory^, stream.Size))
                     else Log.WriteLn('TLayer.handleDataEvent ('+LayerID.ToString+'): could not create bitmap on icehTilerRequestPreviewImage');
                   finally
@@ -4393,7 +4377,7 @@ begin
   FreeAndNil(fConnectedServices);
 end;
 
-function TModel.GenerateTile(aLayerID: Integer; aTimeStamp: TDateTime; const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer;{aBitmap: FMX.Graphics.TBitmap;} const aFileName: string): Integer;
+function TModel.GenerateTile(aLayerID: Integer; aTimeStamp: TDateTime; const aExtent: TExtent; var aStream: TStream; aWidthPixels, aHeightPixels: Integer; const aFileName: string): Integer;
 var
   layer: TLayer;
 begin
@@ -4410,7 +4394,7 @@ begin
         globalModelAndLayersLock.EndRead;
       end;
       if Assigned(layer) and Assigned(layer.DataEvent)
-      then Result := layer.GenerateTile(aTimeStamp, aExtent, aStream, aWidthPixels, aHeightPixels, {aBitmap, }aFileName, fCacheFolder, fThreadPool)
+      then Result := layer.GenerateTile(aTimeStamp, aExtent, aStream, aWidthPixels, aHeightPixels, aFileName, fCacheFolder, fThreadPool)
       else
       begin
         Log.WriteLn('Layer id '+aLayerID.ToString+' not found to generate tile from', llWarning);
@@ -4615,7 +4599,6 @@ var
   layer: TLayer;
   stream: TStream;
 begin
-  // todo: implement
   layerIDs := TStringList.Create;
   try
     StandardIni.ReadSection(PersistentLayersSection, layerIDs);
@@ -4913,7 +4896,6 @@ var
   tileX, tiley: Integer;
   fileName: string;
   stream: TStream;
-  //s: AnsiString;
   time: string;
   timeStamp: TDateTime;
 begin
@@ -4944,7 +4926,7 @@ begin
     stream := TMemoryStream.Create;
     try
       Response.StatusCode := model.GenerateTile(layerID, timeStamp, extent, stream, TileSizeX, TileSizeY, fileName);
-      if (Response.StatusCode=HSC_SUCCESS_OK) or (Response.StatusCode=HSC_SUCCESS_CREATED) then
+      if Response.StatusCode=HSC_SUCCESS_OK then
       begin
         try
           stream.Position := 0;
@@ -4983,11 +4965,23 @@ initialization
 
   Log.WriteLn('Ini file: '+StandardIni.FileName);
 
+  tilesCache := TObjectDictionary<string, TTileCacheEntry>.Create([doOwnsValues]);
+  monitorTilesCacheWaitEvent := TEvent.Create();
+  monitorTilesCacheThread := TThread.CreateAnonymousThread(MonitorTilesCache);
+  monitorTilesCacheThread.NameThreadForDebugging('monitorTilesCacheThread');
+  monitorTilesCacheThread.Start();
+
   maxEdgeLengthInMeters := GetStdIniSetting(MaxEdgeLengthSwitch, DefaultMaxEdgeLength);
   threadCount := GetStdIniSetting(ThreadCountSwitch, DefaultThreadCount);
   Log.WriteLn('creating tiler process with '+threadCount.ToString+' threads and max edge length (m) of '+maxEdgeLengthInMeters.ToString(dotFormat));
   model := TModel.Create(maxEdgeLengthInMeters, threadCount);
 finalization
   FreeAndNil(model);
+  monitorTilesCacheThread.Terminate; // mark as terminated
+  monitorTilesCacheWaitEvent.SetEvent(); // no longer wait
+  FreeAndNil(monitorTilesCacheThread);
+  FreeAndNil(monitorTilesCacheWaitEvent);
+  FreeAndNil(tilesCache);
   Log.Finish();
 end.
+
