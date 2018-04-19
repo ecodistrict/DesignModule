@@ -70,21 +70,13 @@ begin
 //            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters)); {todo: NWBLiveFeedProjectName}
 
           // Sesmi module
-          {
-          sesmiModule := TSesmiModule.Create(
-            sessionModel,
-            imbConnection,
-            tilerFQDN,
-            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
-            TGUID.Create(GetSetting(ExpertScenarioSwitch, DefaultExpertScenario)),
-            'Fietsproject', TMapView.Create(52.0915, 5.12013, 13));
-          }
           project := TSesmiProject.Create(
             sessionModel, imbConnection, 'Sesmi', 'Fietsproject',
             tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             False, GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
-            TMapView.Create(52.0915, 5.12013, 13), TGUID.Create(GetSetting(ExpertScenarioSwitch, DefaultExpertScenario)));
+            //TMapView.Create(52.0915, 5.12013, 13),
+            TMapView.Create(51.441703756941806, 5.499172210693359, 12),
+            TGUID.Create(GetSetting(ExpertScenarioSwitch, DefaultExpertScenario)));
           sessionModel.Projects.Add(project);
 
           // main loop

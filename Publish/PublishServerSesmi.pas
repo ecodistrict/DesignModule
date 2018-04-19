@@ -940,6 +940,7 @@ begin
             // set map view according data set if this is the first time time slider data is send to clients ie after inquire
             if fFirstTimeSliderUpdate and not (extent.CenterY.IsNaN or extent.CenterX.IsNaN) then
             begin
+              fMapView := TMapView.Create(extent.CenterY, extent.CenterX, fMapView.zoom);
               aClient.SendView(extent.CenterY, extent.CenterX, Double.NaN);
             end;
           end);
@@ -977,9 +978,9 @@ begin
       begin
         try
           id := scenario.ID;
-          scenarios.Remove(id);
+          //scenarios.Remove(id);
           Log.WriteLn('Removing scenario '+id);
-          exit; // only 1 at the time because we are within for loop
+          //exit; // only 1 at the time because we are within for loop
         except
           on E: Exception
           do Log.WriteLn('Could not remove scenario '+id+': '+E.Message, llError);
