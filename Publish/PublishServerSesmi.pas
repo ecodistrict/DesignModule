@@ -260,12 +260,12 @@ const
 begin
   factor := 1 / 1000000000;
   Result := TDiscretePalette.Create(aTitle, [
-    TDiscretePaletteEntry.Create(TGeoColors.Create($FFDDDDDD), 0 * factor, step1 * factor, '0 - '+step1.ToString),
+    TDiscretePaletteEntry.Create(TGeoColors.Create($FFDDDDDD), Double.NegativeInfinity, step1 * factor, '0 - '+step1.ToString),
     TDiscretePaletteEntry.Create(TGeoColors.Create($FF000000), step1 * factor, Double.PositiveInfinity, step1.toString+'+')],
 //    TDiscretePaletteEntry.Create(TGeoColors.Create($FFDDDDDD), 0 * factor, 30 * factor, '0 - 40'),
 //    TDiscretePaletteEntry.Create(TGeoColors.Create($FF888888), 40 * factor, 80 * factor, '40 - 80'),
 //    TDiscretePaletteEntry.Create(TGeoColors.Create($FF000000), 80 * factor, Double.PositiveInfinity, '80+')],
-      TGeoColors.Create($FFDDDDDD));
+      TGeoColors.Create(0)); // black transparent
   {
   Result := TRampPalette.Create(aTitle, [
     TRampPaletteEntry.Create($FFDDDDDD, 0 * factor, '0'),
@@ -837,7 +837,7 @@ begin
           else stepSize := cursor.CurrentTimeStamp-prevTimeStamp; // NOT first step
 
           // check if entry should be closed (added)
-          if {(stepSize>MaxNoSensorValueTime) or }(loopSensorValueColor<>entryColor) then
+          if loopSensorValueColor<>entryColor then
           begin
             // check for transparancy
             if (entryColor and $FF000000)<>0 then
