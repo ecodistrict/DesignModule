@@ -140,6 +140,104 @@ type
     procedure ReadFromQueryRow(aQuery: TOraQuery);
   end;
 
+  TMetaObjectEntry = record
+    OBJECT_ID: Integer;
+    TABLE_NAME: string;
+    LAYER_DESCRIPTION: string;
+    OBJECT_TYPE: string;
+    GEOMETRY_TYPE: string;
+    TABLE_FILTER: string;
+    _published: Integer;
+  public
+    procedure ReadFromQueryRow(aQuery: TOraQuery);
+  end;
+
+  //pfCount if used as point where the aggregated functions start. Dus aggregated >= pfCount
+  TPropertyFunction = (pfNone, pfAbs, pfCeil, pfFloor, pfAvg, pfCount, pfMax, pfMin, pfSum);
+
+  TMetaObjectPropertyEntry = record
+    OBJECT_ID: Integer;
+    META_OBJECT_ID: Integer;
+    PROPERTY_NAME: string;
+    PROPERTY_FUNCTION: TPropertyFunction;
+    PROPERTY_CATEGORY: string;
+    PROPERTY_DESCRIPTION: string;
+    JOIN_TABLE: string;
+    BASE_TABLE_ID: string;
+    JOIN_TABLE_ID: string;
+    SIDE: Integer;
+    EDITABLE: Integer;
+    ORDERING: Integer;
+    _published: Integer;
+  public
+    procedure ReadFromQueryRow(aQuery: TOraQuery);
+  end;
+
+  TUSObjectPropTable = class; // forward
+  TUSObjectProp = class; //forward
+  TUSBasicLayer = class; //forward
+
+  TUSObjectProperties = class
+  constructor Create(const aBaseTableName: string; aBasicLayer: TUSBasicLayer);
+  destructor Destroy; override;
+  private
+    fTables: TObjectDictionary<string, TUSObjectPropTable>;
+    fBaseTableName: string;
+    fBasicLayer: TUSBasicLayer;
+  public
+    procedure AddFromObjectPropertyEntry(const aMetaObjectPropertyEntry: TMetaObjectPropertyEntry);
+  public
+    property BasicLayer: TUSBasicLayer read fBasicLayer;
+    property BaseTableName: string read fBaseTableName;
+    property Tables: TObjectDictionary<string, TUSObjectPropTable> read fTables;
+  end;
+
+  TUSObjectPropTable = class
+  constructor Create(const aMetaObjectPropertyEntry: TMetaObjectPropertyEntry; aPropertiesBase: TUSObjectProperties);
+  destructor Destroy; override;
+  private
+    fPropertiesBase: TUSObjectProperties;
+    fProperties: TObjectDictionary<string, TUSObjectProp>;
+  private
+    fJoinTableName: string;
+    fBaseID: string;
+    fJoinID: string;
+  public
+    procedure AddFromObjectPropertyEntry(const aMetaObjectPropertyEntry: TMetaObjectPropertyEntry);
+  public
+    property JoinTableName: string read fJoinTableName;
+    property BaseID: string read fBaseID;
+    property JoinID: string read fJoinID;
+    property Properties: TObjectDictionary<string, TUSObjectProp> read fProperties;
+    property PropertiesBase: TUSObjectProperties read fPropertiesBase;
+  end;
+
+  TUSObjectProp = class
+  constructor Create(const aMetaObjectPropertyEntry: TMetaObjectPropertyEntry; aPropertyTable: TUSObjectPropTable);
+  destructor Destroy; override;
+  private
+    fPropertyTable: TUSObjectPropTable;
+    fSidedProperties: TDictionary<Integer, string>;
+  private
+    fDescription: string;
+    fCategory: string;
+    fPropertyFunction: TPropertyFunction;
+    fEditable: Boolean;
+    fOrdering: Integer;
+  public
+    procedure AddFromObjectPropertyEntry(const aMetaObjectPropertyEntry: TMetaObjectPropertyEntry);
+    property PropertyTable: TUSObjectPropTable read fPropertyTable;
+    property SidedProperties: TDictionary<Integer, string> read fSidedProperties;
+  public
+    property Description: string read fDescription;
+    property Category: string read fCategory;
+    property PropertyFunction: TPropertyFunction read fPropertyFunction;
+    property Editable: Boolean read fEditable;
+    property Ordering: Integer read fOrdering;
+    function PropertyName(out aPropertyName: string; aSide: Integer=0): Boolean;
+    function ContainsSide(aSide: Integer): Boolean;
+  end;
+
   TSelectProperty = record
     ID: Integer;
     SelectProperty: string;
@@ -150,61 +248,87 @@ type
   end;
 
   TSelectProperties = array of TSelectProperty;
+  TMetaObjectEntries = TList<TMetaObjectEntry>;
+  TMetaObjectProperties = TList<TMetaObjectPropertyEntry>;
 
-  TMetaBaseLayerEntry = class
-  constructor Create(const aMetaObjectsEntry: TMetaObjectsEntry);
+  TUSSelectedObject = class
+  constructor Create(aObjectID: string; aSide: Integer = 0);
   destructor Destroy; override;
   private
-    fTableName: string;
-    fLayerDescription: string;
-    fObjectType: string;
-    fGeometryType: string;
-    fPublished: Integer;
-    fSelectProperties: TDictionary<string, TSelectProperty>; //owns values, locks with TMonitor -> maybe index on id? -> index on property gives error on duplicate properties
+    fObjectID: string;
+    fSides: TList<Integer>;
   public
-    property TableName: string read fTableName;
-    property LayerDescription: string read fLayerDescription;
-    property ObjectType: string read fObjectType;
-    property GeometryType: string read fGeometryType;
-    property IsPublished: Integer read fPublished;
-    function AddMetaObjectsEntry(const aMetaObjectsEntry: TMetaObjectsEntry): Boolean; //returns true if SelectProperty was not null
-    function BuildPropertiesQuery(const aPrefix: string): string;
-    function GetSelectProperties: TSelectProperties;
+    property ObjectID: string read fObjectID;
+    property Sides: TList<Integer> read fSides;
   end;
 
-  TMetaBaseLayer = TObjectDictionary<string, TMetaBaseLayerEntry>;
-
-  TUSBuilderProperty = class
-  constructor Create(aSelectProperty: TSelectProperty);
-  destructor Destroy; override;
-  public
-    distinctCount: Integer;
-    name: string;
-    description: string;
-    editable: Boolean;
-    dataType: string;
-    value: string;
-  public
-    function AddValue(const aValue: string; const aDataType: TFieldType): Boolean; //returns true if it's the second or more distinct value being added (value will stay '')
-    function getJSON: string;
-    function Open: Boolean;
-  end;
-
-  TUSPropertiesBuilder = class //builder is not thread safe!
-  constructor Create(aTableName: string; aSelectProperties: TSelectProperties);
+  //helper class for reading properties from the database
+  //flow is Initialization (value set to default) -> Reading database (thread safe value changes) -> building property JSON(value will not change)
+  TUSBuilderProp = class
+  constructor Create(aObjectProp: TUSObjectProp);
   destructor Destroy; override;
   private
-    fTableName: string;
-    fOpenProperties: Integer;
-    fProperties: TObjectDictionary<string, TUSBuilderProperty>;
-  protected
-    function QueryDB(aOraSession: TOraSession; const aObjectIds: string): Boolean; //returns true if all properties are "closed"
-    procedure BuildProperties(aOraSession: TOraSession; aSelectedObjects: TArray<string>);
+    fObjectProp: TUSObjectProp; //doesn't own
+    fDataType: string;
+    fValue: string;
+    fAddValueLock: TOmniMREW; //locks value changes during db access
+  private
+    function LockedAddValue(const aValue: string; const aDataType: TFieldType): Boolean; virtual; abstract;
   public
-    procedure AddProperty(const aSelectProperty: TSelectProperty);
-    function AddValue(const aPropertyName, aValue: string; const aDataType: TFieldType): Boolean; //returns true if all properties are "closed"
+    function AddValue(const aValue: string; const aDataType: TFieldType): Boolean; //returns true if done
+    function getJSON: string; virtual;
+    function Open: Boolean; virtual; abstract;
+    function SQLProperties(aTableAlias: string): string; virtual; abstract;
+  public
+    function Description: string;
+    function Editable: Boolean;
+    function Ordering: Integer;
+    function Category: string;
+    function PropertyName(out aPropertyName: string; aSide: Integer=0): Boolean;
+    property DataType: string read fDataType;
+    property Value: string read fValue;
+  end;
+
+  TUSBuilderPropNone = class(TUSBuilderProp)
+  constructor Create(aObjectProp: TUSObjectProp);
+  destructor Destroy; override;
+  private
+    fDistinctCount: Integer;
+  private
+    function LockedAddValue(const aValue: string; const aDataType: TFieldType): Boolean; override;
+    function Open: Boolean; override;
+    function SQLProperties(aTableAlias: string): string; override;
+  end;
+
+  //TODO: implement Builderprops for all the functions!
+
+  TUSBuilderTable = class
+  constructor Create(aObjectTable: TUSObjectPropTable);
+  destructor Destroy;
+  private
+    fObjectTable : TUSObjectPropTable;
+    fNormProps: TObjectList<TUSBuilderProp>;
+    fAggrProps: TObjectList<TUSBuilderProp>; //aggregated properties like sum/min/etc -> need to be done in seperate query!
+    fOpenAggrProps: Integer;
+    fOpenNormProps: Integer;
+  public
+    function QueryDB(aOraSession: TOraSession; const aObjectIds: string; aSelectedObjects: TObjectDictionary<string, TUSSelectedObject>): Boolean;
+    function QueryNormProps(aOraSession: TOraSession; const aObjectIds: string; aSelectedObjects: TObjectDictionary<string, TUSSelectedObject>): Boolean;
+    function QueryAggrProps(aOraSession: TOraSession; const aObjectIds: string; aSelectedObjects: TObjectDictionary<string, TUSSelectedObject>): Boolean;
+  public
+    property NormProps: TObjectList<TUSBuilderProp> read fNormProps;
+    property AggrProps: TObjectList<TUSBuilderProp> read fAggrProps;
+  end;
+
+  TUSPropBuilder = class
+  constructor Create(aObjectProperties: TUSObjectProperties);
+  destructor Destory;
+  private
+    fBuilderTables: TObjectList<TUSBuilderTable>;
+    fObjectProperties: TUSObjectProperties;
+  public
+    procedure BuildProperties(aOraSession: TOraSession; aSelectedIds: TArray<string>);
     function GetJSON: string;
-    function Open: Boolean;
   end;
 
   TUSCommitProperty = class
@@ -219,8 +343,6 @@ type
     function AddValue(const aValue, aType: string): Boolean;
     property ValueAsString: string read fStringValue;
   end;
-
-  TUSBasicLayer = class; //forward
 
   TUSCommitPropertyBuilder = class
   constructor Create(aTableName: string; aSelectProperties: TSelectProperties);
@@ -392,14 +514,14 @@ type
   constructor Create (aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
     const aConnectString, aNewQuery, {aChangeQuery, }aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry;
-    aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; const aTableName: string; aSelectProperties: TSelectProperties);
+    aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; const aTableName: string);
   destructor Destroy; override;
   private
     fTableName: string;
-    fSelectProperties: TSelectProperties;
+    fObjectProperties: TUSObjectProperties;
   public
-    property SelectProperties: TSelectProperties read fSelectProperties;
     property BasicTableName: string read fTableName;
+    property ObjectProperties: TUSObjectProperties read fObjectProperties;
   end;
 
   TUSControl = class
@@ -442,6 +564,7 @@ type
     fUpdateThread: TThread;
     procedure ReadIndicators (aTableNames: array of string; aOraSession: TOraSession);
     procedure ReadIndicator (aTableName: string; aOraSession: TOraSession);
+    procedure ReadBasicLayers(aOraSession: TOraSession);
     //procedure ReadUSControls (aOraSession: TOraSession);
     procedure HandleControlsUpdate(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
     procedure HandleControlsQueueEvent();
@@ -629,35 +752,56 @@ begin
   Result := TDiscretePalette.Create(aDescription, entries, TGeoColors.Create(noDataColor));
 end;
 
-function ReadMetaObjects(aSession: TOraSession; const aTablePrefix: string; aMetaBaseLayer: TMetaBaseLayer): Boolean;
+function ReadMetaObject(aSession: TOraSession; const aTablePrefix: string; aMetaObjectEntries: TMetaObjectEntries): Boolean;
 var
   query : TOraQuery;
-  metaObjectsEntry: TMetaObjectsEntry;
+  metaObjectEntry: TMetaObjectEntry;
 begin
-  if TableExists(aSession, aTablePrefix+'META_OBJECTS') then
+  Result := False;
+  if TableExists(aSession, aTablePrefix + 'META_OBJECT') then
   begin
     query := TOraQuery.Create(nil);
     try
       query.Session := aSession;
-      query.SQL.Text := 'SELECT * FROM '+aTablePrefix+'META_OBJECTS';
+      query.SQL.Text := 'SELECT * FROM ' + aTablePrefix + 'META_OBJECT';
       query.Open;
-      while not query.Eof do
+      while not query.EoF do
       begin
-        // default
-        metaObjectsEntry.ReadFromQueryRow(query);
-        if aMetaBaseLayer.ContainsKey(metaObjectsEntry.TABLE_NAME) then
-          aMetaBaseLayer[metaObjectsEntry.TABLE_NAME].AddMetaObjectsEntry(metaObjectsEntry)
-        else
-          aMetaBaseLayer.Add(metaObjectsEntry.TABLE_NAME, TMetaBaseLayerEntry.Create(metaObjectsEntry));
+        metaObjectEntry.ReadFromQueryRow(query);
+        aMetaObjectEntries.Add(metaObjectEntry);
         query.Next;
       end;
-      Result := True;
     finally
       query.Free;
     end;
-  end
-  else
-    Result := False;
+    Result := True;
+  end;
+end;
+
+function ReadMetaObjectProperty(aSession: TOraSession; const aTablePrefix: string; aMetaObjectProperties: TMetaObjectProperties): Boolean;
+var
+  query : TOraQuery;
+  metaObjectPropertyEntry: TMetaObjectPropertyEntry;
+begin
+  Result := False;
+  if TableExists(aSession, aTablePrefix+'META_OBJECT_PROPERTY') then
+  begin
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := aSession;
+      query.SQL.Text := 'SELECT * FROM ' + aTablePrefix + 'META_OBJECT_PROPERTY';
+      query.Open;
+      while not query.EoF do
+      begin
+        metaObjectPropertyEntry.ReadFromQueryRow(query);
+        aMetaObjectProperties.Add(metaObjectPropertyEntry);
+        query.Next;
+      end;
+    finally
+      query.Free;
+    end;
+    Result := True;
+  end;
 end;
 
 function ReadMetaLayer(aSession: TOraSession; const aTablePrefix: string; aMetaLayer: TMetaLayer): Boolean;
@@ -705,6 +849,37 @@ begin
     query.Free;
   end;
 end;
+
+function SubscribeUSDataEvents(const aUserName, aIMBEventClass, aTablePrefix: string; aIMBConnection: TIMBConnection): TIMBEventEntryArray;
+var
+  eventNames: TArray<System.string>;
+  ev: string;
+begin
+  setLength(Result, 0);
+  eventNames := aIMBEventClass.Split([',']);
+  for ev in eventNames do
+  begin
+    setLength(Result, Length(Result)+1);
+    Result[Length(Result)-1] :=
+    aIMBConnection.Subscribe(
+    aUserName+
+    aTableprefix.Substring(aTableprefix.Length-1)+ // #
+    aTableprefix.Substring(0, aTablePrefix.length-1)+
+    '.'+ev.Trim, False); // add with absolute path
+  end;
+end;
+
+  function GetUSBasicLayerType(const aGeometryType: string): Integer;
+  begin
+    Result := 99;
+    if aGeometryType.ToLower = 'multipolygon' then
+      Result := 3
+    else if aGeometryType.ToLower = 'linestring' then
+      Result := 4
+    else if aGeometryType.ToLower = 'point' then
+      Result := 11;
+  end;
+
 
 function TMetaLayerEntry.BaseTableNoPrefix: string;
 var
@@ -2269,68 +2444,38 @@ end;
 
 procedure TUSScenario.ReadBasicData;
 
-  procedure AddBasicLayer(const aID, aName, aDescription, aDefaultDomain, aObjectType, aGeometryType, aQuery: string;
-    aLayerType: Integer; const aConnectString, aNewQuery, aChangeQuery: string; aOraSession: TOraSession; const aDataEvents: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem;
-    const aBasicTableName: string; aSelectProperties: TSelectProperties);
-  var
-    layer: TUSBasicLayer;
-  begin
-
-    layer := TUSBasicLayer.Create(Self,
-
-      standardIni.ReadString('domains', aObjectType, aDefaultDomain), //  domain
-      aID, aName, aDescription, false,
-       '"'+aObjectType+'"', aGeometryType , aLayerType, NaN,
-       aConnectString,
-       aNewQuery,
-       aChangeQuery,
-       aDataEvents,
-       aSourceProjection,
-       TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicOutline)),
-       aBasicTableName,
-       aSelectProperties);
-    layer.query := aQuery;
-    Layers.Add(layer.ID, layer);
-    Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
-    // schedule reading objects and send to tiler
-    //todo: uncomment!
-    //todo: implement updatemultiplequery for basic layers?
-    AddCommandToQueue(aOraSession, layer.ReadObjects);
-  end;
-
-  function SubscribeDataEvents(const aUserName, aIMBEventClass: string): TIMBEventEntryArray;
-  var
-    eventNames: TArray<System.string>;
-    ev: string;
-  begin
-    setLength(Result, 0);
-    eventNames := aIMBEventClass.Split([',']);
-    for ev in eventNames do
-    begin
-      setLength(Result, Length(Result)+1);
-      Result[Length(Result)-1] :=
-        fIMBConnection.Subscribe(
-          aUserName+
-          fTableprefix.Substring(fTableprefix.Length-1)+ // #
-          fTableprefix.Substring(0, fTablePrefix.length-1)+
-          '.'+ev.Trim, False); // add with absolute path
-    end;
-  end;
-
-  function GetBasicLayerType(const aGeometryType: string): Integer;
-  begin
-    Result := 99;
-    if aGeometryType.ToLower = 'multipolygon' then
-      Result := 3
-    else if aGeometryType.ToLower = 'linestring' then
-      Result := 4
-    else if aGeometryType.ToLower = 'point' then
-      Result := 11;
-  end;
+//  procedure AddBasicLayer(const aID, aName, aDescription, aDefaultDomain, aObjectType, aGeometryType, aQuery: string;
+//    aLayerType: Integer; const aConnectString, aNewQuery, aChangeQuery: string; aOraSession: TOraSession; const aDataEvents: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem;
+//    const aBasicTableName: string; aSelectProperties: TSelectProperties);
+//  var
+//    layer: TUSBasicLayer;
+//  begin
+//
+//    layer := TUSBasicLayer.Create(Self,
+//
+//      standardIni.ReadString('domains', aObjectType, aDefaultDomain), //  domain
+//      aID, aName, aDescription, false,
+//       '"'+aObjectType+'"', aGeometryType , aLayerType, NaN,
+//       aConnectString,
+//       aNewQuery,
+//       aChangeQuery,
+//       aDataEvents,
+//       aSourceProjection,
+//       TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicOutline)),
+//       aBasicTableName,
+//       aSelectProperties);
+//    layer.query := aQuery;
+//    Layers.Add(layer.ID, layer);
+//    Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
+//    // schedule reading objects and send to tiler
+//    //todo: uncomment!
+//    //todo: implement updatemultiplequery for basic layers?
+//    AddCommandToQueue(aOraSession, layer.ReadObjects);
+//  end;
 
 var
   mlp: TPair<Integer, TMetaLayerEntry>;
-  mblp: TPair<string, TMetaBaseLayerEntry>;
+//  mblp: TPair<string, TMetaBaseLayerEntry>;
   layer: TUSLayer;
   indicTableNames: TAllRowsSingleFieldResult;
 //  tableName: string;
@@ -2338,7 +2483,6 @@ var
 //  i: Integer;
   oraSession: TOraSession;
   metaLayer: TMetaLayer;
-  metaBaseLayer: TMetaBaseLayer;
   connectString: string;
   sourceProjection: TGIS_CSProjectedCoordinateSystem;
   layerInfoKey: string;
@@ -2350,7 +2494,6 @@ begin
   oraSession := (project as TUSProject).OraSession;
   connectString := ConnectStringFromSession(oraSession);
   sourceProjection := (project as TUSProject).sourceProjection;
-
   // process basic layers
 //  if addBasicLayers then
 //  begin
@@ -2438,23 +2581,23 @@ begin
   //process base layers
   if addBasicLayers then
   begin
-    metaBaseLayer := TMetaBaseLayer.Create([doOwnsValues]);
-    try
-      ReadMetaObjects(oraSession, fTablePrefix, metaBaseLayer);
-      for mblp in metaBaseLayer do
-      begin
-        if mblp.Value.IsPublished > 0 then
-        begin
-          AddBasicLayer(mblp.Value.ObjectType, mblp.Value.LayerDescription, mblp.Value.LayerDescription, 'basic structures', mblp.Value.ObjectType, mblp.Value.GeometryType,
-            'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+fTablePrefix.ToUpper+ mblp.Value.TableName + ' t', GetBasicLayerType(mblp.Value.GeometryType),
-            connectString, '', 'SELECT OBJECT_ID, 0 AS VALUE, SHAPE FROM '+fTablePrefix.ToUpper+ mblp.Value.TableName + ' WHERE OBJECT_ID IN ', oraSession, SubscribeDataEvents(oraSession.Username, mblp.Value.TableName), sourceProjection, fTablePrefix.ToUpper+ mblp.Value.TableName, mblp.Value.GetSelectProperties);
-        end;
-      end;
-      //-> add base layers
-    finally
-      FreeAndNil(metaBaseLayer);
-    end;
-
+    ReadBasicLayers(oraSession);
+//    metaBaseLayer := TMetaBaseLayer.Create([doOwnsValues]);
+//    try
+//      ReadMetaObjects(oraSession, fTablePrefix, metaBaseLayer);
+//      for mblp in metaBaseLayer do
+//      begin
+//        if mblp.Value.IsPublished > 0 then
+//        begin
+//          AddBasicLayer(mblp.Value.ObjectType, mblp.Value.LayerDescription, mblp.Value.LayerDescription, 'basic structures', mblp.Value.ObjectType, mblp.Value.GeometryType,
+//            'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+fTablePrefix.ToUpper+ mblp.Value.TableName + ' t', GetUSBasicLayerType(mblp.Value.GeometryType),
+//            connectString, '', 'SELECT OBJECT_ID, 0 AS VALUE, SHAPE FROM '+fTablePrefix.ToUpper+ mblp.Value.TableName + ' WHERE OBJECT_ID IN ', oraSession, SubscribeUSDataEvents(oraSession.Username, mblp.Value.TableName), sourceProjection, fTablePrefix.ToUpper+ mblp.Value.TableName, mblp.Value.GetSelectProperties);
+//        end;
+//      end;
+//      //-> add base layers
+//    finally
+//      FreeAndNil(metaBaseLayer);
+//    end;
   end;
 
   // process meta layer to build list of available layers
@@ -2534,7 +2677,7 @@ begin
           if (dom<>'') and (nam<>'') then
           begin
             //todo: check if fix from name to nam worked!?
-            layer := mlp.Value.CreateUSLayer(self, fTablePrefix, connectString, SubscribeDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS), sourceProjection, dom, nam);
+            layer := mlp.Value.CreateUSLayer(self, fTablePrefix, connectString, SubscribeUSDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS, fTablePrefix, fIMBConnection), sourceProjection, dom, nam);
             if Assigned(layer) then
             begin
               Layers.Add(layer.ID, layer);
@@ -2574,6 +2717,54 @@ begin
     Log.WriteLn(elementID+': finished building scenario');
   finally
     metaLayer.Free;
+  end;
+end;
+
+procedure TUSScenario.ReadBasicLayers(aOraSession: TOraSession);
+var
+  metaObjectEntries: TMetaObjectEntries;
+  metaObjectProperties: TMetaObjectProperties;
+  metaObjectEntry: TMetaObjectEntry;
+  metaObjectPropertyEntry: TMetaObjectPropertyEntry;
+  layer: TUSBasicLayer;
+begin
+  metaObjectEntries := TMetaObjectEntries.Create;
+  try
+    metaObjectProperties := TMetaObjectProperties.Create;
+    try
+      if ReadMetaObject(aOraSession, fTablePrefix, metaObjectEntries) then
+      begin
+        ReadMetaObjectProperty(aOraSession, fTablePrefix, metaObjectProperties);
+        for metaObjectEntry in metaObjectEntries do
+        begin
+          if metaObjectEntry._published > 0 then
+          begin
+            layer := TUSBasicLayer.Create(Self,
+              standardIni.ReadString('domains', metaObjectEntry.OBJECT_TYPE, 'basic structures'), //  domain
+              metaObjectEntry.OBJECT_TYPE, metaObjectEntry.LAYER_DESCRIPTION, metaObjectEntry.LAYER_DESCRIPTION, false,
+              '"'+metaObjectEntry.OBJECT_TYPE+'"', metaObjectEntry.GEOMETRY_TYPE, GetUSBasicLayerType(metaObjectEntry.GEOMETRY_TYPE), NaN,
+              ConnectStringFromSession(aOraSession),
+              'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM ' + fTablePrefix.ToUpper + metaObjectEntry.TABLE_NAME + ' t', //new query
+              'SELECT OBJECT_ID, 0 AS VALUE, SHAPE FROM ' + fTablePrefix.ToUpper + metaObjectEntry.TABLE_NAME + ' WHERE OBJECT_ID IN ', //change query
+              SubscribeUSDataEvents(aOraSession.Username, metaObjectEntry.TABLE_NAME, fTablePrefix, fIMBConnection),
+              (project as TUSProject).sourceProjection,
+              TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicOutline)),
+              metaObjectEntry.TABLE_NAME);
+            for metaObjectPropertyEntry in metaObjectProperties do
+              if metaObjectEntry.OBJECT_ID = metaObjectPropertyEntry.META_OBJECT_ID then
+                layer.ObjectProperties.AddFromObjectPropertyEntry(metaObjectPropertyEntry);
+            layer.query := 'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM ' + fTablePrefix.ToUpper + metaObjectEntry.TABLE_NAME + ' t';
+            Layers.Add(layer.ID, layer);
+            Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
+            AddCommandToQueue(aOraSession, layer.ReadObjects);
+          end;
+        end;
+      end;
+    finally
+      metaObjectProperties.Free;
+    end;
+  finally
+    metaObjectEntries.Free;
   end;
 end;
 
@@ -2736,8 +2927,9 @@ var
   layer: TLayerBase;
   basicLayer: TUSBasicLayer;
   oraSession: TOraSession;
-  propertyBuilder: TUSPropertiesBuilder;
+//  propertyBuilder: TUSPropertiesBuilder;
   ids, id: string;
+  propertyBuilder: TUSPropBuilder;
 begin
   Result := '';
   if length(aSelectCategories) > 0 then
@@ -2753,15 +2945,17 @@ begin
       basicLayer := (layer as TUSBasicLayer);
       oraSession := (project as TUSProject).OraSession;
       try
-        propertyBuilder := TUSPropertiesBuilder.Create(basicLayer.BasicTableName, basicLayer.SelectProperties);
+        propertyBuilder := TUSPropBuilder.Create(basicLayer.ObjectProperties);
         propertyBuilder.BuildProperties(oraSession, aSelectedObjects);
         for id in aSelectedObjects do
         begin
           if ids <> '' then
             ids := ids + ',';
-          ids := ids + id;
+          if (Length(id) > 1) and (id[2] = '-') then
+            ids := ids + id.Substring(2)
+          else
+            ids := ids + id;
         end;
-
         Result := '{"selectedObjectsProperties":'+
               '{'+
                 '"selectedCategories": ["'+layer.ID+'"],'+
@@ -3170,8 +3364,8 @@ var
   selectionLayer: TUSBasicLayer;
   jsonSelectedCategories: TJSONArray;
   jsonProperties: TJSONArray;
-  commitBuilder: TUSCommitPropertyBuilder;
-  changedCount: Integer;
+  //commitBuilder: TUSCommitPropertyBuilder;
+  //changedCount: Integer;
 begin
   inherited;
   if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
@@ -3235,14 +3429,14 @@ begin
       and aScenario.Layers.TryGetValue(jsonSelectedCategories.Items[0].Value, baseLayer)
       and (baseLayer is TUSBasicLayer) then
     begin
-      selectionLayer := (baseLayer as TUSBasicLayer);
-      jsonProperties := jsonValue.GetValue<TJSONArray>('properties');
-      commitBuilder := TUSCommitPropertyBuilder.Create(selectionLayer.BasicTableName, selectionLayer.SelectProperties);
-      commitBuilder.ParseJSONProperties(jsonProperties);
-      if commitBuilder.CommitChangesToDB(selectionLayer, OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
-        aClient.SendMessage('Succesfully applied changes. Objects changed: ' + changedCount.toString, mtSucces, 10000)
-      else
-        aClient.SendMessage('Error applying changes. Objects changed before error: ' + changedCount.toString, mtError);
+      //selectionLayer := (baseLayer as TUSBasicLayer);
+      //jsonProperties := jsonValue.GetValue<TJSONArray>('properties');
+//      commitBuilder := TUSCommitPropertyBuilder.Create(selectionLayer.BasicTableName, selectionLayer.SelectProperties);
+//      commitBuilder.ParseJSONProperties(jsonProperties);
+//      if commitBuilder.CommitChangesToDB(selectionLayer, OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
+//        aClient.SendMessage('Succesfully applied changes. Objects changed: ' + changedCount.toString, mtSucces, 10000)
+//      else
+//        aClient.SendMessage('Error applying changes. Objects changed before error: ' + changedCount.toString, mtError);
     end;
   end;
 end;
@@ -4497,7 +4691,7 @@ begin
 end;
 
 { TMetaBaseLayerEntry }
-
+{
 function TMetaBaseLayerEntry.AddMetaObjectsEntry(
   const aMetaObjectsEntry: TMetaObjectsEntry): Boolean;
 var
@@ -4536,8 +4730,9 @@ begin
         if Result <> '' then
           Result := Result + ', ';
         Result := Result + SelectProperty.SelectProperty;
-        Result := 'SELECT ' + Result + ' FROM ' + aPrefix + fTableName + ' WHERE OBJECT_ID in ';
       end;
+      if Result <> '' then
+        Result := 'SELECT ' + Result + ' FROM ' + aPrefix + fTableName + ' WHERE OBJECT_ID in ';
     end;
   finally
     TMonitor.Exit(fSelectProperties);
@@ -4581,7 +4776,7 @@ begin
     TMonitor.Exit(fSelectProperties);
   end;
 end;
-
+}
 { TUSBasicLayer }
 
 constructor TUSBasicLayer.Create(aScenario: TScenario; const aDomain, aID,
@@ -4590,10 +4785,10 @@ constructor TUSBasicLayer.Create(aScenario: TScenario; const aDomain, aID,
   const aConnectString, aNewQuery, aChangeMultipleQuery: string;
   const aDataEvent: array of TIMBEventEntry;
   aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette;
-  const aTableName: string; aSelectProperties: TSelectProperties);
+  const aTableName: string);
 begin
   fTableName := aTableName;
-  fSelectProperties := aSelectProperties;
+  fObjectProperties := TUSObjectProperties.Create(fTableName, Self);
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes,
     aGeometryType, aLayerType, aDiffRange, aConnectString, aNewQuery, aChangeMultipleQuery, aDataEvent,
     aSourceProjection, aPalette, True);
@@ -4602,229 +4797,7 @@ end;
 destructor TUSBasicLayer.Destroy;
 begin
   inherited;
-  fSelectProperties := nil;
-end;
-
-{ TUSPropertiesBuilder }
-
-procedure TUSPropertiesBuilder.AddProperty(const aSelectProperty: TSelectProperty);
-var
-  BuilderProperty: TUSBuilderProperty;
-begin
-  BuilderProperty := TUSBuilderProperty.Create(aSelectProperty);
-  if not fProperties.ContainsKey(aSelectProperty.SelectProperty) then
-    fProperties.Add(aSelectProperty.SelectProperty, BuilderProperty)
-  else
-    Log.WriteLn('TUSPropertiesBuilder.AddProperty duplicate property: ' + aSelectProperty.SelectProperty);
-end;
-
-function TUSPropertiesBuilder.AddValue(const aPropertyName,
-  aValue: string; const aDataType: TFieldType): Boolean;
-begin
-  Result := False;
-  if fProperties.ContainsKey(aPropertyName) and fProperties[aPropertyName].AddValue(aValue, aDataType) then
-  begin
-    fOpenProperties := fOpenProperties - 1;
-    if fOpenProperties = 0 then
-      Result := True;
-  end;
-end;
-
-procedure TUSPropertiesBuilder.BuildProperties(aOraSession: TOraSession;
-  aSelectedObjects: TArray<string>);
-var
-  index, counter, amount: Integer;
-  ids: string;
-begin
-  index := 0;
-  amount := Length(aSelectedObjects);
-  while amount > index do
-  begin
-    counter := 0;
-    ids := '';
-    while (amount > index) and (counter < 1000) do
-    begin
-      if ids <> '' then
-        ids := ids + ',';
-      ids := ids + aSelectedObjects[index];
-      index := index + 1;
-      counter := counter + 1;
-    end;
-    QueryDB(aOraSession, ids);
-  end;
-end;
-
-constructor TUSPropertiesBuilder.Create(aTableName: string;
-  aSelectProperties: TSelectProperties);
-var
-  SelectProperty: TSelectProperty;
-begin
-  fTableName := aTableName;
-  fProperties := TObjectDictionary<string, TUSBuilderProperty>.Create([doOwnsValues]);
-  for SelectProperty in aSelectProperties do
-    AddProperty(SelectProperty);
-  fOpenProperties := fProperties.Count;
-end;
-
-destructor TUSPropertiesBuilder.Destroy;
-begin
-  FreeAndNil(fProperties);
-  inherited;
-end;
-
-function TUSPropertiesBuilder.GetJSON: string;
-var
-  builderProperty: TUSBuilderProperty;
-begin
-  Result := '';
-  for builderProperty in fProperties.values do
-  begin
-    if Result <> '' then
-      Result := Result + ',';
-    Result := Result + '{' + builderProperty.getJSON + '}';
-  end;
-end;
-
-function TUSPropertiesBuilder.Open: Boolean;
-begin
-  Result := fOpenProperties > 0;
-end;
-
-function TUSPropertiesBuilder.QueryDB(aOraSession: TOraSession;
-  const aObjectIds: string): Boolean;
-var
- queryString: string;
- BuilderProperty: TUSBuilderProperty;
- Query: TOraQuery;
- field: TField;
-begin
-  for BuilderProperty in fProperties.Values do
-    if BuilderProperty.Open then
-    begin
-      if queryString <> '' then
-        queryString := queryString + ',';
-      queryString := queryString + BuilderProperty.name;
-    end;
-  if queryString <> '' then
-  begin
-    queryString := 'SELECT ' + queryString + ' FROM ' + fTableName +
-      ' WHERE OBJECT_ID in (' + aObjectIds + ')';
-    query := TOraQuery.Create(nil);
-    try
-      query.Session := aOraSession;
-      query.SQL.Text := queryString;
-      query.UniDirectional := True;
-      query.Open;
-      query.First;
-      while (not query.Eof) and Open do
-        begin
-          for BuilderProperty in fProperties.Values do
-            if BuilderProperty.Open then
-            begin
-              field := query.FieldByName(BuilderProperty.name);
-              AddValue(BuilderProperty.name, field.AsString, field.DataType);
-            end;
-          query.Next;
-        end;
-    finally
-      query.Free
-    end;
-    Result := not Open;
-  end
-  else
-    Result := True;
-end;
-
-{ TUSBuilderProperty }
-
-function TUSBuilderProperty.AddValue(const aValue: string; const aDataType: TFieldType): Boolean;
-begin
-  Result := False;
-  if distinctCount = 0 then
-  begin
-    value := aValue;
-    case aDataType of
-      ftSmallint, ftInteger, ftLargeint, ftShortint, ftLongWord, ftWord: dataType := 'int';
-      ftBoolean: dataType := 'bool';
-      ftFloat, ftSingle: dataType := 'float';
-    else
-      dataType := 'string';
-    end;
-    distinctCount := distinctCount + 1;
-  end
-  else if distinctCount = 1 then
-  begin
-    if value <> aValue then
-    begin
-      distinctCount := distinctCount + 1;
-      value := '';
-      Result := True;
-    end;
-  end;
-end;
-
-constructor TUSBuilderProperty.Create(aSelectProperty: TSelectProperty);
-begin
-  distinctCount := 0;
-  value := '';
-  dataType := '';
-  name := aSelectProperty.SelectProperty;
-  description := aSelectProperty.PropertyDescription;
-  if aSelectProperty.Editable > 0 then
-    Editable := True
-  else
-    Editable := False;
-end;
-
-destructor TUSBuilderProperty.Destroy;
-begin
-  inherited;
-end;
-
-function TUSBuilderProperty.getJSON: string;
-var
-  doubleValue: Double;
-  valueString: string;
-  editableString: string;
-begin
-  {
-    "name" : "Height",
-    "value" : 5 | "Marie" | false, 300.3
-    "type" : "list" | "string" | "int" | "float" | "bool",
-    "editable" : "Y" | "N",
-    "options" : [1, 3, 343, 5],
-    "forced" : "Y" | "N"
-  }
-  if value <> '' then
-  begin
-    try
-      doubleValue := StrToFloat(value);
-      valueString := doubleValue.ToString(dotFormat);
-    except
-      on E: Exception do
-      begin
-        valueString := value;
-      end;
-    end;
-  end
-  else
-    valueString := value;
-
-  if Editable then
-    editableString := 'true'
-  else
-    editableString := 'false';
-
-  Result :=
-    '"name":"'+description+'",'+
-    '"type":"'+dataType+'",'+
-    '"editable":"'+editableString+'",'+
-    '"value":"'+valueString + '"';
-end;
-
-function TUSBuilderProperty.Open: Boolean;
-begin
-  Result := distinctCount <= 1;
+  FreeAndNil(fObjectProperties);
 end;
 
 { TUSCommitProperty }
@@ -4968,6 +4941,614 @@ begin
       else
         FreeAndNil(commitProperty); //destroy if ownership hasn't passed
     end;
+end;
+
+{ TMetaObjectEntry }
+
+procedure TMetaObjectEntry.ReadFromQueryRow(aQuery: TOraQuery);
+  function StringField(const aFieldName: string; const aDefaultValue: string=''): string;
+  var
+    F: TField;
+  begin
+    F := aQuery.FieldByName(aFieldName);
+    if Assigned(F) and not F.IsNull
+    then Result := F.AsString
+    else Result := aDefaultValue;
+  end;
+
+  function IntField(const aFieldName: string; aDefaultValue: Integer=0): Integer;
+  var
+    F: TField;
+  begin
+    F := aQuery.FieldByName(aFieldName);
+    if Assigned(F) and not F.IsNull
+    then Result := F.AsInteger
+    else Result := aDefaultValue;
+  end;
+
+  function DoubleField(const aFieldName: string; aDefaultValue: Double=NaN): Double;
+  var
+    F: TField;
+  begin
+    F := aQuery.FieldByName(aFieldName);
+    if Assigned(F) and not F.IsNull
+    then Result := F.AsFloat
+    else Result := aDefaultValue;
+  end;
+begin
+  OBJECT_ID := IntField('OBJECT_ID');
+  TABLE_NAME := StringField('TABLE_NAME').ToUpper;
+  LAYER_DESCRIPTION := StringField('LAYER_DESCRIPTION');
+  OBJECT_TYPE := StringField('OBJECT_TYPE');
+  GEOMETRY_TYPE := StringField('GEOMETRY_TYPE');
+  TABLE_FILTER := StringField('TABLE_FILTER');
+  _published := IntField('PUBLISHED');
+end;
+
+{ TMetaObjectPropertyEntry }
+
+procedure TMetaObjectPropertyEntry.ReadFromQueryRow(aQuery: TOraQuery);
+  function StringField(const aFieldName: string; const aDefaultValue: string=''): string;
+  var
+    F: TField;
+  begin
+    F := aQuery.FieldByName(aFieldName);
+    if Assigned(F) and not F.IsNull
+    then Result := F.AsString
+    else Result := aDefaultValue;
+  end;
+
+  function IntField(const aFieldName: string; aDefaultValue: Integer=0): Integer;
+  var
+    F: TField;
+  begin
+    F := aQuery.FieldByName(aFieldName);
+    if Assigned(F) and not F.IsNull
+    then Result := F.AsInteger
+    else Result := aDefaultValue;
+  end;
+
+  function DoubleField(const aFieldName: string; aDefaultValue: Double=NaN): Double;
+  var
+    F: TField;
+  begin
+    F := aQuery.FieldByName(aFieldName);
+    if Assigned(F) and not F.IsNull
+    then Result := F.AsFloat
+    else Result := aDefaultValue;
+  end;
+var
+  propertyFunction: string;
+begin
+  OBJECT_ID := IntField('OBJECT_ID');
+  META_OBJECT_ID := IntField('META_OBJECT_ID');
+  PROPERTY_NAME := StringField('PROPERTY');
+
+  propertyFunction := StringField('PROPERTY_FUNCTION').ToUpper;
+  if propertyFunction = 'ABS' then
+    PROPERTY_FUNCTION := pfAbs
+  else if propertyFunction = 'CEIL' then
+    PROPERTY_FUNCTION := pfCeil
+  else if propertyFunction = 'FLOOR' then
+    PROPERTY_FUNCTION := pfFloor
+  else if propertyFunction = 'AVG' then
+    PROPERTY_FUNCTION := pfAvg
+  else if propertyFunction = 'COUNT' then
+    PROPERTY_FUNCTION := pfCount
+  else if propertyFunction = 'MAX' then
+    PROPERTY_FUNCTION := pfMax
+  else if propertyFunction = 'MIN' then
+    PROPERTY_FUNCTION := pfMin
+  else if propertyFunction = 'SUM' then
+    PROPERTY_FUNCTION := pfSum
+  else
+    PROPERTY_FUNCTION := pfNone;
+
+  PROPERTY_DESCRIPTION := StringField('PROPERTY_DESCRIPTION');
+  PROPERTY_CATEGORY := StringField('PROPERTY_CATEGORY');
+  JOIN_TABLE := StringField('JOIN_TABLE');
+  BASE_TABLE_ID := StringField('BASE_TABLE_ID');
+  JOIN_TABLE_ID := StringField('JOIN_TABLE_ID');
+  SIDE := IntField('SIDE');
+  EDITABLE := IntField('EDITABLE');
+  ORDERING := IntField('ORDERING', Integer.MaxValue);
+  _published := IntField('PUBLISHED');
+end;
+
+{ TObjectProperties }
+
+procedure TUSObjectProperties.AddFromObjectPropertyEntry(
+  const aMetaObjectPropertyEntry: TMetaObjectPropertyEntry);
+begin
+  //TODO: validation, base table will have empty string as JOIN_TABLE -> do we want this?
+  if aMetaObjectPropertyEntry._published > 0 then
+  begin
+    if fTables.ContainsKey(aMetaObjectPropertyEntry.JOIN_TABLE) then
+      fTables[aMetaObjectPropertyEntry.JOIN_TABLE].AddFromObjectPropertyEntry(aMetaObjectPropertyEntry)
+    else
+      fTables.Add(aMetaObjectPropertyEntry.JOIN_TABLE, TUSObjectPropTable.Create(aMetaObjectPropertyEntry, Self));
+  end;
+end;
+
+constructor TUSObjectProperties.Create(const aBaseTableName: string; aBasicLayer: TUSBasicLayer);
+begin
+  fTables := TObjectDictionary<string, TUSObjectPropTable>.Create([doOwnsValues]);
+  fBaseTableName := aBaseTableName;
+  fBasicLayer := aBasicLayer;
+end;
+
+destructor TUSObjectProperties.Destroy;
+begin
+  FreeAndNil(fTables);
+  inherited;
+end;
+
+{ TUSObjectPropTabel }
+
+procedure TUSObjectPropTable.AddFromObjectPropertyEntry(
+  const aMetaObjectPropertyEntry: TMetaObjectPropertyEntry);
+begin
+  //TODO: validation
+  if fProperties.ContainsKey(aMetaObjectPropertyEntry.PROPERTY_DESCRIPTION) then
+    fProperties[aMetaObjectPropertyEntry.PROPERTY_DESCRIPTION].AddFromObjectPropertyEntry(aMetaObjectPropertyEntry)
+  else
+    fProperties.Add(aMetaObjectPropertyEntry.PROPERTY_DESCRIPTION, TUSObjectProp.Create(aMetaObjectPropertyEntry, Self));
+end;
+
+constructor TUSObjectPropTable.Create(
+  const aMetaObjectPropertyEntry: TMetaObjectPropertyEntry;
+  aPropertiesBase: TUSObjectProperties);
+begin
+  fPropertiesBase := aPropertiesBase;
+  fProperties := TObjectDictionary<string, TUSObjectProp>.Create([doOwnsValues]);
+  fJoinTableName := aMetaObjectPropertyEntry.JOIN_TABLE;
+  fBaseID := aMetaObjectPropertyEntry.BASE_TABLE_ID;
+  fJoinID := AMetaObjectPropertyEntry.JOIN_TABLE_ID;
+  AddFromObjectPropertyEntry(aMetaObjectPropertyEntry);
+end;
+
+destructor TUSObjectPropTable.Destroy;
+begin
+  FreeAndNil(fProperties);
+  inherited;
+end;
+
+{ TUSObjectProp }
+
+procedure TUSObjectProp.AddFromObjectPropertyEntry(
+  const aMetaObjectPropertyEntry: TMetaObjectPropertyEntry);
+begin
+  //TODO: validation
+  fSidedProperties.Add(aMetaObjectPropertyEntry.SIDE, aMetaObjectPropertyEntry.PROPERTY_NAME);
+  fDescription := aMetaObjectPropertyEntry.PROPERTY_DESCRIPTION;
+  fCategory := aMetaObjectPropertyEntry.PROPERTY_CATEGORY;
+  fPropertyFunction := aMetaObjectPropertyEntry.PROPERTY_FUNCTION;
+  fEditable := (aMetaObjectPropertyEntry.EDITABLE > 0) and (fPropertyFunction = pfNone) and fEditable;
+  if aMetaObjectPropertyEntry.ORDERING < fOrdering then
+    fOrdering := aMetaObjectPropertyEntry.ORDERING;
+end;
+
+function TUSObjectProp.ContainsSide(aSide: Integer): Boolean;
+begin
+  Result := fSidedProperties.ContainsKey(aSide);
+end;
+
+constructor TUSObjectProp.Create(
+  const aMetaObjectPropertyEntry: TMetaObjectPropertyEntry;
+  aPropertyTable: TUSObjectPropTable);
+begin
+  fSidedProperties := TDictionary<Integer, string>.Create;
+  fPropertyTable := aPropertyTable;
+  fEditable := True;
+  fOrdering := Integer.MaxValue;
+  AddFromObjectPropertyEntry(aMetaObjectPropertyEntry);
+end;
+
+destructor TUSObjectProp.Destroy;
+begin
+  FreeAndNil(fSidedProperties);
+  inherited;
+end;
+
+function TUSObjectProp.PropertyName(out aPropertyName: string; aSide: Integer=0): Boolean;
+begin
+  if fSidedProperties.ContainsKey(aSide) then
+  begin
+    aPropertyName := fSidedProperties[aSide];
+    Result := True;
+  end
+  else if fSidedProperties.ContainsKey(0) then
+  begin
+    aPropertyName := fSidedProperties[0];
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+{ TUSBuilderProp }
+
+function TUSBuilderProp.AddValue(const aValue: string;
+  const aDataType: TFieldType): Boolean;
+begin
+  fAddValueLock.BeginWrite;
+  try
+    LockedAddValue(aValue, aDataType);
+  finally
+    fAddValueLock.EndWrite;
+  end;
+end;
+
+function TUSBuilderProp.Category: string;
+begin
+  Result := fObjectProp.Category;
+end;
+
+constructor TUSBuilderProp.Create(aObjectProp: TUSObjectProp);
+begin
+  fObjectProp := aObjectProp;
+  fDataType := '';
+  fValue := '';
+end;
+
+function TUSBuilderProp.Description: string;
+begin
+  if Assigned(fObjectProp) then
+    Result := fObjectProp.Description
+  else
+    Result := ''; //TODO: should we throw error?
+end;
+
+destructor TUSBuilderProp.Destroy;
+begin
+  fObjectProp := nil;
+end;
+
+function TUSBuilderProp.Editable: Boolean;
+begin
+  Result := fObjectProp.Editable
+end;
+
+function TUSBuilderProp.getJSON: string;
+var
+  doubleValue: Double;
+  valueString: string;
+  editableString: string;
+begin
+  {
+    "name" : "Height",
+    "value" : 5 | "Marie" | false, 300.3
+    "type" : "list" | "string" | "int" | "float" | "bool",
+    "editable" : "Y" | "N",
+    "options" : [1, 3, 343, 5],
+    "forced" : "Y" | "N"
+  }
+  if value <> '' then
+  begin
+    try
+      doubleValue := StrToFloat(value);
+      valueString := doubleValue.ToString(dotFormat);
+    except
+      on E: Exception do
+      begin
+        valueString := value;
+      end;
+    end;
+  end
+  else
+    valueString := value;
+
+  if Editable then
+    editableString := 'true'
+  else
+    editableString := 'false';
+
+  Result :=
+    '"name":"'+description+'",'+
+    '"type":"'+dataType+'",'+
+    '"editable":"'+editableString+'",'+
+    '"value":"'+valueString + '",'+
+    '"ordering":"'+Ordering.ToString+'",'+
+    '"category":"'+Category+'"';
+end;
+
+function TUSBuilderProp.Ordering: Integer;
+begin
+  Result := fObjectProp.Ordering;
+end;
+
+function TUSBuilderProp.PropertyName(out aPropertyName: string; aSide: Integer=0): Boolean;
+begin
+  if Assigned(fObjectProp) then
+    Result := fObjectProp.PropertyName(aPropertyName, aSide)
+  else
+    Result := False;
+end;
+
+{ TUSBuilderTable }
+
+constructor TUSBuilderTable.Create(aObjectTable: TUSObjectPropTable);
+var
+  objectProp: TUSObjectProp;
+begin
+  fObjectTable := aObjectTable;
+  fNormProps := TObjectList<TUSBuilderProp>.Create(True);
+  fAggrProps := TObjectList<TUSBuilderProp>.Create(True);
+  for objectProp in aObjectTable.Properties.Values do
+  begin
+    case objectProp.PropertyFunction of
+      pfNone: fNormProps.Add(TUSBuilderPropNone.Create(objectProp));
+      pfAbs: ;
+      pfCeil: ;
+      pfFloor: ;
+      pfAvg: ;
+      pfCount: ;
+      pfMax: ;
+      pfMin: ;
+      pfSum: ;
+    end;
+  end;
+  fOpenNormProps := fNormProps.Count;
+  fOpenAggrProps := fAggrProps.Count;
+end;
+
+destructor TUSBuilderTable.Destroy;
+begin
+  FreeAndNil(fNormProps);
+  FreeAndNil(fAggrProps);
+end;
+
+function TUSBuilderTable.QueryAggrProps(aOraSession: TOraSession;
+  const aObjectIds: string; aSelectedObjects: TObjectDictionary<string, TUSSelectedObject>): Boolean;
+begin
+  Result := True;
+  //TODO: implement!
+end;
+
+function TUSBuilderTable.QueryDB(aOraSession: TOraSession;
+  const aObjectIds: string; aSelectedObjects: TObjectDictionary<string, TUSSelectedObject>): Boolean;
+var
+  normDone, aggrDone: Boolean;
+begin
+  normDone := (fOpenNormProps = 0);
+  if not normDone then
+    normDone := QueryNormProps(aOraSession, aObjectIds, aSelectedObjects);
+
+  aggrDone := (fOpenAggrProps = 0);
+  if not aggrDone then
+    aggrDone := QueryAggrProps(aOraSession, aObjectIds, aSelectedObjects);
+  Result := (normDone and aggrDone);
+end;
+
+function TUSBuilderTable.QueryNormProps(aOraSession: TOraSession;
+  const aObjectIds: string; aSelectedObjects: TObjectDictionary<string, TUSSelectedObject>): Boolean;
+var
+  queryString, propertiesString, tablePrefix, scenarioPrefix, propertyName: string;
+  selectedObject: TUSSelectedObject;
+  side: Integer;
+  normProperty: TUSBuilderProp;
+  query: TOraQuery;
+  field: TField;
+begin
+  Result := False;
+  propertiesString := '';
+  scenarioPrefix := (fObjectTable.PropertiesBase.BasicLayer.scenario as TUSScenario).Tableprefix;
+  if fObjectTable.JoinTableName <> '' then
+    tablePrefix := 't1'
+  else
+    tablePrefix := '';
+  for normProperty in fNormProps do
+  begin
+    if propertiesString<>'' then
+      propertiesString := propertiesString + ',';
+    propertiesString := propertiesString + normProperty.SQLProperties(tablePrefix);
+  end;
+  if fObjectTable.JoinTableName <> '' then
+    queryString := 'SELECT t2.OBJECT_ID as OBJECT_ID,'+propertiesString+'' +
+                    ' FROM ' + scenarioPrefix + fObjectTable.PropertiesBase.fBaseTableName + ' t2 join ' + scenarioPrefix + fObjectTable.JoinTableName + ' t1' +
+                    ' ON t2.' + fObjectTable.BaseID + '=t1.' + fObjectTable.JoinID +
+                    ' WHERE t2.OBJECT_ID IN (' + aObjectIds + ')'
+  else
+    queryString := 'SELECT OBJECT_ID, ' + propertiesString + ' FROM ' + scenarioPrefix + fObjectTable.PropertiesBase.BaseTableName +
+                    ' WHERE OBJECT_ID IN (' + aObjectIds + ')';
+
+  query := TOraQuery.Create(nil);
+  try
+    query.Session := aOraSession;
+    query.SQL.Text := queryString;
+    query.Open;
+    while not query.EoF do
+    begin
+      if aSelectedObjects.TryGetValue(query.FieldByName('OBJECT_ID').AsString, selectedObject) then
+      begin
+        for normProperty in fNormProps do
+          for side in selectedObject.Sides do
+            if (normProperty.PropertyName(propertyName, side)) then
+            begin
+              field := query.FieldByName(propertyName);
+              normProperty.AddValue(field.AsString, field.DataType);
+              if not normProperty.fObjectProp.ContainsSide(side) then //check if we went to the default side
+                break;
+            end;
+      end;
+      query.Next;
+    end;
+  finally
+    query.Free;
+  end;
+end;
+
+{ TUSBuilderPropNone }
+
+constructor TUSBuilderPropNone.Create(aObjectProp: TUSObjectProp);
+begin
+  fDistinctCount := 0;
+  inherited;
+end;
+
+destructor TUSBuilderPropNone.Destroy;
+begin
+  inherited;
+end;
+
+function TUSBuilderPropNone.LockedAddValue(const aValue: string;
+  const aDataType: TFieldType): Boolean;
+begin
+  Result := False;
+  if fDistinctCount = 0 then
+  begin
+    fValue := aValue;
+    case aDataType of
+      ftSmallint, ftInteger, ftLargeint, ftShortint, ftLongWord, ftWord: fDataType := 'int';
+      ftBoolean: fDataType := 'bool';
+      ftFloat, ftSingle: fDataType := 'float';
+    else
+      fDataType := 'string';
+    end;
+    fDistinctCount := fDistinctCount + 1;
+  end
+  else if fDistinctCount = 1 then
+  begin
+    if fValue <> aValue then
+    begin
+      fDistinctCount := fDistinctCount + 1;
+      fValue := '';
+      Result := True;
+    end;
+  end;
+end;
+
+function TUSBuilderPropNone.Open: Boolean;
+begin
+  Result := (fDistinctCount <= 1);
+end;
+
+function TUSBuilderPropNone.SQLProperties(aTableAlias: string): string;
+var
+  prefix: string;
+  propertyName: string;
+begin
+  if aTableAlias <> '' then
+    prefix := aTableAlias + '.'
+  else
+    prefix := '';
+  Result := '';
+  for propertyName in fObjectProp.SidedProperties.Values do
+  begin
+    if Result <> '' then
+      Result := Result + ',';
+    Result := Result + prefix + propertyName;
+  end;
+end;
+
+{ TUSSelectedObject }
+
+constructor TUSSelectedObject.Create(aObjectID: string; aSide: Integer);
+begin
+  fObjectID := aObjectID;
+  fSides := TList<Integer>.Create;
+  fSides.Add(aSide);
+end;
+
+destructor TUSSelectedObject.Destroy;
+begin
+
+  inherited;
+end;
+
+{ TUSPropBuilder }
+
+procedure TUSPropBuilder.BuildProperties(aOraSession: TOraSession;
+  aSelectedIds: TArray<string>);
+var
+  selectedObjects: TObjectDictionary<string, TUSSelectedObject>;
+  selectedIdsList: TList<string>;
+  idsString, objectID, parsedID: string;
+  count, side: Integer;
+  builderTable: TUSBuilderTable;
+begin
+  selectedObjects := TObjectDictionary<string, TUSSelectedObject>.Create([doOwnsValues]);
+  try
+    selectedIdsList := TList<string>.Create;
+    try
+      count := 0;
+
+      //parse and prepare our object ids
+      for objectID in aSelectedIds do
+      begin
+        if objectID.StartsWith('L-') then
+        begin
+          parsedID := objectID.Substring(2);
+          side := -1;
+        end
+        else if objectID.StartsWith('R-') then
+        begin
+          parsedID := objectID.Substring(2);
+          side := 1;
+        end
+        else
+        begin
+          parsedID := objectID;
+          side := 0;
+        end;
+        if selectedObjects.ContainsKey(parsedID) then
+          selectedObjects[parsedID].Sides.Add(side) //TODO: Build in checking if this side is already in the list?
+        else
+          selectedObjects.Add(parsedID, TUSSelectedObject.Create(parsedID, side));
+        if idsString <> '' then
+          idsString := idsString + ',';
+        idsString := idsString + parsedID;
+        count := count + 1;
+        if (count mod 999) = 0 then
+        begin
+          selectedIdsList.Add(idsString);
+          idsString := '';
+        end;
+      end;
+      if idsString <> '' then
+        selectedIdsList.Add(idsString);
+      //query the database TODO: TParallel.&For -> system is designed to work with this but TUSBuilderTable still needs concurrent handling around when a table is 'Done'
+      for builderTable in fBuilderTables do
+        for idsString in selectedIdsList do
+          builderTable.QueryDB(aOraSession, idsString, selectedObjects);
+    finally
+      FreeAndNil(selectedIdsList);
+    end;
+  finally
+    FreeAndNil(selectedObjects);
+  end;
+end;
+
+constructor TUSPropBuilder.Create(aObjectProperties: TUSObjectProperties);
+var
+  propertyTable: TUSObjectPropTable;
+begin
+  fObjectProperties := aObjectProperties;
+  fBuilderTables := TObjectList<TUSBuilderTable>.Create(True);
+  for propertyTable in fObjectProperties.Tables.Values do
+    fBuilderTables.Add(TUSBuilderTable.Create(propertyTable));
+end;
+
+destructor TUSPropBuilder.Destory;
+begin
+
+end;
+
+function TUSPropBuilder.GetJSON: string;
+var
+  builderTable: TUSBuilderTable;
+  builderProp: TUSBuilderProp;
+begin
+  Result := '';
+  for builderTable in fBuilderTables do
+  begin
+    for builderProp in builderTable.NormProps do
+    begin
+      if Result <> '' then
+        Result := Result + ',';
+      Result := Result + '{' + builderProp.getJSON + '}';
+    end;
+  end;
 end;
 
 end.

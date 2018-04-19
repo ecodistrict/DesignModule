@@ -74,6 +74,10 @@ function showSelectedObjectsProperties(container, aSelectedObjectsProperties) {
 
     objProps = aSelectedObjectsProperties;
 
+    objProps.properties.sort(function (a, b) {
+        return a.ordering - b.ordering;
+    });
+
     var title = container.appendChild(document.createElement('h2'));
     title.innerText = 'Selected object properties';
 
