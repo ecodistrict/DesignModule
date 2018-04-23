@@ -296,6 +296,7 @@ type
     fDistinctCount: Integer;
   private
     function LockedAddValue(const aValue: string; const aDataType: TFieldType): Boolean; override;
+  public
     function Open: Boolean; override;
     function SQLProperties(aTableAlias: string): string; override;
   end;
@@ -304,7 +305,7 @@ type
 
   TUSBuilderTable = class
   constructor Create(aObjectTable: TUSObjectPropTable);
-  destructor Destroy;
+  destructor Destroy; override;
   private
     fObjectTable : TUSObjectPropTable;
     fNormProps: TObjectList<TUSBuilderProp>;
@@ -3361,9 +3362,9 @@ var
   jsonStringValue, selectCategoriesString, selectedObjectsString: string;
   responseJSON, requestType, requestID: string;
   baseLayer: TLayerBase;
-  selectionLayer: TUSBasicLayer;
+  //selectionLayer: TUSBasicLayer;
   jsonSelectedCategories: TJSONArray;
-  jsonProperties: TJSONArray;
+  //jsonProperties: TJSONArray;
   //commitBuilder: TUSCommitPropertyBuilder;
   //changedCount: Integer;
 begin
@@ -5168,12 +5169,11 @@ end;
 
 { TUSBuilderProp }
 
-function TUSBuilderProp.AddValue(const aValue: string;
-  const aDataType: TFieldType): Boolean;
+function TUSBuilderProp.AddValue(const aValue: string; const aDataType: TFieldType): Boolean;
 begin
   fAddValueLock.BeginWrite;
   try
-    LockedAddValue(aValue, aDataType);
+    Result := LockedAddValue(aValue, aDataType);
   finally
     fAddValueLock.EndWrite;
   end;
