@@ -667,11 +667,6 @@ procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLa
 function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer; const aProjectID: string): Integer;
 function getUSScenarioFilter(aOraSession: TOraSession; const aProjectID: string): TStringArray;
 
-function Left(const s: string; n: Integer): string;
-function Right(const s: string; n: Integer): string;
-function StartsWith(const s, LeftStr: string): Boolean;
-procedure SplitAt(const s: string; i: Integer; var LeftStr, RightStr: string);
-
 function ReadMetaLayer(aSession: TOraSession; const aTablePrefix: string; aMetaLayer: TMetaLayer): Boolean;
 
 //function ConnectToUSProject(const aConnectString, aProjectID: string; out aMapView: TMapView): TOraSession;
@@ -688,39 +683,6 @@ begin
   setUSProjectID(dbConnection, aProjectID, aMapView.lat, aMapView.lon, aMapView.zoom); // store project id in database
   aMapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
   Result := dbConnection;
-end;
-
-function Left(const s: string; n: Integer): string;
-begin
-  if n > 0 then
-  begin
-    if n >= Length(s)
-    then Result := s
-    else Result := Copy(s, 1, n);
-  end
-  else Result := '';
-end;
-
-function Right(const s: string; n: Integer): string;
-begin
-  if n > 0 then
-  begin
-    if n >= Length(s)
-    then Result := s
-    else Result := Copy(s, Length(s) - n + 1, n);
-  end
-  else Result := '';
-end;
-
-function StartsWith(const s, LeftStr: string): Boolean;
-begin
-  Result := AnsiCompareText(Left(s, Length(LeftStr)), LeftStr) = 0;
-end;
-
-procedure SplitAt(const s: string; i: Integer; var LeftStr, RightStr: string);
-begin
-  LeftStr := Left(s, i - 1);
-  RightStr := Right(s, Length(s) - i);
 end;
 
 function CreatePaletteFromODB(const aDescription: string; const odbList: TODBList; aIsNoDataTransparent: Boolean): TWDPalette;
@@ -870,17 +832,21 @@ begin
   end;
 end;
 
-  function GetUSBasicLayerType(const aGeometryType: string): Integer;
-  begin
-    Result := 99;
-    if aGeometryType.ToLower = 'multipolygon' then
-      Result := 3
-    else if aGeometryType.ToLower = 'linestring' then
-      Result := 4
-    else if aGeometryType.ToLower = 'point' then
-      Result := 11;
-  end;
+function GetUSBasicLayerType(const aGeometryType: string): Integer;
+begin
+  Result := 99;
+  if aGeometryType.ToLower = 'multipolygon' then
+    Result := 3
+  else if aGeometryType.ToLower = 'linestring' then
+    Result := 4
+  else if aGeometryType.ToLower = 'point' then
+    Result := 11;
+end;
 
+function RemoveTablePrefix(const aTableName: string): string;
+begin
+  Result:= StartStripCnt(aTableName, Pos('#', aTableName));
+end;
 
 function TMetaLayerEntry.BaseTableNoPrefix: string;
 var
@@ -1708,9 +1674,9 @@ begin
   fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
   fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
   fUpdateThread := TThread.CreateAnonymousThread(UpdateQueuehandler);
+  fUpdateThread.NameThreadForDebugging(ElementID + ' queue handler');
   fUpdateThread.FreeOnTerminate := False;
   inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, aDiffRange, aBasicLayer);
-  fUpdateThread.NameThreadForDebugging(ElementID + ' queue handler');
   fUpdateThread.Start;
 
   setLength(fDataEvents, length(aDataEvent));
@@ -4188,7 +4154,7 @@ begin
       break;
   end;
 
-  inherited Create(aScenario, domain, aTableName + aPrefix, name, description, defaultLoad, 'bar');
+  inherited Create(aScenario, domain, RemoveTablePrefix(aTableName) + aPrefix, name, description, defaultLoad, 'bar');
 end;
 
 destructor TUSChart.Destroy;

@@ -207,8 +207,11 @@ var GraphManager = {
 
 
         var g = GraphManager._getGraph(graphObject.id);
-        if (g != null || graphObject.type == "spider")
+        if (g != null || graphObject.type == "spider") {
+            if (g != null && g.graph!=null && g.graph.ReInit)
+                g.graph.ReInit(graphObject);
             return;
+        }
 
         //var graphDiv = GraphManager.container.appendChild(document.createElement("div"));
         graphDiv = document.createElement("div");

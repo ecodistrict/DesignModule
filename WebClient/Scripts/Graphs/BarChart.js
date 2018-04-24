@@ -84,7 +84,7 @@
 //    //return chart;
 //}
 
-VerticalBarChart = function (graphObject) {
+VerticalBarChart = function (aGraphObject) {
     //graphObject.valueColors = {
     //    type: "discrete",
     //    entries: [{ min: 0, max: 20, color: "#FF0000" }, { min: 20, max: 50, color: "#FE642E" }, { min: 50, max: 70, color: "#F7FE2E" }, { min: 70, max: 100, color: "#00FF00" }],
@@ -94,25 +94,25 @@ VerticalBarChart = function (graphObject) {
     //    defaultColor: "#666666"
     //}
     //parameters
-    this.graphObject = graphObject;
+    this.graphObject = aGraphObject;
     this.visible = false;
-    graphObject.preview = {};
-    this.graphID = graphObject.id;
+    this.graphObject.preview = {};
+    this.graphID = this.graphObject.id;
     this.previewDiv = null;
     this.colors = {};
-    this.setColors = graphObject.colors ? graphObject.colors : {};
+    //this.refColors = {};
+    this.setColors = this.graphObject.colors ? this.graphObject.colors : {};
     this.seriesNames = [],
-    this.colorCounter = 0;
     this.dc20 = d3.scale.category20();
     this.labelDiv = null;
     this.labelVisible = true;
     this.converted = false;
     this.titleMargin = 30;
-    this.valueColors = graphObject.valueColors;
+    this.valueColors = this.graphObject.valueColors;
 
     //public functions
     this.Initialize = function (container) {
-        var graphObject = this.graphObject;
+        
 
         container.graph = this;
 
@@ -122,8 +122,8 @@ VerticalBarChart = function (graphObject) {
         container.style.height = this.graphObject.height + "px";
 
         var svg = this.svg = d3.select(container).append("svg")
-			.attr("width", graphObject.width)
-			.attr("height", graphObject.height);
+            .attr("width", this.graphObject.width)
+            .attr("height", this.graphObject.height);
         svg.className = "graph-svg";
 
         this.graphGroup = svg.append("g")
@@ -132,7 +132,7 @@ VerticalBarChart = function (graphObject) {
 
         this.dataGroup = this.graphGroup.append("g")
             .attr("class", "graph-data-g")
-            .attr("transform", "translate(" + graphObject.yAxisMargin + ", 0)");
+            .attr("transform", "translate(" + this.graphObject.yAxisMargin + ", 0)");
 
         this.xAxisGroup = this.graphGroup.append("g")
 			.attr("class", "axis xAxis");
@@ -142,7 +142,7 @@ VerticalBarChart = function (graphObject) {
 
         if (typeof this.graphObject.title !== "undefined") {
             this.titleStroke = svg.append("text")
-				.attr("x", (graphObject.width / 2))
+                .attr("x", (this.graphObject.width / 2))
 				.attr("y", 20)
 				.attr("dy", 3)
 				.attr("text-anchor", "middle")
@@ -151,20 +151,20 @@ VerticalBarChart = function (graphObject) {
 				.style("font-size", "16px")
 				.style("stroke", "rgba(255, 255, 255, 0.6)")
 				.style("stroke-width", "3px")
-				.text(graphObject.title)
-                .call(this._wrapTitleLetters, graphObject.width - this.titleMargin);
+                .text(this.graphObject.title)
+                .call(this._wrapTitleLetters, this.graphObject.width - this.titleMargin);
                 
 
             this.titleText = svg.append("text")
-				.attr("x", (graphObject.width / 2))
+                .attr("x", (this.graphObject.width / 2))
 				.attr("y", 20)
 				.attr("dy", 3)
 				.attr("text-anchor", "middle")
 				.attr("pointer-events", "none")
 				.attr("class", "graph-title-text")
 				.style("font-size", "16px")
-				.text(graphObject.title)
-                .call(this._wrapTitleLetters, graphObject.width - this.titleMargin);
+                .text(this.graphObject.title)
+                .call(this._wrapTitleLetters, this.graphObject.width - this.titleMargin);
         }
 
         var labelDiv = this.labelDiv = container.appendChild(document.createElement("div"));
@@ -174,14 +174,22 @@ VerticalBarChart = function (graphObject) {
 
         this._updateLabels();
 
-        this.Update(this.graphObject.data);
+        if (this.converted) {
+            this.graphObject.data = this._convertOldData(this.graphObject.data);
+            if (this.graphObject.ref)
+                this.graphObject.ref.data = this._convertOldData(this.graphObject.ref.data);
+        }
+
+        // check if ref data should be converted
+        
+        this.Update();
 
         container.style.visibility = "hidden";
     };
 
     this.Reset = function () {
         this.graphObject.data = [];
-        this.Update([]);
+        this.Update();
     };
 
     this.GetPreview = function (container) {
@@ -225,23 +233,54 @@ VerticalBarChart = function (graphObject) {
         return previewDiv;
     };
 
-    this.Update = function (data) {
-        if (typeof data == "undefined")
-        {
-            data = this.graphObject.data;
+    this.ReInit = function (aGraphObject) {
+        // re-do init stuff
+        this.graphObject = aGraphObject;
+        if (this.graphObject.axis)
+            this._convertFromOldBar();
+        // check if ref data should be converted
+        if (this.converted) {
+            this.graphObject.data = this._convertOldData(this.graphObject.data);
+            if (this.graphObject.ref)
+                this.graphObject.ref.data = this._convertOldData(this.graphObject.ref.data);
         }
-        else if (this.converted)
-        {
-            data = this._convertOldData(data);
+        this.Update();
+    };
+
+    this.Update = function (data) {
+        if (typeof data != "undefined") {
+            // new data, check if needs to be converted
+            if (this.converted) 
+                data = this._convertOldData(data);
+            // store new (converted) data
+            this.graphObject.data = data;
         }
 
-        var graphObject = this.graphObject;
-        graphObject.data = data;
+        // use existing data but create deep copy
+        data = JSON.parse(JSON.stringify(this.graphObject.data)); 
+
+        if (this.graphObject.ref && this.graphObject.ref.data) {
+            rdata = this.graphObject.ref.data;
+            // merge this.refData into data
+            for (var d1 = 0; d1 < data.length; d1++) {
+                for (var r1 = 0; r1 < rdata.length; r1++) {
+                    if (rdata[r1].title === data[d1].title) {
+                        for (var r2 = rdata[r1].data.length - 1; r2 >= 0; r2--) {
+                            var rdata_copy = JSON.parse(JSON.stringify(rdata[r1].data[r2]));
+                            data[d1].data.splice(r2 + 1, 0, rdata_copy); // insert at position after current data ie zip sets together
+                            for (var _d3 = 0; _d3 < data[d1].data[r2 + 1].data.length; _d3++)
+                                data[d1].data[r2 + 1].data[_d3].series += "-ref";
+                        }
+                        break;
+                    }
+                }
+            }
+        }
 
         var categoryWidth = this.categoryWidth = data.length > 0 ? this._getCategoryWidth(data[0].data) : 0; //every category needs to be the same width
-        var barWidth = this.barWidth = 1 + graphObject.barMargin;
-        var categoryMargin = this.categoryMargin = graphObject.categoryMargin;
-        var barMargin = this.barMargin = graphObject.barMargin;
+        var barWidth = this.barWidth = 1 + this.graphObject.barMargin;
+        var categoryMargin = this.categoryMargin = this.graphObject.categoryMargin;
+        var barMargin = this.barMargin = this.graphObject.barMargin;
 
         var axisCount = this.axisCount = this._getXAxisAmount(data); //rewrite to use series?
 
@@ -251,8 +290,8 @@ VerticalBarChart = function (graphObject) {
         var graphWidth = divWidth - (GraphManager.defaultValues.graphPadding.left + GraphManager.defaultValues.graphPadding.right);
         var graphHeight = divHeight - (GraphManager.defaultValues.graphPadding.top + GraphManager.defaultValues.graphPadding.bottom);
 
-        var dataWidth = graphWidth - (axisCount * graphObject.yAxisMargin);
-        var dataHeight = graphHeight - graphObject.xAxisMargin;
+        var dataWidth = graphWidth - (axisCount * this.graphObject.yAxisMargin);
+        var dataHeight = graphHeight - this.graphObject.xAxisMargin;
 
         var maxY = this.maxY = this._getMaxY(data);
         var minY = this.minY = this._getMinY(data);
@@ -302,17 +341,17 @@ VerticalBarChart = function (graphObject) {
         var yLeftAxis = d3.svg.axis().scale(yScale).orient("left").ticks(5);
 
         this.yLeftAxisGroup
-			.attr("width", graphObject.yAxisMargin)
+            .attr("width", this.graphObject.yAxisMargin)
 			.attr("height", dataHeight)
-			.attr("transform", "translate(" + graphObject.yAxisMargin + ", 0)");
+            .attr("transform", "translate(" + this.graphObject.yAxisMargin + ", 0)");
 
         this.yLeftAxisGroup.call(yLeftAxis);
 
         //generate and position x-axis
         this.xAxisGroup
 			.attr("width", dataWidth)
-			.attr("height", graphObject.xAxisMargin)
-			.attr("transform", "translate(" + graphObject.yAxisMargin + "," + dataHeight + ")");
+            .attr("height", this.graphObject.xAxisMargin)
+            .attr("transform", "translate(" + this.graphObject.yAxisMargin + "," + dataHeight + ")");
 
         var label = this.xAxisGroup.selectAll("text")
 			.data(data)
@@ -393,7 +432,7 @@ VerticalBarChart = function (graphObject) {
 			.attr("fill", function (d) { return getColor(d.series, d.start + d.value); });
 
         this.labelDiv.style.left = (divWidth + 5) + "px";
-        if ((this._seriesCount(data) > 1 || typeof this.valueColors != "undefined") && this.labelVisible)
+        if ((this.seriesNames.length > 1 || typeof this.valueColors != "undefined") && this.labelVisible)
             this.labelDiv.style.visibility = "inherit";
         else
             this.labelDiv.style.visibility = "hidden";
@@ -516,13 +555,13 @@ VerticalBarChart = function (graphObject) {
     this._getMinY = function (data) {
         return d3.min(data, function (d) { return d3.min(d.data, function (d) { return d3.min(d.data, function (d) { return Math.min(d.start + d.value, d.start); }); }); });
     }
-
+    /*
     this._seriesCount = function (data) {
         if (data.length == 0)
             return 0;
         return d3.max(data, function (d) { return d.data.length == 0 ? 0 : d3.sum(d.data, function (d) { return d.data.length; }); });
     }
-
+    */
     this._getXAxisAmount = function (data) {
         for (var i = 0; i < data.length; i++)
             for (var j = 0; j < data[i].data.length; j++)
@@ -536,13 +575,12 @@ VerticalBarChart = function (graphObject) {
             if (typeof this.setColors[series] != "undefined")
             {
                 this.colors[series] = this.setColors[series];
+                this.colors[series+"-ref"] = chroma(this.setColors[series]).brighten(2).desaturate(0.5).hex(); // calculate lighter version of color
             }
             else
             {
-                this.colors[series] = this.dc20(this.colorCounter);
-                this.colorCounter++;
-                if (this.colorCounter >= 20)
-                    console.log("more then 20 unique colors asked, using duplicate colors");
+                this.colors[series] = this.dc20(series);
+                this.colors[series+"-ref"] = this.dc20(series+"-ref");
             }
             this.seriesNames.push(series);
             this._updateLabels();
@@ -669,6 +707,8 @@ VerticalBarChart = function (graphObject) {
             var table = this.labelDiv.appendChild(document.createElement("table"));
             table.className = "bar-label-table";
             for (var i = 0; i < this.seriesNames.length; i++) {
+                var name = this.seriesNames[i];
+                //if (name.substr(name.length - 4)!=="-ref") {
                 var row = table.appendChild(document.createElement("tr"));
                 row.className = "bar-label-row";
 
@@ -679,6 +719,7 @@ VerticalBarChart = function (graphObject) {
                 var textField = row.appendChild(document.createElement("td"));
                 textField.className = "bar-label-text-td";
                 textField.innerHTML = this.seriesNames[i];
+                //}
             }
         }
         else
@@ -791,16 +832,16 @@ VerticalBarChart = function (graphObject) {
         });
     }
 
-    this._convertFromOldBar = function (graphObject)
+    this._convertFromOldBar = function ()
     {
         //barMargin: 0.15,
         //            categoryMargin: 1,
         //            xAxisMargin: 30,
         //            yAxisMargin: 30,
-        graphObject.barMargin = 0.15;
-        graphObject.categoryMargin = 1;
-        graphObject.xAxisMargin = 30;
-        graphObject.yAxisMargin = 30;
+        this.graphObject.barMargin = 0.15;
+        this.graphObject.categoryMargin = 1;
+        this.graphObject.xAxisMargin = 30;
+        this.graphObject.yAxisMargin = 30;
 
         this.converted = true;
     }
@@ -872,6 +913,6 @@ VerticalBarChart = function (graphObject) {
 
     }
 
-    if (graphObject.axis)
-        this._convertFromOldBar(graphObject);
+    if (this.graphObject.axis)
+        this._convertFromOldBar();
 };
