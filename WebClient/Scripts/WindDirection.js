@@ -29,6 +29,10 @@ L.Control.Arrow = L.Control.extend({
     active: false,
     currentData: { speed: 0, direction: 0 },
 
+    arrowImageRotationCompensation: 180,
+    arrowImagePath: "Content/images/arrow_wind.png",
+    arrowImageManualPath: "Content/images/arrow_wind_manual.png",
+
     options: {
         collapsed: false,
         position: 'topleft',
@@ -86,7 +90,8 @@ L.Control.Arrow = L.Control.extend({
                     this._moving = true;
                 }
                 else {
-                    
+                    // ..
+
                 }
             }
             else {
