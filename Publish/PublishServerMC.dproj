@@ -102,6 +102,8 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Debugger_RunParams>/ControllerName=Test</Debugger_RunParams>
         <DCC_Define>CommandQueueLogging;$(DCC_Define)</DCC_Define>
+        <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+        <DCC_RangeChecking>true</DCC_RangeChecking>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>

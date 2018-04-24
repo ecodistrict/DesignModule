@@ -1076,7 +1076,7 @@ begin
                     begin
                       if objectsGeoJSON<>''
                       then objectsGeoJSON := objectsGeoJSON+',';
-                      objectsGeoJSON := objectsGeoJSON+layerObject.JSON2D[(layer as TLayer).geometryType, ''];
+                      objectsGeoJSON := objectsGeoJSON+layerObject.JSON2D[0, (layer as TLayer).geometryType, ''];
                     end;
                     query.Next();
                   end;
@@ -1311,7 +1311,7 @@ begin
               else catList.AddOrSetValue(l.ID, 1);
               if objectsGeoJSON<>''
               then objectsGeoJSON := objectsGeoJSON+',';
-              objectsGeoJSON := objectsGeoJSON+lo.JSON2D[(l as TLayer).geometryType, ''];
+              objectsGeoJSON := objectsGeoJSON+lo.JSON2D[0, (l as TLayer).geometryType, ''];
               totalObjectCount := totalObjectCount+1;
             end;
           end;

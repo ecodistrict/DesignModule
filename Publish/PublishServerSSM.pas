@@ -110,8 +110,8 @@ type
     // cache
     latlon: TGIS_Point;
   public
-    function getJSON2D(const aType, aExtraJSON2DAttributes: string): string; override;
-    function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double; override;
+    function getJSON2D(const aSide: Integer; const aType, aExtraJSON2DAttributes: string): string; override;
+    function distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double; out aSide: Integer): Double; override;
     function intersects(aGeometry: TWDGeometry): Boolean; override;
   public
     // imb 3 decoding
@@ -423,12 +423,13 @@ begin
   aPayload.Read(odometer);
 end;
 
-function TSSMCar.distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double): Double;
+function TSSMCar.distance(const aDistanceLatLon: TDistanceLatLon; aX, aY: Double; out aSide: Integer): Double;
 begin
+  aSide := 0;
   Result := Infinite; // todo:
 end;
 
-function TSSMCar.getJSON2D(const aType, aExtraJSON2DAttributes: string): string;
+function TSSMCar.getJSON2D(const aSide: Integer; const aType, aExtraJSON2DAttributes: string): string;
 begin
   Result := ''; // todo:
 end;
