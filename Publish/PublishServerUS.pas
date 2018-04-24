@@ -3161,6 +3161,46 @@ begin
     else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   end;
   fPreLoadScenarios := aPreLoadScenarios;
+
+  ClientMessageHandlers.Add('measure',
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    begin
+
+    end);
+    (*
+    var
+      formID: string;
+    formTitle: string;
+    _formElements: string;
+    _openformdialog: string;
+    begin
+      // show form to edit bus parameters
+      // ID for callback event
+      formID := 'DefaultBus';
+      // Title of form
+      formTitle := 'Edit default bus parameters';
+      // Create form elements
+      _formElements :=
+        openFormElement_input('BatteryCapacity', 'Battery capacity (0 - 600 kWh)', 'float', fBatteryCapacity.ToString(dotFormat))+','+
+        openFormElement_input('AverageEnergyConsumption', 'Average energy consumption (1.0 - 2.0 kWh/km)', 'float', fAverageEnergyConsumption.ToString(dotFormat))+','+
+        openFormElement_input('DriverEfficiency', 'Driver efficiency (90 - 125)', 'float', fDriverEfficiency.ToString(dotFormat))+','+
+        openFormElement_input('PowerConsumptionHVAC', 'Power consumption HVAC (0 - 20 kW)', 'float', fPowerConsumptionHVAC.ToString(dotFormat));
+
+      _openformdialog :=
+        '{'+
+          '"type" : "openformdialog",'+
+          '"payload" : {'+
+            '"id" : "'+formID+'",'+
+            '"title" : "'+formTitle+'",'+
+            '"data" : ['+_formElements+']'+
+          '}'+
+        '}';
+
+      // Push json to client
+      aClient.signalString(_openformdialog);
+    end);
+    *)
+
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName,
     aTilerFQDN, aTilerStatusURL, aDataSource,
     aDBConnection, aAddBasicLayers,
