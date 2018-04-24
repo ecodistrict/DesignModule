@@ -153,7 +153,7 @@ type
   end;
 
   //pfCount if used as point where the aggregated functions start. Dus aggregated >= pfCount
-  TPropertyFunction = (pfNone, pfAbs, pfCeil, pfFloor, pfAvg, pfCount, pfMax, pfMin, pfSum);
+  TPropertyFunction = (pfNone, pfAbs, pfCeil, pfFloor, pfCount, pfAvg, pfMax, pfMin, pfSum);
 
   TMetaObjectPropertyEntry = record
     OBJECT_ID: Integer;
@@ -190,6 +190,7 @@ type
     property BasicLayer: TUSBasicLayer read fBasicLayer;
     property BaseTableName: string read fBaseTableName;
     property Tables: TObjectDictionary<string, TUSObjectPropTable> read fTables;
+    function TryGetPropertyTable(const aPropertyName: string; out aObjectPropTable: TUSObjectPropTable): Boolean;
   end;
 
   TUSObjectPropTable = class
@@ -210,6 +211,7 @@ type
     property JoinID: string read fJoinID;
     property Properties: TObjectDictionary<string, TUSObjectProp> read fProperties;
     property PropertiesBase: TUSObjectProperties read fPropertiesBase;
+    function ContainsProperty(const aPropertyName: string): Boolean;
   end;
 
   TUSObjectProp = class
@@ -273,12 +275,13 @@ type
     fValue: string;
     fAddValueLock: TOmniMREW; //locks value changes during db access
   private
-    function LockedAddValue(const aValue: string; const aDataType: TFieldType): Boolean; virtual; abstract;
+    function LockedAddValue(const aValue: string; const aDataType: TFieldType; const aCount: Integer): Boolean; virtual; abstract;
   public
-    function AddValue(const aValue: string; const aDataType: TFieldType): Boolean; //returns true if done
+    function AddValue(const aValue: string; const aDataType: TFieldType; const aCount: Integer=0): Boolean; //returns true if done
     function getJSON: string; virtual;
     function Open: Boolean; virtual; abstract;
     function SQLProperties(aTableAlias: string): string; virtual; abstract;
+    function SidedSQLProperty(const aTableAlias: string; const aSide: Integer): string; virtual; abstract;
   public
     function Description: string;
     function Editable: Boolean;
@@ -295,8 +298,20 @@ type
   private
     fDistinctCount: Integer;
   private
-    function LockedAddValue(const aValue: string; const aDataType: TFieldType): Boolean; override;
+    function LockedAddValue(const aValue: string; const aDataType: TFieldType; const aCount: Integer): Boolean; override;
   public
+    function Open: Boolean; override;
+    function SQLProperties(aTableAlias: string): string; override;
+    function SidedSQLProperty(const aTableAlias: string; const aSide: Integer): string; override;
+  end;
+
+  TUSBuilderPropSum = class (TUSBuilderProp)
+  constructor Create(aObjectProp: TUSObjectProp);
+  destructor Destroy; override;
+  private
+    fCount: Integer;
+  private
+    function LockedAddValue(const aValue: string; const aDataType: TFieldType; const aCount: Integer): Boolean; override;
     function Open: Boolean; override;
     function SQLProperties(aTableAlias: string): string; override;
   end;
@@ -330,6 +345,43 @@ type
   public
     procedure BuildProperties(aOraSession: TOraSession; aSelectedIds: TArray<string>);
     function GetJSON: string;
+  end;
+
+  TUSCommitProp = class
+  constructor Create(aObjectProp: TUSObjectProp);
+  destructor Destroy; override;
+  private
+    fObjectProp: TUSObjectProp;
+    fStringValue, fDataType: string;
+    fValue: Variant;
+  public
+    property StringValue: string read fStringValue;
+    property DataType: string read fDataType;
+    property Value: Variant read fValue;
+    property ObjectProp: TUSObjectProp read fObjectProp;
+    function AddValue(aValue, aDataType: string): Boolean;
+  end;
+
+  TUSCommitTable = class
+  constructor Create(aObjectTable: TUSObjectPropTable);
+  destructor Destroy; override;
+  private
+    fObjectTable: TUSObjectPropTable;
+    fCommitProperties: TObjectDictionary<string, TUSCommitProp>;
+  public
+    function AddCommitProperty(aJSONProperty: TJSONValue): Boolean; //checks if the property is valid and editable, adds and returns true if so
+    function CommitChangesToDB(aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedIds: TObjectDictionary<Integer, TList<string>>): Boolean;
+  end;
+
+  TUSCommitBuilder = class
+  constructor Create(aObjectProperties: TUSObjectProperties; aJSONProperties: TJSONArray);
+  destructor Destroy; override;
+  private
+    fCommitTables: TObjectDictionary<string, TUSCommitTable>;
+    fObjectProperties: TUSObjectProperties;
+  public
+    function CommitChangesToDB(aOraSession: TOraSession; aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray; out aChangedCount: Integer): Boolean;
+    property ObjectProperties: TUSObjectProperties read fObjectProperties;
   end;
 
   TUSCommitProperty = class
@@ -2918,10 +2970,7 @@ begin
         begin
           if ids <> '' then
             ids := ids + ',';
-          if (Length(id) > 1) and (id[2] = '-') then
-            ids := ids + id.Substring(2)
-          else
-            ids := ids + id;
+          ids := ids + '"' +id + '"';
         end;
         Result := '{"selectedObjectsProperties":'+
               '{'+
@@ -3368,11 +3417,11 @@ var
   jsonStringValue, selectCategoriesString, selectedObjectsString: string;
   responseJSON, requestType, requestID: string;
   baseLayer: TLayerBase;
-  //selectionLayer: TUSBasicLayer;
+  selectionLayer: TUSBasicLayer;
   jsonSelectedCategories: TJSONArray;
-  //jsonProperties: TJSONArray;
-  //commitBuilder: TUSCommitPropertyBuilder;
-  //changedCount: Integer;
+  jsonProperties: TJSONArray;
+  commitBuilder: TUSCommitBuilder;
+  changedCount: Integer;
 begin
   inherited;
   if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
@@ -3436,9 +3485,14 @@ begin
       and aScenario.Layers.TryGetValue(jsonSelectedCategories.Items[0].Value, baseLayer)
       and (baseLayer is TUSBasicLayer) then
     begin
-      //selectionLayer := (baseLayer as TUSBasicLayer);
-      //jsonProperties := jsonValue.GetValue<TJSONArray>('properties');
-//      commitBuilder := TUSCommitPropertyBuilder.Create(selectionLayer.BasicTableName, selectionLayer.SelectProperties);
+      selectionLayer := (baseLayer as TUSBasicLayer);
+      jsonProperties := jsonValue.GetValue<TJSONArray>('properties');
+      commitBuilder := TUSCommitBuilder.Create(selectionLayer.ObjectProperties, jsonProperties);
+      if commitBuilder.CommitChangesToDB(OraSession, IMB3Connection, selectedObjects, changedCount) then
+        aClient.SendMessage('Succesfully handled changes. Objects selected: ' + changedCount.toString, mtSucces, 10000)
+      else
+        aClient.SendMessage('Error applying changes to objects.', mtError);
+
 //      commitBuilder.ParseJSONProperties(jsonProperties);
 //      if commitBuilder.CommitChangesToDB(selectionLayer, OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
 //        aClient.SendMessage('Succesfully applied changes. Objects changed: ' + changedCount.toString, mtSucces, 10000)
@@ -3962,8 +4016,6 @@ begin
              'SCENARIO_FILTER VARCHAR(100 BYTE))');
       aOraSession.Commit;
     end;
-
-
   end;
 end;
 
@@ -4943,10 +4995,15 @@ begin
       and jsonProperty.TryGetValue<TJSONValue>('type', jsonType) then
     begin
       commitProperty := TUSCommitProperty.Create(selectProperty);
-      if (commitProperty.AddValue(jsonValue.Value, jsonType.Value)) then
-        fChangedProperties.Add(selectProperty.SelectProperty, commitProperty) //hand over ownership
-      else
+      try
+        if (commitProperty.AddValue(jsonValue.Value, jsonType.Value)) then
+        begin
+          fChangedProperties.Add(selectProperty.SelectProperty, commitProperty); //hand over ownership
+          commitProperty := nil;
+        end;
+      finally
         FreeAndNil(commitProperty); //destroy if ownership hasn't passed
+      end;
     end;
 end;
 
@@ -5090,6 +5147,21 @@ begin
   inherited;
 end;
 
+function TUSObjectProperties.TryGetPropertyTable(const aPropertyName: string;
+  out aObjectPropTable: TUSObjectPropTable): Boolean;
+var
+  objectPropTable: TUSObjectPropTable;
+begin
+  Result := False;
+  for objectPropTable in fTables.Values do
+    if objectPropTable.ContainsProperty(aPropertyName) then
+    begin
+      Result := True;
+      aObjectPropTable := objectPropTable;
+      exit(True);
+    end;
+end;
+
 { TUSObjectPropTabel }
 
 procedure TUSObjectPropTable.AddFromObjectPropertyEntry(
@@ -5100,6 +5172,12 @@ begin
     fProperties[aMetaObjectPropertyEntry.PROPERTY_DESCRIPTION].AddFromObjectPropertyEntry(aMetaObjectPropertyEntry)
   else
     fProperties.Add(aMetaObjectPropertyEntry.PROPERTY_DESCRIPTION, TUSObjectProp.Create(aMetaObjectPropertyEntry, Self));
+end;
+
+function TUSObjectPropTable.ContainsProperty(
+  const aPropertyName: string): Boolean;
+begin
+  Result := fProperties.ContainsKey(aPropertyName);
 end;
 
 constructor TUSObjectPropTable.Create(
@@ -5175,11 +5253,12 @@ end;
 
 { TUSBuilderProp }
 
-function TUSBuilderProp.AddValue(const aValue: string; const aDataType: TFieldType): Boolean;
+function TUSBuilderProp.AddValue(const aValue: string;
+  const aDataType: TFieldType; const aCount: Integer=0): Boolean;
 begin
   fAddValueLock.BeginWrite;
   try
-    Result := LockedAddValue(aValue, aDataType);
+    Result := LockedAddValue(aValue, aDataType, aCount);
   finally
     fAddValueLock.EndWrite;
   end;
@@ -5398,7 +5477,7 @@ begin
 end;
 
 function TUSBuilderPropNone.LockedAddValue(const aValue: string;
-  const aDataType: TFieldType): Boolean;
+  const aDataType: TFieldType; const aCount: Integer): Boolean;
 begin
   Result := False;
   if fDistinctCount = 0 then
@@ -5427,6 +5506,19 @@ end;
 function TUSBuilderPropNone.Open: Boolean;
 begin
   Result := (fDistinctCount <= 1);
+end;
+
+function TUSBuilderPropNone.SidedSQLProperty(const aTableAlias: string; const aSide: Integer): string;
+var
+  prefix, propertyName: string;
+begin
+  if aTableAlias <> '' then
+    prefix := aTableAlias + '.'
+  else
+    prefix := '';
+  Result := '';
+  if fObjectProp.PropertyName(propertyName, aSide) then
+    Result := propertyName;
 end;
 
 function TUSBuilderPropNone.SQLProperties(aTableAlias: string): string;
@@ -5555,6 +5647,311 @@ begin
       Result := Result + '{' + builderProp.getJSON + '}';
     end;
   end;
+end;
+
+{ TUSCommitBuilder }
+
+function TUSCommitBuilder.CommitChangesToDB(aOraSession: TOraSession;
+  aUSIMBConnection: TIMBConnection; aSelectedObjects: TJSONArray;
+  out aChangedCount: Integer): Boolean;
+var
+  sidedIDs: TObjectDictionary<Integer, TList<string>>;
+  uniqueIDs: TDictionary<string, string>;
+  jsonID: TJSONValue;
+  side, objectId: Integer;
+  idString: string;
+  commitTable: TUSCommitTable;
+begin
+  Result := True;
+  sidedIds := TObjectDictionary<Integer, TList<string>>.Create([doOwnsValues]);
+  try
+    uniqueIds := TDictionary<string, string>.Create;
+    try
+      for jsonID in aSelectedObjects do
+      begin
+        idString := jsonID.Value;
+        if idString[2] = '-' then
+        begin
+          if idString[1] = 'R' then
+            side := 1
+          else if idString[1] = 'L' then
+            side := -1
+          else
+            side := 0;
+          idString := idString.Substring(2);
+        end
+        else
+          side := 0;
+        if  TryStrToInt(idString, objectId) and ObjectProperties.BasicLayer.Objects.ContainsKey(AnsiString(objectID.ToString)) then
+        begin
+          if not sidedIds.ContainsKey(side) then
+            sidedIds.Add(side, TList<string>.Create);
+          sidedIds[side].Add(idString);
+          uniqueIds.AddOrSetValue(idString, idString);
+        end;
+      end;
+      aChangedCount := uniqueIds.Count;
+      for commitTable in fCommitTables.Values do
+        Result := Result and commitTable.CommitChangesToDB(aOraSession, aUSIMBConnection, sidedIds);
+    finally
+      FreeAndNil(uniqueIds);
+    end;
+  finally
+    FreeAndNil(sidedIds);
+  end;
+end;
+
+constructor TUSCommitBuilder.Create(aObjectProperties: TUSObjectProperties;
+  aJSONProperties: TJSONArray);
+var
+  objectPropTable: TUSObjectPropTable;
+  jsonProperty, jsonType, jsonValue, jsonName: TJSONValue;
+  commitTable: TUSCommitTable;
+begin
+  fObjectProperties := aObjectProperties;
+  fCommitTables := TObjectDictionary<string, TUSCommitTable>.Create([doOwnsValues]);
+  for jsonProperty in aJSONProperties do
+    if jsonProperty.TryGetValue<TJSONValue>('name', jsonName) then
+      if aObjectProperties.TryGetPropertyTable(jsonName.Value, objectPropTable) then
+      begin
+        if fCommitTables.ContainsKey(objectPropTable.JoinTableName) then
+          fCommitTables[objectPropTable.JoinTableName].AddCommitProperty(jsonProperty)
+        else
+        begin
+          commitTable := TUSCommitTable.Create(objectPropTable);
+          try
+            if commitTable.AddCommitProperty(jsonProperty) then
+            begin
+              fCommitTables.Add(objectPropTable.JoinTableName, commitTable);
+              commitTable := nil;
+            end;
+          finally
+            FreeAndNil(commitTable);
+          end;
+        end;
+      end;
+end;
+
+destructor TUSCommitBuilder.Destroy;
+begin
+  FreeAndNil(fCommitTables);
+end;
+
+{ TUSCommitTable }
+
+function TUSCommitTable.AddCommitProperty(aJSONProperty: TJSONValue): Boolean;
+var
+  jsonName, jsonType, jsonValue: TJSONValue;
+  objectProp: TUSObjectProp;
+  commitProp: TUSCommitProp;
+begin
+  Result := False;
+  if aJsonProperty.TryGetValue<TJSONValue>('name', jsonName)
+    and aJsonProperty.TryGetValue<TJSONValue>('value', jsonValue)
+    and aJsonProperty.TryGetValue<TJSONValue>('type', jsonType) then
+  begin
+    if not fCommitProperties.ContainsKey(jsonName.Value)
+      and fObjectTable.Properties.TryGetValue(jsonName.Value, objectProp)
+      and objectProp.Editable then
+    begin
+      commitProp := TUSCommitProp.Create(Objectprop);
+      if commitProp.AddValue(jsonValue.Value, jsonType.Value) then
+      begin
+        Result := True;
+        fCommitProperties.Add(jsonName.Value, commitProp);
+      end
+      else
+        FreeAndNil(commitProp);
+    end;
+  end;
+end;
+
+function TUSCommitTable.CommitChangesToDB(aOraSession: TOraSession;
+  aUSIMBConnection: TIMBConnection;
+  aSelectedIds: TObjectDictionary<Integer, TList<string>>): Boolean;
+var
+  publishEvent: TIMBEventEntry;
+  side, counter, objectID: Integer;
+  baseQuery, queryString, scenarioPrefix, closure, id, idsString, tableName, scenarioName: string;
+  valueArray: array of Variant;
+  properties, prop: string;
+  basicLayer: TUSBasicLayer;
+  commitProperty: TUSCommitProp;
+  propertyName: string;
+  adjustedProperties, queryIdLists: TList<string>;
+begin
+  Result := True;
+  basicLayer := fObjectTable.PropertiesBase.BasicLayer;
+  scenarioPrefix := (basicLayer.scenario as TUSScenario).Tableprefix;
+  if fObjectTable.JoinTableName <> '' then
+    tableName := fObjectTable.JoinTableName
+  else
+    tableName := fObjectTable.PropertiesBase.BaseTableName;
+  scenarioName := basicLayer.scenario.name;
+
+  adjustedProperties := TList<string>.Create;
+  try
+    publishEvent := aUSIMBConnection.Publish(aOraSession.Username + '#' + scenarioName + '.' + tableName, false);
+    try
+      for side in aSelectedIds.Keys do
+      begin
+        properties := '';
+        SetLength(valueArray, 0);
+        adjustedProperties.Clear;
+        for commitProperty in fCommitProperties.Values do
+          if commitProperty.ObjectProp.PropertyName(propertyName, side) then
+          begin
+            if properties <> '' then
+              properties := properties + ',';
+            properties := properties + propertyName + '=:' + propertyName;
+            adjustedProperties.Add(propertyName);
+            SetLength(valueArray, Length(valueArray) + 1);
+            valueArray[Length(valueArray) - 1] := commitProperty.Value;
+          end;
+        if properties <> '' then
+        begin
+          if fObjectTable.JoinTableName <> '' then
+          begin
+            baseQuery := 'UPDATE ' + scenarioPrefix + fObjectTable.JoinTableName +
+                            ' SET ' + properties +
+                            ' WHERE ' + fObjectTable.JoinID + ' IN (';
+            if fObjectTable.BaseID <> 'OBJECT_ID' then
+            begin
+              baseQuery := baseQuery + 'SELECT t1.' + fObjectTable.JoinID + ' from' +
+                            ' ' + scenarioPrefix + fObjectTable.JoinTableName + ' t1' +
+                            ' join' +
+                            ' ' + scenarioPrefix + fObjectTable.PropertiesBase.BaseTableName + ' t2' +
+                            ' on t1.' + fObjectTable.JoinID + '=t2.' + fObjectTable.BaseID +
+                            ' where t2.' + fObjectTable.BaseID + ' in(';
+              closure := '))';
+            end
+            else
+              closure := ')';
+          end
+          else
+          begin
+            baseQuery := 'UPDATE ' + scenarioPrefix + fObjectTable.PropertiesBase.BaseTableName +
+                            ' SET ' + properties +
+                            ' WHERE OBJECT_ID IN (';
+            closure := ')';
+          end;
+          counter := 1;
+          idsString := '';
+          queryIdLists := TList<string>.Create;
+          try
+            for id in aSelectedIds[side] do
+            begin
+              if idsString <> '' then
+                idsString := idsString + ',';
+              idsString := idsString + id;
+              if (counter mod 999) = 0 then
+              begin
+                queryIdLists.Add(idsString);
+                idsString := '';
+              end;
+              counter := counter + 1;
+            end;
+            if idsString <> '' then
+              queryIdLists.Add(idsString);
+            for idsString in queryIdLists do
+            begin
+              aOraSession.ExecSQL(baseQuery + idsString + closure, valueArray);
+              aOraSession.Commit;
+            end;
+            for id in aSelectedIds[side] do
+              for prop in adjustedProperties do
+                if TryStrToInt(id, objectID) then
+                  publishEvent.SignalChangeObject(actionChange, objectID, prop);
+          finally
+            FreeAndNil(queryIdLists);
+          end;
+        end;
+      end;
+    finally
+      publishEvent.UnPublish();
+    end;
+  finally
+    FreeAndNil(adjustedProperties);
+  end;
+end;
+
+constructor TUSCommitTable.Create(aObjectTable: TUSObjectPropTable);
+begin
+  fObjectTable := aObjectTable;
+  fCommitProperties := TObjectDictionary<string, TUSCommitProp>.Create([doOwnsValues]);
+end;
+
+destructor TUSCommitTable.Destroy;
+begin
+  FreeAndNil(fCommitProperties);
+end;
+
+{ TUSCommitProp }
+
+function TUSCommitProp.AddValue(aValue, aDataType: string): Boolean;
+begin
+  Result := True;
+  fDataType := aDataType;
+  try
+    if aDataType = 'int' then
+      fValue := StrToInt(aValue)
+    else if aDataType = 'float' then
+      fValue := StrToFloat(aValue)
+    else if aDataType = 'bool' then
+      fValue := StrToBool(aValue)
+    else
+      fValue := aValue;
+
+    fStringValue := aValue;
+  except
+    on E: Exception do
+    begin
+     Result := False;
+     //todo: logging?
+    end;
+  end;
+end;
+
+constructor TUSCommitProp.Create(aObjectProp: TUSObjectProp);
+begin
+  fObjectProp := aObjectProp;
+end;
+
+destructor TUSCommitProp.Destroy;
+begin
+
+end;
+
+{ TUSBuilderPropSum }
+
+constructor TUSBuilderPropSum.Create(aObjectProp: TUSObjectProp);
+begin
+  fCount := 0;
+  inherited;
+end;
+
+destructor TUSBuilderPropSum.Destroy;
+begin
+
+  inherited;
+end;
+
+function TUSBuilderPropSum.LockedAddValue(const aValue: string;
+  const aDataType: TFieldType; const aCount: Integer): Boolean;
+begin
+  Result := False;
+  //TODO: Implement
+end;
+
+function TUSBuilderPropSum.Open: Boolean;
+begin
+  Result := False;
+end;
+
+function TUSBuilderPropSum.SQLProperties(aTableAlias: string): string;
+begin
+  Result := ''
+  //TODO: Implement
 end;
 
 end.
