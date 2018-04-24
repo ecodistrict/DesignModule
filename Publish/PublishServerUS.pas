@@ -349,7 +349,7 @@ type
 
   TUSCommitProp = class
   constructor Create(aObjectProp: TUSObjectProp);
-  destructor Destroy;
+  destructor Destroy; override;
   private
     fObjectProp: TUSObjectProp;
     fStringValue, fDataType: string;
@@ -364,7 +364,7 @@ type
 
   TUSCommitTable = class
   constructor Create(aObjectTable: TUSObjectPropTable);
-  destructor Destroy;
+  destructor Destroy; override;
   private
     fObjectTable: TUSObjectPropTable;
     fCommitProperties: TObjectDictionary<string, TUSCommitProp>;
@@ -375,7 +375,7 @@ type
 
   TUSCommitBuilder = class
   constructor Create(aObjectProperties: TUSObjectProperties; aJSONProperties: TJSONArray);
-  destructor Destroy;
+  destructor Destroy; override;
   private
     fCommitTables: TObjectDictionary<string, TUSCommitTable>;
     fObjectProperties: TUSObjectProperties;
@@ -3377,9 +3377,9 @@ var
   jsonStringValue, selectCategoriesString, selectedObjectsString: string;
   responseJSON, requestType, requestID: string;
   baseLayer: TLayerBase;
-  //selectionLayer: TUSBasicLayer;
+  selectionLayer: TUSBasicLayer;
   jsonSelectedCategories: TJSONArray;
-  //jsonProperties: TJSONArray;
+  jsonProperties: TJSONArray;
   commitBuilder: TUSCommitBuilder;
   changedCount: Integer;
 begin
@@ -5899,17 +5899,19 @@ end;
 function TUSBuilderPropSum.LockedAddValue(const aValue: string;
   const aDataType: TFieldType; const aCount: Integer): Boolean;
 begin
-
+  Result := False;
+  //TODO: Implement
 end;
 
 function TUSBuilderPropSum.Open: Boolean;
 begin
-
+  Result := False;
 end;
 
 function TUSBuilderPropSum.SQLProperties(aTableAlias: string): string;
 begin
-
+  Result := ''
+  //TODO: Implement
 end;
 
 end.
