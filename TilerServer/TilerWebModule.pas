@@ -1190,25 +1190,31 @@ end;
 function TExtentHelper.Expand(x, y: Double): Boolean;
 begin
   Result := False;
-  if xMin>x then
+  if not x.IsNan then
   begin
-    xMin := x;
-    Result := True;
+    if xMin>x then
+    begin
+      xMin := x;
+      Result := True;
+    end;
+    if xMax<x then
+    begin
+      xMax := x;
+      Result := True;
+    end;
   end;
-  if xMax<x then
+  if not y.IsNan then
   begin
-    xMax := x;
-    Result := True;
-  end;
-  if yMin>y then
-  begin
-    yMin := y;
-    Result := True;
-  end;
-  if yMax<y then
-  begin
-    yMax := y;
-    Result := True;
+    if yMin>y then
+    begin
+      yMin := y;
+      Result := True;
+    end;
+    if yMax<y then
+    begin
+      yMax := y;
+      Result := True;
+    end;
   end;
 end;
 
@@ -1227,6 +1233,8 @@ begin
       else Result.Expand(point.X, point.Y);
     end;
   end;
+  //Result.Expand(Result.xMin-aBufferLon, Result.yMin-aBufferLat);
+  //Result.Expand(Result.xMax+aBufferLon, Result.yMax+aBufferLat);
 end;
 
 function TExtentHelper.Height: Double;
@@ -1539,7 +1547,7 @@ var
   tce: TTileCacheEntry;
 begin
   Result  := gtsRestart; // sentinel
-  tileFileName := aCacheFolder+TimeFolder+aFileName;
+  tileFileName := aCacheFolder+TimeFolder+aFileName; // included layer id, data version and time of slice
   // get or create tile cache entry
   // lock list and then lock found or created item; unlock list first so items can be accessed in parallel
   TMonitor.Enter(tilesCache);
@@ -2040,6 +2048,7 @@ begin
     try
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+      // draw geometries
       for isgop in fGeometries do
       begin
         if aExtent.Intersects(isgop.Value.fExtent) then
@@ -2183,24 +2192,27 @@ function TSliceGeometryI.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.G
 var
   isgop: TPair<TWDID, TSliceGeometryObject>;
   path: TPathData;
+  bufferExtent: TExtent;
 begin
   aBitmap.Canvas.BeginScene;
   try
     aBitmap.Canvas.Clear(0);
     aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+    // adjust extent to check
+    bufferExtent := aExtent.Inflate(aPixelWidth*2, aPixelHeight*2);
+    // draw geometries
     fDataLock.BeginRead;
     try
       for isgop in fGeometries do
       begin
-        if aExtent.Intersects(isgop.Value.fExtent) then
+        if bufferExtent.Intersects(isgop.Value.fExtent) then
         begin
           path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
           try
             if Assigned(fPalette)
             then aBitmap.Canvas.Stroke.Color := fPalette.ValueToColors(isgop.Value.value).mainColor
             else aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Blue or TAlphaColorRec.Alpha;
-            //aBitmap.Canvas.StrokeThickness := 2; // todo: default width?
-            aBitmap.Canvas.Stroke.Thickness := 2;
+            aBitmap.Canvas.Stroke.Thickness := 2; // todo: adjustable width ie parameter?
             aBitmap.Canvas.DrawPath(path, 1);
           finally
             path.Free;
@@ -2258,6 +2270,8 @@ var
   isgop: TPair<TWDID, TSliceGeometryICObject>;
   capacityFactor: Double;
   path: TPathData;
+  maxValue: Double;
+  maxPixels: Double;
   bufferExtent: TExtent;
   colors: TGeoColors;
 begin
@@ -2269,23 +2283,37 @@ begin
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
       capacityFactor := 1/(100000*Abs(aExtent.YMax-aExtent.YMin)); // todo: determine based on center of slice extent?
-      bufferExtent := aExtent.Inflate(1.3);
       fDataLock.BeginRead;
       try
+        // determine max value
+        maxValue := double.NaN;
         for isgop in fGeometries do
         begin
-          if bufferExtent.Intersects(isgop.Value.fExtent) then
+          if not isgop.Value.value.IsNan then
+          begin
+            if maxValue.IsNan or (maxValue<isgop.Value.value)
+            then maxValue := isgop.Value.value;
+          end;
+        end;
+        // adjust extent to max value
+        if maxValue.IsNan
+        then maxPixels := 0
+        else maxPixels := ceil(abs(maxValue*capacityFactor));
+        bufferExtent := aExtent.Inflate(maxPixels*aPixelWidth, maxPixels*aPixelHeight);
+        // draw geometries
+        for isgop in fGeometries do
+        begin
+          if bufferExtent.Intersects(isgop.Value.fExtent) and not isgop.Value.value.IsNan then
           begin
             colors := fPalette.ValueToColors(isgop.Value.texture);
             path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
-              try
-                aBitmap.Canvas.Stroke.Color := colors.mainColor;
-                //aBitmap.Canvas.StrokeThickness := isgop.Value.value*capacityFactor;
-                aBitmap.Canvas.Stroke.Thickness := isgop.Value.value*capacityFactor;
-                aBitmap.Canvas.DrawPath(path, 1);
-              finally
-                path.Free;
-              end;
+            try
+              aBitmap.Canvas.Stroke.Color := colors.mainColor;
+              aBitmap.Canvas.Stroke.Thickness := isgop.Value.value*capacityFactor;
+              aBitmap.Canvas.DrawPath(path, 1);
+            finally
+              path.Free;
+            end;
           end;
         end;
       finally
@@ -2431,13 +2459,15 @@ var
   isgop: TPair<TWDID, TSliceGeometryICLRObject>;
   polygon: TPolygon;
   capacityFactor: Double;
+  maxValue: Double;
+  maxPixels: Double;
+  bufferExtent: TExtent;
   // polygon drawing
   part: TWDGeometryPart;
   point: TWDGeometryPoint;
   path: TPathData;
   x, y, xPrev, yPrev, xn, yn, xd, yd: Double;
   l: Double;
-  bufferExtent: TExtent;
   colors: TGeoColors;
   colors2: TGeoColors;
 begin
@@ -2449,9 +2479,29 @@ begin
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
       capacityFactor := 0.001/Abs(aExtent.YMax-aExtent.YMin);
-      bufferExtent := aExtent.Inflate(1.3);
       fDataLock.BeginRead;
       try
+        // calculate max value
+        maxValue := double.NaN;
+        for isgop in fGeometries do
+        begin
+          if not isgop.Value.value.IsNan then
+          begin
+            if maxValue.IsNan or (maxValue<isgop.Value.value)
+            then maxValue := isgop.Value.value;
+          end;
+          if not isgop.Value.value2.IsNan then
+          begin
+            if maxValue.IsNan or (maxValue<isgop.Value.value2)
+            then maxValue := isgop.Value.value2;
+          end;
+        end;
+        // adjust extent to max dynamic width of geometry
+        if maxValue.IsNan
+        then maxPixels := 0
+        else maxPixels := ceil(abs(maxValue*capacityFactor));
+        bufferExtent := aExtent.Inflate(maxPixels*aPixelWidth, maxPixels*aPixelHeight);
+        //bufferExtent := aExtent.Inflate(1.3);
         for isgop in fGeometries do
         begin
           if bufferExtent.Intersects(isgop.Value.fExtent) then
@@ -2492,6 +2542,7 @@ begin
                   // recalc coordinates relative to extent
                   xPrev := x;
                   yPrev := y;
+                  // adjust for x/y ratio ie pixels not being square
                   x := (point.X-aExtent.XMin)/aPixelWidth;
                   y := (aExtent.YMax-point.Y)/aPixelHeight;
                   if not IsNaN(xPrev) then
@@ -2500,18 +2551,18 @@ begin
                     yn := xPrev-x;
                     // normalize..
                     l := sqrt((xn*xn)+(yn*yn));
-                      polygon[0].X := xPrev;
-                      polygon[0].Y := yPrev;
-                      polygon[1].X := x;
-                      polygon[1].Y := y;
-                      polygon[4].X := xPrev;
-                      polygon[4].Y := yPrev;
+                    polygon[0].X := xPrev;
+                    polygon[0].Y := yPrev;
+                    polygon[1].X := x;
+                    polygon[1].Y := y;
+                    polygon[4].X := xPrev;
+                    polygon[4].Y := yPrev;
 
                     // right = value2 and colors2
                     if not IsNaN(isgop.Value.value2) then
                     begin
-                      xd := {(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-                      yd := {(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
+                      xd := isgop.Value.value2*capacityFactor*xn/l;
+                      yd := isgop.Value.value2*capacityFactor*yn/l;
 
                       polygon[2].X := x-xd;
                       polygon[2].Y := y-yd;
@@ -2534,8 +2585,8 @@ begin
                     //left (value and colors)
                     if not IsNaN(isgop.Value.value) then
                     begin
-                      xd := {(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-                      yd := {(1+}isgop.Value.value*capacityFactor{)}*yn/l;
+                      xd := isgop.Value.value*capacityFactor*xn/l;
+                      yd := isgop.Value.value*capacityFactor*yn/l;
 
                       // todo: wrong rotation direction..
                       polygon[2].X := x+xd;
@@ -2555,47 +2606,6 @@ begin
                       end;
                     end;
                   end;
-                    (*
-                    end
-                    else
-                    begin
-                      // draw centered line around path with capacity as width
-                      if IsNaN(isgop.Value.value) then
-                      begin
-                        xn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*xn/l;
-                        yn := 0.5*{(1+}isgop.Value.value2*capacityFactor{)}*yn/l;
-                      end
-                      else
-                      begin
-                        xn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*xn/l;
-                        yn := 0.5*{(1+}isgop.Value.value*capacityFactor{)}*yn/l;
-                      end;
-
-                      polygon[0].X := xPrev-xn;
-                      polygon[0].Y := yPrev-yn;
-                      polygon[1].X := x-xn;
-                      polygon[1].Y := y-yn;
-                      polygon[2].X := x+xn;
-                      polygon[2].Y := y+yn;
-                      polygon[3].X := xPrev+xn;
-                      polygon[3].Y := yPrev+yn;
-                      polygon[4].X := xPrev-xn;
-                      polygon[4].Y := yPrev-yn;
-
-                      // draw
-                      if colors.fillColor<>0 then
-                      begin
-                        aBitmap.Canvas.Fill.Color := colors.fillColor;
-                        aBitmap.Canvas.FillPolygon(polygon, 1);
-                      end;
-                      if colors.outlineColor<>0 then
-                      begin
-                        aBitmap.Canvas.Stroke.Color := colors.outlineColor;
-                        aBitmap.Canvas.DrawPolygon(polygon, 1);
-                      end;
-                    end;
-                  end;
-                  *)
                 end;
               end;
             end;
@@ -2914,7 +2924,7 @@ begin
     try
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
-      bufferExtent := aExtent.Inflate(1.2);
+      bufferExtent := aExtent.Inflate(1.2); // todo: radius is taken into account in extent of TSliceLocationObject so this should not be necessary
       for isgop in fLocations do
       begin
         if bufferExtent.Intersects(isgop.Value.fExtent) then
@@ -3325,18 +3335,21 @@ var
   isgop: TPair<TWDID, TSliceGeometryObject>;
   refObj: TSliceGeometryObject;
   path: TPathData;
+  bufferExtent: TExtent;
 begin
-  //Result := gtsFailed;
   aBitmap.Canvas.BeginScene;
   try
     aBitmap.Canvas.Clear(0);
     aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+    // adjust extent to check
+    bufferExtent := aExtent.Inflate(aPixelWidth*2, aPixelHeight*2);
+    // draw geometries
     fCurrentSlice.fDataLock.BeginRead;
     fRefSlice.fDataLock.BeginRead;
     try
       for isgop in (fCurrentSlice as TSliceGeometryI).fGeometries do
       begin
-        if aExtent.Intersects(isgop.Value.fExtent) then
+        if bufferExtent.Intersects(isgop.Value.fExtent) then
         begin
           path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
           try
@@ -3398,7 +3411,7 @@ begin
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
       capacityFactor := 0.001/Abs(aExtent.YMax-aExtent.YMin);
-      bufferExtent := aExtent.Inflate(1.3);
+      bufferExtent := aExtent.Inflate(1.3); // todo: make dependent on max values like TSlideGeometryIC
       fCurrentSlice.fDataLock.BeginRead;
       fRefSlice.fDataLock.BeginRead;
       try
@@ -3507,7 +3520,7 @@ begin
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
       capacityFactor := 0.001/Abs(aExtent.YMax-aExtent.YMin);
-      bufferExtent := aExtent.Inflate(1.3);
+      bufferExtent := aExtent.Inflate(1.3); // todo: make dependent on max values like TSlideGeometryICLR
       fCurrentSlice.fDataLock.BeginRead;
       fRefSlice.fDataLock.BeginRead;
       try
