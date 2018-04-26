@@ -312,6 +312,7 @@ type
     fCount: Integer;
   private
     function LockedAddValue(const aValue: string; const aDataType: TFieldType; const aCount: Integer): Boolean; override;
+  public
     function Open: Boolean; override;
     function SQLProperties(aTableAlias: string): string; override;
   end;
@@ -5156,7 +5157,6 @@ begin
   for objectPropTable in fTables.Values do
     if objectPropTable.ContainsProperty(aPropertyName) then
     begin
-      Result := True;
       aObjectPropTable := objectPropTable;
       exit(True);
     end;
@@ -5705,7 +5705,7 @@ constructor TUSCommitBuilder.Create(aObjectProperties: TUSObjectProperties;
   aJSONProperties: TJSONArray);
 var
   objectPropTable: TUSObjectPropTable;
-  jsonProperty, jsonType, jsonValue, jsonName: TJSONValue;
+  jsonProperty, jsonName: TJSONValue;
   commitTable: TUSCommitTable;
 begin
   fObjectProperties := aObjectProperties;
@@ -5772,7 +5772,7 @@ function TUSCommitTable.CommitChangesToDB(aOraSession: TOraSession;
 var
   publishEvent: TIMBEventEntry;
   side, counter, objectID: Integer;
-  baseQuery, queryString, scenarioPrefix, closure, id, idsString, tableName, scenarioName: string;
+  baseQuery, scenarioPrefix, closure, id, idsString, tableName, scenarioName: string;
   valueArray: array of Variant;
   properties, prop: string;
   basicLayer: TUSBasicLayer;
