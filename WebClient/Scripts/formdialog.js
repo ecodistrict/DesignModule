@@ -1,19 +1,11 @@
-function openFormDialog(aTitle, aData) {
-
-    //if (typeof DataManager.simulationSetupData === "undefined" || DataManager.simulationSetupData == null)
-    //    return;
-
-    // todo: build dialog based on measuresControl.options.selectCategories
-
+function openFormDialog(aTitle, aData, aContext) {
     var div = modalDialogCreate(aTitle);
 
     if (window.outerWidth < 500) {
         div.style.width = '100%';
         div.style.boxSizing = "border-box";
-        //div.style.margin = '5% auto';
     } else {
         div.style.width = '400px';
-        //div.style.margin = '5% auto';
     }
 
     var label, optionsArray;
@@ -22,18 +14,13 @@ function openFormDialog(aTitle, aData) {
     var f = div.appendChild(document.createElement('form'));
     f.id = 'simulationForm';
     f.name = 'simulationForm';
+    f.context = aContext; // store context
 
     var errorLog = document.createElement('div');
     errorLog.id = 'errorLog';
     errorLog.style.display = 'none';
     errorLog.innerHTML = '';
 
-    // formElement [string], type [string], required [y/n], optionsArray [false/array], labelText [string], idName [string], extraOptions [false/array-2_Elems] ['steps [int]','postfix' [string]]);
-    var data = aData
-    //var data = DataManager.simulationSetupData;
-    //var data = [{"formElement":"input","type":"string","required":"y","optionsArray":false,"labelText":"Scenario name","idName":"scenarioName","extraOptions":false},
-    //{"formElement":"slider","type":"float","required":"y","optionsArray":["0", "100"],"labelText":"penetration","idName":"penetration","extraOptions":[1, "%"]},
-    //{"formElement":"radio","type":"string","required":"y","optionsArray":["Yes", "No"],"labelText":"Record Simulation:","idName":"datasourcerecord","extraOptions":{"checked":"No"}}]
     //var data = [
     //{
     //  "formElement":"input",
@@ -82,16 +69,15 @@ function openFormDialog(aTitle, aData) {
     //}
     // ];
 
-    if (typeof data === "undefined")
+    if (typeof aData === "undefined")
         return;
 
-    for (var i = 0; i < data.length; i++) {
-        fillOptions(data[i]);
+    for (var i = 0; i < aData.length; i++) {
+        fillOptions(aData[i]);
     }
 
     var container, optionWrapper, opt;
 
-    // function fillOptions(formElement, type, required, optionsArray, labelText, idName, extraOptions) {
     function fillOptions(arrayItem) {
         var formElement = arrayItem.formElement;
         var type = arrayItem.type;
@@ -102,14 +88,10 @@ function openFormDialog(aTitle, aData) {
         var extraOptions = arrayItem.extraOptions;
         var hidden = typeof arrayItem.hidden !== "undefined" ? arrayItem.hidden : false;
 
-
-        // input, select
-        // checkbox, textaea, radio,
         if (formElement === 'input') {
             container = document.createElement('div');
             container.id = idName;
             container.style.display = 'flex';
-
         } else if (formElement === 'radio') {
             container = document.createElement('div');
             container.id = idName;
@@ -121,46 +103,40 @@ function openFormDialog(aTitle, aData) {
             container.className = 'form-control';
             container.dataset.required = required;
             container.dataset.type = type;
-        } else if (formElement === 'textarea') {
-            container = document.createElement('div');
-            container.id = idName + '-option-row';
         } else if (formElement === 'checkbox') {
             container = document.createElement('div');
-            container.id = idName + '-option-row';
+            container.id = idName;
             container.style.display = "none";
+        } else if (formElement === 'textarea') {
+            container = document.createElement('div');
+            container.id = idName;
         } else if (formElement === 'slider') {
             container = document.createElement('div');
-            container.id = idName + '-option-row';
+            container.id = idName;
             container.style.display = 'block';
             var range = document.createElement('div');
             range.id = 'range_' + idName;
         }
 
-
         label = document.createElement('label');
         label.innerHTML = labelText;
-        if (hidden)
-            label.hidden = true;
+        label.hidden = hidden;
         f.appendChild(label);
 
         if (formElement === 'input') {
             var input = document.createElement('input');
             input.type = 'text';
             input.className = 'form-control';
-            if (extraOptions && typeof extraOptions.defaultValue != "undefined") {
-                input.value = extraOptions.defaultValue;
-            }
-            else
-                input.placeholder = labelText;
+            input.value = (extraOptions && typeof extraOptions.defaultValue != "undefined") ? extraOptions.defaultValue : labelText;
             input.name = idName;
             input.dataset.required = required;
             input.dataset.type = type;
+            input.hidden = hidden;
             container.appendChild(input);
         } else if (formElement === 'radio') {
             optionWrapper = document.createElement('div');
             optionWrapper.id = idName + '-option-row';
             optionWrapper.className = 'form-control';
-
             for (var i = 0; i < optionsArray.length; i++) {
                 option = optionsArray[i];
                 var opt = document.createElement('input');
@@ -194,62 +170,59 @@ function openFormDialog(aTitle, aData) {
                     e.target.className = 'selected';
                     var selectedSelect = document.getElementById(e.target.name);
                     selectedSelect.checked = true;
-                    selectedSelect.value = e.target.value
+                    selectedSelect.value = e.target.value;
                 });
                 opt.value = option;
                 opt.innerHTML = option;
                 optionWrapper.className = idName;
                 container.appendChild(opt);
                 optionWrapper.appendChild(button);
-                if (extraOptions && extraOptions.checked && extraOptions.checked == option) {
+                if (extraOptions && (extraOptions.defaultValue && extraOptions.defaultValue == option) || (extraOptions.checked && extraOptions.checked == option)) {
                     opt.checked = true;
                     opt.value = option;
                     button.className = 'selected';
                 }
             }
+            optionWrapper.hidden = hidden;
             f.appendChild(optionWrapper);
         } else if (formElement === 'select') {
-
             var selectedDefault = false;
             //console.log(options);
             if (extraOptions && typeof extraOptions.defaultValue != "undefined") {
                 selectedDefault = extraOptions.defaultValue;
             }
-
-            for (var i = 0; i < optionsArray.length; i++) {
-                option = optionsArray[i];
-                var opt = document.createElement('option');
+            for (var i2 = 0; i2 < optionsArray.length; i2++) {
+                option = optionsArray[i2];
+                var opt2 = document.createElement('option');
                 if (option.constructor === Array) {
-                    opt.value = option[0];
-                    opt.innerHTML = option[1];
+                    opt2.value = option[0];
+                    opt2.innerHTML = option[1];
                 } else {
-                    opt.value = option;
-                    opt.innerHTML = option;
+                    opt2.value = option;
+                    opt2.innerHTML = option;
                 }
-                if (selectedDefault && opt.value == selectedDefault) {
-                    opt.selected = "selected";
+                if (selectedDefault && opt2.value == selectedDefault) {
+                    opt2.selected = "selected";
                 }
-
-                container.appendChild(opt);
+                container.appendChild(opt2);
             }
-
         } else if (formElement === 'checkbox') {
             optionWrapper = document.createElement('div');
             optionWrapper.id = idName + '-option-row';
             optionWrapper.className = 'form-control';
-            for (var i = 0; i < optionsArray.length; i++) {
-                option = optionsArray[i];
-                var opt = document.createElement('input');
-                var button = document.createElement('button');
-                opt.type = 'checkbox';
-                opt.name = idName;
-                opt.value = option;
-                opt.dataset.required = required;
-                opt.dataset.type = type;
-                button.innerText = option;
-                button.value = option;
-                button.type = "button";
-                button.addEventListener("click", function (e) {
+            for (var i3 = 0; i3 < optionsArray.length; i3++) {
+                option = optionsArray[i3];
+                var opt3 = document.createElement('input');
+                var button3 = document.createElement('button');
+                opt3.type = 'checkbox';
+                opt3.name = idName;
+                opt3.value = option;
+                opt3.dataset.required = required;
+                opt3.dataset.type = type;
+                button3.innerText = option;
+                button3.value = option;
+                button3.type = "button";
+                button3.addEventListener("click", function (e) {
                     e.preventDefault();
                     for (var k = 0; k < document.simulationForm[idName].length; k++) {
                         elem = document.simulationForm[idName][k];
@@ -267,15 +240,13 @@ function openFormDialog(aTitle, aData) {
                         e.target.className = 'selected';
                     }
                 });
-                opt.value = option;
-                opt.innerHTML = option;
+                opt3.value = option;
+                opt3.innerHTML = option;
                 optionWrapper.className = idName;
-                container.appendChild(opt);
-                optionWrapper.appendChild(button);
+                container.appendChild(opt3);
+                optionWrapper.appendChild(button3);
             }
             f.appendChild(optionWrapper);
-
-
         } else if (formElement === 'textarea') {
             var textarea = document.createElement('textarea');
             textarea.type = 'text';
@@ -283,14 +254,13 @@ function openFormDialog(aTitle, aData) {
             textarea.placeholder = labelText;
             textarea.dataset.required = required;
             textarea.dataset.type = type;
+            textarea.hidden = hidden;
             container.appendChild(textarea);
         } else if (formElement === 'slider') {
-
             sliderInput = document.createElement('input');
             sliderInput.type = 'text';
             sliderInput.className = 'form-control';
             sliderInput.placeholder = labelText;
-            //sliderInput.value = parseInt(optionsArray[0]);
             sliderInput.name = idName;
             sliderInput.id = 'input_' + idName;
             sliderInput.dataset.required = required;
@@ -319,7 +289,6 @@ function openFormDialog(aTitle, aData) {
                         } else {
                             return Math.round(value);
                         }
-
                     },
                     from: function (value) {
 
@@ -332,7 +301,6 @@ function openFormDialog(aTitle, aData) {
                         } else {
                             return Math.round(value);
                         }
-
                     }
                 }
             }).on('update', function (values, handle) {
@@ -352,41 +320,21 @@ function openFormDialog(aTitle, aData) {
             range.style.height = '20px';
             range.style.width = '100%';
             range.style.margin = '40px auto 10px';
-
-
-
             sliderInput.addEventListener('change', function () {
                 range.noUiSlider.set(this.value);
             });
-
-
+            // todo: add? rangeSlider.hidden = hidden; 
+            range.hidden = hidden;
             container.appendChild(range);
+            sliderInput.hidden = hidden;
             container.appendChild(sliderInput);
         }
-
-        if (hidden)
-            container.hidden = true;
+        container.hidden = hidden;
         f.appendChild(container);
         var br = document.createElement('br');
-        if (hidden)
-            br.hidden = true;
+        br.hidden = hidden;
         f.appendChild(br);
-
     }
-
-
-    // newQueryLine.className = 'queryDialogLine';
-    // newQueryLine.innerHTML =
-    //     '<select class="datalist"><option value="Inhabitants">Inhabitants</option><option value="Height">Height</option><option value="Surface_area">Surface area</option></select>'+
-    //     '<select class="optionList"><option value="<">&lt;</option><option value="<=" selected>&le;</option><option value="=" selected>=</option><option value="<>">&ne;</option><option value=">">&gt;</option><option value=">=">&ge;</option><option value="in">in</option></select>'+
-    //     '<input type="text" placeholder="value" />'+
-    //     '<img class="removeQuery" src="Content/images/historyremove.png" class="queryDialogAddRemoveButton" onclick="selectByQueryRemoveLine(this)" title="..remove this line from the query" />' +
-    //     '<img class="addQuery" src="Content/images/domainadd.png" class="queryDialogAddRemoveButton" onclick="selectByQueryAddLine(this)" title="..add a new line to the query" />';
-    // if (e) {
-    //     e.parentNode.parentNode.appendChild(newQueryLine);
-    //     // remove add-line-image from current entry
-    //     e.parentNode.removeChild(e);
-    // }
 
     // buttons section
 
@@ -395,16 +343,17 @@ function openFormDialog(aTitle, aData) {
     var mddb = f.appendChild(document.createElement('div'));
     mddb.className = 'modalDialogDevideButtons';
     modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
-    modelDialogAddButton(mddb, 'Apply', simulationDialogApply);
+    modelDialogAddButton(mddb, 'Apply', modalDialogApply);
 }
 
-function simulationDialogApply() {
+function modalDialogApply() {
     errors = false;
     formResult = [];
     elemValues = [];
     errorLog.innerHTML = '';
-    for (var i = 0; i < document.forms['simulationForm'].elements.length; i++) {
-        var elem = document.forms['simulationForm'].elements[i];
+    var form = document.forms['simulationForm'];
+    for (var i = 0; i < form.elements.length; i++) {
+        var elem = form.elements[i];
         if (elem.type === 'text') {
             if (elem.dataset.required === 'y') {
                 if (elem.value === '') {
@@ -494,8 +443,8 @@ function simulationDialogApply() {
                 if (elem.checked) {
 
                     found = false;
-                    for (var i2 = 0; i2 < formResult.length; i2++) {
-                        if (formResult[i2].name === elem.name) {
+                    for (var i3 = 0; i3 < formResult.length; i3++) {
+                        if (formResult[i3].name === elem.name) {
                             found = true;
                             optionsArray = document.getElementById(elem.name + '-option-row');
                             optionsArray.classList.remove('empty');
@@ -527,14 +476,24 @@ function simulationDialogApply() {
     if (!errors) {
         console.log({ formResult: formResult });
         var sessionRequest = {
-            setupSimulation: { //for backwards compatibility we also send the specific setupSimulation command!
+            // todo: for backwards compatibility we also send the specific setupSimulation command!
+            setupSimulation: { 
                 parameters: formResult
             },
+            // todo: only used in santos and response
             formResult: {
                 id: DataManager.formDialogID,
                 parameters: formResult
+            },
+            // new format
+            type: "formResult",
+            payload: {
+                id: DataManager.formDialogID,
+                parameters: formResult,
+                context: form.context,
+                selections: DataManager.selectedObjectIDs
             }
-        }
+        };
         wsSend(sessionRequest);
         modalDialogClose();
     }

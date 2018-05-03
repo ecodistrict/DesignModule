@@ -96,9 +96,6 @@ var wsLookup = {
         measuresControl.setSelectCategories(payload.selectCategories);
         handleObjectSelection(payload);
     },
-    selectedobjectsproperties: function (payload) {
-        showSelectedObjectsProperties(payload);
-    },
     session: function (payload) {
         // handle session message
         if (typeof payload.description !== "undefined") { //todo: test if this doesn't create errors
@@ -219,19 +216,6 @@ var wsLookup = {
                 //DataManager.simulationSetupData = null;
                 map.removeControl(simulationControl);
                 InfoTextControl['leaflet-control-simulation'] = { active: false };
-            }
-        }
-        if (typeof payload.dateForm !== "undefined") {
-            if (payload.dateForm) {
-                if (typeof payload.dateForm.data !== 'undefined')
-                    DataManager.formData = payload.dateForm.data;
-                map.addControl(DataManager.DateFormControl);
-                InfoTextControl['leaflet-control-dateForm'] = { description: 'Click here to config or edit a simulation', active: true, iconPosition: 'left' };
-            }
-            else {
-                DataManager.formData = null;
-                map.removeControl(DataManager.DateFormControl);
-                InfoTextControl['leaflet-control-dateForm'] = { active: false };
             }
         }
         if (typeof payload.simulationClose !== "undefined")
@@ -429,8 +413,8 @@ var wsLookup = {
         ContextManager.resetContextMenu();
     },
     openformdialog: function (payload) {
-        DataManager.formDialogID = payload.id; //can override, but there can only be 1 dialog
-        openFormDialog(payload.title, payload.data);
+        DataManager.formDialogID = payload.id; // can override, but there can only be 1 dialog
+        openFormDialog(payload.title, payload.data, payload.context);
     },
     timerangeslider: function (payload) {
         DataManager.NewRangeTimeSliderData(payload);

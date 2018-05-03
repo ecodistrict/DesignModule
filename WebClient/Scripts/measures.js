@@ -192,20 +192,15 @@ L.Control.Measures = L.Control.extend({
             if (window.outerWidth < 500) {
                 div.style.width = '100%';
                 div.style.boxSizing = "border-box";
-                //div.style.margin = '5% auto';
             } else {
                 div.style.width = '450px';
-                //div.style.margin = '5% auto';
             }
-
 
             // build dialog form
             var f = div.appendChild(document.createElement('form'));
             f.id = 'selectMeasureForm';
             f.addEventListener("change", function () {
-
                 var button = document.querySelector("#measuresApplyButton");
-
                 button.children[0].removeAttribute("disabled");
             });
 
@@ -219,7 +214,8 @@ L.Control.Measures = L.Control.extend({
             var _this = this;
             modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
             var applyButton = modelDialogAddButton(mddb, 'Apply', function () {
-                // todo: add selected measure to history
+                // add selected measure to history
+                // todo: add to history if history is used!
                 var selectedRadio = document.querySelector('input[name=measureOption]:checked');
                 if (selectedRadio) {
                     _this._measuresHistory.addMeasure(

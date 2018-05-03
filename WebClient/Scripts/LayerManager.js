@@ -752,7 +752,7 @@ LayerManager.DetailsLayer = function (data) {
 
     this.GetPreview = function (parent) {
         if (typeof this.show !== "undefined" && this.show > 0) {
-            let opacity = this.show == 1 ? this.opacity : this.show;
+            var opacity = this.show == 1 ? this.opacity : this.show;
             this.addDisplayLayer(opacity);
         }
         var aWidth = DataManager.detailsInfo.layerWidth;

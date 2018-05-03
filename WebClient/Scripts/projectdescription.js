@@ -19,6 +19,11 @@ L.control.projectDescription.showOptions = function (e) {
             payload: { scenario: DataManager.sessionInfo.scenario }
         });
     });
+    /*
+    var list = L.DomUtil.create("input", "", container);
+    list.setAttribute("list", "animallist");
+    list.innerHTML = "<datalist id=\"animallist\" title=\"Suggestions to choose from\"><option value= \"Cat\"><option value= \"Cow\"><option value= \"Dog\"></datalist>";
+    */
 }
 
 L.control.projectDescription.showScenarios = function () {

@@ -993,7 +993,7 @@ begin
 end;
 
 constructor TSesmiProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
-  aTilerStatusURL: string; aAddBasicLayers: Boolean; {const aDateFormData: string; }aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
+  aTilerStatusURL: string; aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; const aExpertScenarioGUID: TGUID);
 begin
   fExpertScenarioGUID := aExpertScenarioGUID;
   inherited Create(

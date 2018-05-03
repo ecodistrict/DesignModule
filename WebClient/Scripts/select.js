@@ -17,8 +17,6 @@ var selectedPointMarker = {
 var propertiesTables = {};
 
 
-
-
 // https://codepen.io/KryptoniteDove/post/load-json-file-locally-using-pure-javascript
 function loadJSONLocal(callback) {
     var xobj = new XMLHttpRequest();
@@ -31,22 +29,15 @@ function loadJSONLocal(callback) {
         }
     };
     xobj.send(null);
-};
-
+}
 
 function initSelectedObjectsProperties(e) {
 
-    //// add close button
-    //var mddb = objectPropertiesDialog.appendChild(document.createElement('div'));
-    //mddb.className = 'modalDialogDevideButtons';
-    //modelDialogAddButton(mddb, 'Close', modalDialogClose);
     // build request for retrieving object properties
     var command = {};
-    //command.selectObjectsProperties = {};
     command.selectCategories = selectCategories = measuresControl.options.selectCategories;
     command.selectedObjects = getSelectedObjects();
     
-    //wsSend(command);
     if (command.selectedObjects.length > 0)
         createRequestDialog('Object Properties', 'Properties of the selected objects', 'selectObjectsProperties', showSelectedObjectsProperties, command);
     else
@@ -81,7 +72,7 @@ function showSelectedObjectsProperties(container, aSelectedObjectsProperties) {
     var title = container.appendChild(document.createElement('h2'));
     title.innerText = 'Selected object properties';
 
-    container.appendChild(document.createElement('HR'))
+    container.appendChild(document.createElement('HR'));
 
     tableContainer = container.appendChild(document.createElement('div'));
 
@@ -138,7 +129,7 @@ function ApplyNewProperties() {
         var table = propertiesTables[properties[i].id];
 
 
-        let inputNode = table.querySelectorAll("input")[0];
+        var inputNode = table.querySelectorAll("input")[0];
 
 
         if (typeof inputNode !== "undefined") {
@@ -167,7 +158,7 @@ function ApplyNewProperties() {
         else {
             inputNode = table.querySelectorAll("select")[0];
             if (properties[i].value != inputNode.options[inputNode.selectedIndex].value) {
-                changes = true
+                changes = true;
                 properties[i].value = inputNode.options[inputNode.selectedIndex].value;
                 objProps.properties.push(properties[i]);
             }
@@ -187,7 +178,6 @@ function ApplyNewProperties() {
         objProps.properties = properties;
     //No closing on apply??
     modalDialogClose();
-
 }
 
 function createAttributeTable(aAttribute, aElem) {
@@ -324,7 +314,7 @@ function createBoolTable(aAttribute, aElem) {
 }
 
 function createEmptyTable(aElem, aAttribute, type) {
-    let id = aAttribute.id;
+    var id = aAttribute.id;
 
     var table = aElem.appendChild(document.createElement("table"));
     table.className = "attributeTable " + type + "Table";
@@ -358,16 +348,11 @@ function BoolParse(input) {
 
 
 var selectedItems = L.geoJson(undefined,
-  {
+    {
       pointToLayer: function (feature, latlng) { return L.circleMarker(latlng, selectedPointMarker); },
-      style: function (feature) { return { color: '#f06eaa' }; },
+      style: function (feature) { return { color: '#f06eaa' }; }
+    });
 
-      //contextmenu: true,
-      //contextmenuWidth: 140,
-      //contextmenuItems: [
-      //  '-',
-      //  { text: 'Properties', icon: 'Content/images/info.png', callback: initSelectedObjectsProperties }]
-  });
 selectedItems.setZIndex(1000);
 selectedItems.addTo(map);
 var canSelect = false;
@@ -430,7 +415,7 @@ map.on('click', function (e) {
     if (canSelect && !inDraw) {
         var popLocation = e.latlng;
 
-        let ctrlPressed
+        var ctrlPressed;
         if (window.event) {
             ctrlPressed = window.event.ctrlKey;
         }
@@ -547,7 +532,7 @@ function handleObjectsDeselect() {
 
 function getSelectedObjects() {
     var objects = [];
-    for (let id in DataManager.selectedObjectIDs)
+    for (var id in DataManager.selectedObjectIDs)
         objects.push(DataManager.selectedObjectIDs[id]);
 
     if (objects.length == 0) {

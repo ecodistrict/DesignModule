@@ -49,7 +49,7 @@ const
 type
   TUSDesignProject = class(TUSProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
-    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
   destructor Destroy; override;
   private
     fUSIMBConnection: TIMBConnection;
@@ -61,14 +61,14 @@ type
 
   TUSMonitorProject = class(TUSProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
-    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
   destructor Destroy; override;
   public
   end;
 
   TUSEvaluateProject = class(TUSProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
-    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer{; aSourceEPSG: Integer});
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
   destructor Destroy; override;
   public
   end;
@@ -87,9 +87,9 @@ constructor TUSDesignProject.Create(aSessionModel: TSessionModel;
   aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID,
   aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
   aDBConnection: TCustomConnection; aMapView: TMapView;
-  aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
+  aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
 begin
-  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, True, aMaxNearestObjectDistanceInMeters);
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, True, aMaxNearestObjectDistanceInMeters, aSourceEPSG);
   fUSIMBConnection := aIMB3Connection;{TIMBConnection.Create(
       GetSetting('IMB3RemoteHost', 'vps17642.public.cloudvps.com'),
       GetSetting('IMB3RemotePort', 4000),
@@ -624,9 +624,9 @@ constructor TUSMonitorProject.Create(aSessionModel: TSessionModel;
   aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID,
   aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
   aDBConnection: TCustomConnection; aMapView: TMapView;
-  aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
+  aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
 begin
-  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, False, aMaxNearestObjectDistanceInMeters);
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, False, aMaxNearestObjectDistanceInMeters, aSourceEPSG);
   DisableControl(selectControl);
   DisableControl(measuresControl);
   DisableControl(measuresHistoryControl);
@@ -645,9 +645,9 @@ constructor TUSEvaluateProject.Create(aSessionModel: TSessionModel;
   aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID,
   aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
   aDBConnection: TCustomConnection; aMapView: TMapView;
-  aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer);
+  aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
 begin
-  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, False, aMaxNearestObjectDistanceInMeters);
+  inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, False, aMaxNearestObjectDistanceInMeters, aSourceEPSG);
   DisableControl(selectControl);
   DisableControl(measuresControl);
   DisableControl(measuresHistoryControl);

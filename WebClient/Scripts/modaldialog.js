@@ -1,6 +1,6 @@
+
 function modalDialogCreate(aTitle, aDescription) {
     var dialog = document.getElementById('modalDialog');
-
     // show dialog
     dialog.style.opacity = 1;
     dialog.style['pointer-events'] = 'auto';
@@ -16,15 +16,12 @@ function modalDialogCreate(aTitle, aDescription) {
         p.appendChild(document.createTextNode(aDescription));
         div.appendChild(p);
     }
-    div.focus();
-    // dialog.focus(); //removes focus from the element that was clicked on!
+    div.focus(); //removes focus from the element that was clicked on!
     return div;
 }
 
-function createRequestDialog(aTitle, aDescription, type, buildFunction, data)
-{
+function createRequestDialog(aTitle, aDescription, type, buildFunction, data) {
     var id = Date.now().toString(); //todo: make better id?
-    //var request = { dialogDataRequest: { id: id, type: type } };
     var request = { type: "dialogDataRequest", payload: { id: id, type: type } };
     if (typeof data !== "undefined")
         request.payload.data = data;
@@ -48,10 +45,8 @@ function createRequestDialog(aTitle, aDescription, type, buildFunction, data)
     wsSend(request);
 }
 
-function handleDataResponse(response)
-{
+function handleDataResponse(response) {
     var div = document.getElementById('requestDialogDiv');
-
     if (div != null && typeof div.requestId !== 'undefined' && div.requestId == response.id)
     {
         div.innerHTML = '';
@@ -60,7 +55,6 @@ function handleDataResponse(response)
 }
 
 function modelDialogAddButton(aParent, aTitle, aOnClick) {
-
     var mddbutton = aParent.appendChild(document.createElement('div'));
     mddbutton.className = 'modalDialogButton';
     var i = document.createElement('input');
@@ -94,12 +88,8 @@ function modalDialogClose() {
 
 // handle escape key for closing dialogs etc.
 document.addEventListener('keyup', function (e) {
-
     var dialog;
     if (e.keyCode == 13) {
-
-        //modalDialogButton = document.getElementsByClassName('modalDialogButton')[1];
-
         dialog = document.getElementById('modalDialog');
         // test if modalDialog is visible
         if (dialog.style.opacity > 0) {
@@ -115,13 +105,8 @@ document.addEventListener('keyup', function (e) {
                 succesButton.click();
                 // console.log(succesButton);
             }
-
-            // modalDialogClose();
-            // queryDialogApply();
-            // modalDialogButton.click();
-
+            e.stopPropagation();
         }
-        e.stopPropagation();
     }
     else if (e.keyCode == 27) {
         dialog = document.getElementById('modalDialog');

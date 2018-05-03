@@ -70,22 +70,6 @@
 
     showScenario: function (id) {
         createRequestDialog("Scenarios", "control statuses", "scenarioControls", this.showScenarioCallback);
-        //var div = modalDialogCreate('Scenario Management', 'Planning');
-        //div.style.width = '800px';
-        //div.style.margin = '5% auto';
-
-        //this.controlChanges = {};
-
-        //this.buildScenarioTable(div, this.activeScenarioControls);
-
-        //var mddb = div.appendChild(document.createElement('div'));
-        //mddb.className = 'modalDialogDevideButtons';
-        //var _this = this;
-        //modelDialogAddButton(mddb, 'Close', modalDialogClose); //maybe add popup for unsaved changes in the future?
-        //modelDialogAddButton(mddb, 'Apply', (function () {
-        //    this.applyControlsChanges();
-        //    modalDialogClose();
-        //}).bind(this));
     },
 
     showScenarioCallback: function (div, data) {

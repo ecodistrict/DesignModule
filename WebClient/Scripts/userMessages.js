@@ -16,6 +16,7 @@ function deleteLogItems() {
         }
     }
 }
+
 function checkIfLogIsEmpty() {
     messageList = document.getElementById('messages');
     messageContainer = document.getElementById('messagesContainer')
@@ -24,11 +25,9 @@ function checkIfLogIsEmpty() {
     } else {
         messageContainer.classList.add('remove-messages');
     }
-
 }
 
 function AddErrorMessage(MessageText, MessageType, MessageTimeOut) {
-
     if (MessageText.length === 0)
         return
 
@@ -58,7 +57,6 @@ function AddErrorMessage(MessageText, MessageType, MessageTimeOut) {
             messageContainer.classList.add('messages-hidden');
             checkHeightContainer();
         }
-
     }
 
     if (typeof (MessageTimeOut) === 'number') {
@@ -117,11 +115,7 @@ function AddErrorMessage(MessageText, MessageType, MessageTimeOut) {
     } else {
         messageList.appendChild(message);
     }
-
-
     checkHeightContainer();
-
-
 }
 
 function checkHeightContainer() {

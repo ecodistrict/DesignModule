@@ -3212,49 +3212,43 @@ begin
   end;
   fPreLoadScenarios := aPreLoadScenarios;
 
-  ClientMessageHandlers.Add('measure',
-    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
-    begin
-
-    end);
-    (*
-    var
-      formID: string;
-    formTitle: string;
-    _formElements: string;
-    _openformdialog: string;
-    begin
-      // show form to edit bus parameters
-      // ID for callback event
-      formID := 'DefaultBus';
-      // Title of form
-      formTitle := 'Edit default bus parameters';
-      // Create form elements
-      _formElements :=
-        openFormElement_input('BatteryCapacity', 'Battery capacity (0 - 600 kWh)', 'float', fBatteryCapacity.ToString(dotFormat))+','+
-        openFormElement_input('AverageEnergyConsumption', 'Average energy consumption (1.0 - 2.0 kWh/km)', 'float', fAverageEnergyConsumption.ToString(dotFormat))+','+
-        openFormElement_input('DriverEfficiency', 'Driver efficiency (90 - 125)', 'float', fDriverEfficiency.ToString(dotFormat))+','+
-        openFormElement_input('PowerConsumptionHVAC', 'Power consumption HVAC (0 - 20 kW)', 'float', fPowerConsumptionHVAC.ToString(dotFormat));
-
-      _openformdialog :=
-        '{'+
-          '"type" : "openformdialog",'+
-          '"payload" : {'+
-            '"id" : "'+formID+'",'+
-            '"title" : "'+formTitle+'",'+
-            '"data" : ['+_formElements+']'+
-          '}'+
-        '}';
-
-      // Push json to client
-      aClient.signalString(_openformdialog);
-    end);
-    *)
-
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName,
     aTilerFQDN, aTilerStatusURL, aDataSource,
     aDBConnection, aAddBasicLayers,
     aMaxNearestObjectDistanceInMeters, mapView, nil, nil);
+  {
+  ClientMessageHandlers.Add('measure',
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    var
+      formID: string;
+      form: TFormDialog;
+    begin
+      formID := TGUID.NewGuid.ToString;
+      form := TFormDialog.Create(formID, 'Test dialog');
+      try
+        //form.Properties.Add(TFormDialogProperty.Create('een', 'label een', 'string', 'input', 'default', True, True));
+        //form.Properties.Add(TFormDialogProperty.Create('twee', 'label twee', 'string'));
+        form.AddPropertyInput('input', 'input label', 'def');
+        form.AddPropertyRadio('radio', 'radio label', 'r1', ['r-1', 'r0', 'r1']);
+        form.AddPropertySelect('select', 'select label', 's0', ['s-1', 's0', 's1']);
+        form.AddPropertyCheck('check', 'check label', ['c1', 'c2', 'c3']);
+        form.Open(aClient, TFormDialogResultHandling.Create(
+          procedure(aClient: TClient; aResult: TFormDialogResults)
+          var
+            r: TPair<string, TFormDialogResultProperty>;
+          begin
+            Log.WriteLn('Form results for '+aResult.FormID);
+            for r in aResult.Properties
+            do Log.WriteLn(r.Key+' ('+r.Value.&Type+') = '+r.Value.Value, llNormal, 2);
+            if Assigned(aResult.Context)
+            then Log.WriteLn('Context: '+aResult.Context.toJSON, llNormal, 1)
+            else Log.WriteLn('No context..', llNormal, 1);
+          end));
+      finally
+        form.Free;
+      end;
+    end);
+  }
 end;
 
 destructor TUSProject.Destroy;

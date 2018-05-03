@@ -161,7 +161,7 @@ L.Control.Files = L.Control.extend({
         L.DomUtil.empty(this._filesList);
 
         if (this._filesItems.length > 0) {
-            for (let i = this._filesItems.length - 1; i >= 0; i--) {
+            for (var i = this._filesItems.length - 1; i >= 0; i--) {
                 this._makeFilesItem(this._filesItems[i]);
             }
         }

@@ -208,7 +208,7 @@ var
   tilerName: string;
 begin
   try
-    fIMBLogger := AddIMBLogger(Self.Connection);
+    fIMBLogger := AddIMBLogger(Log, Self.Connection);
     Log.WriteLn('Started');
 
     dbConnection := TOraSession.Create(nil);

@@ -167,7 +167,7 @@ function TableGraph(graphObject) {
         if (this.previewDiv == null || this.graphObject.data == null || this.graphObject.data.length == 0)
             return;
         else {
-            let found = false;
+            var found = false;
             for (var i = 0; i < this.graphObject.data.length; i++) {
                 if (this.graphObject.data[i].length > 0)
                     found = true;

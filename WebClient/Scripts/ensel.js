@@ -18,9 +18,9 @@ DataManager = {
 
     _addSensor: function (sensor) {
 
-        let scale = 0.5;
-        let orr = 128;
-        let orrAnchor = { x: 76, y: 66 };
+        var scale = 0.5;
+        var orr = 128;
+        var orrAnchor = { x: 76, y: 66 };
 
         //var sensorIcon = L.icon({
         //    iconUrl: "Content/images/sensor.png",
@@ -44,9 +44,9 @@ DataManager = {
 
         var pos = L.latLng(complaint.latitude, complaint.longitude);
 
-        let scale = 0.375;
-        let orr = 128;
-        let orrAnchor = { x: 64, y: 0 };
+        var scale = 0.375;
+        var orr = 128;
+        var orrAnchor = { x: 64, y: 0 };
 
         var complaintIcon = L.icon({
             iconUrl: "Content/images/warning2.png",
@@ -93,9 +93,9 @@ DataManager = {
         var isCar = sensor.sensorid == 99 || sensor.sensorid == "EFC018EE-E977-4B23-9C6E-49B118E00E9E" || sensor.sensorid == 24;
 
         if (isCar) {
-            let scale = 0.5;
-            let orr = 128;
-            let orrAnchor = { x: 64, y: 120 };
+            var scale = 0.5;
+            var orr = 128;
+            var orrAnchor = { x: 64, y: 120 };
 
             icon = L.icon({
                 iconUrl: "Content/images/sensor-car3.png",
@@ -109,9 +109,9 @@ DataManager = {
             });
         }
         else {
-            let scale = 0.5;
-            let orr = 128;
-            let orrAnchor = { x: 52, y: 66 };
+            var scale = 0.5;
+            var orr = 128;
+            var orrAnchor = { x: 52, y: 66 };
 
             icon = L.icon({
                 iconUrl: "Content/images/sensor2.png",
@@ -295,9 +295,9 @@ DataManager = {
                 text: aComplaint.text
             };
 
-            let scale = 0.375;
-            let orr = 128;
-            let orrAnchor = { x: 64, y: 0 };
+            var scale = 0.375;
+            var orr = 128;
+            var orrAnchor = { x: 64, y: 0 };
 
             var complaintIcon = L.icon({
                 iconUrl: "Content/images/warning2.png",
@@ -434,7 +434,7 @@ DataManager = {
 
         if (date.getUTCMonth() < 9)
             builder += "0";
-        builder += (date.getUTCMonth() + 1) + "-";
+        builder += (date.getUTCMonth() + 1).toString() + "-";
 
         if (date.getUTCDate() < 10)
             builder += "0";
@@ -481,18 +481,9 @@ DataManager = {
         aData.windDirection = DataManager.wind.direction;
         if (typeof aData.concentration !== 'undefined') {
             var micrograms = DataManager._getDisplayValue(aData.concentration);
-
             sensor.textDiv.innerHTML = "" + micrograms;
-
-            if (micrograms >= 10) {
-                showSensorWarning(sensor, aData);
-            }
-
-
             sensor.data.push(aData); //Keep a record of all the data we've received;
         }
-
-
     },
 
     NewRangeTimeSliderData: function (aData) {
@@ -511,9 +502,8 @@ DataManager = {
     _getSlider: function (sliderID) {
         for (var i = 0; i < DataManager.sliders.length; i++) {
             if (DataManager.sliders[i].sliderID == sliderID)
-                return DataManager.sliders[i]; 
+                return DataManager.sliders[i];
         }
-
         return null;
     },
 
@@ -522,15 +512,13 @@ DataManager = {
 
         if (slider == null) {
             slider = new L.Control.rangeSlider(aData);
-            DataManager._addSlider(slider)
+            DataManager._addSlider(slider);
             map.addControl(slider);
         }
         slider.update(aData);
     },
 
     NewWindData: function (aData) {
-
-
         if (DataManager.wind == null) {
             DataManager.wind = L.control.arrow();
             map.addControl(DataManager.wind);
@@ -574,10 +562,10 @@ DataManager = {
 
     AddLeak: function () {
 
-        let scale = 0.25;
-        let orrX = 128;
-        let orrY = 158;
-        let orrAnchor = { x: 60, y: 152 };
+        var scale = 0.25;
+        var orrX = 128;
+        var orrY = 158;
+        var orrAnchor = { x: 60, y: 152 };
 
         var leakIcon = L.icon({
             iconUrl: "Content/images/leak3.png",
@@ -606,7 +594,6 @@ DataManager = {
 
         console.log(JSON.stringify(object));
     }
-
 };
 
 function AddComplaint(complaint) {

@@ -88,12 +88,12 @@ L.Control.History = L.Control.extend({
         L.DomUtil.empty(this._measureList);
         L.DomUtil.empty(this._historyList);
 
-        for (let i = this._measureItems.length - 1; i >= 0; i--) {
+        for (var i = this._measureItems.length - 1; i >= 0; i--) {
             this._makeMeasureItem(this._measureItems[i]);
         }
 
         if (this._historyItems.length > 0) {
-            for (let i = this._historyItems.length - 1; i >= 0; i--) {
+            for (var i = this._historyItems.length - 1; i >= 0; i--) {
                 this._makeHistoryItem(this._historyItems[i]);
             }
         }
@@ -223,7 +223,7 @@ L.Control.History = L.Control.extend({
         obj.time = DataManager.GetTimeObject(DataManager.BreakdownTime(obj.time)); //Change JSON UTC timestamp to javascript utc timestamp
         obj.active = false;
         this._historyItems.push(obj);
-        let len = this._historyItems.length;
+        var len = this._historyItems.length;
         if (len > 1 && this._historyItems[len - 1].time.getTime() < this._historyItems[len - 2].time.getTime()) {
             this._historyItems.sort(function (a, b) { return a.time.getTime() - b.time.getTime() })
             this._update();

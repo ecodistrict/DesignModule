@@ -41,6 +41,7 @@ const
 
   ProjectIDSwitch = 'ProjectID';
   ProjectNameSwitch = 'ProjectName';
+  SourceEPSGIntSwitch = 'SourceEPSGInt';
 
   PreLoadScenariosSwitch = 'PreLoadScenarios';
 
@@ -222,6 +223,7 @@ var
   mapView: TMapView;
   preLoadScenarios: Boolean;
   tilerName: string;
+  sourceEPSG: Integer;
 begin
   try
     // execute actions needed to stop the model
@@ -236,11 +238,15 @@ begin
       standardIni.WriteString(RecoverySection, aParameters[p].Name, aParameters[p].ValueAsStore);
     end;
     }
-    fIMBLogger := AddIMBLogger(Self.Connection);
+    fIMBLogger := AddIMBLogger(Log, Self.Connection);
 
     dbConnection := TOraSession.Create(nil);
     dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
     dbConnection.Open;
+
+    if aParameters.ParameterExists(SourceEPSGIntSwitch)
+    then sourceEPSG := StrToInt(aParameters.ParameterByName[SourceEPSGIntSwitch].ValueAsString)
+    else sourceEPSG := -1;
 
     if aParameters.ParameterExists(ProjectTypeSwitch) then
     begin
@@ -266,7 +272,7 @@ begin
             dbConnection,
             mapView,
             preLoadScenarios,
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), sourceEPSG);
           fProjectDesign.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
           fSessionModel.Projects.Add(fProjectDesign);
         end
@@ -281,7 +287,7 @@ begin
             dbConnection,
             mapView,
             preLoadScenarios,
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), sourceEPSG);
           fProjectMonitor.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
           fSessionModel.Projects.Add(fProjectMonitor);
         end
@@ -296,7 +302,7 @@ begin
             dbConnection,
             mapView,
             preLoadScenarios,
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), sourceEPSG);
           fProjectEvaluate.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
           fSessionModel.Projects.Add(fProjectEvaluate);
         end;
@@ -325,7 +331,7 @@ begin
         dbConnection,
         mapView,
         preLoadScenarios,
-        GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
+        GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters), sourceEPSG);
       fProjectDesign.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
       fSessionModel.Projects.Add(fProjectDesign);
 

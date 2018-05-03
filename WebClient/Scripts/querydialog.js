@@ -10,21 +10,21 @@ function handleSelectByQuery(e) {
       DataManager.queryDialogData['building'] = ['optie3','optie4'];
       DataManager.queryDialogData['space'] = ['optie5','optie6'];
     */
+
     if (window.outerWidth < 500) {
         div.style.width = '100%';
         div.style.boxSizing = "border-box";
-        //div.style.margin = '5% auto';
     } else {
         div.style.width = '700px';
-        //div.style.margin = '5% auto';
     }
+
     cat_container = document.createElement('div');
     cat_container.id = 'cat_container';
     categories_select = document.createElement('select');
     categories_select.name = 'categories';
     categories_select.classList.add('form-control');
-    query = DataManager.queryDialogData;
-    for (var key in query) {
+
+    for (var key in DataManager.queryDialogData) {
         cat_option = document.createElement('option');
         cat_option.value = key;
         cat_option.innerText = key;
@@ -36,9 +36,7 @@ function handleSelectByQuery(e) {
 
     cat_container.appendChild(catText);
     cat_container.appendChild(categories_select);
-
-
-
+    
     // build dialog form
     var f = div.appendChild(document.createElement('form'));
     f.id = 'selectByQueryForm';
@@ -51,30 +49,26 @@ function handleSelectByQuery(e) {
     var mddb = f.appendChild(document.createElement('div'));
     mddb.className = 'modalDialogDevideButtons';
 
-
     modelDialogAddButton(mddb, 'Cancel', modalDialogClose);
     modelDialogAddButton(mddb, 'Apply', queryDialogApply);
-
 }
+
 function removeOptions(data) {
     for (var i = 0; i < data.length + 1; i++) {
         data[0].remove();
     }
 }
-function filldatalistOptions(datalist) {
 
+function filldatalistOptions(datalist) {
     for (var i = 0; i < DataManager.queryDialogData[categories_select.value].length; i++) {
         datalistOption = document.createElement('option');
         datalistOption.value = DataManager.queryDialogData[categories_select.value][i];
         datalist.appendChild(datalistOption);
     }
-
 }
 
 function queryDialogApply() {
-
     var sessionRequest = {};
-
     sessionRequest.selectObjects = {};
     sessionRequest.selectObjects.mode = '=';
     sessionRequest.selectObjects.selectCategories = [categories_select.value];
@@ -99,7 +93,9 @@ function queryDialogApply() {
     wsSend(sessionRequest);
     modalDialogClose();
 }
+
 var categories = '';
+
 function selectByQueryAddLine(e) {
     // we are the last entry
     // add new entry
@@ -123,8 +119,6 @@ function selectByQueryAddLine(e) {
     }
     if (categories_select.value) {
         filldatalistOptions(datalist);
-
-
 
         operators = document.createElement('select');
         operators.name = '';
@@ -164,8 +158,6 @@ function selectByQueryAddLine(e) {
         inputvalue.placeholder = 'value';
         inputvalue.classList.add('form-control');
 
-
-        // newQueryLine.appendChild(queries);
         newQueryLine.appendChild(datalistInput);
         newQueryLine.appendChild(datalist);
         newQueryLine.appendChild(operatorSelect);
@@ -179,8 +171,6 @@ function selectByQueryAddLine(e) {
         warningText.style.color = 'red';
         newQueryLine.appendChild(warningText);
     }
-
-
 
     if (e) {
         e.parentNode.parentNode.appendChild(newQueryLine);
