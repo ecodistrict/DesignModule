@@ -356,23 +356,7 @@ var GraphManager = {
             // # Bar
             // preview aanpassen
             // grouped check
-            // # spline
-            // preview aanpassen
-            // # Area
-            // preview aanpassen
-            // # step
-            // preview aanpassen
-            // # area-step
-            // preview aanpassen
-            // # area-spline
-            // preview aanpassen
-            // # scatter
-            // preview aanpassen
-            // # donut
-            // preview aanpassen
-            // # gauge
-            // preview aanpassen
-
+            
             // NEW
             case 'line':
                 graph = new LineBottomLeft(graphObject);
@@ -384,34 +368,6 @@ var GraphManager = {
             case 'newbar':
                 graph = new VerticalBarChart(graphObject);
                 break;
-            case 'spline':
-                graph = new Chart(graphObject);
-                break;
-            case 'area':
-                graph = new Chart(graphObject);
-                break;
-            case 'step':
-                graph = new Chart(graphObject);
-                break;
-            case 'area-step':
-                graph = new Chart(graphObject);
-                break;
-            case 'area-spline':
-                graph = new Chart(graphObject);
-                break;
-            case 'scatter':
-                graph = new Chart(graphObject);
-                break;
-            case 'pie':
-                graph = new Chart(graphObject);
-                break;
-            case 'donut':
-                graph = new Chart(graphObject);
-                break;
-            case 'gauge':
-                graph = new Chart(graphObject);
-                break;
-
             case 'table':
                 graph = new TableGraph(graphObject);
                 break;

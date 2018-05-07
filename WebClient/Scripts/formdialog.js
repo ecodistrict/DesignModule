@@ -267,7 +267,8 @@ function openFormDialog(aTitle, aData, aContext) {
             sliderInput.dataset.type = type;
             sliderInput.dataset.formElement = formElement;
             sliderInput.dataset.optionsArray = optionsArray;
-            sliderInput.style.width = '100%';
+            sliderInput.style.width = '90%';
+            sliderInput.style.marginLeft = '5%';
             sliderInput.style.boxSizing = 'border-box';
 
             var rangeSlider = noUiSlider.create(range, {
@@ -294,7 +295,7 @@ function openFormDialog(aTitle, aData, aContext) {
 
                         if (range.noUiSlider) {
                             if (range.noUiSlider.options.extraOption.length > 0) {
-                                return Math.round(value.repace(range.noUiSlider.options.extraOption, ''));
+                                return Math.round(value.replace(range.noUiSlider.options.extraOption, ''));
                             } else {
                                 return Math.round(value);
                             }
@@ -318,7 +319,7 @@ function openFormDialog(aTitle, aData, aContext) {
             });
 
             range.style.height = '20px';
-            range.style.width = '100%';
+            range.style.width = '90%';
             range.style.margin = '40px auto 10px';
             sliderInput.addEventListener('change', function () {
                 range.noUiSlider.set(this.value);

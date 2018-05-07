@@ -18,18 +18,18 @@ var propertiesTables = {};
 
 
 // https://codepen.io/KryptoniteDove/post/load-json-file-locally-using-pure-javascript
-function loadJSONLocal(callback) {
-    var xobj = new XMLHttpRequest();
-    xobj.overrideMimeType("application/json");
-    xobj.open('GET', 'objectPropsNew.json', true);
-    xobj.onreadystatechange = function () {
-        if (xobj.readyState == 4 && xobj.status == "200") {
-            // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
-            callback(xobj.responseText);
-        }
-    };
-    xobj.send(null);
-}
+//function loadJSONLocal(callback) {
+//    var xobj = new XMLHttpRequest();
+//    xobj.overrideMimeType("application/json");
+//    xobj.open('GET', 'objectPropsNew.json', true);
+//    xobj.onreadystatechange = function () {
+//        if (xobj.readyState == 4 && xobj.status == "200") {
+//            // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+//            callback(xobj.responseText);
+//        }
+//    };
+//    xobj.send(null);
+//}
 
 function initSelectedObjectsProperties(e) {
 
@@ -94,7 +94,6 @@ function buildAttributesTable(container) {
         createAttributeTable(objProps.properties[i], tableContainer);
     }
 
-    container.appendChild(document.createElement("br"));
     container.appendChild(document.createElement("hr"));
 
     var buttonContainer = container.appendChild(document.createElement("div"));
@@ -102,20 +101,6 @@ function buildAttributesTable(container) {
 
     modelDialogAddButton(buttonContainer, "Cancel", modalDialogClose);
     modelDialogAddButton(buttonContainer, "Apply", ApplyNewProperties);
-    //var applyButton = buttonContainer.appendChild(document.createElement("input"));
-    //applyButton.type = "button";
-    //applyButton.value = "Apply";
-    //applyButton.id = "propertiesApplyButton";
-    //applyButton.className = "button";
-    //applyButton.addEventListener("click", ApplyNewProperties);
-
-    //var cancelButton = buttonContainer.appendChild(document.createElement("input"));
-    //cancelButton.type = "button";
-    //cancelButton.value = "Cancel";
-    //cancelButton.className = "button";
-    //cancelButton.id = "propertiesCancelButton";
-    //cancelButton.addEventListener("click", function () { modalDialogClose(); });
-
 }
 
 function ApplyNewProperties() {

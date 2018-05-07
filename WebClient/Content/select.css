@@ -4,11 +4,11 @@
 }
 .attributeTable {
   display: inline-block;
-  width: 350px;
+  width: 250px;
   margin: 0px 2px 0px 2px;
 }
 .attributeLeftCell {
-  width: 218px;
+  width: 120px;
   text-align: right;
   padding-right: 3px;
   height: 25px;

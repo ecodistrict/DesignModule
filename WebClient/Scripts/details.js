@@ -301,15 +301,6 @@
             kpiCount++;
         }
 
-        //var chartCount = 0;
-        //for (var chartid in this._charts) {
-        //    //addChart(this.charts, this._charts[chartid], this.options.chartWidth, this.options.chartHeight, false, false, true);
-        //    chartCount++;
-
-        //}
-
-
-
         var chartCount = GraphManager.SetPreviews(this.charts);
 
         var layerCount = LayerManager.SetPreviews(this.layers);

@@ -19,14 +19,14 @@
   pointer-events: auto;
 }
 .modalDialog > div {
-  max-width: 90%;
-  position: relative;
-  margin: 10px auto;
-  padding: 5px 20px 13px 20px;
-  border-radius: 4px;
-  background: white;
-  max-height: 80%;
-  overflow: auto;
+    max-width: 70%;
+    position: relative;
+    margin: 50px auto;
+    padding: 5px 20px 13px 20px;
+    border-radius: 4px;
+    background: white;
+    max-height: 80%;
+    overflow: auto;
 }
 .modalDialogClose {
   background: #606061;
