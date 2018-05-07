@@ -438,7 +438,7 @@ begin
   if json<>'' then
   begin
     json :=
-      '{"updatelayer":'+
+      '{"type":"updatelayer","payload":'+
         '{"id":"'+elementID+'",'+
          '"name":"'+name+'",'+
          '"timestamp":"'+fLastTimeStamp+'",'+
@@ -466,7 +466,7 @@ begin
   if json<>'' then
   begin
     json :=
-      '{"updatelayer":'+
+      '{"type":"updatelayer","payload":'+
         '{"id":"'+elementID+'",'+
          '"name":"'+name+'",'+
          '"timestamp":"'+fLastTimeStamp+'",'+
@@ -494,7 +494,7 @@ begin
   if json<>'' then
   begin
     json :=
-      '{"updatelayer":'+
+      '{"type":"updatelayer","payload":'+
         '{"id":"'+elementID+'",'+
          '"name":"'+name+'",'+
          '"timestamp":"'+fLastTimeStamp+'",'+

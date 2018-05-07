@@ -8,7 +8,6 @@ var wsLookup = {
         measuresControl.resetMeasures(payload);
     },
     domains: function (payload) {
-        //var t0 = performance.now();
         // first domains after login
         domainsControl.resetDomains(payload);
         // remove all basic overlay layers from layers control (and with that from map)
@@ -27,12 +26,8 @@ var wsLookup = {
                     addBasicLayer(layer);
             }
         }
-        //var t1 = performance.now();
-        //console.log("Loaded domains in " + (t1 - t0) + " milliseconds");
-        //AddErrorMessage("Loaded domains & details", "succes", 5000);
     },
     updatedomains: function (payload) {
-        //var t0 = performance.now();
         // update of domains (on scenario change)
         removeAllDomainLayers();
         legendControl.clearLegend(true);
@@ -54,11 +49,8 @@ var wsLookup = {
                     addBasicLayer(layer);
             }
         }
-        //var t1 = performance.now();
-        //console.log("Updated domains in " + (t1 - t0) + " milliseconds");
     },
     refresh: function (payload) {
-        //console.log(payload);
         LayerManager.UpdateData(payload);
         var elementID = payload.id;
         if (typeof payload.tiles !== "undefined" && payload.tiles != '') {
@@ -158,11 +150,9 @@ var wsLookup = {
                 InfoTextControl['leaflet-draw-toolbar'] = { active: false };
             }
         }
-
         if (typeof payload.simulationSettingsEnabled !== 'undefined') {
             // todo: ?
         }
-
         if (typeof payload.measuresEnabled !== 'undefined') {
             if (payload.measuresEnabled) {
                 map.addControl(measuresControl);
@@ -182,75 +172,6 @@ var wsLookup = {
                 map.removeControl(historyControl);
             }
         }
-        if (typeof payload.simulationControlEnabled !== 'undefined') {
-            if (payload.simulationControlEnabled) {
-                map.addControl(startControl);
-                map.addControl(presenterViewerControl);
-                map.addControl(DataManager.modelControl);
-                InfoTextControl['leaflet-control-model'] = { description: 'View model control info', active: true, iconPosition: 'left' };
-                InfoTextControl['leaflet-control-pv'] = { description: 'Set-up a presenter session or join a session as viewer', active: true, iconPosition: 'left' };
-                InfoTextControl['leaflet-control-startstop-stopped'] = { description: 'Play/pause simulation', active: true, iconPosition: 'left' };
-            } else {
-                map.removeControl(startControl);
-                map.removeControl(presenterViewerControl);
-                InfoTextControl['leaflet-control-model'] = { active: false };
-                InfoTextControl['leaflet-control-pv'] = { active: false };
-                InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
-            }
-        }
-
-        //else {
-        //    map.removeControl(presenterViewerControl)
-        //    map.removeControl(startControl);
-        //    map.removeControl(DataManager.modelControl);
-        //    InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
-        //}
-        if (typeof payload.simulationSetup !== "undefined") {
-            if (payload.simulationSetup) {
-                if (typeof payload.simulationSetup.data !== 'undefined')
-                    DataManager.simulationSetupData = payload.simulationSetup.data;
-                map.addControl(simulationControl);
-                InfoTextControl['leaflet-control-simulation'] = { description: 'Click here to config or edit a simulation', active: true, iconPosition: 'left' };
-            }
-            else {
-                //DataManager.simulationSetupData = null;
-                map.removeControl(simulationControl);
-                InfoTextControl['leaflet-control-simulation'] = { active: false };
-            }
-        }
-        if (typeof payload.simulationClose !== "undefined")
-        {
-            if (payload.simulationClose) {
-                map.addControl(DataManager.simCloseControl);
-                InfoTextControl['leaflet-control-simclose'] = { description: 'Click here to close the current simulation', active: true, iconPosition: 'left' };
-            }
-            else {
-                map.removeControl(DataManager.simCloseControl);
-                InfoTextControl['leaflet-control-simclose'] = { active: false };
-            }
-        }
-        
-        if (typeof payload.startstopControlEnabled !== "undefined") {
-            if (payload.startstopControlEnabled) {
-                map.addControl(startControl);
-                InfoTextControl['leaflet-control-startstop-stopped'] = { description: 'Play/pause simulation', active: true, iconPosition: 'left' };
-            }
-            else {
-                map.removeControl(startControl);
-                InfoTextControl['leaflet-control-startstop-stopped'] = { active: false };
-            }
-        }
-        if (typeof payload.presenterViewerControl !== "undefined") {
-            if (payload.presenterViewerControl) {
-                map.addControl(presenterViewerControl);
-                InfoTextControl['leaflet-control-pv'] = { description: 'Set-up a presenter session or join a session as viewer', active: true, iconPosition: 'left' };
-            }
-            else {
-                map.removeControl(presenterViewerControl);
-                InfoTextControl['leaflet-control-pv'] = { active: false };
-            }
-        }
-
         if (typeof payload.modelControlEnabled !== "undefined") {
             if (payload.modelControlEnabled) {
                 map.addControl(DataManager.modelControl);
@@ -261,7 +182,6 @@ var wsLookup = {
                 InfoTextControl['leaflet-control-model'] = { active: false };
             }
         }
-
         if (typeof payload.filesControlEnabled !== "undefined") {
             if (payload.filesControlEnabled) {
                 map.addControl(DataManager.filesControl);
@@ -272,18 +192,6 @@ var wsLookup = {
                 InfoTextControl['leaflet-control-files'] = { active: false };
             }
         }
-
-        if (typeof payload.goLiveControlEnabled !== "undefined") {
-            if (payload.goLiveControlEnabled) {
-                map.addControl(DataManager.goLiveControl);
-                InfoTextControl['leaflet-control-golive'] = { description: 'Go back to live data', active: true, iconPosition: 'right' };
-            }
-            else {
-                map.removeControl(DataManager.goLiveControl);
-                InfoTextControl['leaflet-control-golive'] = { active: false };
-            }
-        }
-
         if (typeof payload.controlsControlEnabled !== "undefined") {
             if (payload.controlsControlEnabled) {
                 map.addControl(DataManager.controlsControl);
@@ -294,7 +202,6 @@ var wsLookup = {
                 InfoTextControl['leaflet-control-controls'] = { active: false };
             }
         }
-
         if (typeof payload.overviewControlEnabled !== "undefined") {
             if (payload.overviewControlEnabled) {
                 map.addControl(DataManager.overviewControl);
@@ -305,7 +212,6 @@ var wsLookup = {
                 InfoTextControl['leaflet-control-overview'] = { active: false };
             }
         }
-
         // basic controls
         InfoTextControl['leaflet-control-zoom'] = { description: 'Zoom', active: true, iconPosition: 'right' };
         InfoTextControl['leaflet-control-layers-toggle'] = { description: 'Selecteer de basis kaart', active: true, iconPosition: 'left' };
@@ -325,23 +231,8 @@ var wsLookup = {
           AddErrorMessage(payload.message, payload.messageType, payload.messageTimeOut);
 
     },
-    sensor: function (payload) {
-        DataManager.NewSensor(payload);
-    },
-    complaint: function (payload) {
-        DataManager.NewComplaint(payload);
-    },
-    sensordata: function (payload) {
-        DataManager.NewSensorData(payload);
-    },
     winddata: function (payload) {
         DataManager.NewWindData(payload);
-    },
-    removecomplaint: function (payload) {
-        DataManager.RemoveComplaint(payload);
-    },
-    removesensor: function (payload) {
-        DataManager.RemoveSensor(payload);
     },
     addhistorymeasures: function (payload) {
         historyControl.addHistoryItems(payload);
@@ -349,45 +240,8 @@ var wsLookup = {
     removehistorymeasures: function (payload) {
         historyControl.removeHistoryItems(payload);
     },
-    addcars: function (payload) {
-        DataManager.AddCars(payload);
-    },
-    updatecars: function (payload) {
-        DataManager.UpdateCars(payload);
-    },
-    removecars: function (payload) {
-        DataManager.RemoveCars(payload);
-    },
-    newgtusensor: function (payload) {
-        //not implemented
-
-    },
-    updategtusensor: function (payload) {
-        //not implemented
-
-    },
-    newgtustatistics: function (payload) {
-        for (var i = 0; i < payload.length; i++)
-            GraphManager.MakeGraph(payload[i]);
-    },
-    updategtustatistics: function (payload) {
-        GraphManager.UpdateGraphs(payload);
-    },
     resetgraphs: function (payload) {
         GraphManager.ResetGraphs(payload);
-    },
-    simulationcontrol: function (payload) {
-        if (typeof payload.start !== "undefined") {
-            startControl.SimulationStarted();
-        }
-        else if (typeof payload.stop !== "undefined") {
-            startControl.SimulationStopped();
-        }
-
-        if (typeof payload.speed !== "undefined") {
-            DataManager.simSpeed = payload.speed;
-            AddErrorMessage("Simulation speed changed to: " + payload.speed, "succes", 5000);
-        }
     },
     ccv: function (payload) {
         SyncManager.handleCCVMessage(payload);
@@ -482,65 +336,7 @@ function wsConnect() {
                 // todo: NEW MESSAGE FORMAT
                 var messageBuilder = {};
                 //build the type/payload message for compatibility with the new standard
-                if (message.measures) {
-                    messageBuilder.type = "measures";
-                    messageBuilder.payload = message.measures;
-                }
-                else if (message.domains) {
-                    messageBuilder.type = "domains";
-                    messageBuilder.payload = message.domains;
-                }
-                else if (message.updatedomains) {
-                    messageBuilder.type = "updatedomains";
-                    messageBuilder.payload = message.updatedomains;
-                }
-                else if (message.refresh) {
-                    messageBuilder.type = "refresh";
-                    messageBuilder.payload = {};
-                    messageBuilder.payload.id = message.refresh;
-                    if (typeof message.tiles !== "undefined")
-                        messageBuilder.payload.tiles = message.tiles;
-                    if (typeof message.timestamp !== "undefined")
-                        messageBuilder.timestamp = message.timestamp;
-                    if (typeof message.preview !== "undefined")
-                        messageBuilder.payload.preview = message.preview;
-                    if (typeof message.diff !== "undefined")
-                        messageBuilder.payload.diff = message.diff;
-                    if (typeof message.ref !== "undefined")
-                        messageBuilder.payload.ref = message.ref;
-                }
-                else if (message.updatelayer) {
-                    messageBuilder.type = "updatelayer";
-                    messageBuilder.payload = message.updatelayer;
-                }
-                else if (message.updatekpi) {
-                    messageBuilder.type = "updatekpi";
-                    messageBuilder.payload = message.updatekpi;
-                }
-                else if (message.selectedObjects) {
-                    messageBuilder.type = "selectedobjects";
-                    messageBuilder.payload = message.selectedObjects;
-                }
-                else if (message.selectedObjectsProperties) {
-                    messageBuilder.type = "selectedobjectsproperties";
-                    messageBuilder.payload = message.selectedObjectsProperties;
-                }
-                else if (message.session) {
-                    messageBuilder.type = "session";
-                    messageBuilder.payload = message.session;
-                }
-                else if (message.login) {
-                    messageBuilder.type = "login";
-                    messageBuilder.payload = message.login;
-                }
-                else if (message.connection) {
-                    messageBuilder.type = "connection";
-                    messageBuilder.payload = message.connection;
-                }
-                else if (message.sensor) {
-                    messageBuilder.type = "sensor";
-                    messageBuilder.payload = message.sensor;
-                }
+                
                 else if (message.complaint) {
                     messageBuilder.type = "complaint";
                     messageBuilder.payload = message.complaint;

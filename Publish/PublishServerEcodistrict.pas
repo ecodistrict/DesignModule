@@ -1240,7 +1240,7 @@ begin
         if jsonProperties<>'' then
         begin
           Result :=
-            '{"selectedObjectsProperties":'+
+            '{"type":"selectedObjectsProperties","payload":'+
               '{'+
                 '"selectedCategories": ["'+category+'"],'+
                 '"properties":['+jsonProperties+'],'+
@@ -1337,7 +1337,7 @@ begin
         catList.Free;
       end;
       Result :=
-        '{"selectedObjects":{"selectCategories":['+categories+'],'+
+        '{"type":"selectedObjects","payload":{"selectCategories":['+categories+'],'+
          '"mode":"'+aMode+'",'+
          '"objects":['+objectsGeoJSON+']}}';
       Log.WriteLn('select on radius:  found '+totalObjectCount.ToString+' objects in '+categories);

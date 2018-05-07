@@ -2973,7 +2973,7 @@ begin
             ids := ids + ',';
           ids := ids + '"' +id + '"';
         end;
-        Result := '{"selectedObjectsProperties":'+
+        Result := '{"type":"selectedObjectsProperties","payload":'+
               '{'+
                 '"selectedCategories": ["'+layer.ID+'"],'+
                 '"properties":['+propertyBuilder.GetJSON+'],'+

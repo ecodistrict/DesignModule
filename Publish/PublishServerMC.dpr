@@ -117,6 +117,8 @@ var
   p: Integer;
   projectID: string;
   projectName: string;
+  projectType: string;
+  found: Boolean;
   projectTypes: TStringArray;
   sourceESPG: Integer;
   i: Integer;
@@ -174,7 +176,29 @@ begin
     aParameters.Add(TModelParameter.Create(SourceEPSGIntSwitch, sourceESPG));
     aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, GetSetting(PreLoadScenariosSwitch, True)));
     if Length(projectTypes) > 0 then
-      aParameters.Add(TModelParameter.Create(ProjectTypeSwitch, GetSetting(ProjectTypeSwitch, projectTypes[0]), projectTypes));
+    begin
+      if GetSettingExists(ProjectTypeSwitch) then
+      begin
+        projectType := GetSetting(ProjectTypeSwitch, '');
+        found := False;
+        for i := 0 to Length(projectTypes) - 1 do
+        begin
+          if projectType.ToUpper = projectTypes[i].ToUpper then
+          begin
+            aParameters.Add(TModelParameter.Create(ProjectTypeSwitch, projectType, projectTypes));
+            found := True;
+            break;
+          end;
+        end;
+        if not found then
+          aParameters.Add(TModelParameter.Create(ProjectTypeSwitch, projectTypes[0], projectTypes));
+      end
+      else
+      begin
+        aParameters.Add(TModelParameter.Create(ProjectTypeSwitch, projectTypes[0], projectTypes));
+      end;
+
+    end;
   except
     on E: Exception
     do log.WriteLn('Exception in TModel.ParameterRequest: '+E.Message, llError);
