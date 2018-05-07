@@ -282,6 +282,7 @@ begin
           fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
           fSessionModel.Projects.Add(fProject);
         end
+        {
         else if projectType.ToUpper = 'US' then
         begin
           fProject := TUSProject.Create(
@@ -298,9 +299,9 @@ begin
           fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
           fSessionModel.Projects.Add(fProject);
         end
+        }
         else
         begin
-          //todo: log warning
           //type not recognized, start default us publisher
           fProject := TUSProject.Create(
             fSessionModel, fSessionModel.Connection, connection,
