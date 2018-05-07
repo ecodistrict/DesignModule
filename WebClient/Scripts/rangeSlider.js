@@ -116,7 +116,6 @@
 
     update: function (payload) {
         if (payload.live && !this.live) {
-            //this.goLive();
             this.live = true; // No need to send message
         }
 

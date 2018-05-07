@@ -1,90 +1,4 @@
-﻿//function GenerateRandomData() {
-//    var data = [];
-
-//    var categoryCount = Math.floor((Math.random() * 12) + 2);
-
-//    var barCount = Math.floor((Math.random() * 3) + 2);
-
-//    var barCounts = [];
-
-//    for (var i = 0; i < barCount; i++)
-//        barCounts.push(Math.floor((Math.random() * 4) + 1));
-
-//    for (var i = 0; i < categoryCount; i++) {
-//        var category = {
-//            title: "Area" + (i + 1),
-//            data: []
-//        }
-
-//        var seriesCount = 0;
-
-//        for (var j = 0; j < barCount; j++) {
-
-//            var barData = {
-//                leftAxis: true,
-//                data: []
-//            }
-//            var total = 0;
-//            for (var h = 0; h < barCounts[j]; h++) {
-//                var value = Math.floor((Math.random() * 30));
-//                barData.data.push({ start: total, value: value, series: (seriesCount + " Series") });
-//                seriesCount++;
-//                total += value;
-//            }
-
-//            category.data.push(barData);
-//        }
-
-//        data.push(category);
-//    }
-
-//    return data;
-//}
-
-//function GenerateBarCharts(amount)
-//{
-//    var domainName = "BarTest";
-//    var domains = {};
-//    var domain = { enabled: true, charts: [], layers: [], kpis: [] };
-//    domains[domainName] = domain;
-//    for (var i = 0; i < amount; i++)
-//    {
-//        var graphObject = {
-//            id: "BarChart" + i,
-//            title: "Een grafiekje",
-//            barMargin: 0.15,
-//            categoryMargin: 1,
-//            xAxisMargin: 30,
-//            yAxisMargin: 30,
-//            type: "newbar",
-//            data: GenerateRandomData()
-//        };
-//        domain.charts.push(graphObject);
-//    }
-
-//    wsLookup["domains"](domains);
-//}
-
-//function GenerateNewBarChart(index) {
-//    var graphObject = {
-//        id: "BarChart" + index ? index : parseInt(Math.random() * 10000),
-//        title: "Een grafiekje",
-//        barMargin: 0.15,
-//        categoryMargin: 1,
-//        width: 400,
-//        height: 300,
-//        xAxisMargin: 30,
-//        yAxisMargin: 30,
-//        type: "newbar",
-//        data: GenerateRandomData()
-//    };
-//    GraphManager.MakeGraph(graphObject);
-//    //var chart = new BarChart(graphObject);
-//    //chart.Initialize(container);
-//    //return chart;
-//}
-
-VerticalBarChart = function (aGraphObject) {
+﻿VerticalBarChart = function (aGraphObject) {
     //graphObject.valueColors = {
     //    type: "discrete",
     //    entries: [{ min: 0, max: 20, color: "#FF0000" }, { min: 20, max: 50, color: "#FE642E" }, { min: 50, max: 70, color: "#F7FE2E" }, { min: 70, max: 100, color: "#00FF00" }],
@@ -300,10 +214,6 @@ VerticalBarChart = function (aGraphObject) {
 			.range([dataHeight, 0])
 			.domain([minY, maxY]);
 
-        //var yNormalScale = d3.scale.linear()
-		//	.range([0, dataHeight])
-		//	.domain([minY, maxY]);
-
         var barsWidth = this.barsWidth = this._getWidthInBars(data);
 
         var xScale = d3.scale.linear()
@@ -409,17 +319,6 @@ VerticalBarChart = function (aGraphObject) {
         rect.exit()
 			.remove();
 
-        //rect.attr("y", function (d) { return yScale(d.start + d.value); })
-		//	.attr("height", function (d) { return yNormalScale(d.value); })
-		//	.attr("width", barPixelWidth)
-		//	.attr("fill", function (d) { return seriesToColor(d.series); });
-
-        //rect.enter().append("rect")
-		//	.attr("y", function (d) { return yScale(d.start + d.value); })
-		//	.attr("height", function (d) { return yNormalScale(d.value); })
-		//	.attr("width", barPixelWidth)
-		//	.attr("fill", function (d) { return seriesToColor(d.series); });
-
         rect.attr("y", function (d) { return Math.min(yScale(d.start + d.value), yScale(d.start)); })
 			.attr("height", function (d) { return Math.abs(yScale(d.start + d.value) - yScale(d.start)); })
 			.attr("width", barPixelWidth)
@@ -480,10 +379,6 @@ VerticalBarChart = function (aGraphObject) {
         var yScale = d3.scale.linear()
 			.range([graphHeight, 0])
 			.domain([this.minY, this.maxY]);
-
-        //var yNormalScale = d3.scale.linear()
-		//	.range([0, graphHeight])
-		//	.domain([this.minY, this.maxY]);
 
         var xScale = d3.scale.linear()
 			.range([0, graphWidth])
@@ -555,13 +450,7 @@ VerticalBarChart = function (aGraphObject) {
     this._getMinY = function (data) {
         return d3.min(data, function (d) { return d3.min(d.data, function (d) { return d3.min(d.data, function (d) { return Math.min(d.start + d.value, d.start); }); }); });
     }
-    /*
-    this._seriesCount = function (data) {
-        if (data.length == 0)
-            return 0;
-        return d3.max(data, function (d) { return d.data.length == 0 ? 0 : d3.sum(d.data, function (d) { return d.data.length; }); });
-    }
-    */
+
     this._getXAxisAmount = function (data) {
         for (var i = 0; i < data.length; i++)
             for (var j = 0; j < data[i].data.length; j++)
@@ -708,7 +597,6 @@ VerticalBarChart = function (aGraphObject) {
             table.className = "bar-label-table";
             for (var i = 0; i < this.seriesNames.length; i++) {
                 var name = this.seriesNames[i];
-                //if (name.substr(name.length - 4)!=="-ref") {
                 var row = table.appendChild(document.createElement("tr"));
                 row.className = "bar-label-row";
 
@@ -719,7 +607,6 @@ VerticalBarChart = function (aGraphObject) {
                 var textField = row.appendChild(document.createElement("td"));
                 textField.className = "bar-label-text-td";
                 textField.innerHTML = this.seriesNames[i];
-                //}
             }
         }
         else
@@ -775,7 +662,7 @@ VerticalBarChart = function (aGraphObject) {
             tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
             while (lineNumber < 2 && letters.length > 0) {
                 letter = letters[0];
-                if (context.measureText(line + letter).width > width /*&& line.length > 1*/) {
+                if (context.measureText(line + letter).width > width) {
                     tspan.text(line);
                     if (lineNumber < 1) {
                         line = "";
@@ -834,10 +721,6 @@ VerticalBarChart = function (aGraphObject) {
 
     this._convertFromOldBar = function ()
     {
-        //barMargin: 0.15,
-        //            categoryMargin: 1,
-        //            xAxisMargin: 30,
-        //            yAxisMargin: 30,
         this.graphObject.barMargin = 0.15;
         this.graphObject.categoryMargin = 1;
         this.graphObject.xAxisMargin = 30;
@@ -879,8 +762,6 @@ VerticalBarChart = function (aGraphObject) {
             stackbar[groupNo][catNo].data.push({ start: prev.start + prev.value, value: value, series: series });
         }
 
-
-
         for (var i = 1; i < data.columns.length; i++)
         {
             var series = data.columns[i][0];
@@ -908,9 +789,7 @@ VerticalBarChart = function (aGraphObject) {
                 }
             }
         }
-
         return newData;
-
     }
 
     if (this.graphObject.axis)

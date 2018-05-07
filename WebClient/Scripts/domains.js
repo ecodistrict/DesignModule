@@ -63,7 +63,7 @@
                 L.DomEvent.on(link, 'focus', this._expand, this);
             }
             this._map.on('click', this._collapse, this);
-            // TODO keyboard accessibility
+            // TODO: keyboard accessibility
         } else {
             this._expand();
         }

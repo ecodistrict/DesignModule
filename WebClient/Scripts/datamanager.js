@@ -1,15 +1,5 @@
-﻿// todo: check licences for noun-project icons
-
-DataManager = {
-    //complaints: [],
-    //sensors: [],
-    //cars: [],
-    //carshash: {},
-    //sliders: [],
-    //counter: 99,
-    //warningGiven: false,
+﻿DataManager = {
     wind: null,
-    //drawLayer: null,
     session: null,
     queryDialogData: null, // used in queryDialog.js
     activeBasicLayers: {}, // used in select.js

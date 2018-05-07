@@ -64,13 +64,8 @@ L.Control.Measures = L.Control.extend({
             }
 
             // work around for Firefox Android issue https://github.com/Leaflet/Leaflet/issues/2033
-            /*
-            L.DomEvent.on(form, 'click', function () {
-            setTimeout(L.bind(this._onInputClick, this), 0);
-          }, this);
-          */
             this._map.on('click', this._collapse, this);
-            // TODO keyboard accessibility
+            // TODO: keyboard accessibility
         } else {
             this._expand();
         }
@@ -242,8 +237,6 @@ L.Control.Measures = L.Control.extend({
                     _this._collapse();
                     modalDialogClose();
                 }
-                //else
-                //    alert('Select an option before applying or press cancel to abort');
             });
             applyButton.id = "measuresApplyButton";
 
@@ -258,7 +251,6 @@ L.Control.Measures = L.Control.extend({
             if (!selectedRadio) {
                 applyButton.children[0].setAttribute("disabled", true);
             }
-
         }
     },
 

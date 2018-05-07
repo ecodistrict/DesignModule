@@ -62,7 +62,7 @@ L.Control.History = L.Control.extend({
             }
 
             this._map.on('click', this._collapse, this);
-            // TODO keyboard accessibility
+            // TODO: keyboard accessibility
         } else {
             this._expand();
         }
@@ -109,10 +109,6 @@ L.Control.History = L.Control.extend({
             this._historyList.appendChild(label);
         }
 
-        //for (hi in this._measureItems) {
-        //    this._addMeasureItem(this._measureItems[hi]); //this._addItem(hi); might work as well??
-        //}
-
         return this;
     },
 
@@ -125,7 +121,6 @@ L.Control.History = L.Control.extend({
         input.layerId = L.stamp(obj);
         input.item = obj;
         obj.input = input;
-        //this._measureItems[input.layerId] = obj;
 
         L.DomEvent.on(input, 'click', this._onRemovenMeasure, this);
 
@@ -162,7 +157,6 @@ L.Control.History = L.Control.extend({
         input.layerId = L.stamp(item);
         input.item = item;
         item.input = input;
-        //this._measureItems[input.layerId] = obj;
 
         L.DomEvent.on(input, 'click', this._onToggleHistory, this);
 
@@ -245,7 +239,6 @@ L.Control.History = L.Control.extend({
         // todo: NEW MESSAGE FORMAT
         var message = {};
         message.applyMeasures = [];
-        //todo
         for (var mi in this._measureItems) {
             var am = {
                 measure: this._measureItems[mi].measure,
@@ -288,9 +281,6 @@ L.Control.History = L.Control.extend({
     },
 
     _onSelectObjectsFromHistory: function (e) {
-        //alert('select objects from measure history');
-        //var r = this._measureItems[e.currentTarget.layerId];
-
         var item = e.currentTarget.item;
 
         if (item.selectedObjects.length == 0)

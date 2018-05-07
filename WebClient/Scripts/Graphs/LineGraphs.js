@@ -35,17 +35,13 @@ function LineBottomLeft(graphObject) {
             this.graphObject.maxY = maxY;
         }
 
-        //var svgHolder = container.appendChild(document.createElement('div'));
-
         var svg = d3.select(container).append("svg")
             .attr("width", width)
             .attr("height", height);
-        //.on(click, this.onsvgclick);
 
         svg.className = "graph-svg";
 
         if (this.graphObject.clickable != clickOptions.none) {
-            //svgHolder.addEventListener("click", this.onsvgclick);
             svg.on("click", this.onsvgclick);
         }
 
@@ -86,7 +82,7 @@ function LineBottomLeft(graphObject) {
         var axisY = svg.append("g")
             .attr("class", "axis yAxis");
         this.graphObject.axisY = axisY;
-        if (this.graphObject.y[0].label != "") { //todo check to see if there are different labels -> label lines instead of axis!
+        if (this.graphObject.y[0].label != "") { // todo: check to see if there are different labels -> label lines instead of axis!
             var axisYLabel = svg.append("text")
                 .attr("class", "axisLabel yAxisLabel")
                 .text(this.graphObject.y[0].label);
@@ -135,10 +131,6 @@ function LineBottomLeft(graphObject) {
         var xScale = this.graphObject.Scales.x;
         var yScale = this.graphObject.Scales.y;
 
-        //var relativePos = {
-        //    x: e.offsetX - (padding.left + axisMargin.y),
-        //    y: e.offsetY - (padding.top + axisMargin.x)
-        //}
         var relativePos = d3.mouse(this.graphObject.svg[0][0]);
 
         if (relativePos[0] < xScale.range()[0] || relativePos[0] > xScale.range()[1])
@@ -146,14 +138,7 @@ function LineBottomLeft(graphObject) {
 
         if (relativePos[1] < yScale.range()[1] || relativePos[1] > yScale.range()[0])
             return;
-        //if (e.offsetX < this.graphObject.Scales.x.range()[0] || e.offsetX > this.graphObject.Scales.x.range()[1])
-        //    return;
-
-        //if (e.offsetY < this.graphObject.Scales.y.range()[1] || e.offsetY > this.graphObject.Scales.y.range()[0])
-        //    return;
-
-
-
+        
         if (this.graphObject.data.length > 0 && this.graphObject.data[0].length > 0) {
             var closest = null;
             var distance = Number.MAX_VALUE;
@@ -178,7 +163,7 @@ function LineBottomLeft(graphObject) {
     this.onsvgclick = this.onsvgclick.bind(this);
 
     this._UpdatePreview = function () {
-        //todo implement update for preview on reset of graph!
+        // todo: implement update for preview on reset of graph!
         if (this.previewDiv == null || this.graphObject.data == null || this.graphObject.data.length == 0)
             return;
         else {
@@ -203,9 +188,6 @@ function LineBottomLeft(graphObject) {
 
         var xScale;
         var yScale;
-
-        //var width = graph.container.clientWidth;
-        //var height = graph.container.clientHeight;
 
         switch (graph.xScale) {
             case "linear": xScale = d3.scale.linear().domain([minX, maxX]).range([DataManager.detailsInfo.graphMargin, width - DataManager.detailsInfo.graphMargin]);
@@ -244,8 +226,8 @@ function LineBottomLeft(graphObject) {
 
         var lineFunction = d3.svg.line()
             .defined(function (d) { return d; })
-            .x(function (d) { return xScale(d.x.GetDisplayValue()); }) //d.x.GetDisplayValue()
-            .y(function (d) { return yScale(d.y.GetDisplayValue()); }) //d.y.GetDisplayValue()
+            .x(function (d) { return xScale(d.x.GetDisplayValue()); }) 
+            .y(function (d) { return yScale(d.y.GetDisplayValue()); }) 
             .interpolate(graph.interpolation);
 
         for (var g = 0; g < graph.y.length; g++) {
@@ -269,8 +251,6 @@ function LineBottomLeft(graphObject) {
         previewContainer.className = "detailContainer graphDetails";
         previewContainer.style.width = DataManager.detailsInfo.chartWidth + "px";
         previewContainer.style.height = DataManager.detailsInfo.elementHeight + "px";
-        //if (typeof this.graphObject.description !== "undefined")
-        //    previewContainer.title = this.graphObject.description;
 
         this.previewDiv = previewContainer;
         previewContainer.graph = this;
@@ -358,18 +338,6 @@ function LineBottomLeft(graphObject) {
 
         //gets the data to display
         var displayData = graph.displayData;
-        //for (var i = Math.max(0, graph.data.length - graph.maxPoints) ; i < graph.data.length; i++) {
-        //    yData = [graph.data[i].y[0]];
-        //    for (var j = 1; j < graph.data[i].y.length; j++) {
-        //        if (graph.additive)
-        //            yData.push(graph.data[i].y[j] + yData[j - 1]);
-        //        else
-        //            yData.push(graph.data[i].y[j]);
-        //    }
-        //    displayData.push({ x: graph.data[i].x, y: yData });
-        //}
-
-        //graph.displayData = displayData;
 
         //sets min/max values
         var minX = (typeof graph.minX === "undefined") ? d3.min(displayData, function (d) {
@@ -434,9 +402,6 @@ function LineBottomLeft(graphObject) {
         var xScale;
         var yScale;
 
-        //var width = graph.container.clientWidth;
-        //var height = graph.container.clientHeight;
-
         switch (graph.xScale) {
             case "linear": xScale = d3.scale.linear().domain([minX, maxX]).range([marginLeft, width - marginRight]).nice();
                 break;
@@ -488,10 +453,10 @@ function LineBottomLeft(graphObject) {
         var lineFunction = d3.svg.line()
             .defined(function (d) { return d; })
             .x(function (d) {
-                return xScale(d.x.GetDisplayValue()); //d.x.GetDisplayValue()
+                return xScale(d.x.GetDisplayValue()); 
             })
             .y(function (d) {
-                return yScale(d.y.GetDisplayValue()); //d.y.GetDisplayValue()
+                return yScale(d.y.GetDisplayValue()); 
             })
             .interpolate(graph.interpolation);
 
@@ -541,10 +506,7 @@ function LineBottomLeft(graphObject) {
                 .attr('height', tooltip[0][0].getBoundingClientRect().height + 8)
                 .attr('x', event.offsetX - (tooltip[0][0].getBoundingClientRect().width + 10))
                 .attr('y', event.offsetY - tooltip[0][0].getBoundingClientRect().height);
-
         }
-
-
         this._UpdatePreview();
     };
 

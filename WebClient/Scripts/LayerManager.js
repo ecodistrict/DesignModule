@@ -95,12 +95,6 @@ var LayerManager = {
     },
 
     SetNextLegend: function () {
-        //if (LayerManager._visibleLayers.length > 0) {
-        //    LayerManager._visibleLayers[0].setLegend();
-        //}
-        //else
-        //    legendControl.clearLegend();
-
         for (var i = 0; i < LayerManager._visibleLayers.length; i++)
             if (LayerManager._visibleLayers[i].setLegend())
                 return;
@@ -146,24 +140,12 @@ var LayerManager = {
     },
 
 
-    //todo move away from checking on id of the detailsLayer and move straight to the layer!
+    // todo: move away from checking on id of the detailsLayer and move straight to the layer!
     UpdateData: function (payload) {
         if (!payload.id)
             return;
 
         LayerManager.UpdateBaseLayer(payload);
-        //if (!payload.diff && !payload.ref && typeof LayerManager._subscribedLayers[payload.id] !== "undefined") //check if compatible with system
-        //{
-        //    LayerManager.UpdateSubscribedLayer(payload);
-        //}
-        //else
-        //{
-        //    if (typeof LayerManager._subscribedLayers[payload.id] === "undefined")
-        //        console.warn("LayerManager.UpdateData on unsubscribed layer:");
-        //    else
-        //        console.warn("LayerManager.UpdateData on old layer:");
-        //    console.warn(payload);
-        //}
     },
 
     updateDomains: function (activelayers)
@@ -181,14 +163,8 @@ var LayerManager = {
                 LayerManager._layersonid[lid].enabled = false;
             }
         }
-        //todo show/hide layers with update domains?
+        // todo: show/hide layers with update domains?
     },
-
-    //UpdateSubscribedLayer: function (payload) {
-    //    if (typeof LayerManager._subscribedLayers[payload.id] !== "undefined") {
-    //        LayerManager._subscribedLayers[payload.id].updateData(payload);
-    //    }
-    //},
 
     UpdateBaseLayer: function (payload) {
         if (typeof LayerManager._baselayers[payload.id] !== "undefined") {
@@ -293,29 +269,14 @@ LayerManager.Object = function (data, layergroup) {
     this.layergroup = layergroup;
     this.latlng = L.latLng(data.lat, data.lng);
     this.style = {};
-
     this.update = null; // override
-
     this.remove = null; // override
 
     // todo: use this.object as generic object instead of shape and marker in derived classes
-
-    //this.object = null; 
-    //function () {
-    //    this.layergroup.removeLayer(this.object);
-    //};
 };
 
 LayerManager.Circle = function (data, layergroup) {
     LayerManager.Object.call(this, data, layergroup);
-
-    // todo: remove?
-    /*
-    if (data.fillColor && data.fillColor != "" && data.fillColor != "" && data.fillColor != "" && data.fillColor != "" && data.fillColor != "" && data.fillColor != "")
-    {
-
-    }
-    */
 
     //http://leafletjs.com/reference.html#path-options
     this.style = {
@@ -517,9 +478,7 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
         alt: data.alt ? data.alt : '',
         draggable: data.draggable ? data.draggable : false,
         riseOnHover: data.riseOnHover ? data.riseOnHover : false,
-        riseOffset: data.riseOffset ? data.riseOffset : 250 /*,
-        markerType: data.markerType ? data.markerType : 'marker',
-        radius: data.radius ? data.readius : 10*/
+        riseOffset: data.riseOffset ? data.riseOffset : 250 
     };
 
     data.contextmenu = data.contextmenu ? data.contextmenu : {items: []};
@@ -574,16 +533,6 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
     }
 
     this.markerlayer = markerlayer;
-    /*
-    switch (this.style.markerType) {
-        case 'Circle':
-            this.marker = L.circleMarker(this.latlng, this.style);
-            break;
-        default:
-            this.marker = L.marker(this.latlng, this.style);
-            break;
-    }
-    */
     this.marker = L.marker(this.latlng, this.style);
 
     if (data.draggable) {
@@ -719,7 +668,6 @@ LayerManager.Marker = function (data, layergroup, markerlayer) {
 
 
 function createLayerOfType(data, detailsLayer, crd) {
-    // todo: remove breaks?
     switch (data.type) {
         case "tile": return new LayerManager.TileLayer(data, detailsLayer, crd);
         case "object": return new LayerManager.ObjectLayer(data, detailsLayer, crd);
@@ -738,7 +686,6 @@ LayerManager.DetailsLayer = function (data) {
     for (var v in data)
         this[v] = data[v];
 
-    //this.crd = "active";
     this.showing = null;
     this.displayGroup = data.displayGroup ? data.displayGroup : "default";
 
@@ -776,7 +723,6 @@ LayerManager.DetailsLayer = function (data) {
         img.className = 'layerDetailsImg';
         img.src = this.preview;
         img.id = this.id;
-        //img.domain = data.domain;
         mainDiv.appendChild(img);
 
         var divLayerSelected = document.createElement('div');
@@ -802,7 +748,6 @@ LayerManager.DetailsLayer = function (data) {
         if (this.showing) {
             map.removeLayer(this.maplayer);
             this.showing.hideLayer();
-            //wsSend({ unsubscribe: this.id });
             this.showing = null;
         }
         if (this.previewDisplay) {
@@ -829,7 +774,6 @@ LayerManager.DetailsLayer = function (data) {
                 this.active.showLayer(this.maplayer);
             this.showing = this.active;
         }
-        //wsSend({ subscribe: this.id });
         LayerManager.AddVisibleLayer(this);
     };
 
@@ -1290,8 +1234,6 @@ LayerManager.SimpleLayer = function (layer, detailsLayer, crd) {
 
 LayerManager.MarkerLayer = function (layer, detailsLayer, crd) {
     LayerManager.ObjectLayer.call(this, layer, detailsLayer, crd);
-    //this.displayGroup = "separate"; // override
-    //detailsLayer.displayGroup = "separate"; // todo: for now 'hard' override for all marker layers
     this.objects = {};
     this.subscribe();
     // todo: when to unsubscribe? (on delete layer, NOT on hide..)

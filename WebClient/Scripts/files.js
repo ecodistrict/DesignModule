@@ -16,10 +16,6 @@ L.Control.Files = L.Control.extend({
     initialize: function (options) {
         L.setOptions(this, options);
 
-        //var fi = [];
-        //fi.fileName = "hallo";
-        //this._filesItems = [fi];
-
         this._filesItems = [];
         this._filesList;
         this._downloads = {};
@@ -71,7 +67,7 @@ L.Control.Files = L.Control.extend({
             }
 
             this._map.on('click', this._collapse, this);
-            // TODO keyboard accessibility
+            // TODO: keyboard accessibility
         } else {
             this._expand();
         }
@@ -120,38 +116,6 @@ L.Control.Files = L.Control.extend({
             container.removeAttribute("style");
         }, this);
 
-        /*
-        container.ondrop = function (e) {
-            // prevent browser default behavior on drop
-            e.preventDefault();
-            
-            // iterate over the files dragged on to the browser
-            for (var x = 0; x < e.dataTransfer.files.length; x++) {
-                var file = e.dataTransfer.files[x];
-                // instantiate a new FileReader object
-                var fr = new FileReader();
-
-                // loading files from the file system is an asynchronous
-                // operation, run this function when the loading process
-                // is complete
-                fr.onloadend = function (e) {
-                    //fr.addEventListener("loadend", function (e) {
-                    // send the file over web sockets
-                    // todo: ws.send(fr.result);
-                    alert("file received: " + file.name + " (" + file.type + ")");
-
-                //});
-                }
-
-                // load the file into an array buffer
-                fr.readAsArrayBuffer(file);
-            }
-            
-            // restore css style
-            container.removeAttribute("style");
-        }
-        */
-
     },
 
     _update: function () {
@@ -199,67 +163,6 @@ L.Control.Files = L.Control.extend({
 
         return label;
     },
-    /*
-    addFilesItems: function (filesItems) {
-        for (var i = 0, len = filesItems.length; i < len; i++) {
-            this._addFilesItem(filesItems[i]);
-        }
-    },
-    
-    removeFilesItems: function (filesItems) {
-        var tempList = [];
-        var changed = false;
-        for (var i = 0, leni = this._filesItems.length; i < leni; i++) {
-            var found = false;
-            for (var j = 0, lenj = filesItems.length; j < lenj; j++) {
-                if (filesItems[j].id == this._filesItems[i].id) {
-                    found = true;
-                    break;
-                }
-            }
-            if (found)
-                changed = true;
-            else
-                tempList.push(this._filesItems[i]);
-        }
-
-        this._filesItems = tempList;
-
-        if (changed)
-            this._update();
-    },
-    
-    _addFilesItem: function (obj) {
-        obj.time = DataManager.GetTimeObject(DataManager.BreakdownTime(obj.time)); //Change JSON UTC timestamp to javascript utc timestamp
-        obj.active = false;
-        this._filesItems.push(obj);
-        let len = this._filesItems.length;
-        if (len > 1 && this._filesItems[len - 1].time.getTime() < this._filesItems[len - 2].time.getTime()) {
-            this._filesItems.sort(function (a, b) { return a.time.getTime() - b.time.getTime() })
-            this._update();
-        }
-        else {
-            //todo just add it to the DOM
-            this._update();
-        }
-
-    },
-    
-    _onToggleFiles: function (e) {
-        var item = e.currentTarget.item;
-
-        item.active = !item.active;
-
-        if (item.active) {
-            e.currentTarget.className = 'files-icon-button files-remove-button';
-            e.currentTarget.item.name.className = 'files-name';
-        }
-        else {
-            e.currentTarget.className = 'files-icon-button files-add-button';
-            e.currentTarget.item.name.className = 'files-name-inactive';
-        }
-    },
-    */
 
     _downloadFile: function (e) {
         // always single file
@@ -343,14 +246,6 @@ L.Control.Files = L.Control.extend({
 
             if (acceptableHeight < this._form.clientHeight) {
                 L.DomUtil.addClass(this._form, 'leaflet-control-files-scrollbar');
-                // todo: copy-past, not yet checked
-                //var apply = document.getElementsByClassName('leaflet-control-files-apply')[0];
-
-
-                //apply.style.width = (this._form.getBoundingClientRect().width - 17) + 'px';
-                //apply.style.left = this._form.getBoundingClientRect().left + 'px';
-                //apply.style.bottom = apply.getBoundingClientRect().height + 2 + 'px';
-
                 this._form.style.paddingBottom = "30px";
                 this._form.style.height = acceptableHeight + 'px';
             } else {
