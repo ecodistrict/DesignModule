@@ -333,24 +333,8 @@ function wsConnect() {
                     wsLookup[message.type](message.payload);
             }
             else {
-                // todo: NEW MESSAGE FORMAT
-                var messageBuilder = {};
-                //build the type/payload message for compatibility with the new standard
-                else if (message.addhistorymeasures) {
-                    messageBuilder.type = "addhistorymeasures";
-                    messageBuilder.payload = message.addhistorymeasures;
-                }
-                else {
-                    console.log("unknown message:");
-                    console.log(message);
-                    break; //unknown message
-                }
-                if (DebugLogging) {
-                    console.log('received old message, type: ' + messageBuilder.type);
-                    console.log(messageBuilder);
-                }
-                if (typeof wsLookup[messageBuilder.type] !== "undefined")
-                    wsLookup[messageBuilder.type](messageBuilder.payload); //only access functions that are defined!
+                console.log('received old message, type: ' + messageBuilder.type);
+                console.log(messageBuilder);
             }
         }
 
