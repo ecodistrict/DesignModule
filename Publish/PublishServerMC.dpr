@@ -190,7 +190,7 @@ end;
 
 procedure TModel.StartModel(aParameters: TModelParameters);
 var
-//  p: Integer;
+  p: Integer;
   dbConnection: TOraSession;
   projectID: string;
   projectName: string;
@@ -206,13 +206,13 @@ begin
     if aParameters.Count>0
     then WriteLn('   parameters')
     else WriteLn('## NO parameters defined');
-    {
+
     for p := 0 to aParameters.Count - 1 do
     begin
       WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
-      standardIni.WriteString(RecoverySection, aParameters[p].Name, aParameters[p].ValueAsStore);
+      //standardIni.WriteString(RecoverySection, aParameters[p].Name, aParameters[p].ValueAsStore);
     end;
-    }
+
     fIMBLogger := AddIMBLogger(Log, Connection);
 
     dbConnection := TOraSession.Create(nil);
