@@ -476,6 +476,7 @@ function modalDialogApply() {
     // }
     if (!errors) {
         console.log({ formResult: formResult });
+        // todo: NEW MESSAGE FORMAT
         var sessionRequest = {
             // todo: for backwards compatibility we also send the specific setupSimulation command!
             setupSimulation: { 

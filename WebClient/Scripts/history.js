@@ -242,6 +242,7 @@ L.Control.History = L.Control.extend({
 
     _applyMeasures: function () {
         // apply measures from history control by sending to server
+        // todo: NEW MESSAGE FORMAT
         var message = {};
         message.applyMeasures = [];
         //todo
@@ -294,7 +295,7 @@ L.Control.History = L.Control.extend({
 
         if (item.selectedObjects.length == 0)
             return;
-
+        // todo: NEW MESSAGE FORMAT
         var sessionRequest = {};
         sessionRequest.selectObjects = {};
         sessionRequest.selectObjects.type = 'HistoryMeasure';

@@ -156,7 +156,7 @@ function ApplyNewProperties() {
 
         var request = {};
         request.applyObjectsProperties = objProps;
-
+        // todo: NEW MESSAGE FORMAT
         wsSend(request);
     }
     else
@@ -389,6 +389,7 @@ map.on('draw:created', function (e) {
     sessionRequest.selectObjects.activeBasicLayers = [];
     for (layer in DataManager.activeBasicLayers)
         sessionRequest.selectObjects.activeBasicLayers.push(layer);
+    // todo: NEW MESSAGE FORMAT
     wsSend(sessionRequest);
     inDraw = false;
     delete DataManager.event;
@@ -423,6 +424,7 @@ map.on('click', function (e) {
         sessionRequest.selectObjects.activeBasicLayers = [];
         for (layer in DataManager.activeBasicLayers)
             sessionRequest.selectObjects.activeBasicLayers.push(layer);
+        // todo: NEW MESSAGE FORMAT
         wsSend(sessionRequest);
     }
 });
@@ -467,6 +469,7 @@ function signalSelectByQuery(aQuery) {
     sessionRequest.selectObjects.query = aQuery;
     sessionRequest.selectObjects.selectCategories = measuresControl.options.selectCategories;
     sessionRequest.selectObjects.mode = '=';
+    // todo: NEW MESSAGE FORMAT
     wsSend(sessionRequest);
 }
 

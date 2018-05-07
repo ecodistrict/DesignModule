@@ -3,7 +3,7 @@ var ws;
 var wsLastConnectDateTime;
 var InfoTextControl = [];
 var wsLookup = {
-    //message handlers
+    // message handlers
     measures: function (payload) {
         measuresControl.resetMeasures(payload);
     },
@@ -316,6 +316,7 @@ var wsLookup = {
     },
     login: function (payload) {
         // login request, return login information
+        // todo: NEW MESSAGE FORMAT
         wsSend({ login: { scenario: DataManager.sessionInfo.scenario, userid: DataManager.sessionInfo.userid } });
     },
     connection: function (payload) {
@@ -451,7 +452,7 @@ function wsConnect() {
     };
     ws.onmessage = function (evt) {
         try {
-            var message = JSON.parse(evt.data);
+            var messages = JSON.parse(evt.data);
         }
         catch (err)
         {
@@ -459,10 +460,9 @@ function wsConnect() {
             console.log(evt.data);
             throw err;
         }
-        var messages = message;
-
-        if (!(Object.prototype.toString.call(message) === '[object Array]')) {
-            messages = [message];
+        // check if single message -> convert single message to array of 1
+        if (!(Object.prototype.toString.call(messages) === '[object Array]')) {
+            messages = [messages];
         }
 
         for (var x = 0; x < messages.length; x++) {
@@ -479,6 +479,7 @@ function wsConnect() {
                     wsLookup[message.type](message.payload);
             }
             else {
+                // todo: NEW MESSAGE FORMAT
                 var messageBuilder = {};
                 //build the type/payload message for compatibility with the new standard
                 if (message.measures) {

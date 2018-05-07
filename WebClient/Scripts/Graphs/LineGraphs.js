@@ -167,6 +167,7 @@ function LineBottomLeft(graphObject) {
             if (closest != null) {
                 var siX = closest.x.value;
                 var siY = closest.y.value;
+                // todo: ??
                 console.log(JSON.stringify({ wsSend: { query: { x: siX, y: siY } } }));
             }
 

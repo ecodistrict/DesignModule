@@ -137,11 +137,13 @@
     _clickControl: function (e) {
         var container = e.currentTarget;
         if (!container.playing) {
+            // todo: NEW MESSAGE FORMAT
             wsSend({ simulationControl: { start: true } });
             SyncManager.startPress();
             DataManager.startControl.SimulationStarted();
         }
         else {
+            // todo: NEW MESSAGE FORMAT
             wsSend({ simulationControl: { stop: true } });
             SyncManager.stopPress();
             DataManager.startControl.SimulationStopped();
@@ -188,18 +190,22 @@
     },
 
     SendSimClose: function () {
+        // todo: NEW MESSAGE FORMAT
         wsSend({ closeSimulation: true });
     },
 
     SendSimStart: function () {
+        // todo: NEW MESSAGE FORMAT
         wsSend({ simulationControl: { start: true } });
     },
 
     SendSimStop: function () {
+        // todo: NEW MESSAGE FORMAT
         wsSend({ simulationControl: { stop: true } });
     },
 
     SendSimSpeed: function (speed) {
+        // todo: NEW MESSAGE FORMAT
         wsSend({ "simulationControl": { "speed": speed } });
         SyncManager.speedChange(speed);
     },

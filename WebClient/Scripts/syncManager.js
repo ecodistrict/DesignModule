@@ -33,6 +33,7 @@
         }
         if (typeof message.scenario !== "undefined") {
             if (DataManager.sessionInfo.referenceScenario != message.scenario) {
+                // todo: NEW MESSAGE FORMAT
                 wsSend({
                     selectScenario: {
                         currentScenario: options.activeScenario,
@@ -194,6 +195,7 @@
                 playback: { speed: speed }
             }
         };
+        // todo: NEW MESSAGE FORMAT group into payload
         wsSend(obj);
     },
     startPress: function () {
@@ -207,6 +209,7 @@
                 playback: { play: true }
             }
         };
+        // todo: NEW MESSAGE FORMAT group into payload
         wsSend(obj);
     },
     stopPress: function () {
@@ -232,6 +235,7 @@
                 scenario: scenario
             }
         };
+        // todo: NEW MESSAGE FORMAT group into payload
         wsSend(obj);
     },
     enableMove: function () {
@@ -353,6 +357,7 @@
                 }
             }
         };
+        // todo: NEW MESSAGE FORMAT group into payload
         wsSend(obj);
     },
     sendInitRequest: function () {
@@ -363,6 +368,7 @@
                 initRequest: true
             }
         };
+        // todo: NEW MESSAGE FORMAT group into payload
         wsSend(obj);
     }
     //test functions!

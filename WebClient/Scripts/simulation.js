@@ -123,6 +123,7 @@ L.Control.SimulationClose = L.Control.extend({
             modalDialogClose();
         });
         modelDialogAddButton(mddb, 'Yes', function () {
+            // todo: NEW MESSAGE FORMAT
             wsSend({ closeSimulation: true });
             modalDialogClose();
         });

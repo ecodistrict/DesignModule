@@ -73,6 +73,7 @@ L.control.projectDescription.showScenarios = function () {
             options.activeScenario = selectedRadio ? selectedRadio.value : "";//-1; todo: check if works in schiedam
             selectedRadio = document.querySelector('input[name=referenceScenario]:checked');
             options.referenceScenario = selectedRadio ? selectedRadio.value : "";//-1; todo check if works in schiedam
+            // todo: NEW MESSAGE FORMAT
             wsSend({
                 selectScenario: {
                     currentScenario: options.activeScenario,

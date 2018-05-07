@@ -126,6 +126,7 @@ var LayerManager = {
 
     _unsubscribeLayers: function () {
         for (var l in LayerManager._subscribedLayers) {
+            // todo: NEW MESSAGE FORMAT
             wsSend({ unsubscribe: LayerManager._subscribedLayers[l].id });
         }
         LayerManager._subscribedLayers = {};
@@ -200,11 +201,13 @@ var LayerManager = {
 
     SubscribeLayer: function (layer) {
         LayerManager._subscribedLayers[layer.id] = layer;
+        // todo: NEW MESSAGE FORMAT
         wsSend({ subscribe: layer.id });
     },
 
     UnsubscribeLayer: function (layer) {
         if (delete LayerManager._subscribedLayers[layer.id])
+            // todo: NEW MESSAGE FORMAT
             wsSend({ unsubscribe: layer.id });
     },
 
@@ -1444,8 +1447,7 @@ LayerManager.SwitchLayer = function (layer, detailsLayer, crd) {
     };
 
     this.updateData = function (data) {
-        if (this.showing)
-            drawlayer = this.showing.maplayer;
+        var drawlayer = this.showing ? this.showing.maplayer : null;
 
         for (var i = 0; i < this.layers.length; i++) {
             this.layers[i].hideLayer(); //remove display

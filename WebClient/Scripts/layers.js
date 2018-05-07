@@ -179,6 +179,8 @@ function removeDomainLayer(layer) {
     var ml = map._layers[layer.leaflet_id];
     if (ml) {
         ml.remove();
+        // todo: NEW MESSAGE FORMAT
+        // todo: ml already removed? other way around?
         wsSend({ unsubscribe: ml.domainLayer.id });
     }
 }
@@ -242,6 +244,7 @@ function addLayerToMap(layer, opacity) {
         layer.tileLayer = undefined;
         return geoJsonLayer._leaflet_id;
     }
+    // todo: NEW MESSAGE FORMAT
     wsSend({ subscribe: layer.id });
 }
 

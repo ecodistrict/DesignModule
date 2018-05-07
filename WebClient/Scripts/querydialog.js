@@ -90,6 +90,7 @@ function queryDialogApply() {
     }
 
     console.log(sessionRequest);
+    // todo: NEW MESSAGE FORMAT
     wsSend(sessionRequest);
     modalDialogClose();
 }

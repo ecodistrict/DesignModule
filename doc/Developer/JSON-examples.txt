@@ -1,0 +1,137 @@
+New Sensor:
+{
+	"sensor" : {
+		"sensorid" : "99",
+		"name" : "Test sensor 1",
+		"address" : "Milkyway galaxy",
+		"latitude" : 51.98176489866166,
+		"longitude" : 5.04248063564119,
+		"measuredsubstance" : "benzeen",
+		"mobile" : false
+	}
+}
+
+Sensor Data:
+{
+	"sensordata" : {
+		"sensorid" : 20,
+		"concentration" : 0.000000112,
+		"latitude" : 52.495,
+		"longitude" : 4.4952,
+		"time" : "Hier mag je nog kiezen wat je stuurt!"
+	}
+}
+
+Wind Data:
+{
+	"winddata" : {
+		"speed" : 12,
+		"direction" : 89,
+		"time" : "Hier mag je nog kiezen wat je stuurt!"
+	}
+}
+
+New Complaint:
+{
+	"complaint" : {
+		"complaintid" : 20,
+		"type" : "Phone call",
+		"latitude" : 52.4098,
+		"longitude" : 4.56982,
+		"time" : "Hier mag je nog kiezen wat je stuurt!",
+		"text" : "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa."
+	}
+}
+
+Remove Complaint:
+{
+	"removecomplaint" : {
+		"complaintid" : 20
+	}
+}
+
+Remove Sensor:
+{
+	"removesensor" : {
+		"sensorid" : 20
+	}
+}
+
+Add History Measures
+{
+	"addhistorymeasures": [
+		{
+		"measure": {
+			"description": "...",
+			"id": ???,
+			"measure": "...",
+			"name": "..."
+			},
+		"selectCategories": ["building", "enzo"],
+		"selectedObjects": ["7", "1"],
+		"time": "2016-08-09 12:34:52",
+		"id": GUID
+		}
+	]
+}
+
+Remove History Measures
+{
+	"removehistorymeasures": [{"id": GUID}, {"id": GUID}]
+}
+
+Add SSM Car
+{
+	"addcar": [{
+		"id": unique id,
+		"lat": 4.6512424, //latitude
+		"lng": 54.248710912 //longitude
+		/* je mag alle vars al meesturen die je wil, maar deze 3 heb ik nu nodig /*
+	}]
+}
+
+Update SSM Car
+{
+	"updatecar": [{
+		"id": unique id,
+		"lat": 4.6512424, //latitude
+		"lng": 54.248710912 //longitude,
+		"tis": "LEFT"/"RIGHT"/"NONE"/"HAZARD"/"NOTPRESENT",
+		"bl": boolean
+		/* je mag alle vars al meesturen die je wil, maar deze 3 heb ik nu nodig /*
+	}]
+}
+
+Remove SSM Car
+{
+	"removecar": [{
+		"carid": unique id
+		/* je mag die andere stuff ook weer meesturen, maar heb nu alleen carid nodig /*
+	}]
+}
+
+Define New Graph
+{
+	"newgraph" : [{
+		"id": unique id,
+		"width": INT, //optional
+		"height": INT, //optional
+		"type": "hbar"/"vbar"/"line"/"splot",
+		"interpolation": "linear", //optional https://coderwall.com/p/thtwbw/d3-js-interpolation-options
+		"maxPoints": INT, //optional
+		"x": string, //optional
+		"xScale": "linear"/"ordinal"/"power"/"log", //optional todo: add support for time scale
+		"yScale": "linear"/"ordinal"/"power"/"log", //optional todo: add support for time scale
+		"y": [{"attribute": string, "color": "#ff0000", label: string}], //optional
+		"minX": INT, //optional
+		"maxX": INT, //optional
+		"minY": INT, //optional
+		"maxY": INT, //optional
+		"xAxis": true/false //optional
+		"yAxis": true/false //optional
+		"holdminmax": true/false //optional
+		"additive": true/false, //optional
+		"name": string, //optional but nice
+		"description": string //optional but also nice^^
+	}]
+}

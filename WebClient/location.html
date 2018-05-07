@@ -1,0 +1,49 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Design module</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- leaflet css -->
+    <link rel="stylesheet" href="Content/leaflet.css" />
+    <link rel="stylesheet" href="Content/leaflet.draw.css" />
+    <link rel="stylesheet" href="Content/leaflet.contextmenu.css" />
+    <link rel="stylesheet" href="Content/map.css" />
+    <link rel="stylesheet" href="Content/default.css" />
+    <link rel="stylesheet" href="Content/control.css" />
+    
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="favicon/ms-icon-144x144.png">
+    <meta name="theme-color" content="#ffffff">
+</head>
+<body>
+    <!-- main map -->
+    <div id="map"></div>
+    <!-- load scripts -->
+    <script>
+        //DebugLogging = true;
+        DebugLogging = false;
+        //DebugLogging = (location.hostname === "localhost");
+    </script>
+    <!-- leaflet js -->
+    <script src="Scripts/leaflet-src.js"></script>
+    <script src="Scripts/leaflet.draw-src.js"></script>
+    <script src="Scripts/leaflet.contextmenu-src.js"></script>
+
+    <script src="Scripts/map.js"></script>
+
+    <!-- local scripts -->
+    <script >
+        map.contextmenu.addItem({ text: 'Current screen center', callback: showCoordinatesAndZoomlevel });
+
+        function showCoordinatesAndZoomlevel() {
+            var center = map.getCenter();
+            prompt("Screen center: lat, lon, zoom", center.lat + ", " + center.lng + ", " + map._zoom);
+            //confirm("Screen center: lat, lon, zoom:\n"+center.lat + ", " + center.lng + ", " + map._zoom)
+            
+        }
+    </script>
+</body>
+</html>

@@ -125,6 +125,7 @@
             if (performance.now() - 1000 > this._lastRefresh)
             {
                 this._lastRefresh = performance.now();
+                // todo: NEW MESSAGE FORMAT
                 wsSend({ modelControl: {refresh: true}});
             }
         }).bind(this));

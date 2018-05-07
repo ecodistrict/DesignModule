@@ -67,6 +67,7 @@
     },
     
     _clickControl: function (e) {
+        // todo: NEW MESSAGE FORMAT
         wsSend({ goLive: true });
     },
     

@@ -7,9 +7,9 @@
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <!-- leaflet css -->
-    <link rel="stylesheet" href="Content/leaflet.css" />
-    <link rel="stylesheet" href="Content/leaflet.draw.css" />
-    <link rel="stylesheet" href="Content/leaflet.contextmenu.css" />
+    <link rel="stylesheet" href="Content/Libs/leaflet.css" />
+    <link rel="stylesheet" href="Content/Libs/leaflet.draw.css" />
+    <link rel="stylesheet" href="Content/Libs/leaflet.contextmenu.css" />
 
     <link rel="stylesheet" href="Content/measures.css" />
     <link rel="stylesheet" href="Content/info.css" />
@@ -27,10 +27,9 @@
     <link rel="stylesheet" href="Content/timeslider.css" />
     <link rel="stylesheet" href="Content/windDirection.css" />
     <link rel="stylesheet" href="Content/files.css" />
-    <link rel="stylesheet" href="Content/tablegraphs.css" />
+    <link rel="stylesheet" href="Content/Graphs/TableGraphs.css" />
 
     <link rel="stylesheet" href="Content/map.css" />
-    <link rel="stylesheet" href="Content/ensel.css" />
     <link rel="stylesheet" href="Content/golive.css" />
     <link rel="stylesheet" href="Content/startstop.css" />
     <link rel="stylesheet" href="Content/graphmanager.css" />
@@ -40,9 +39,9 @@
     <link rel="stylesheet" href="Content/default.css" />
     <link rel="stylesheet" href="Content/control.css" />
     <link rel="stylesheet" href="Content/dialog.css" />
-    <link rel="stylesheet" href="Content/noUiSlider.css" />
-    <link rel="stylesheet" href="Content/nouislider.pips.css" />
-    <link rel="stylesheet" href="Content/nouislider.tooltips.css" />
+    <link rel="stylesheet" href="Content/Libs/nouislider.css" />
+    <link rel="stylesheet" href="Content/Libs/nouislider.pips.css" />
+    <link rel="stylesheet" href="Content/Libs/nouislider.tooltips.css" />
     <link rel="stylesheet" href="Content/timeRangeSlider.css" />
     <link rel="stylesheet" href="Content/rangeSlider.css" />
     <link rel="stylesheet" href="Content/layermanager.css" />
@@ -99,22 +98,28 @@
         //DebugLogging = (location.hostname === "localhost");
     </script>
     <!-- leaflet js -->
-    <script src="Scripts/leaflet-src.js"></script>
-    <script src="Scripts/leaflet.draw-src.js"></script>
-    <script src="Scripts/leaflet.contextmenu-src.js"></script>
-
+    <script src="Scripts/Libs/leaflet-src.js"></script>
+    <!-- leaflet plugins -->
+    <script src="Scripts/Libs/leaflet.draw-src.js"></script>
+    <script src="Scripts/Libs/leaflet.contextmenu-src.js"></script>
+    <script src="Scripts/Libs/L.Path.Drag-src.js"></script>
+    <!-- leaflet map -->
     <script src="Scripts/map.js"></script>
-
+    <!-- D3 -->
+    <script src="Scripts/Libs/d3.js"></script>
+    <script src="bower_components/d3-tip/index.js"></script>
+    <script src="bower_components/chroma-js/chroma.js"></script>
+    <!--<script src="bower_components/datalist-polyfill/datalist-polyfill.js"></script>-->
+    <!-- other libs -->
+    <script src="Scripts/Libs/FileSaver.js"></script>
     <!-- modal dialogs -->
-    <script src="Scripts/nouislider.js"></script>
+    <script src="Scripts/Libs/nouislider.js"></script>
     <script src="Scripts/modaldialog.js"></script>
     <script src="Scripts/querydialog.js"></script>
     <script src="Scripts/formdialog.js"></script>
-    <script src="Scripts/markerdialog.js"></script>
-    <script src="Scripts/warningDialog.js"></script>
-
-
-    <script src="Scripts/ensel.js"></script>
+    <!--<script src="Scripts/warningDialog.js"></script>-->
+    <!-- our code -->
+    <script src="Scripts/datamanager.js"></script>
     <script src="Scripts/userMessages.js"></script>
     <script src="Scripts/select.js"></script>
     <script src="Scripts/measures.js"></script>
@@ -140,32 +145,23 @@
     <script src="Scripts/LayerManager.js"></script>
     <script src="Scripts/ModelControl.js"></script>
     <script src="Scripts/contextManager.js"></script>
-    <script src="Scripts/L.Path.Drag-src.js"></script>
     <script src="Scripts/ScenarioControlsManager.js"></script>
     <script src="Scripts/ControlsControl.js"></script>
-    <script src="Scripts/FileSaver.js"></script>
     <script src="Scripts/files.js"></script>
     <!-- charts -->
-    <script src="Scripts/d3.js"></script>
-    <script src="Scripts/bullet.js"></script>
     <script src="Scripts/graphManager.js"></script>
+    <script src="Scripts/Graphs/bullet.js"></script>
     <script src="Scripts/Graphs/lineGraphs.js"></script>
     <script src="Scripts/Graphs/spiderChart.js"></script>
-    <script src="Scripts/Graphs/Charts.js"></script>
     <script src="Scripts/Graphs/BarChart.js"></script>
     <script src="Scripts/Graphs/tablegraphs.js"></script>
-    <!-- other tools -->
+    <!-- modules -->
     <script src="Scripts/modules.js"></script>
-    <!-- bower -->
-    <script src="bower_components/d3-tip/index.js"></script>
-    <script src="bower_components/chroma-js/chroma.js"></script>
-    <!--<script src="bower_components/datalist-polyfill/datalist-polyfill.js"></script>-->
     <!-- local scripts -->
     <script>
         wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
         // determine parameters and config
         var wsBaseURL = wsp + '://vps17642.public.cloudvps.com';
-        //var wsBaseURL = wsp + '://enselsrv.westeurope.cloudapp.azure.com';
         var session = getParameterByName('session', '');
         if (session == '') {
             //session = '6B84B11553BC4AA6B2B6A0759F6EB278'; // us_demo
@@ -174,15 +170,6 @@
             //session = '57b428a6cef25a0a0d6681ac$undefined$57b4281041e330e716b22a74'; // ecodistrict antwerpen
             //session = '57b428a6cef25a0a0d6681ac$57f7721a38ddeb850af42d13$57b4281041e330e716b22a74'; // ecodistrict antwerpen alt 1
             //session = '4B95BE74F9A44DA0908A30B27C3E8C99'; // schiedam
-            //session = 'ensel';
-            //session = 'ensel2';
-            //session = 'ssm';
-            //session = 'ssm2';
-            //session = 'sweco';
-            //session = "tud";
-            //session = 'dtv';
-            //session = 'juno';
-            //session = 'a2';
             //session = '80BD7A788D6B40A4B3608AA95C26E68F'; // us_utrecht2017
             //session = '7435449FACA0425A88E072CAAC549E2B'; // us_ams_2017 Design
             //session = '7435449FACA0425A88E072CAAC549E2B-Design'; // us_ams_2017 Design
@@ -204,7 +191,7 @@
             //session = '3F5435CDD5A7490DAD3A173B4548A06E'; // New Dehli
             //session = "sesmi${103ae874-daaf-40f4-8b89-a9f8fddd9644}$fietsuser"; // ensel fiets utrecht-nijmegen
             //session = "sesmi${e4fd1734-ce20-439f-bd60-b0a29fb744b6}$fietsuser"; // ensel fiets eindhoven, representatief
-            //session = 'B9E738A9BCD94D3AABB051924A0E8F12'; //Hans test database design
+            session = 'B9E738A9BCD94D3AABB051924A0E8F12'; //Hans test database design
             //session = 'C298FCB67045468CBCDA6CC2C415C041'; //Hans test database monitor
             //session = '67AC10799B044C01B552DB44283990D7'; //Hans test database evaluate
             //session = 'HenkTest';
