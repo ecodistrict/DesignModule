@@ -16,21 +16,6 @@ var selectedPointMarker = {
 
 var propertiesTables = {};
 
-
-// https://codepen.io/KryptoniteDove/post/load-json-file-locally-using-pure-javascript
-//function loadJSONLocal(callback) {
-//    var xobj = new XMLHttpRequest();
-//    xobj.overrideMimeType("application/json");
-//    xobj.open('GET', 'objectPropsNew.json', true);
-//    xobj.onreadystatechange = function () {
-//        if (xobj.readyState == 4 && xobj.status == "200") {
-//            // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
-//            callback(xobj.responseText);
-//        }
-//    };
-//    xobj.send(null);
-//}
-
 function initSelectedObjectsProperties(e) {
 
     // build request for retrieving object properties
@@ -42,21 +27,6 @@ function initSelectedObjectsProperties(e) {
         createRequestDialog('Object Properties', 'Properties of the selected objects', 'selectObjectsProperties', showSelectedObjectsProperties, command);
     else
         AddErrorMessage('Unable to get properties: no objects selected', 'warning', 10000);
-
-    //
-    // debug only, read the JSON file for the properties of selected objects
-    //
-
-    // todo: server repsonse to showSelectedObjectsProperties(objectProps); below
-
-
-    //loadJSONLocal(function (response) {
-    //    var objectProps = JSON.parse(response);
-    //    if (objectProps.selectedObjectsProperties.properties.length == 0)
-    //        return;
-    //    showSelectedObjectsProperties(objectProps);
-    //});
-
 }
 
 function showSelectedObjectsProperties(container, aSelectedObjectsProperties) {
@@ -83,14 +53,11 @@ function showSelectedObjectsProperties(container, aSelectedObjectsProperties) {
 }
 
 
-
 function buildAttributesTable(container) {
     var tableContainer = container.appendChild(document.createElement("div"));
     tableContainer.id = "tableContainer";
     for (var i = 0; i < objProps.properties.length; i++) {
         objProps.properties[i].id = objProps.properties[i].name.replace(/\s+/g, '');
-        //if (i > 0)
-        //    tableContainer.appendChild(document.createElement('BR'));
         createAttributeTable(objProps.properties[i], tableContainer);
     }
 
@@ -110,12 +77,9 @@ function ApplyNewProperties() {
 
     for (var i = 0; i < properties.length; i++) {
 
-        //var table = document.querySelectorAll("#" + properties[i].id + "Table")[0];
         var table = propertiesTables[properties[i].id];
 
-
         var inputNode = table.querySelectorAll("input")[0];
-
 
         if (typeof inputNode !== "undefined") {
             if (inputNode.type != "checkbox") {
@@ -184,7 +148,6 @@ function createAttributeTable(aAttribute, aElem) {
 function createIntTable(aAttribute, aElem) {
     var table = createEmptyTable(aElem, aAttribute, "int");
     table.attribute = aAttribute;
-    //aAttribute.table = table;
 
     var leftCell = table.children[0].children[0];
     var rightCell = table.children[0].children[1];
@@ -230,7 +193,6 @@ function createListTable(aAttribute, aElem) {
 function createForcedListTable(aAttribute, aElem) {
     var table = createEmptyTable(aElem, aAttribute, "forcedList");
     table.attribute = aAttribute;
-    //aAttribute.table = table;
 
     var leftCell = table.children[0].children[0];
     var rightCell = table.children[0].children[1];
@@ -251,7 +213,6 @@ function createForcedListTable(aAttribute, aElem) {
 function createFreeListTable(aAttribute, aElem) {
     var table = createEmptyTable(aElem, aAttribute, "freeList");
     table.attribute = aAttribute;
-    //aAttribute.table = table;
 
     var leftCell = table.children[0].children[0];
     var rightCell = table.children[0].children[1];
@@ -268,7 +229,6 @@ function createFreeListTable(aAttribute, aElem) {
 function createStringTable(aAttribute, aElem) {
     var table = createEmptyTable(aElem, aAttribute, "string");
     table.attribute = aAttribute;
-    //aAttribute.table = table;
 
     var leftCell = table.children[0].children[0];
     var rightCell = table.children[0].children[1];
@@ -285,7 +245,6 @@ function createStringTable(aAttribute, aElem) {
 function createBoolTable(aAttribute, aElem) {
     var table = createEmptyTable(aElem, aAttribute, "bool");
     table.attribute = aAttribute;
-    //aAttribute.table = table;
 
     var leftCell = table.children[0].children[0];
     var rightCell = table.children[0].children[1];

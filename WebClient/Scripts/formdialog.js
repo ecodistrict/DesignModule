@@ -12,62 +12,14 @@ function openFormDialog(aTitle, aData, aContext) {
 
     // build dialog form
     var f = div.appendChild(document.createElement('form'));
-    f.id = 'simulationForm';
-    f.name = 'simulationForm';
+    f.id = 'formDialogs';
+    f.name = 'formDialogs';
     f.context = aContext; // store context
 
     var errorLog = document.createElement('div');
     errorLog.id = 'errorLog';
     errorLog.style.display = 'none';
     errorLog.innerHTML = '';
-
-    //var data = [
-    //{
-    //  "formElement":"input",
-    //  "type":"string",
-    //  "required":"y",
-    //  "optionsArray":false,
-    //  "labelText":"Scenario name",
-    //  "idName":"scenarioName",
-    //  "extraOptions":false
-    //},
-    //{
-    //  "formElement":"slider",
-    //  "type":"int",
-    //  "required":"y",
-    //  "optionsArray":['0', '100'],
-    //  "labelText":"Penetration rate",
-    //  "idName":"PenetrationRateSelect",
-    //  "extraOptions":[1, '%']
-    //},
-    //{
-    //  "formElement":"slider",
-    //  "type":"int",
-    //  "required":"y",
-    //  "optionsArray":['0', '100'],
-    //  "labelText":"Follow-on behavior",
-    //  "idName":"followOn",
-    //  "extraOptions":[1, '%']
-    //},
-    //{
-    //  "formElement":"select",
-    //  "type":"int",
-    //  "required":"y",
-    //  "optionsArray":[['A', 'OD Basis'], ['B', 'OD variant 1'], ['C', 'OD variant 2']],
-    //  "labelText":"Origin Destination matrix",
-    //  "idName":"MatrixChoice",
-    //  "extraOptions":false
-    //   },
-    //{
-    //    "formElement": "radio",
-    //    "type": "string",
-    //    "required": "y",
-    //    "optionsArray": ['Yes','No'],
-    //    "labelText": "Record Simulation",
-    //    "idName": "Record",
-    //    extraOptions: {checked: 'No'}
-    //}
-    // ];
 
     if (typeof aData === "undefined")
         return;
@@ -152,8 +104,8 @@ function openFormDialog(aTitle, aData, aContext) {
                 button.type = "button";
                 button.addEventListener("click", function (e) {
                     e.preventDefault();
-                    for (var k = 0; k < document.simulationForm[idName].length; k++) {
-                        elem = document.simulationForm[idName][k];
+                    for (var k = 0; k < document.formDialogs[idName].length; k++) {
+                        elem = document.formDialogs[idName][k];
 
                         if (elem.type === 'radio') {
                             if (elem.value === e.target.value) {
@@ -224,8 +176,8 @@ function openFormDialog(aTitle, aData, aContext) {
                 button3.type = "button";
                 button3.addEventListener("click", function (e) {
                     e.preventDefault();
-                    for (var k = 0; k < document.simulationForm[idName].length; k++) {
-                        elem = document.simulationForm[idName][k];
+                    for (var k = 0; k < document.formDialogs[idName].length; k++) {
+                        elem = document.formDialogs[idName][k];
                         if (elem.type === 'checkbox' && elem.value === e.target.value) {
                             if (elem.checked) {
                                 elem.checked = false;
@@ -352,7 +304,7 @@ function modalDialogApply() {
     formResult = [];
     elemValues = [];
     errorLog.innerHTML = '';
-    var form = document.forms['simulationForm'];
+    var form = document.forms['formDialogs'];
     for (var i = 0; i < form.elements.length; i++) {
         var elem = form.elements[i];
         if (elem.type === 'text') {
@@ -415,7 +367,7 @@ function modalDialogApply() {
                 if (elem.checked) {
                     formResult.push({ name: elem.name, value: elem.value, type: elem.dataset.type });
                 }
-                if (document.getElementById('simulationForm')[elem.name].value === '') {
+                if (document.getElementById('formDialogs')[elem.name].value === '') {
                     optionsArray = document.getElementById(elem.name + '-option-row');
                     optionsArray.classList.add('empty');
                     errorLog.style.display = 'block';
@@ -460,28 +412,10 @@ function modalDialogApply() {
         } // eo checkbox
     } // eo for loop
 
-
-
-    // // build query
-    // var query = '';
-    // var lines = document.getElementById('queryDialogLines');
-    // for (var i = 0; i < lines.children.length; i++) {
-    //   var line = lines.children[i];
-    //   if (line.children[0].value != '' && line.children[2].value != '') {
-    //     // 1=attribute, 2=operator, 3=value
-    //     if (query != '')
-    //     query += ' AND ';
-    //     query += line.children[0].value + ' ' + line.children[1].value + ' ' + line.children[2].value;
-    //   }
-    // }
     if (!errors) {
         console.log({ formResult: formResult });
         // todo: NEW MESSAGE FORMAT
         var sessionRequest = {
-            // todo: for backwards compatibility we also send the specific setupSimulation command!
-            setupSimulation: { 
-                parameters: formResult
-            },
             // todo: only used in santos and response
             formResult: {
                 id: DataManager.formDialogID,

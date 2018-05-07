@@ -118,10 +118,6 @@
         wsSend(obj);
     },
     setPresenter: function () {
-        //todo: remove for real implementation
-        //if (DataManager.sessionInfo.session.toLowerCase() != "ssm")
-        //    return;
-
         if (SyncManager.presenter)
             return;
 
@@ -148,10 +144,6 @@
         SyncManager.group = "";
     },
     setViewer: function () {
-        //todo: remove for real implementation
-        //if (DataManager.sessionInfo.session.toLowerCase() != "ssm2")
-        //    return;
-
         if (SyncManager.viewer)
             return;
 
@@ -511,23 +503,9 @@ L.Control.PresenterViewer = L.Control.extend({
     },
 
     _update: function () {
-
     },
 
     _expand: function () {
-        //L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
-        //if (this.hasElements()) {
-        //    L.DomUtil.addClass(this._container, 'leaflet-control-details-expanded');
-        //    this._form.style.height = null;
-        //    var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
-        //    if (acceptableHeight < this._form.scrollHeight) {
-        //        L.DomUtil.addClass(this._form, 'leaflet-control-details-scrollbar');
-        //        this._form.style.height = acceptableHeight + 'px';
-        //    }
-        //    else {
-        //        L.DomUtil.removeClass(this._form, 'leaflet-control-details-scrollbar');
-        //    }
-        //}
     },
 
     _collapse: function () {

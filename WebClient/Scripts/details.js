@@ -62,15 +62,8 @@
                 L.DomEvent.on(link, 'focus', this._expand, this);
             }
 
-
-            // work around for Firefox Android issue https://github.com/Leaflet/Leaflet/issues/2033
-            /*
-            L.DomEvent.on(form, 'click', function () {
-                setTimeout(L.bind(this._onInputClick, this), 0);
-            }, this);
-            */
             this._map.on('click', this._collapse, this);
-            // TODO keyboard accessibility
+            // TODO: keyboard accessibility
         } else {
             this._expand();
         }
@@ -86,30 +79,6 @@
         this._charts = {};
         this._layers = {};
         LayerManager.Reset();
-        //todo: GraphManager.Reset();
-        //var firstLayer = null;
-        //var lastLayer = null;
-        //var switchLayers = [];
-        // merge enabled domains (kpis, charts, layers)
-        //for (var domainName in domains) {
-        //    var domain = domains[domainName];
-        //    if (domain.enabled) {
-        //        for (var kpiid in domain.kpis)
-        //            this._kpis[domain.kpis[kpiid].name] = domain.kpis[kpiid];
-        //        for (var chartid in domain.charts) {
-        //            //this._charts[domain.charts[chartid].name] = domain.charts[chartid];
-        //            GraphManager.MakeGraph(domain.charts[chartid]);
-        //        }
-        //        for (var layerid in domain.layers) {
-        //            var layer = domain.layers[layerid];
-        //            // all except basic layers (they are handled by the layers control)
-        //            if (!layer.basic) {
-        //                //this._layers[layer.name] = layer;
-        //                LayerManager.AddLayer(layer);
-        //            }
-        //        }
-        //    }
-        //}
         for (var domainName in domains) {
             var domain = domains[domainName];
             {
@@ -126,31 +95,6 @@
                 }
             }
         }
-        //switchlayer testing;
-        //if (firstLayer && lastLayer) {
-        //    var switchLayer = firstLayer;
-        //    switchLayer.name = "Switch Test";
-        //    switchLayer.id = "tester1";
-        //    switchLayer.active = { type: "switch", id: "_tester1", layers: 
-        //        [{ zoom: 0, layer: { type: "tile", tiles: firstLayer.tiles, preview: firstLayer.preview, legend: firstLayer.legend, id: "testL1" } },
-        //        { zoom: 16, layer: { type: "tile", tiles: lastLayer.tiles, objects: lastLayer.objects, preview: lastLayer.preview, id: "testL2" , legend: lastLayer.legend} }]
-        //    }
-        //    switchLayer.active.layers = [];
-        //    switchLayer.active.layers.push({ layer: {type: "empty"}, zoom: 0})
-        //    for (var i = 0; i < switchLayers.length && i < 7; i++)
-        //    {
-        //        switchLayer.active.layers.push({
-        //            layer: {
-        //                type: "tile",
-        //                tiles: switchLayers[i].tiles,
-        //                legend: switchLayers[i].legend,
-        //                id: "testertje" + i
-        //            },
-        //            zoom: (11+i)
-        //        });
-        //    }
-        //LayerManager.AddLayer(switchLayer);
-        //}
 
         // re-build details elements
         this.updateDomains(domains);
@@ -304,17 +248,6 @@
         var chartCount = GraphManager.SetPreviews(this.charts);
 
         var layerCount = LayerManager.SetPreviews(this.layers);
-        //for (var layerid in this._layers) {
-        //    addLayer(this.layers, this._layers[layerid], this.options.layerWidth, this.options.layerHeight);
-        //    layerCount++;
-        //}
-
-        //var layers = LayerManager.GetLayers();
-        //for (var l in layers)
-        //{
-        //    layers[l].GetPreview(this.layers, this.options.layerWidth, this.options.layerHeight);
-        //    layerCount++;
-        //}
 
         if (kpiCount == 0 || (chartCount == 0 && layerCount == 0))
             hr1.style.display = 'None';

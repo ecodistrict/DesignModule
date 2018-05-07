@@ -43,14 +43,11 @@
         button.className = 'crdRadioButton';
         var l = button.appendChild(document.createElement('label'));
         var i = l.appendChild(L.DomUtil.create('input', 'crdRadioButtonInput'));
-        //var i = l.appendChild(document.createElement('input'));
-        //i.className = 'crdRadioButtonInput';
         i.type = 'radio';
         i.value = aTitle;
         i.name = aGroup;
         i.checked = aChecked;
         i.crd = this;
-        //i.onchange = crd.clickCrd;
         i.addEventListener("change", this.clickCrd);
 
         // makes this work on IE touch devices by stopping it from firing a mouseout event when the touch is released
@@ -120,43 +117,6 @@
         // todo: only implement for tiles now
         var layer = crd.options.layer;
 
-        //if (e.target == crd.current) {
-        //    if (layer.tileLayer) {
-        //        layer.tileLayer.setUrl(layer.tiles, false);
-        //        layer.tileLayer.idShowing = layer.id;
-        //        if (layer.legend && legendControl.legendLayer == layer.id)
-        //            legendControl.createLegend(layer.legend, layer.id);
-        //        else if (legendControl.legendLayer == layer.id)
-        //            legendControl.clearLegend(false, layer.id);
-        //    }
-        //}
-        //else if (e.target == crd.reference) {
-        //    if (layer.tileLayer) {
-        //        layer.tileLayer.setUrl(layer.ref.tiles, false);
-        //        layer.tileLayer.idShowing = layer.ref.id;
-        //        if (typeof layer.ref != "undefined" && typeof layer.ref.legend != "undefined" && legendControl.legendLayer == layer.id)
-        //        {
-        //            legendControl.createLegend(layer.ref.legend, layer.id);
-        //        }
-        //        else if (typeof layer.legend != "undefined" && legendControl.legendLayer == layer.id) {
-        //            legendControl.createLegend(layer.legend, layer.id);
-        //        }
-        //        else if (legendControl.legendLayer == layer.id) {
-        //            legendControl.clearLegend(false, layer.id);
-        //        }
-        //    }
-        //}
-        //else {
-        //    if (layer.tileLayer) {
-        //        layer.tileLayer.setUrl(layer.diff.tiles, false);
-        //        layer.tileLayer.idShowing = layer.diff.id;
-        //        if (layer.diff.legend && legendControl.legendLayer == layer.id)
-        //            legendControl.createLegend(layer.diff.legend, layer.id);
-        //        else if (legendControl.legendLayer == layer.id)
-        //            legendControl.clearLegend(false, layer.id);
-        //    }
-        //}
-
         if (typeof layer.active !== "undefined" && layer.showing) //check if layer is of the new type!
         {
             var maplayer = layer.maplayer;
@@ -177,40 +137,6 @@
             }
         }
     }
-    /*
-    setEnabled: function (aCurrent, aReference, aDifference) {
-        if (aCurrent + aReference + aDifference > 1) {
-            setVisibility(this._container, true);
-            setVisibility(this.current.parentElement.parentElement, aCurrent);
-            setVisibility(this.reference.parentElement.parentElement, aReference);
-            setVisibility(this.difference.parentElement.parentElement, aDifference);
-        }
-        else
-            setVisibility(this._container, false);
-    },
-
-    getEnabled: function () {
-        return {
-            current: this.current.parentElement.parentElement.style.display != 'none',
-            reference: this.reference.parentElement.parentElement.style.display != 'none',
-            difference: this.difference.parentElement.parentElement.style.display != 'none'
-        }
-    },
-
-    setSelected: function (aCurrent, aReference, aDifference) {
-        this.current.checked = aCurrent;
-        this.reference.checked = aReference;
-        this.difference.checked = aDifference;
-    },
-
-    getSelected: function () {
-        return {
-            current: this.current.checked,
-            reference: this.reference.checked,
-            difference: this.difference.checked
-        }
-    }
-    */
 });
 
 L.control.crd = function (options) {

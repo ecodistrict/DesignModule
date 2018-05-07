@@ -199,13 +199,6 @@ var GraphManager = {
 
     MakeGraph: function (graphObject) {
 
-        //todo remove code block when testing is not needed anymore
-        //if (typeof graphObject == 'undefined') {
-        //    graphObject = { id: GraphManager.idcounter };
-        //    GraphManager.idcounter++;
-        //}
-
-
         var g = GraphManager._getGraph(graphObject.id);
         if (g != null || graphObject.type == "spider") {
             if (g != null && g.graph!=null && g.graph.ReInit)
@@ -213,7 +206,6 @@ var GraphManager = {
             return;
         }
 
-        //var graphDiv = GraphManager.container.appendChild(document.createElement("div"));
         graphDiv = document.createElement("div");
         if (graphObject.type == "line" || typeof graphObject.type == "undefined")
             GraphManager.container.appendChild(graphDiv);
@@ -229,8 +221,6 @@ var GraphManager = {
             graphDiv.style.height = GraphManager.defaultValues.height + "px";
         }
         GraphManager.zIndexManager.newGraph(graphDiv);
-        //graphDiv.style.position = "absolute";
-        //graphDiv.style.backgroundColor = "rgba(" + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", " + Math.round(Math.random() * 255) + ", 1)";
 
         graphDiv.addEventListener("touchstart", GraphManager._startDrag);
         graphDiv.addEventListener("mousedown", GraphManager._startDrag);
@@ -242,19 +232,6 @@ var GraphManager = {
         div.innerHTML = '&#x2715;';
         div.graphID = graphDiv.graphID;
 
-        /*
-        if (is_touch_device()) {
-            div.addEventListener("touchstart", function (e) {
-                var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
-                graphDiv.graph._closeGraph();
-            });
-        } else {
-            div.addEventListener("click", function (e) {
-                var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
-                graphDiv.graph._closeGraph();
-            });
-        }
-        */
         div.addEventListener("touchstart", function (e) {
             var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
             graphDiv.graph._closeGraph();
@@ -263,14 +240,6 @@ var GraphManager = {
             var graphDiv = GraphManager._getGraph(e.currentTarget.graphID);
             graphDiv.graph._closeGraph();
         });
-        //var infoDiv = graphDiv.appendChild(document.createElement("div"));
-        //infoDiv.className = "graph-info";
-        //infoDiv.graphID = graphDiv.graphID;
-        //if (is_touch_device()) {
-        //    infoDiv.addEventListener("touchstart", GraphManager._showGraphInfo);
-        //} else {
-        //    infoDiv.addEventListener("click", GraphManager._showGraphInfo);
-        //}
 
         var div = graphDiv.appendChild(document.createElement("div"));
         div.className = "graph-title";
@@ -279,38 +248,23 @@ var GraphManager = {
         var resizeDiv = graphDiv.appendChild(document.createElement("div"));
         resizeDiv.className = "graph-resize";
         resizeDiv.graphID = graphDiv.graphID;
-        /*
-        if (is_touch_device()) {
-            resizeDiv.addEventListener("touchstart", GraphManager._startGraphResize);
-        } else {
-            resizeDiv.addEventListener("mousedown", GraphManager._startGraphResize);
-        }
-        */
+
         resizeDiv.addEventListener("touchstart", GraphManager._startGraphResize);
         resizeDiv.addEventListener("mousedown", GraphManager._startGraphResize);
 
-        //graphObject =
         GraphManager.SetGraphParameters(graphObject);
-
-        ////only for label testing!
-        //graphObject.x.label = "x-axis";
-        //graphObject.y[0].label = "y-axis";
 
         GraphManager.BuildGraph(graphObject, graphDiv);
 
         GraphManager.graphs.push(graphDiv);
 
 
-        //if (graphObject.id == "b1919ec3-4b69-42c3-9847-1cd6b42c6fff-KPI07")
         detailsControl._update();
 
         GraphManager.hiddenGraphs.push(graphDiv);
 
         if (!(graphObject.type == "line" || typeof graphObject.type == "undefined"))
             GraphManager.container.appendChild(graphDiv);
-
-        //graphDiv.graph.GetPreview(GraphManager.container, 134, 100);
-        // graphDiv.style.visibility = "hidden";
     },
 
     SetGraphParameters: function (graphObject) {
@@ -362,7 +316,6 @@ var GraphManager = {
                 graph = new LineBottomLeft(graphObject);
                 break;
             case 'bar':
-                //graph = new Chart(graphObject);
                 graph = new VerticalBarChart(graphObject);
                 break;
             case 'newbar':
@@ -381,7 +334,7 @@ var GraphManager = {
     },
 
     BuildLineGraph: function (graphObject, container) {
-        //todo implement different axis orientations of line graphs!
+        // todo: implement different axis orientations of line graphs!
 
         var graph = new LineBottomLeft(graphObject);
         graph.Initialize(container);
@@ -396,7 +349,6 @@ var GraphManager = {
             if (graph == null) //only update graphs that exist
                 continue;
             graph.graph.Update(dataArray[i].data);
-            //GraphManager.UpdateGraph(graph.graph, dataArray[i]);
         }
     },
 
@@ -438,8 +390,6 @@ var GraphManager = {
         if (parseInt(graphDiv.style.width) > GraphManager.defaultValues.width) {
             defaultWidth = parseInt(graphDiv.style.width);
         }
-
-
 
         var amount = i;
 
@@ -604,8 +554,6 @@ var GraphManager = {
         for (var j = 0; j < data.length; j++) {
             //can I assume the arrays always have the same length!?
             for (var i = 0; i < graph.data.length; i++) {
-                //var xNum = new UnitConverter.ConvNum(graph.x.qnt, data[j].x);
-                //xNum.SetUnit(graph.x.unit);
                 var xNum = GraphManager.GetVar(data[j].x, graph.xScale, graph.x.qnt, graph.x.unit);
                 if (maxX != null && xNum.value < maxX) //check if new xValue is bigger then all the others!
                     continue;
@@ -623,7 +571,7 @@ var GraphManager = {
             }
         }
 
-        //todo check if we can add them instead of rebuilding display data
+        // todo: check if we can add them instead of rebuilding display data
         graph.displayData = [];
 
         for (var j = 0; j < graph.data.length; j++) {
@@ -631,23 +579,6 @@ var GraphManager = {
             for (var i = Math.max(0, graph.data[j].length - graph.maxPoints) ; i < graph.data[j].length; i++)
                 graph.displayData[j].push(graph.data[j][i]);
         }
-
-        //for (var i = 0; i < graph.data.length; i++)
-        //{
-        //    if (graph.data[i].length <= graph.maxPoints) //we can still push the new points to the display data
-        //    {
-        //        if (graph.data[i].length > graph.displayData[i].length)
-        //            graph.displayData[i].push({x: data.x, y: data.y[i]})
-        //    }
-        //    else //rebuild display data
-        //    {
-        //        graph.displayData[i] = [];
-        //        for (var j = graph.data[i].length - graph.maxPoints; j < graph.data[i].length; j++)
-        //        {
-        //            graph.displayData[i].push(graph.data[i][j]);
-        //        }
-        //    }
-        //}
     },
 
     _showGraphInfo: function (e) {
@@ -694,15 +625,6 @@ var GraphManager = {
         }
 
         graphDiv.style.opacity = "0.5";
-        /*
-        if (is_touch_device()) {
-            window.addEventListener('touchmove', GraphManager._resizeGraphMove);
-            window.addEventListener('touchend', GraphManager._endGraphResize);
-        } else {
-            window.addEventListener("mousemove", GraphManager._resizeGraphMove);
-            window.addEventListener("mouseup", GraphManager._endGraphResize);
-        }
-        */
 
         window.addEventListener('touchmove', GraphManager._resizeGraphMove);
         window.addEventListener('touchend', GraphManager._endGraphResize);
@@ -750,20 +672,11 @@ var GraphManager = {
     _endGraphResize: function (e) {
         e.preventDefault();
         e.stopPropagation();
-        /*
-        if (is_touch_device()) {
-            window.removeEventListener("touchmove", GraphManager._resizeGraphMove);
-            window.removeEventListener("touchend", GraphManager._endGraphResize);
-        } else {
-            window.removeEventListener("mousemove", GraphManager._resizeGraphMove);
-            window.removeEventListener("mouseup", GraphManager._endGraphResize);
-        }
-        */
+
         window.removeEventListener("touchmove", GraphManager._resizeGraphMove);
         window.removeEventListener("touchend", GraphManager._endGraphResize);
         window.removeEventListener("mousemove", GraphManager._resizeGraphMove);
         window.removeEventListener("mouseup", GraphManager._endGraphResize);
-
 
         GraphManager.resizeObject.resizeDiv.style.opacity = "1";
         GraphManager.resizeObject.resizeDiv.graph.Update();
@@ -837,16 +750,6 @@ var GraphManager = {
         GraphManager.dragObject.startDivX = parseInt(graphDiv.style[GraphManager.dragObject.hAlign]);
         GraphManager.dragObject.startDivY = parseInt(graphDiv.style[GraphManager.dragObject.vAlign]);
 
-        /*
-        if (is_touch_device()) {
-            window.addEventListener('touchmove', GraphManager._dragMove);
-            window.addEventListener('touchend', GraphManager._endDrag);
-        } else {
-            window.addEventListener("mousemove", GraphManager._dragMove);
-            window.addEventListener("mouseup", GraphManager._endDrag);
-        }
-        */
-
         window.addEventListener('touchmove', GraphManager._dragMove);
         window.addEventListener('touchend', GraphManager._endDrag);
         window.addEventListener("mousemove", GraphManager._dragMove);
@@ -908,15 +811,7 @@ var GraphManager = {
         GraphManager.dragObject.dragging = false;
         e.preventDefault();
         e.stopPropagation();
-        /*
-        if (is_touch_device()) {
-            window.removeEventListener('touchmove', GraphManager._dragMove);
-            window.removeEventListener('touchend', GraphManager._endDrag);
-        } else {
-            window.removeEventListener("mousemove", GraphManager._dragMove);
-            window.removeEventListener("mouseup", GraphManager._endDrag);
-        }
-        */
+
         window.removeEventListener('touchmove', GraphManager._dragMove);
         window.removeEventListener('touchend', GraphManager._endDrag);
         window.removeEventListener("mousemove", GraphManager._dragMove);
@@ -962,261 +857,3 @@ var GraphManager = {
         GraphManager.RepositionGraphs();
     }
 }
-
-
-//function is_touch_device() {
-//    try {
-//        document.createEvent("TouchEvent");
-//        return true;
-//    } catch (e) {
-//        return false;
-//    }
-//}
-
-//UpdateGraph: function (graph, data)
-//{
-//  if (data != null)
-//  {
-//    //if (graph.id == "graphje-KPI06") {
-//    //    //data.y.push(data.y[0]);
-//    //    data.y.push(30 + (Math.random() * 10));
-//    //}
-//    graph.data.push(data);
-//    graph.container.style.visibility = "visible";
-//  }
-
-//  var width = graph.container.clientWidth;
-//  var height = graph.container.clientHeight;
-//  var marginLeft = GraphManager.defaultValues.graphPadding.left;
-//  var marginTop = GraphManager.defaultValues.graphPadding.top;
-//  var marginRight = GraphManager.defaultValues.graphPadding.right;
-//  var marginBottom = GraphManager.defaultValues.graphPadding.bottom;
-
-//  if (typeof graph.axisX !== "undefined")
-//  {
-//    if (graph.xAxisOrient == "top")
-//    marginTop += GraphManager.defaultValues.axisMargin.x;
-//    else
-//    marginBottom += GraphManager.defaultValues.axisMargin.x;
-//    graph.axisX.attr("transform", "translate(" + 0 + ", " + (graph.xAxisOrient == "top" ? marginTop : height - marginBottom) + ")");
-//  }
-
-//  if (typeof graph.axisY !== "undefined") {
-//    if (graph.yAxisOrient == "left")
-//    marginLeft += GraphManager.defaultValues.axisMargin.y;
-//    else
-//    marginRight += GraphManager.defaultValues.axisMargin.y;
-//    graph.axisY.attr("transform", "translate(" + (graph.yAxisOrient == "left" ? marginLeft : width - marginRight) + ", " + 0 + ")");
-//  }
-
-//  if (typeof graph.axisXLabel !== "undefined" && typeof graph.axisX !== "undefined")
-//  {
-//    var yTransform
-//    if (graph.xAxisOrient == "top")
-//    {
-//      yTransform = marginTop + 15 + GraphManager.defaultValues.axisTextPadding;
-//    }
-//    else
-//    {
-//      yTransform = height - (marginBottom + GraphManager.defaultValues.axisTextPadding);
-//    }
-
-//    if (typeof graph.axisY !== "undefined" && graph.yAxisOrient == "right")
-//    {
-//      graph.axisXLabel.attr("text-anchor", "start");
-//      graph.axisXLabel.attr("x", marginLeft);
-//      graph.axisXLabel.attr("y", yTransform);
-//      //graph.axisXLabel.attr("transform", "translate(" + marginLeft + ", " + yTransform + ")");
-//    }
-//    else
-//    {
-//      graph.axisXLabel.attr("text-anchor", "end");
-//      graph.axisXLabel.attr("x", (width - marginRight));
-//      graph.axisXLabel.attr("y", yTransform);
-//      //graph.axisXLabel.attr("transform", "translate(" + (width - marginRight) + ", " + yTransform + ")");
-//    }
-//  }
-//  if (typeof graph.axisYLabel !== "undefined" && typeof graph.axisY !== "undefined")
-//  {
-//    var xTransform
-//    var rotation;
-//    if (graph.yAxisOrient == "left") {
-//      xTransform = marginLeft + GraphManager.defaultValues.axisTextPadding;
-//      rotation = 90;
-//    }
-//    else {
-//      xTransform = width - (marginRight + GraphManager.defaultValues.axisTextPadding);
-//      rotation = 270;
-//    }
-
-//    if (typeof graph.axisX !== "undefined" && graph.xAxisOrient == "top") {
-//      if (rotation < 180) {
-//        graph.axisYLabel.attr("text-anchor", "end")
-//      }
-//      else
-//      {
-//        graph.axisYLabel.attr("text-anchor", "start");
-//      }
-//      graph.axisYLabel.attr("x", xTransform);
-//      graph.axisYLabel.attr("y", height - marginBottom);
-//      graph.axisYLabel.attr("transform", "rotate(" + rotation + "," + xTransform + "," + height - marginBottom + ")");
-
-//      //graph.axisYLabel.attr("transform", "translate(" + xTransform + ", " + marginTop + ")");
-//    }
-//    else {
-//      if (rotation < 180) {
-//        graph.axisYLabel.attr("text-anchor", "start")
-//      }
-//      else {
-//        graph.axisYLabel.attr("text-anchor", "end");
-//      }
-//      graph.axisYLabel.attr("x", xTransform);
-//      graph.axisYLabel.attr("y", marginTop);
-//      graph.axisYLabel.attr("transform", "rotate(" + rotation + "," + xTransform + "," + marginTop + ")");
-
-//      //graph.axisXLabel.attr("transform", "translate(" + xTransform + ", " + height - marginBottom + ")");
-//    }
-//  }
-
-//  graph.svg.attr("width", width);
-//  graph.svg.attr("height", height);
-
-//  if (graph.text != null)
-//      graph.text.attr("x", (width / 2));
-
-
-//  var displayData = [];
-//  for (var i = Math.max(0, graph.data.length - graph.maxPoints) ; i < graph.data.length; i++)
-//  {
-//    yData = [graph.data[i].y[0]];
-//    for (var j = 1; j < graph.data[i].y.length; j++)
-//    {
-//      if (graph.additive)
-//      yData.push(graph.data[i].y[j] + yData[j - 1]);
-//      else
-//      yData.push(graph.data[i].y[j]);
-//    }
-//    displayData.push({ x: graph.data[i].x, y: yData });
-//  }
-
-//  var minX = (typeof graph.minX === "undefined") ? d3.min(displayData, function (d) { return d.x }) : graph.minX;
-//  var maxX = (typeof graph.maxX === "undefined") ? d3.max(displayData, function (d) { return d.x }) : graph.maxX;
-//  var minY = (typeof graph.minY === "undefined") ? d3.min(displayData, function (d) { return d3.min(d.y) }) : graph.minY;
-//  var maxY = (typeof graph.maxY === "undefined") ? d3.max(displayData, function (d) { return d3.max(d.y) }) : graph.maxY;
-
-//  if (graph.holdminmax)
-//  {
-//    if (typeof graph.holdvalues === "undefined") //todo fix possible missed values when new data.length > maxPoints
-//    graph.holdvalues = {
-//      //minX: minX,
-//      //maxX: maxX,
-//      minY: minY,
-//      maxY: maxY
-//    }
-//    else
-//    {
-//      //    minX = (minX > graph.holdvalues.minX) ? graph.holdvalues.minX : minX;
-//      //    maxX = (maxX < graph.holdvalues.maxX) ? graph.holdvalues.maxX : maxX;
-//      minY = (minY > graph.holdvalues.minY) ? graph.holdvalues.minY : minY;
-//      maxY = (maxY < graph.holdvalues.maxY) ? graph.holdvalues.maxY : maxY;
-//    }
-//  }
-
-//  if (minX == maxX) {
-//    minX--;
-//    maxX++;
-//  }
-
-//  if (minY == maxY) {
-//    minY--;
-//    maxY++;
-//  }
-
-
-//  var xScale;
-//  var yScale;
-
-//  var width = graph.container.clientWidth;
-//  var height = graph.container.clientHeight;
-
-//  switch (graph.xScale) {
-//    case "linear": xScale = d3.scale.linear().domain([minX, maxX]).range([marginLeft, width - marginRight]);
-//    break;
-//    case "ordinal": xScale = d3.scale.ordinal().domain([minX, maxX]).range([marginLeft, width - marginRight]);
-//    break;
-//    case "power": xScale = d3.scale.power().domain([minX, maxX]).range([marginLeft, width - marginRight]);
-//    break;
-//    case "log": xScale = d3.scale.log().domain([minX, maxX]).range([marginLeft, width - marginRight]);
-//    break;
-//  }
-
-//  switch (graph.yScale)
-//  {
-//    case "linear": yScale = d3.scale.linear().domain([minY, maxY]).range([height - marginBottom, marginTop]);
-//    break;
-//    case "ordinal": yScale = d3.scale.ordinal().domain([minY, maxY]).range([height - marginBottom, marginTop]);
-//    break;
-//    case "power": yScale = d3.scale.power().domain([minY, maxY]).range([height - marginBottom, marginTop]);
-//    break;
-//    case "log": yScale = d3.scale.log().domain([minY, maxY]).range([height - marginBottom, marginTop]);
-//    break;
-//  }
-
-//  switch (graph.type)
-//  {
-//    case graphType.line: GraphManager.UpdateLineGraph(graph, displayData, xScale, yScale);
-//    break;
-//    case graphType.horizontalBar:
-//    break;
-//    case graphType.verticalBar:
-//    break;
-//    case graphType.scatterplot:
-//    break;
-//  }
-
-//},
-
-//UpdateLineGraph: function (graph, data, xScale, yScale)
-//{
-//  if (typeof graph.axisX !== "undefined") {
-//    var xAxis = d3.svg.axis().scale(xScale).orient(graph.xAxisOrient).ticks(5);
-//    graph.axisX.call(xAxis);
-//  }
-//  if (typeof graph.axisY !== "undefined") {
-//    var yAxis = d3.svg.axis().scale(yScale).orient(graph.yAxisOrient).ticks(5);
-//    graph.axisY.call(yAxis);
-//  }
-
-//  //make 1 line function to use in the loop!
-
-//  graph.lineG.selectAll("path").remove();
-
-//  for (var i = 0; i < graph.y.length; i++)
-//  {
-//    var lineFunction = d3.svg.line()
-//    .x(function (d) { return xScale(d.x); })
-//    .y(function (d) { return yScale(d.y[i]); })
-//    .interpolate(graph.interpolation);
-
-//    graph.lineG.append("path")
-//    .attr("d", lineFunction(data))
-//    .attr("class", "graphLine")
-//    .attr("stroke", graph.y[i].color)
-//    .attr("fill", "none");
-
-//    //var paths = graph.lineG.selectAll("path").data(data);
-
-//    //paths.attr("d", lineFunction(data))
-//    //                .attr("stroke", graph.y[i].color)
-//    //                .attr("class", "graphLine")
-//    //                .attr("fill", "none");
-
-//    //paths.enter().append("path")
-//    //                .attr("d", lineFunction(data))
-//    //                .attr("stroke", graph.y[i].color)
-//    //                .attr("class", "graphLine")
-//    //                .attr("fill", "none");
-
-
-//  }
-//},

@@ -19,7 +19,6 @@
     <link rel="stylesheet" href="Content/details.css" />
     <link rel="stylesheet" href="Content/kpis.css" />
     <link rel="stylesheet" href="Content/history.css" />
-    <link rel="stylesheet" href="Content/simulation.css" />
     <link rel="stylesheet" href="Content/projectdescription.css" />
     <link rel="stylesheet" href="Content/connectionstatus.css" />
     <link rel="stylesheet" href="Content/userMessages.css" />
@@ -30,8 +29,6 @@
     <link rel="stylesheet" href="Content/Graphs/TableGraphs.css" />
 
     <link rel="stylesheet" href="Content/map.css" />
-    <link rel="stylesheet" href="Content/golive.css" />
-    <link rel="stylesheet" href="Content/startstop.css" />
     <link rel="stylesheet" href="Content/graphmanager.css" />
     <link rel="stylesheet" href="Content/syncmanager.css" />
     <link rel="stylesheet" href="Content/ModelControl.css" />
@@ -131,14 +128,11 @@
     <script src="Scripts/layers.js"></script>
     <script src="Scripts/details.js"></script>
     <script src="Scripts/history.js"></script>
-    <script src="Scripts/simulation.js"></script>
     <script src="Scripts/projectdescription.js"></script>
     <script src="Scripts/timeslider.js"></script>
     <script src="Scripts/timeRangeSlider.js"></script>
     <script src="Scripts/rangeSlider.js"></script>
     <script src="Scripts/windDirection.js"></script>
-    <script src="Scripts/start-stop.js"></script>
-    <script src="Scripts/go-live.js"></script>
     <script src="Scripts/webSocket.js"></script>
     <script src="Scripts/syncManager.js"></script>
     <script src="Scripts/UnitConverter.js"></script>
@@ -262,19 +256,6 @@
         map.removeControl(historyControl);
         DataManager.HistoryControl = historyControl;
 
-        DataManager.goLiveControl = L.control.golive();
-        //map.addControl(DataManager.GoLiveControl);
-
-        //simulation
-        var simulationControl = L.control.simulation(); // todo (NK): why pass baseLayers as options?
-        map.addControl(simulationControl);
-        map.removeControl(simulationControl);
-        DataManager.simulationControl = simulationControl;
-
-        DataManager.simCloseControl = L.control.SimulationClose();
-        //map.addControl(DataManager.simCloseControl);
-
-
         //presenter/viewer
         var presenterViewerControl = L.control.PresenterViewer();
         map.addControl(presenterViewerControl);
@@ -321,15 +302,7 @@
         DataManager.modelControl = L.control.ModelControl();
         map.addControl(DataManager.modelControl);
         map.removeControl(DataManager.modelControl);
-
-
-        //start-stop
-        var startControl = L.control.startstop();
-        DataManager.startControl = startControl;
-        map.addControl(startControl);
-        map.removeControl(startControl);
-        //startControl.setPosition("bottomright");
-
+        
         // current-reference-difference control
         var crd = L.control.crd({ parent: currefdiff });
         map.addControl(crd);

@@ -130,22 +130,11 @@ L.Control.TimeSlider = L.Control.extend({
             })
             
             .on('wheel.zoom', function (e) {
-                //zoom.dispatch('wheel.zoom');
-                //rect.dispatch
-                //return true;
-                //d3.event
-                //var e = document.createEvent('Event');
-                //d3.event.initWheelEvent(e);
-                //svg.node().dispatchEvent(e);
-                
             })
             
             .on('contextmenu', function () {
                 d3.event.preventDefault();
-                //d3.event.stopImmediatePropagation();
-                //return false;
             }); // stop default handling (show browser context menu)
-            //.call(zoom);
 
         // remove background rect for brush: interferes with timeslider control and not needed here
         brushContainer.selectAll("rect.background").remove();
@@ -304,47 +293,6 @@ L.Control.TimeSlider = L.Control.extend({
 
         };
 
-        /*
-        flights = [
-            { start: "2017-01-01 00:00", end: "2017-01-02 00:00", color: "#FF0000" },
-            { start: "2017-01-03 00:00", end: "2017-01-04 00:00", color: "#FF0000" },
-            { start: "2017-01-05 00:00", end: "2017-01-06 00:00", color: "#FF0000" },
-            { start: "2017-01-07 00:00", end: "2017-01-08 00:00", color: "#FF0000" },
-            { start: "2017-01-09 00:00", end: "2017-01-10 00:00", color: "#FF0000" },
-            { start: "2017-01-11 00:00", end: "2017-01-12 00:00", color: "#FF0000" },
-            { start: "2017-01-13 00:00", end: "2017-01-14 00:00", color: "#FF0000" },
-            { start: "2017-01-15 00:00", end: "2017-01-16 00:00", color: "#FF0000" },
-            { start: "2017-01-17 00:00", end: "2017-01-18 00:00", color: "#FF0000" },
-            { start: "2017-01-31 00:00", end: "2017-02-01 00:00", color: "#FF0000" },
-            { start: "2017-02-02 00:00", end: "2017-02-03 00:00", color: "#FF0000" },
-            { start: "2017-02-04 00:00", end: "2017-02-05 00:00", color: "#FF0000" },
-            { start: "2017-02-06 00:00", end: "2017-02-07 00:00", color: "#FF0000" },
-            { start: "2017-02-08 00:00", end: "2017-02-09 00:00", color: "#FF0000" },
-            { start: "2017-02-10 00:00", end: "2017-02-11 00:00", color: "#FF0000" },
-            { start: "2017-02-12 00:00", end: "2017-02-13 00:00", color: "#FF0000" },
-            { start: "2017-02-14 00:00", end: "2017-02-15 00:00", color: "#FF0000" },
-            { start: "2017-02-16 00:00", end: "2017-02-17 00:00", color: "#FF0000" },
-            { start: "2017-02-18 00:00", end: "2017-02-19 00:00", color: "#FF0000" }
-        ];
-
-        aTimesliderDiv.setEvents(flights);
-
-        flights2 = [
-            { start: "2017-03-01 00:00", end: "2017-03-02 00:00", color: "#00FF00" },
-            { start: "2017-03-03 00:00", end: "2017-03-04 00:00", color: "#00FF00" },
-            { start: "2017-03-05 00:00", end: "2017-03-06 00:00", color: "#00FF00" },
-            { start: "2017-03-07 00:00", end: "2017-03-08 00:00", color: "#00FF00" },
-            { start: "2017-03-09 00:00", end: "2017-03-10 00:00", color: "#00FF00" },
-            { start: "2017-03-11 00:00", end: "2017-03-12 00:00", color: "#00FF00" },
-            { start: "2017-03-13 00:00", end: "2017-03-14 00:00", color: "#00FF00" },
-            { start: "2017-03-15 00:00", end: "2017-03-16 00:00", color: "#00FF00" },
-            { start: "2017-03-17 00:00", end: "2017-03-18 00:00", color: "#00FF00" },
-            { start: "2017-03-31 00:00", end: "2017-02-01 00:00", color: "#00FF00" }
-        ];
-
-        aTimesliderDiv.addEvents(flights2);
-        */
-
         // add close button
         var close = L.DomUtil.create('div', 'timeslider-close');
         close.innerHTML = '&#x2715;';
@@ -363,8 +311,6 @@ L.Control.TimeSlider = L.Control.extend({
             // resize axis scale
             xaxis.scale().range([aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin]);
             rect.attr('width', rectParent.width);
-            //zoom.x(scale); 
-            //aTimesliderDiv.scale = scale;
             // move line to show current time
             line
                 .attr('x1', rectParent.width / 2)
@@ -391,7 +337,6 @@ L.Control.TimeSlider = L.Control.extend({
             brushContainer.call(brush);
             // remove background rect for brush: interferes with timeslider control and not needed here
             brushContainer.selectAll("rect.background").remove();
-            //signalBrush();
         }
 
         function signalBrush() {
@@ -440,7 +385,6 @@ L.Control.TimeSlider = L.Control.extend({
     initialize: function (aTimesliderDiv, options) {
         L.setOptions(this, options);
         this._timesliderDiv = aTimesliderDiv;
-        //this._timesliderDiv._settingsControl = this; // link back control on time slider
         this._lastZIndex = 0;
         this._handlingClick = false;
         aTimesliderDiv.yMargin = 8;

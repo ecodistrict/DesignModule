@@ -122,46 +122,6 @@
                     s2[i2].className = 'layerDetailsSelected';
                 // cur-ref-diff
                 crd.reset(layer != undefined, layer.ref != undefined, layer.diff != undefined, layer);
-                //    function (e) {
-                //    // handle switching between current, refference and difference layer
-                //    // todo: only implement for tiles now
-                //    if (e.target == crd.current) {
-                //        if (layer.tileLayer) {
-                //            layer.tileLayer.setUrl(layer.tiles, false);
-                //            layer.tileLayer.idShowing = layer.id;
-                //            if (layer.legend && legendControl.legendLayer == layer.id)
-                //                legendControl.createLegend(layer.legend, layer.id);
-                //            else if (legendControl.legendLayer == layer.id)
-                //                legendControl.clearLegend(false, layer.id);
-                //        }
-                //    }
-                //    else if (e.target == crd.reference) {
-                //        if (layer.tileLayer) {
-                //            layer.tileLayer.setUrl(layer.ref.tiles, false);
-                //            layer.tileLayer.idShowing = layer.ref.id;
-                //            if (typeof layer.ref != "undefined" && typeof layer.ref.legend != "undefined" && legendControl.legendLayer == layer.id)
-                //            {
-                //                legendControl.createLegend(layer.ref.legend, layer.id);
-                //            }
-                //            else if (typeof layer.legend != "undefined" && legendControl.legendLayer == layer.id) {
-                //                legendControl.createLegend(layer.legend, layer.id);
-                //            }
-                //            else if (legendControl.legendLayer == layer.id) {
-                //                legendControl.clearLegend(false, layer.id);
-                //            }
-                //        }
-                //    }
-                //    else {
-                //        if (layer.tileLayer) {
-                //            layer.tileLayer.setUrl(layer.diff.tiles, false);
-                //            layer.tileLayer.idShowing = layer.diff.id;
-                //            if (layer.diff.legend && legendControl.legendLayer == layer.id)
-                //                legendControl.createLegend(layer.diff.legend, layer.id);
-                //            else if (legendControl.legendLayer == layer.id)
-                //                legendControl.clearLegend(false, layer.id);
-                //        }
-                //    }
-                //});
                 crd.crdLayer = layer.id;
 
                 // show legend if first layer
@@ -256,32 +216,6 @@ function updateTilesLayerOnMap(aElementID, aTilesURL) {
 
         if (layer.domainLayer && layer.idShowing && layer.idShowing == aElementID) {
             layer.setUrl(aTilesURL);
-            // var domainLayer = layer.domainLayer;
-            //if (domainLayer.tiles != aTilesURL || !layer.redraw) {
-            //    // update tiles url
-            //    domainLayer.tiles = aTilesURL;
-            //    if (!layer.redraw) {
-            //        // remove previous layer
-            //        removeDomainLayer(domainLayer);
-            //        // add as new layer
-            //        domainLayer.leaflet_id = addLayerToMap(domainLayer, layer.options.opacity);
-            //    }
-            //    else {
-            //        layer.setUrl(aTilesURL);
-            //        //layer.redraw();
-            //    }
-            //    //layer.removeLayer(layer);
-            //    break; // todo: to avoid layer itteration going wrong?
-            //}
-            //else {
-            //    if (layer.redraw)
-            //        layer.redraw();
-            //    else {
-            //        if (layer.tiles) {
-            //            //layer.setUrl
-            //        }
-            //    }
-            //}
         }
     }
 }
@@ -292,11 +226,6 @@ function refreshOtherLayer(aElementID) {
         if (layer.domainLayer && layer.domainLayer.id && layer.domainLayer.id == aElementID) {
             if (layer.redraw)
                 layer.redraw();
-            else {
-                if (layer.tiles) {
-                    //layer.setUrl
-                }
-            }
         }
     }
 }

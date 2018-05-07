@@ -19,11 +19,6 @@ L.control.projectDescription.showOptions = function (e) {
             payload: { scenario: DataManager.sessionInfo.scenario }
         });
     });
-    /*
-    var list = L.DomUtil.create("input", "", container);
-    list.setAttribute("list", "animallist");
-    list.innerHTML = "<datalist id=\"animallist\" title=\"Suggestions to choose from\"><option value= \"Cat\"><option value= \"Cow\"><option value= \"Dog\"></datalist>";
-    */
 }
 
 L.control.projectDescription.showScenarios = function () {
@@ -49,7 +44,6 @@ L.control.projectDescription.showScenarios = function () {
 
 
         var ul = f.appendChild(document.createElement("ul"));
-        //var ul = listContainer.appendChild("ul");
         ul.id = "list";
 
         // add active|reference text
@@ -98,8 +92,6 @@ L.control.projectDescription.showScenarios = function () {
     if (f) {
         L.DomEvent.addListener(f, 'touchmove', L.DomEvent.stopPropagation);
     }
-
-
 };
 
 function ResizeSelectScenario() {
@@ -119,13 +111,6 @@ function ResizeSelectScenario() {
     div.style.maxHeight = "" + (height - 40) + 'px';
     div.style.overflow = "auto";
     div.style.marginBottom = '40px';
-
-
-    // document.getElementsByClassName('scrolling')[0].style.position = 'fixed';
-    // document.getElementsByClassName('scrolling')[0].style.bottom = buttons.parentElement.parentElement.getBoundingClientRect().top + 'px';
-    //
-    // console.log(buttons.parentElement.parentElement.getBoundingClientRect());
-
 }
 
 
@@ -134,8 +119,6 @@ L.control.projectDescription.onAdd = function (map) {
     this._div = L.DomUtil.create('div', 'projectDescription');
     var _this = this; // capture this
     options = this.options;
-
-
 
     window.addEventListener("resize", ResizeProjectDescription);
     L.DomEvent.disableClickPropagation(this._div);
@@ -170,11 +153,7 @@ L.control.projectDescription.update = function (props) {
             textBox = projectDescriptionH2.children[0];
 
         textBox.innerText = this.options.description;
-
-        //projectDescriptionH2.innerHTML = this.options.description;
-
         ResizeProjectDescription();
-
     }
 };
 

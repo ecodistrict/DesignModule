@@ -215,7 +215,6 @@ L.control.legend.clearLegend = function (aClearPosition, aLegendLayer) {
         if (aClearPosition) {
             // was closed before: reset position
             this._div.removeAttribute('style');
-            //this._div.removeAttribute('_leaflet_pos');
             this._div._leaflet_pos = null;
             
         }

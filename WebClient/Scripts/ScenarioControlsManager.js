@@ -29,8 +29,6 @@
             th.id = "scenarioTableHeader" + i;
             th.className = "clickableHeader";
             th.scenario = scenario;
-            //if (this.scenarios[i].id == this.activeScenarioId)
-            //    th.className = "thActive";
             var thText = th.appendChild(document.createElement('span'));
             thText.innerHTML = scenario.name;
             th.addEventListener("click", function (e) {
@@ -83,8 +81,6 @@
 
         th = tr.appendChild(document.createElement('th'));
         th.scenario = scenario;
-        //if (this.scenarios[i].id == this.activeScenarioId)
-        //    th.className = "thActive";
         var thText = th.appendChild(document.createElement('span'));
         thText.innerHTML = "Active";
         
@@ -150,8 +146,6 @@
 
         th = tr.appendChild(document.createElement('th'));
         th.scenario = scenario;
-        //if (this.scenarios[i].id == this.activeScenarioId)
-        //    th.className = "thActive";
         var thText = th.appendChild(document.createElement('span'));
         thText.innerHTML = "Active";
 
