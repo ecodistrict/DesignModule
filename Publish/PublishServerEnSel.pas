@@ -835,7 +835,7 @@ begin
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
     end;
   end;
-  project.SendString('{"winddata":{"speed":'+fWindSpeed.ToString(dotFormat)+',"direction":'+fWindDirection.ToString(dotFormat)+',"time":"'+FormatDateTime(isoDateTimeFormat, fTimestamp)+'"}}');
+  project.SendString('{"type":"winddata","payload":{"speed":'+fWindSpeed.ToString(dotFormat)+',"direction":'+fWindDirection.ToString(dotFormat)+',"time":"'+FormatDateTime(isoDateTimeFormat, fTimestamp)+'"}}');
 end;
 
 { TEnselSpiderChart }

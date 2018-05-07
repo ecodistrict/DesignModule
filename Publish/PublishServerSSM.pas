@@ -2,6 +2,8 @@ unit PublishServerSSM;
 
 interface
 
+{$MESSAGE warn 'simulationControl anad other ssm messages are of old type and no longer implemented in web client'}
+
 uses
   Logger,
   IMB3NativeClient, IMB3Core, ByteBuffers,

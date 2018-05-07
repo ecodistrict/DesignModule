@@ -182,8 +182,8 @@
 
         var obj = {
             type: "ccv",
-            group: SyncManager.group,
             payload: {
+                group: SyncManager.group,
                 playback: { speed: speed }
             }
         };
@@ -196,8 +196,8 @@
 
         var obj = {
             type: "ccv",
-            group: SyncManager.group,
             payload: {
+                group: SyncManager.group,
                 playback: { play: true }
             }
         };
@@ -210,8 +210,8 @@
 
         var obj = {
             type: "ccv",
-            group: SyncManager.group,
             payload: {
+                group: SyncManager.group,
                 playback: { stop: true }
             }
         };
@@ -222,8 +222,8 @@
 
         var obj = {
             type: "ccv",
-            group: SyncManager.group,
             payload: {
+                group: SyncManager.group,
                 scenario: scenario
             }
         };
@@ -341,8 +341,8 @@
     sendMoveMessage: function () {
         var obj = {
             type: "ccv",
-            group: SyncManager.group,
             payload: {
+                group: SyncManager.group,
                 move: {
                     center: SyncManager.sessionData.center,
                     zoom: SyncManager.sessionData.zoom
@@ -355,31 +355,14 @@
     sendInitRequest: function () {
         var obj = {
             type: "ccp",
-            group: SyncManager.group,
             payload: {
+                group: SyncManager.group,
                 initRequest: true
             }
         };
         // todo: NEW MESSAGE FORMAT group into payload
         wsSend(obj);
     }
-    //test functions!
-    ,
-    testPresenter: function () {
-        SyncManager.requestPresenter("pietje123");
-    },
-    testViewer: function () {
-        SyncManager.requestViewer("pietje123");
-    },
-
-    Presenting: function () {
-        return SyncManager.presenter;
-    },
-
-    Viewing: function () {
-        return SyncManager.viewer;
-    }
-
 }
 
 L.Control.PresenterViewer = L.Control.extend({

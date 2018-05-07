@@ -541,81 +541,9 @@ function wsConnect() {
                     messageBuilder.type = "sensor";
                     messageBuilder.payload = message.sensor;
                 }
-                else if (message.complaint) {
-                    messageBuilder.type = "complaint";
-                    messageBuilder.payload = message.complaint;
-                }
-                else if (message.sensordata) {
-                    messageBuilder.type = "sensordata";
-                    messageBuilder.payload = message.sensordata;
-                }
-                else if (message.winddata) {
-                    messageBuilder.type = "winddata";
-                    messageBuilder.payload = message.winddata;
-                }
-                else if (message.removecomplaint) {
-                    messageBuilder.type = "removecomplaint";
-                    messageBuilder.payload = message.removecomplaint;
-                }
-                else if (message.removesensor) {
-                    messageBuilder.type = "removesensor";
-                    messageBuilder.payload = message.removesensor;
-                }
                 else if (message.addhistorymeasures) {
                     messageBuilder.type = "addhistorymeasures";
                     messageBuilder.payload = message.addhistorymeasures;
-                }
-                else if (message.removehistorymeasures) {
-                    messageBuilder.type = "removehistorymeasures";
-                    messageBuilder.payload = message.removehistorymeasures;
-                }
-                else if (message.addcar) {
-                    messageBuilder.type = "addcars";
-                    messageBuilder.payload = message.addcar;
-                }
-                else if (message.updatecar) {
-                    messageBuilder.type = "updatecars";
-                    messageBuilder.payload = message.updatecar;
-                }
-                else if (message.removecar) {
-                    messageBuilder.type = "removecars";
-                    messageBuilder.payload = message.removecar;
-                }
-                else if (message.newGTUsensor) {
-                    messageBuilder.type = "newgtusensor";
-                    messageBuilder.payload = message.newGTUsensor;
-                }
-                else if (message.updateGTUsensor) {
-                    messageBuilder.type = "updategtusensor";
-                    messageBuilder.payload = message.updateGTUsensor;
-                }
-                else if (message.newGTUstatistics) {
-                    messageBuilder.type = "newgtustatistics";
-                    messageBuilder.payload = message.newGTUstatistics;
-                }
-                else if (message.updateGTUstatistics) {
-                    messageBuilder.type = "updategtustatistics";
-                    messageBuilder.payload = message.updateGTUstatistics;
-                }
-                else if (message.simulationControl) {
-                    messageBuilder.type = "simulationcontrol";
-                    messageBuilder.payload = message.simulationControl;
-                }
-                else if (message.ccv) {
-                    messageBuilder.type = "ccv";
-                    messageBuilder.payload = message.ccv;
-                }
-                else if (message.ccp) {
-                    messageBuilder.type = "ccp";
-                    messageBuilder.payload = message.ccp;
-                }
-                else if (message.ccb) {
-                    messageBuilder.type = "ccb";
-                    messageBuilder.payload = message.ccb;
-                }
-                else if (message.groupcontrol) {
-                    messageBuilder.type = "groupcontrol";
-                    messageBuilder.payload = message.groupcontrol;
                 }
                 else {
                     console.log("unknown message:");
