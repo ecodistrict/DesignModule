@@ -3210,13 +3210,20 @@ begin
     end
     else fSourceProjection := CSProjectedCoordinateSystemList.ByWKT('Amersfoort_RD_New'); // EPSG: 28992
   end;
+  if Assigned(fSourceProjection)
+  then Log.WriteLn('Using source projection: '+fSourceProjection.FriendlyName)
+  else Log.WriteLn('NO source projected defined', llWarning);
+
+  // todo: use center of projection if default location for map is not defined?
+  // fSourceProjection.Projection.LatitudeOfCenter fSourceProjection.Projection.LongitudeOfCenter,
+
   fPreLoadScenarios := aPreLoadScenarios;
 
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName,
     aTilerFQDN, aTilerStatusURL, aDataSource,
     aDBConnection, aAddBasicLayers,
     aMaxNearestObjectDistanceInMeters, mapView, nil, nil);
-  {
+
   ClientMessageHandlers.Add('measure',
     procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
     var
@@ -3232,6 +3239,7 @@ begin
         form.AddPropertyRadio('radio', 'radio label', 'r1', ['r-1', 'r0', 'r1']);
         form.AddPropertySelect('select', 'select label', 's0', ['s-1', 's0', 's1']);
         form.AddPropertyCheck('check', 'check label', ['c1', 'c2', 'c3']);
+        form.AddPropertySlider('slider', 'slider label', 10, 70, 5, '%');
         form.Open(aClient, TFormDialogResultHandling.Create(
           procedure(aClient: TClient; aResult: TFormDialogResults)
           var
@@ -3248,7 +3256,7 @@ begin
         form.Free;
       end;
     end);
-  }
+
 end;
 
 destructor TUSProject.Destroy;
