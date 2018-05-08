@@ -306,24 +306,6 @@ begin
           fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
           fSessionModel.Projects.Add(fProject);
         end
-        {
-        else if projectType.ToUpper = 'US' then
-        begin
-          fProject := TUSProject.Create(
-            fSessionModel, fSessionModel.Connection, connection,
-            projectID, projectName,
-            tilerName,
-            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-            dbConnection.ConnectString,
-            dbConnection,
-            mapView,
-            preLoadScenarios, False,
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
-            sourceEPSG);
-          fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-          fSessionModel.Projects.Add(fProject);
-        end
-        }
         else
         begin
           //type not recognized, start default us publisher

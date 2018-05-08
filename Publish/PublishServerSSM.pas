@@ -243,12 +243,15 @@ type
     fAirSSMEmissionsChartFraction: TChartLines;
     fSafetyKPIEvent: TIMBEventEntry;
     fSafetyKPIChart, fSafetyKPIChart2, fSafetyKPIChart3: TChartLines;
+
+    fUseSimulationSetup: Boolean;
   public
     property running: Boolean read fRunning;
     property recording: Boolean read fRecording write fRecording;
     property claimed: Boolean read fClaimed write fClaimed;
     property speed: Double read fSpeed;
     property statistics: TObjectDictionary<string, TSSMStatistic> read fStatistics;
+    property useSimulationSetup: Boolean read fUseSimulationSetup write fUseSimulationSetup;
   public
     procedure HandleAirSSMEmissions(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
     procedure HandleSafetyKPI(aEvent: TIMBEventEntry; var aPayload: ByteBuffers.TByteBuffer); stdcall;
@@ -1065,7 +1068,8 @@ end;
 constructor TSSMScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean; aRecorded: Boolean);
 begin
   fUSLayersLoaded := False;
-  inherited Create(aProject, aID, aName, aDescription, aID, aAddbasicLayers, aMapView, aUseSimulationSetup);
+  fUseSimulationSetup := aUseSimulationSetup;
+  inherited Create(aProject, aID, aName, aDescription, aID, aAddbasicLayers, aMapView);
   // statistics
   fStatistics := TObjectDictionary<string, TSSMStatistic>.Create;
   fGTUStatisticEvent := (project as TMCProject).ControlInterface.Connection.Subscribe(aID+'.StatisticsGTULane');
@@ -1790,7 +1794,7 @@ begin
   fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(
     GetSetting('Projection', 28992)); // 'Amersfoort_RD_New')); // EPSG: 28992
   inherited Create(aSessionModel, aConnection, imb3Connection,  aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, GetSetting('DataSource', SSMDataSource), aDBConnection, aAddBasicLayers,
-    aMaxNearestObjectDistanceInMeters, mapView, nil, nil, GetSetting('IdlePrefix', SSMIdlePrefix)); // todo: check projectCurrentScenario etc..
+    aMaxNearestObjectDistanceInMeters, mapView, GetSetting('IdlePrefix', SSMIdlePrefix)); // todo: check projectCurrentScenario etc..
 
   EnableControl(presenterViewerControl);
   EnableControl(modelControl);
@@ -2157,7 +2161,8 @@ var
 begin
   if not scenarios.TryGetValue('base', scenario) then
   begin
-    scenario := TScenario.Create(Self, 'base', 'new simulation', 'new empty base scenario', False, mapView, True);
+    // todo: changed from  TScenario to TSSMScenario for useSimulationSetup property.. check if this can work..
+    scenario := TSSMScenario.Create(Self, 'base', 'new simulation', 'new empty base scenario', False, mapView, true, false);
     scenarios.Add(scenario.ID, scenario);
     projectCurrentScenario := scenario;
   end;

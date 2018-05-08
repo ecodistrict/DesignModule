@@ -87,7 +87,7 @@ type
   end;
 
   TMCScenario = class(TScenario)
-  constructor Create(aProject: TProject; const aID, aName, aDescription, aFederation: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean);
+  constructor Create(aProject: TProject; const aID, aName, aDescription, aFederation: string; aAddbasicLayers: Boolean; aMapView: TMapView);
   destructor Destroy; override;
   private
     fFederation: string;
@@ -104,7 +104,7 @@ type
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aMCDataSource: string;
     aDBConnection: TCustomConnection;
     aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView;
-    aProjectCurrentScenario, aProjectRefScenario: TScenario; aMCIdlePrefix: string=DefaultIdleFederation);
+    aMCIdlePrefix: string=DefaultIdleFederation);
   destructor Destroy; override;
   private
     fModelManager: TMCProjectModelManager;
@@ -199,7 +199,7 @@ constructor TMCProject.Create(aSessionModel: TSessionModel;
   aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN,
   aTilerStatusURL, aMCDataSource: string; aDBConnection: TCustomConnection;
   aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
-  aMapView: TMapView; aProjectCurrentScenario, aProjectRefScenario: TScenario; aMCIdlePrefix: string);
+  aMapView: TMapView; aMCIdlePrefix: string);
 begin
   fIMB3Connection := aIMB3Connection;
   fControlInterface := TClientMCControlInterface.Create(
@@ -207,7 +207,7 @@ begin
     Self,
     aMCIdlePrefix);
   inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
-    aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView, aProjectCurrentScenario, aProjectRefScenario);
+    aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView);
   fModelManager := TMCProjectModelManager.Create;
   if (GetSettingExists(ModelFilenameSwitch)) then //check if we need to read a model jsonString from file
     fModelManager.ReadModelsFromFile(GetSetting(ModelFilenameSwitch));
@@ -253,10 +253,10 @@ end;
 
 constructor TMCScenario.Create(aProject: TProject; const aID, aName,
   aDescription, aFederation: string; aAddbasicLayers: Boolean;
-  aMapView: TMapView; aUseSimulationSetup: Boolean);
+  aMapView: TMapView);
 begin
   fFederation := aFederation;
-  inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView, aUseSimulationSetup);
+  inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView);
 end;
 
 destructor TMCScenario.Destroy;
