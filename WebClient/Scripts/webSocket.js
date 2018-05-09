@@ -83,7 +83,7 @@ var wsLookup = {
     showchart: function (payload) {
         GraphManager.ShowGraphs(payload);
     },
-    selectedobjects: function (payload) {
+    selectedObjects: function (payload) {
         // add selected objects to layer, ut first adjust selected categories
         measuresControl.setSelectCategories(payload.selectCategories);
         handleObjectSelection(payload);

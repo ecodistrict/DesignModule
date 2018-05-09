@@ -2256,7 +2256,6 @@ end;
 
 function TUSScenario.GetUSControlsJSON: string;
 var
-//  USControlStatus: TUSControlStatus;
   layerBase: TLayerBase;
   usLayer: TUSLayer;
   layerObject: TLayerObject;
@@ -2265,22 +2264,6 @@ var
   usControl: TUSControl;
 begin
   Result := '';
-//  TMonitor.Enter(fUSControlStatuses);
-//  try
-//  for USControlStatus in fUSControlStatuses.Values do
-//    begin
-//      if Result <> '' then
-//        Result := Result + ',';
-//      if USControlStatus.Active then
-//        active := 1
-//      else
-//        active := 0;
-//      Result := Result + '"' + USControlStatus.ID.ToString + '":{"active":' + active.ToString + '}';
-//    end;
-//  finally
-//    TMonitor.Exit(fUSControlStatuses);
-//  end;
-
   TMonitor.Enter(fLayers);
   try
     for layerBase in fLayers.Values do
@@ -2463,161 +2446,25 @@ begin
 end;
 
 procedure TUSScenario.ReadBasicData;
-
-//  procedure AddBasicLayer(const aID, aName, aDescription, aDefaultDomain, aObjectType, aGeometryType, aQuery: string;
-//    aLayerType: Integer; const aConnectString, aNewQuery, aChangeQuery: string; aOraSession: TOraSession; const aDataEvents: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem;
-//    const aBasicTableName: string; aSelectProperties: TSelectProperties);
-//  var
-//    layer: TUSBasicLayer;
-//  begin
-//
-//    layer := TUSBasicLayer.Create(Self,
-//
-//      standardIni.ReadString('domains', aObjectType, aDefaultDomain), //  domain
-//      aID, aName, aDescription, false,
-//       '"'+aObjectType+'"', aGeometryType , aLayerType, NaN,
-//       aConnectString,
-//       aNewQuery,
-//       aChangeQuery,
-//       aDataEvents,
-//       aSourceProjection,
-//       TDiscretePalette.Create('basic palette', [], TGeoColors.Create(colorBasicOutline)),
-//       aBasicTableName,
-//       aSelectProperties);
-//    layer.query := aQuery;
-//    Layers.Add(layer.ID, layer);
-//    Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
-//    // schedule reading objects and send to tiler
-//    //todo: uncomment!
-//    //todo: implement updatemultiplequery for basic layers?
-//    AddCommandToQueue(aOraSession, layer.ReadObjects);
-//  end;
-
 var
   mlp: TPair<Integer, TMetaLayerEntry>;
-//  mblp: TPair<string, TMetaBaseLayerEntry>;
   layer: TUSLayer;
   indicTableNames: TAllRowsSingleFieldResult;
-//  tableName: string;
-//  geneTables: TAllRowsSingleFieldResult;
-//  i: Integer;
   oraSession: TOraSession;
   metaLayer: TMetaLayer;
   connectString: string;
   sourceProjection: TGIS_CSProjectedCoordinateSystem;
-  layerInfoKey: string;
-  layerInfo: string;
-  layerInfoParts: TArray<string>;
   dom: string;
   nam: string;
 begin
   oraSession := (project as TUSProject).OraSession;
   connectString := ConnectStringFromSession(oraSession);
   sourceProjection := (project as TUSProject).sourceProjection;
-  // process basic layers
-//  if addBasicLayers then
-//  begin
-//    geneTables := ReturnAllFirstFields(oraSession,
-//      'SELECT DISTINCT OBJECT_NAME '+
-//      'FROM USER_OBJECTS '+
-//      'WHERE OBJECT_TYPE = ''TABLE'' AND OBJECT_NAME LIKE '''+fTablePrefix+'GENE%''');
-//    for i := 0 to Length(geneTables)-1 do
-//    begin
-//      tableName := geneTables[i];
-//      if tableName=fTablePrefix.ToUpper+'GENE_ROAD' then
-//      begin // always
-//        AddBasicLayer(
-//          'road', 'roads', 'roads', 'basic structures', 'road', 'LineString',
-//          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-//          4,
-//          connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_ROAD'), sourceProjection);
-//      end
-//      else if tableName=fTablePrefix.ToUpper+'GENE_PIPELINES' then
-//      begin // check count
-//        if ReturnRecordCount(oraSession, tableName)>0
-//        then AddBasicLayer(
-//               'pipeline', 'pipe lines', 'pipe lines', 'basic structures', 'pipe line', 'LineString',
-//               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-//               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_PIPELINES'), sourceProjection);
-//      end
-//      else if tableName=fTablePrefix.ToUpper+'GENE_BUILDING' then
-//      begin // always
-//        AddBasicLayer(
-//          'building', 'buildings', 'buildings', 'basic structures', 'building', 'MultiPolygon',
-//          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-//          3, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_BUILDING'), sourceProjection);
-//      end
-//      else if tableName=fTablePrefix.ToUpper+'GENE_SCREEN' then
-//      begin // always
-//        AddBasicLayer(
-//          'screen', 'screens', 'screens', 'basic structures', 'screen', 'LineString',
-//          'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-//          4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_SCREEN'), sourceProjection);
-//      end
-//      else if tableName=fTablePrefix.ToUpper+'GENE_TRAM' then
-//      begin // check count
-//        if ReturnRecordCount(oraSession, tableName)>0
-//        then AddBasicLayer(
-//               'tramline', 'tram lines', 'tram lines', 'basic structures', 'tram line', 'LineString',
-//               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-//               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_TRAM'), sourceProjection);
-//      end
-//      else if tableName=fTablePrefix.ToUpper+'GENE_BIKEPATH' then
-//      begin // check count
-//        if ReturnRecordCount(oraSession, tableName)>0
-//        then AddBasicLayer(
-//               'bikepath', 'bike paths', 'bike paths', 'basic structures', 'bike path', 'LineString',
-//               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-//               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_BIKEPATH'), sourceProjection);
-//      end
-//      else if tableName=fTablePrefix.ToUpper+'GENE_RAIL' then
-//      begin // check count
-//        if ReturnRecordCount(oraSession, tableName)>0
-//        then AddBasicLayer(
-//               'railline', 'rail lines', 'rail lines', 'basic structures', 'rail line', 'LineString',
-//               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-//               4, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_RAIL'), sourceProjection);
-//      end
-//      else if tableName=fTablePrefix.ToUpper+'GENE_INDUSTRY_SRC' then
-//      begin // check count
-//        if ReturnRecordCount(oraSession, tableName)>0
-//        then AddBasicLayer(
-//               'industrysource', 'industry sources', 'industry sources', 'basic structures', 'industry source', 'Point',
-//               'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+tableName+' t',
-//               11, connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, 'GENE_INDUSTRY_SRC'), sourceProjection);
-//      end;
-//
-//      //GENE_NEIGHBORHOOD
-//      //GENE_RESIDENCE
-//      //GENE_NODE
-//      //GENE_DISTRICT
-//      //GENE_STUDY_AREA
-//      //GENE_BASCOV
-//    end;
-//  end;
 
-  //ReadUSControls(oraSession);
-
-  //process base layers
+  //process basic layers
   if addBasicLayers then
   begin
     ReadBasicLayers(oraSession);
-//    metaBaseLayer := TMetaBaseLayer.Create([doOwnsValues]);
-//    try
-//      ReadMetaObjects(oraSession, fTablePrefix, metaBaseLayer);
-//      for mblp in metaBaseLayer do
-//      begin
-//        if mblp.Value.IsPublished > 0 then
-//        begin
-//          AddBasicLayer(mblp.Value.ObjectType, mblp.Value.LayerDescription, mblp.Value.LayerDescription, 'basic structures', mblp.Value.ObjectType, mblp.Value.GeometryType,
-//            'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+fTablePrefix.ToUpper+ mblp.Value.TableName + ' t', GetUSBasicLayerType(mblp.Value.GeometryType),
-//            connectString, '', 'SELECT OBJECT_ID, 0 AS VALUE, SHAPE FROM '+fTablePrefix.ToUpper+ mblp.Value.TableName + ' WHERE OBJECT_ID IN ', oraSession, SubscribeUSDataEvents(oraSession.Username, mblp.Value.TableName), sourceProjection, fTablePrefix.ToUpper+ mblp.Value.TableName, mblp.Value.GetSelectProperties);
-//        end;
-//      end;
-//      //-> add base layers
-//    finally
-//      FreeAndNil(metaBaseLayer);
-//    end;
   end;
 
   // process meta layer to build list of available layers
@@ -2629,71 +2476,8 @@ begin
     begin
       if mlp.Value._published>0 then
       begin
-//        if (mlp.Value.LAYER_TYPE = 99) and addBasicLayers then
-//        begin
-//          aID := mlp.Value.description.ToLower.Replace(' ', '', [rfReplaceAll]);
-//          if aID.EndsWith('s') then
-//            aID := aID.Remove(aID.Length-1, 1);
-//          AddBasicLayer(aID, mlp.Value.description, mlp.Value.description, mlp.Value.domain, mlp.Value.objectType, mlp.Value.geometryType,
-//            'SELECT OBJECT_ID, 0 AS VALUE, t.SHAPE FROM '+fTablePrefix.ToUpper+ mlp.Value.LAYER_TABLE + ' t', GetBasicLayerType(mlp.Value.geometryType),
-//            connectString, '', '', oraSession, SubscribeDataEvents(oraSession.Username, mlp.Value.LAYER_TABLE), sourceProjection);
-//        end
-//        else if (mlp.Value.LAYER_TYPE = 98) and addBasicLayers then //controls basic layer!
-//        begin
-//          aID := mlp.Value.description.ToLower.Replace(' ', '', [rfReplaceAll]);
-//          if aID.EndsWith('s') then
-//            aID := aID.Remove(aID.Length-1, 1);
-//          AddBasicLayer(aID, mlp.Value.description, mlp.Value.description, mlp.Value.domain, mlp.Value.objectType, mlp.Value.geometryType,
-//            mlp.Value.SQLQuery(fTablePrefix.ToUpper), 10,
-//            connectString, mlp.Value.SQLQueryNew(fTablePrefix.ToUpper), mlp.Value.SQLQueryChangeMultiple(fTablePrefix.ToUpper), oraSession, SubscribeDataEvents(oraSession.Username, mlp.Value.LAYER_TABLE), sourceProjection);
-//        end
-//        else
-        if (mlp.Value.LAYER_TYPE < 50) then
-        begin
-          // try tablename-value, legend description-value..
-          layerInfoKey := mlp.Value.LAYER_TABLE.Trim+'-'+mlp.Value.VALUE_EXPR.trim;
-          layerInfo := StandardIni.ReadString('layers', layerInfoKey, '');
-          if layerInfo='' then
-          begin
-            layerInfoKey := mlp.Value.LEGEND_DESC.trim+'-'+mlp.Value.VALUE_EXPR.trim;
-            layerInfo := StandardIni.ReadString('layers', layerInfoKey, '');
-          end;
-          layerInfoParts := layerInfo.Split([',']);
-
           nam := mlp.Value.description;
-          if (nam='') and (length(layerInfoParts)>1)
-          then nam := layerInfoParts[1];
-          if nam=''
-          then nam := mlp.Value.LEGEND_DESC;
-
           dom := mlp.Value.domain;
-          if (dom='') and (length(layerInfoParts)>0)
-          then dom := standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0]);
-
-
-          {
-          if layerInfo<>'' then
-          begin
-            layerInfoParts := layerInfo.Split([',']);
-            if length(layerInfoParts)<2 then
-            begin
-              setLength(layerInfoParts, 2);
-              layerInfoParts[1] := mlp.Value.LEGEND_DESC;
-            end;
-
-            if mlp.Value.domain<>''
-            then dom := mlp.Value.domain
-            else dom := standardIni.ReadString('domains', layerInfoParts[0], layerInfoParts[0]);
-            nam := layerInfoParts[1];
-          end
-          else
-          begin
-            if mlp.Value.domain<>''
-            then dom := mlp.Value.domain
-            else dom := '';
-            nam := mlp.Value.description;
-          end;
-          }
           if (dom<>'') and (nam<>'') then
           begin
             //todo: check if fix from name to nam worked!?
@@ -2703,12 +2487,10 @@ begin
               Layers.Add(layer.ID, layer);
               Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
               // schedule reading objects and send to tiler
-              //todo: uncomment
               AddCommandToQueue(oraSession, layer.ReadObjects);
             end
             else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' '+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
           end;
-        end;
       end;
     end;
 
@@ -2727,12 +2509,6 @@ begin
       'WHERE view_name LIKE '''+FTablePrefix+'%\_INDIC\_DEF%'' ESCAPE ''\'' '+
       ') '+
       'ORDER BY name');
-//    for tableName in indicTableNames do
-//    begin
-//      TUSChart.Create(Self, FTablePrefix, tableName, oraSession);
-//      //fIndicators.Add(TIndicator.Create(Self, FModelControl.Connection, FDomainsEvent, FSession, FTablePrefix, FSessionName, tableName));
-//      Log.WriteLn(elementID+': added indicator: '+tableName, llNormal, 1);
-//    end;
     ReadIndicators(indicTableNames, oraSession);
     Log.WriteLn(elementID+': finished building scenario');
   finally
