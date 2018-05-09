@@ -2231,7 +2231,7 @@ begin
   fIMBConnection := aIMBConnection;
   fUSChartGroups := TObjectList<TUSChartGroup>.Create(True);
   fUSControlStatuses := TObjectDictionary<Integer, TUSControlStatus>.Create([doOwnsValues]);
-  inherited Create(aProject, aID, aName, aDescription, aFederation, aAddbasicLayers, aMapView, false);
+  inherited Create(aProject, aID, aName, aDescription, aFederation, aAddbasicLayers, aMapView);
 
   fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
   fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
@@ -2998,7 +2998,7 @@ begin
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName,
     aTilerFQDN, aTilerStatusURL, aDataSource,
     aDBConnection, aAddBasicLayers,
-    aMaxNearestObjectDistanceInMeters, mapView, nil, nil);
+    aMaxNearestObjectDistanceInMeters, mapView);
 
   ClientMessageHandlers.Add('measure',
     procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)

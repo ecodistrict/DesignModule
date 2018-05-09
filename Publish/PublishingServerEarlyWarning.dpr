@@ -98,7 +98,7 @@ type
   constructor Create(
     aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL: string;
     aDBConnection: TCustomConnection; aAddBasicLayers: Boolean;
-    aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; aProjectCurrentScenario, aProjectRefScenario: TScenario);
+    aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
   destructor Destroy; override;
   private
     fPrivateModelMeteoEvent: TEventEntry;
@@ -940,7 +940,7 @@ end;
 
 constructor TProjectEarlyWarning.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName,
   aTilerFQDN, aTilerStatusURL: string; aDBConnection: TCustomConnection; aAddBasicLayers: Boolean;
-  aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView; aProjectCurrentScenario, aProjectRefScenario: TScenario);
+  aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
 var
   scenario: TScenario;
   jsonLegend: string;
@@ -950,11 +950,11 @@ var
 begin
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
-    aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView, aProjectCurrentScenario, aProjectRefScenario);
+    aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView);
   fPrivateModelMeteoEvent := nil;
   fPrivateModelSensorEvent := nil;
 
-  scenario := TScenario.Create(Self, 'EarlyWarning', 'EarlyWarning', 'EarlyWarning', False, aMapView, False);
+  scenario := TScenario.Create(Self, 'EarlyWarning', 'EarlyWarning', 'EarlyWarning', False, aMapView);
   scenarios.Add(scenario.ID, scenario);
   projectCurrentScenario := scenario;
 
@@ -1108,7 +1108,7 @@ begin
           mapView := TMapView.Create(GetSetting(MapViewSwitchName));
           mapView.DumpToLog;
 
-          project := TProjectEarlyWarning.Create(sessionModel, connection, 'EarlyWarning', 'EarlyWarning', '', '', nil, False, 250, mapView, nil, nil);
+          project := TProjectEarlyWarning.Create(sessionModel, connection, 'EarlyWarning', 'EarlyWarning', '', '', nil, False, 250, mapView);
           sessionModel.Projects.Add(project);
 
           WriteLn('Press return to quit..');

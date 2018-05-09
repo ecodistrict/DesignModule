@@ -96,7 +96,7 @@ type
   end;
 
   TSesmiScenario = class(TScenario)
-  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView; aUseSimulationSetup: Boolean);
+  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
   destructor Destroy; override;
   private
     //fLinkLayers: TDictionary<Integer, TSesmiLinkLayer>;
@@ -335,8 +335,7 @@ end;
 { TSesmiScenario }
 
 constructor TSesmiScenario.Create(aProject: TProject; const aID, aName,
-  aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView;
-  aUseSimulationSetup: Boolean);
+  aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
 begin
   if TRegEx.IsMatch(aID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$')
   then fGUID := TGUID.Create(aID)
@@ -998,7 +997,7 @@ begin
   fExpertScenarioGUID := aExpertScenarioGUID;
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
-    aTilerStatusURL, nil, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView, nil, nil); // todo: check projectCurrentScenario
+    aTilerStatusURL, nil, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView);
   fTiler.onTilerStatus := handleTilerStatus;
   //Set Sesmi controls
   SetControl('timeslider', '1');
@@ -1027,7 +1026,7 @@ end;
 
 function TSesmiProject.CreateSesmiScenario(const aScenarioID: string): TSesmiScenario;
 begin
-  Result := TSesmiScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView, False);
+  Result := TSesmiScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView);
 end;
 
 function TSesmiProject.handleTilerStatus(aTiler: TTiler): string;

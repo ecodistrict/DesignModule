@@ -1414,7 +1414,7 @@ end;
 constructor TEcodistrictProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
   aTilerStatusURL: string; aDBConnection: TCustomConnection; aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aKPIList: TObjectList<TEcodistrictKPI>);
 var
-  dummyMapView: TMapView;
+  WorldMapView: TMapView;
 begin
   fKpiList := TObjectDictionary<string, TEcodistrictKPI>.Create;
   UpdateKPIList(aKPIList);
@@ -1423,10 +1423,10 @@ begin
   fDIQueries := nil;
   fDIMeasuresHistory := nil;
   fDIMeasures := nil;
-  dummyMapView := TMapView.Create(0,0, 1);
+  WorldMapView := TMapView.Create(0, 0, 1);
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
-    aDBConnection, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, dummyMapView, nil, nil); // todo: check
+    aDBConnection, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, WorldMapView);
   fTiler.onTilerStatus := handleTilerStatus;
   //set the EcoDistrict controls
   EnableControl(selectControl);
@@ -2063,8 +2063,8 @@ begin
     if not scenarios.TryGetValue(aID, Result) then
     begin
       if aID=EcodistrictBaseScenario
-      then Result := TEcodistrictScenario.Create(Self, Self.ProjectID, Self.ProjectName, Self.ProjectDescription, Self.addBasicLayers, Self.mapView, False)
-      else Result := TEcodistrictScenario.Create(Self, aID, '', '', Self.addBasicLayers, Self.mapView, False);
+      then Result := TEcodistrictScenario.Create(Self, Self.ProjectID, Self.ProjectName, Self.ProjectDescription, Self.addBasicLayers, Self.mapView)
+      else Result := TEcodistrictScenario.Create(Self, aID, '', '', Self.addBasicLayers, Self.mapView);
       scenarios.Add(aID, Result);
     end;
   finally
@@ -3268,7 +3268,7 @@ begin
     // add base scenario
     if not result.scenarios.TryGetValue(EcodistrictBaseScenario, scenario) then
     begin
-      scenario := TEcodistrictScenario.Create(result, result.ProjectID, result.ProjectName, result.ProjectDescription, result.addBasicLayers, (result as TEcodistrictProject).mapView, False);
+      scenario := TEcodistrictScenario.Create(result, result.ProjectID, result.ProjectName, result.ProjectDescription, result.addBasicLayers, (result as TEcodistrictProject).mapView);
       result.scenarios.Add(EcodistrictBaseScenario, scenario);
       Log.WriteLn('added base scenario '+EcodistrictBaseScenario+': '+result.ProjectName+', '+result.ProjectDescription, llNormal, 1);
     end
@@ -3509,7 +3509,7 @@ begin
       else
       begin
         // add scenario
-        scenario := TEcodistrictScenario.Create(project, aVariantId, aVariantName, aVariantDescription, project.addBasicLayers, (project as TEcodistrictProject).mapView, False);
+        scenario := TEcodistrictScenario.Create(project, aVariantId, aVariantName, aVariantDescription, project.addBasicLayers, (project as TEcodistrictProject).mapView);
         project.scenarios.Add(aVariantId, scenario);
         Log.WriteLn('added scenario '+aVariantId+': '+aVariantName+', '+aVariantDescription, llNormal, 1);
       end;
