@@ -445,7 +445,7 @@ namespace WS2IMBSvc
                 // NOT: aEventEntry.unPublish();
                 // signal web client session server is disconnected
                 if (aEventEntry.Tag != null)
-                    (aEventEntry.Tag as IMessageToClient).SendMessageToClient(CreateMessage("{\"connection\":{\"message\":\"session server has disconnected\"}}"));
+                    (aEventEntry.Tag as IMessageToClient).SendMessageToClient(CreateMessage("{\"type\":\"connection\",\"payload\":{\"message\":\"session server has disconnected\"}}"));
             }
         }
 

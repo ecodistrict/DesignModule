@@ -18,6 +18,7 @@ var
   mapView: TMapView;
   tilerName: string;
   project: TProject;
+  scenario: TScenario;
 begin
   try
     connection := TSocketConnection.Create('PublisherTest', 0, '', 'vps17642.public.cloudvps.com');
@@ -30,8 +31,41 @@ begin
           tilerName, TilerStatusURLFromTilerName(tilerName),
           nil, true, 150, mapView);
         sessionModel.Projects.Add(project);
+        scenario := TScenario.Create(project, 'scenario1', 'Scenario 1', 'The first scenario', true, project.mapView);
+        project.scenarios.Add(scenario.id, scenario);
+        scenario := TScenario.Create(project, 'scenario2', 'Scenario 2', 'The second scenario', true, project.mapView);
+        project.scenarios.Add(scenario.id, scenario);
+
+        project.EnableControl(selectControl);
+        project.EnableControl(measuresControl);
+        project.EnableControl(measuresHistoryControl);
+        project.EnableControl(modelControl);
+        project.EnableControl(controlsControl);
+        project.EnableControl(overviewControl);
+        project.EnableControl(presenterViewerControl);
+        project.EnableControl(filesControl);
+
+        project.SetControl('timeslider', '1');
+        project.windControl;
 
 
+        (*
+        aClient.signalString(
+      '{"type":"rangeslider",'+
+       '"payload":'+
+         '{"range":{'+
+           '"min":"-100",'+
+           '"max":"0"'+
+           '},'+
+          '"orientation": "vertical",'+ // Height is vertical
+          '"value": "-1",'+
+          '"text": "1 m",' +
+          '"updateDelta": "10",' +
+          '"colorInversed": "true",' +
+          '"ID": "heightSlider"' +
+         '}'+
+        '}');
+        *)
 
         WriteLn('Press return to quit..');
         ReadLn;

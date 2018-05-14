@@ -154,7 +154,6 @@ type
     function handleTilerStatus(aTiler: TTiler): string;
     procedure handleNewClient(aClient: TClient); override;
     procedure handleRemoveClient(aClient: TClient); override;
-    procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
     procedure checkForEmptyScenarios(aTimer: TTimer; aTime: THighResTicks);
   public
     function addClient(const aClientID: string): TClient; override;
@@ -1033,14 +1032,6 @@ function TSesmiProject.handleTilerStatus(aTiler: TTiler): string;
 begin
   // handle status request
   Result := 'project '+projectName+' ('+projectID+')';
-end;
-
-procedure TSesmiProject.handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject);
-begin
-  if assigned(aClient.currentScenario) and (aClient.currentScenario is TSesmiScenario) then
-  begin
-    // todo: ?
-  end;
 end;
 
 procedure TSesmiProject.handleNewClient(aClient: TClient);

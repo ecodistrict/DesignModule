@@ -228,24 +228,24 @@ begin
   inherited;
   if Assigned(aScenario) and (aScenario is TMCScenario) then
   begin
-    if aJSONObject.TryGetValue<TJSONValue>('modelControl', jsonObject) then
-      if jsonObject.TryGetValue<TJSONValue>('refresh', jsonValue) then
-      begin
-        TMonitor.Enter(fScenarios);
+    if aJSONObject.TryGetValue<TJSONValue>('modelControl', jsonObject) and
+       jsonObject.TryGetValue<TJSONValue>('refresh', jsonValue) then
+    begin
+      TMonitor.Enter(fScenarios);
+      try
+        controlInterface.Lock.Acquire;
         try
-          controlInterface.Lock.Acquire;
-          try
-            controlInterface.Refresh;
-          finally
-            controlInterface.Lock.Release;
-          end;
-          for scenario in fScenarios.Values do
-            if (scenario is TMCScenario) then
-              (scenario as TMCScenario).HandleRefreshMC;
+          controlInterface.Refresh;
         finally
-          TMonitor.Exit(fScenarios);
+          controlInterface.Lock.Release;
         end;
+        for scenario in fScenarios.Values do
+          if (scenario is TMCScenario) then
+            (scenario as TMCScenario).HandleRefreshMC;
+      finally
+        TMonitor.Exit(fScenarios);
       end;
+    end;
   end;
 end;
 
