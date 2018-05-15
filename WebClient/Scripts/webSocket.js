@@ -332,9 +332,12 @@ function wsConnect() {
                 if (typeof wsLookup[message.type] !== "undefined") //only access functions that are defined!
                     wsLookup[message.type](message.payload);
             }
+            else if (typeof message.connection !== "undefined") {
+                // todo: temp fix until new message format is active in WS2IMB
+                wsLookup["connection"]({ message: message.connection.message });
+            }
             else {
-                console.log('received old message, type: ' + messageBuilder.type);
-                console.log(messageBuilder);
+                console.log('received old message, type: ' + message);
             }
         }
     };

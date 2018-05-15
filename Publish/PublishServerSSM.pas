@@ -1267,13 +1267,13 @@ begin
           parameters := TModelParameters.Create(cim.DefaultParameters);
           try
             if not controlInterface.ClaimModel(cim, parameters)
-            then log.WriteLn('TSSMProject.handleClientMessage: could not claim model '+cim.ModelName, llError)
+            then log.WriteLn('TSSMScenario.HandleFirstSubscriber: could not claim model '+cim.ModelName, llError)
             else break;
           finally
             parameters.Free;
           end;
         end
-        else log.WriteLn('TSSMProject.handleClientMessage: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
+        else log.WriteLn('TSSMScenario.HandleFirstSubscriber: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
       end;
     end;
   end;
@@ -2106,7 +2106,7 @@ begin
                   end;
 
                   if not controlInterface.ClaimModel(cim, parameters)
-                  then log.WriteLn('TSSMProject.handleClientMessage: could not claim model '+cim.ModelName, llError)
+                  then log.WriteLn('TSSMProject.handleSetupSimulation: could not claim model '+cim.ModelName, llError)
                   else
                   begin
                     ModelNames.Delete(0); //mark this model as claimed
@@ -2121,7 +2121,7 @@ begin
                   parameters.Free;
                 end;
               end
-              else log.WriteLn('TSSMProject.handleClientMessage: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
+              else log.WriteLn('TSSMProject.handleSetupSimulation: NO repsonse on request for default parameters for model '+cim.ModelName, llError);
             end;
           end;
         end;
