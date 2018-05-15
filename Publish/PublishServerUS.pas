@@ -631,20 +631,20 @@ type
     fTableprefix: string;
     fIMBConnection: TIMBConnection; // ref
     fUSChartGroups: TObjectList<TUSChartGroup>;
-    fUSControlStatuses: TObjectDictionary<Integer, TUSControlStatus>; //owns, locks with monitor
-    fUpdateQueue: TList<TUSUpdateQueueEntry>;
-    fUpdateQueueEvent: TEvent;
-    fControlsUpdateEvent: TIMBEventEntry;
-    fUpdateThread: TThread;
+    //fUSControlStatuses: TObjectDictionary<Integer, TUSControlStatus>; //owns, locks with monitor
+    //fUpdateQueue: TList<TUSUpdateQueueEntry>;
+    //fUpdateQueueEvent: TEvent;
+    //fUpdateThread: TThread;
+    //fControlsUpdateEvent: TIMBEventEntry;
     procedure ReadIndicators (aTableNames: array of string; aOraSession: TOraSession);
     procedure ReadIndicator (aTableName: string; aOraSession: TOraSession);
     procedure ReadBasicLayers(aOraSession: TOraSession);
     //procedure ReadUSControls (aOraSession: TOraSession);
-    procedure HandleControlsUpdate(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
-    procedure HandleControlsQueueEvent();
+    //procedure HandleControlsUpdate(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
+    //procedure HandleControlsQueueEvent();
   public
     property Tableprefix: string read fTableprefix;
-    property USControlStatuses: TObjectDictionary<Integer, TUSControlStatus> read fUSControlStatuses;
+    //property USControlStatuses: TObjectDictionary<Integer, TUSControlStatus> read fUSControlStatuses;
     function GetUSControlsJSON: string;
     procedure SendUSControlsMessage(aClient: TClient);
     procedure ChangeUSControl(aAction, aControlID: Integer; const aObjectName, aAttribute: string);
@@ -1173,13 +1173,28 @@ begin
       begin
         objectTypes := '"location"';
         geometryType := 'Point';
-        diffRange := diffRange; // todo
+        diffRange := diffRange; // todo:
       end;
     11:
       begin
         objectTypes := '"location"';
         geometryType := 'Point';
         diffRange := defaultValue(diffRange, autoDiffRange*0.3);
+      end;
+    12:
+      begin
+        objectTypes := '"control"';
+        geometryType := '';
+        diffRange := diffRange; // todo:
+        Result := TUSControlsLayer.Create(
+          aScenario as TUSScenario,
+          aDomain,
+          OBJECT_ID.ToString, // id
+          aName,
+          LEGEND_DESC.Replace('~~', '-').replace('\', '-'),
+          true,
+          aConnectString,
+          aSourceProjection);
       end;
     21:
       begin
@@ -1193,7 +1208,7 @@ begin
     geometryType := '';
     diffRange := diffRange;
   end;
-  if geometryType<>'' then
+  if (not Assigned(Result))  and (geometryType<>'') then
   begin
     Result := TUSLayer.Create(aScenario,
       aDomain,
@@ -2250,28 +2265,29 @@ begin
   fTablePrefix := aTablePrefix;
   fIMBConnection := aIMBConnection;
   fUSChartGroups := TObjectList<TUSChartGroup>.Create(True);
-  fUSControlStatuses := TObjectDictionary<Integer, TUSControlStatus>.Create([doOwnsValues]);
+  //fUSControlStatuses := TObjectDictionary<Integer, TUSControlStatus>.Create([doOwnsValues]);
   inherited Create(aProject, aID, aName, aDescription, aFederation, aAddbasicLayers, aMapView);
 
-  fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
-  fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
-  fUpdateThread := TThread.CreateAnonymousThread(HandleControlsQueueEvent);
-  fUpdateThread.FreeOnTerminate := False;
-  fUpdateThread.NameThreadForDebugging(ElementID + ' controls queue handler');
-  fUpdateThread.Start;
-
+  //fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
+  //fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
+  //fUpdateThread := TThread.CreateAnonymousThread(HandleControlsQueueEvent);
+  //fUpdateThread.FreeOnTerminate := False;
+  //fUpdateThread.NameThreadForDebugging(ElementID + ' controls queue handler');
+  //fUpdateThread.Start;
+  {
   fControlsUpdateEvent := fIMBConnection.Subscribe((aProject as TUSProject).OraSession.Username+
           fTableprefix.Substring(fTableprefix.Length-1)+ // #
           fTableprefix.Substring(0, fTablePrefix.length-1)+
           '.GENE_CONTROL', False);
   fControlsUpdateEvent.OnChangeObject := HandleControlsUpdate;
+  }
 end;
 
 destructor TUSScenario.Destroy;
 begin
   inherited;
   FreeAndNil(fUSChartGroups);
-  FreeAndNil(fUSControlStatuses);
+  //FreeAndNil(fUSControlStatuses);
 end;
 
 function TUSScenario.GetUSControlsJSON: string;
@@ -2322,7 +2338,7 @@ begin
   Result := inherited;
   SendUSControlsMessage(aClient);
 end;
-
+{
 procedure TUSScenario.HandleControlsQueueEvent;
 
   procedure ReadMultipleControls(const aIdString: string; const oraSession: TOraSession);
@@ -2388,8 +2404,8 @@ begin
                 // process entries
                 if entry.action=actionDelete then
                 begin
-                  if fUSControlStatuses.ContainsKey(entry.objectID) then
-                    fUSControlStatuses.Remove(entry.objectID);
+                  if fUSControlStatuses.ContainsKey(entry.objectID)
+                  then fUSControlStatuses.Remove(entry.objectID);
                 end
                 else if entry.action=actionNew then
                 begin
@@ -2443,7 +2459,8 @@ begin
     ChangeStack.Free;
   end;
 end;
-
+}
+{
 procedure TUSScenario.HandleControlsUpdate(aAction, aObjectID: Integer;
   const aObjectName, aAttribute: string);
 begin
@@ -2464,7 +2481,7 @@ begin
     TMonitor.Exit(fUpdateQueueEvent);
   end;
 end;
-
+}
 procedure TUSScenario.ReadBasicData;
 var
   mlp: TPair<Integer, TMetaLayerEntry>;
@@ -3402,25 +3419,20 @@ begin
         oraSession := fDBConnection as TOraSession;
         queryText := 'update ' + scenario.Tableprefix + 'GENE_CONTROL ' +
                         'set active = :A where OBJECT_ID = :B';
-        TMonitor.Enter(scenario.USControlStatuses);
+        publishEventName := oraSession.Username + '#' + scenario.Name + '.GENE_CONTROL';
+        publishEvent := IMB3Connection.publish(publishEventName, false);
         try
-          publishEventName := oraSession.Username + '#' + scenario.Name + '.GENE_CONTROL';
-          publishEvent := IMB3Connection.publish(publishEventName, false);
-          try
-            for jsonArrayItem in payloadArray do
-            if jsonArrayItem.TryGetValue<Integer>('id', controlID) and jsonArrayItem.TryGetValue<Integer>('active', controlActive) then
-            begin
-              oraSession.ExecSQL(queryText, [controlActive, controlID]);
-              oraSession.Commit;
-              publishEvent.SignalChangeObject(actionChange, controlID, 'ACTIVE');
-              if Assigned(aClient.currentScenario) and (aClient.currentScenario is TUSScenario) then
-                (aClient.currentScenario as TUSScenario).ChangeUSControl(actionChange, controlID, 'control', 'Value');
-            end;
-          finally
-            publishEvent.UnPublish;
+          for jsonArrayItem in payloadArray do
+          if jsonArrayItem.TryGetValue<Integer>('id', controlID) and jsonArrayItem.TryGetValue<Integer>('active', controlActive) then
+          begin
+            oraSession.ExecSQL(queryText, [controlActive, controlID]);
+            oraSession.Commit;
+            publishEvent.SignalChangeObject(actionChange, controlID, 'ACTIVE');
+            if Assigned(aClient.currentScenario) and (aClient.currentScenario is TUSScenario) then
+              (aClient.currentScenario as TUSScenario).ChangeUSControl(actionChange, controlID, 'control', 'Value');
           end;
         finally
-          TMonitor.Exit(scenario.USControlStatuses);
+          publishEvent.UnPublish;
         end;
       end;
     end
@@ -5762,6 +5774,9 @@ constructor TUSControlsLayer.Create(aScenario: TUSScenario; const aDomain, aID, 
 begin
   fConnectString := aConnectString;
   fSourceProjection := aSourceProjection;
+  fOraSession := TOraSession.Create(nil);
+  fOraSession.ConnectString := fConnectString;
+  fOraSession.Open;
   //fControls := TObjectDictionary<integer, TUSControl>.Create([doOwnsValues]);
   inherited Create(aScenario, aDomain, aID, aName, aDescription, [], [], aDefaultLoad);
 end;
@@ -5770,6 +5785,7 @@ destructor TUSControlsLayer.Destroy;
 begin
   //FreeAndNil(fControls);
   inherited;
+  FreeAndNil(fOraSession);
 end;
 
 procedure TUSControlsLayer.handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string);
@@ -5778,9 +5794,65 @@ begin
 end;
 
 procedure TUSControlsLayer.ReadObjects(aSender: TObject);
+var
+  query: TOraTable;
+  so: TSimpleObject;
+  id: Integer;
+  active: Integer;
+  x: Double;
+  y: Double;
+  p: TWDGeometryPoint;
 begin
   // todo: implement
+  query := TOraTable.Create(nil);
+  try
+    query.Session := fOraSession;
+    query.ReadOnly := True;
+    query.UniDirectional := True;
+    query.SQL.Text :=
+      'SELECT ' +
+          't1.OBJECT_ID as OBJECT_ID, '+
+          't1.ACTIVE as VALUE, '+
+          't2.Y as Y, '+
+          't2.X as X '+
+      'FROM ' + (scenario as TUSScenario).Tableprefix +'GENE_CONTROL t1 '+
+          'LEFT JOIN '+
+          'GENE_CONTROL t2 '+
+          'on t1.OBJECT_ID = t2.OBJECT_ID '+
+      'WHERE t2.PARENT_ID is NULL';
 
+    query.Execute;
+    while not query.Eof do
+    begin
+      id := query.Fields[0].AsInteger;
+      active := query.Fields[1].AsInteger;
+      y := query.Fields[2].AsFloat;
+      x := query.Fields[3].AsFloat;
+      p := TWDGeometryPoint.Create(x, y, 0);
+      try
+        projectGeometryPoint(p, fSourceProjection);
+        //so := TCircleMarker.Create(Self, id.ToString, p.y, p.x, 7); //, Double.NaN, [[sojnDraggable, 'true']]);
+        so := TSimpleObject.Create(
+          Self, id.ToString, 'L.marker',
+          p, gtPoint,
+          [
+             ['icon', '{"iconUrl":"../Content/images/control24.png"}'],
+             [sojnContextMenu, 'true'],
+             [sojnContextmenuItems, '[{"text": "Remove","index": 0, "tag":"'+id.tostring+'"},{"text": "Properties","index": 1, "tag":"'+id.tostring+'"}]'], // , {"separator": true, "index": 1}
+             //   //[sojnContextmenuInheritItems, t],
+             [sojnInteractive, 'true'],
+             [sojnDraggable, 'true']
+          ],
+          []);
+      finally
+        //p.Free;
+      end;
+      AddObject(so, so.jsonNewObject);
+      query.Next;
+    end;
+  finally
+    query.Free;
+  end;
 end;
 
 end.

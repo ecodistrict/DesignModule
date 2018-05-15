@@ -46,7 +46,7 @@ var map = L.map('map', {
 // set default icon path
 // todo: test with and without default.html in url!
 
-L.Icon.Default.imagePath = location.href.substring(0, location.href.lastIndexOf('/') + 1) + 'Content/images/';
+L.Icon.Default.imagePath = location.href.substring(0, location.href.lastIndexOf('/') + 1) + 'Content/libs/images/';
 
 function showCoordinates(e) {
     alert(e.latlng + " (zoom:" + map._zoom + ")"); // todo: change to nicer view? or remove
