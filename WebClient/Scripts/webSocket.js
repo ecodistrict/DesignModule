@@ -337,7 +337,6 @@ function wsConnect() {
                 console.log(messageBuilder);
             }
         }
-
     };
     ws.onerror = function (evt) {
         if (evt.message)

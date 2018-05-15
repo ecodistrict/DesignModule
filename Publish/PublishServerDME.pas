@@ -115,8 +115,8 @@ var
   measure: TMeasureAction;
   jsonMeasures: TJSONArray;
   jsonMeasure, jsonAction: TJSONValue;
-  id: string;
-  objectID: Integer;
+  id, parsedID: string;
+  objectID, side: Integer;
   jsonObjectIDs: TJSONArray;
   jsonObjectID: TJSONValue;
   measureFactor: Double;
@@ -124,7 +124,7 @@ var
   queryText1, queryText2, queryText3, table1, table2, table3, value1, value2: string;
   queryResult: TAllRowsResults;
   rowResult: TSingleRowResult;
-  table, queryText, value: string;
+  table, queryText, queryTextLeft, queryTextRight, value: string;
   publishEventName: string;
   publishEvent: TIMBEventEntry;
   succeeded: Boolean;
@@ -150,7 +150,6 @@ begin
                     -2: measureFactor := 0.95; //5%
                     -3: measureFactor := 0.90; //10%
                   end;
-
                   table1 := (aScenario as TUSScenario).Tableprefix + 'TRAF_OD';
                   table2 := (aScenario as TUSScenario).Tableprefix + 'TRAF_ZONE';
                   factorString := (FloatToStr(measureFactor)).Replace(',', '.');
@@ -206,6 +205,14 @@ begin
                     ' set' +
                     ' STATUS_L  = ' + value + ', STATUS_R = ' + value +
                     ' where OBJECT_ID = :A';
+                  queryTextLeft := 'update ' + table +
+                    ' set' +
+                    ' STATUS_L = ' + value +
+                    ' where OBJECT_ID = :A';
+                  queryTextRight := 'update ' + table +
+                    ' set' +
+                    ' STATUS_R  = ' + value +
+                    ' where OBJECT_ID = :A';
                   if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
                   begin
                     publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
@@ -213,15 +220,37 @@ begin
                     try
                       for jsonObjectID in jsonObjectIDs do
                       begin
-                        if TryStrToInt(jsonObjectID.Value, objectID) then
+                        if jsonObjectID.Value.StartsWith('L-') then
+                        begin
+                          parsedID := jsonObjectID.Value.Substring(2);
+                          side := -1;
+                        end
+                        else if jsonObjectID.Value.StartsWith('R-') then
+                        begin
+                          parsedID := jsonObjectID.Value.Substring(2);
+                          side := 1;
+                        end
+                        else
+                        begin
+                          parsedID := jsonObjectID.Value;
+                          side := 0;
+                        end;
+                        if TryStrToInt(parsedID, objectID) then
                         begin
                           //check if this road exists
                           if aScenario.Layers.ContainsKey('road') and (aScenario.Layers['road'] as TLayer).objects.ContainsKey(AnsiString(objectID.ToString)) then
                           begin
-                            oraSession.ExecSQL(queryText, [objectID]);
+                            if side = -1 then
+                              oraSession.ExecSQL(queryTextLeft, [objectID])
+                            else if side = 1 then
+                              oraSession.ExecSQL(queryTextRight, [objectID])
+                            else
+                              oraSession.ExecSQL(queryText, [objectID]);
                             oraSession.Commit;
-                            publishEvent.SignalChangeObject(actionChange, objectID, 'STATUS_L');
-                            publishEvent.SignalChangeObject(actionChange, objectID, 'STATUS_R');
+                            if (side = -1) or (side = 0) then
+                              publishEvent.SignalChangeObject(actionChange, objectID, 'STATUS_L');
+                            if (side = 1) or (side = 0) then
+                              publishEvent.SignalChangeObject(actionChange, objectID, 'STATUS_R');
                           end;
                         end;
                       end;
@@ -248,6 +277,14 @@ begin
                     ' set' +
                     ' CAPACITY_L  = ' + value + ', CAPACITY_R = ' + value +
                     ' where OBJECT_ID = :A';
+                  queryTextLeft := 'update ' + table +
+                    ' set' +
+                    ' CAPACITY_L  = ' + value +
+                    ' where OBJECT_ID = :A';
+                  queryTextRight := 'update ' + table +
+                    ' set' +
+                    ' CAPACITY_R = ' + value +
+                    ' where OBJECT_ID = :A';
                   if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
                   begin
                     publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
@@ -255,15 +292,37 @@ begin
                     try
                       for jsonObjectID in jsonObjectIDs do
                       begin
-                        if TryStrToInt(jsonObjectID.Value, objectID) then
+                        if jsonObjectID.Value.StartsWith('L-') then
+                        begin
+                          parsedID := jsonObjectID.Value.Substring(2);
+                          side := -1;
+                        end
+                        else if jsonObjectID.Value.StartsWith('R-') then
+                        begin
+                          parsedID := jsonObjectID.Value.Substring(2);
+                          side := 1;
+                        end
+                        else
+                        begin
+                          parsedID := jsonObjectID.Value;
+                          side := 0;
+                        end;
+                        if TryStrToInt(parsedID, objectID) then
                         begin
                           //check if this road exists
                           if aScenario.Layers.ContainsKey('road') and (aScenario.Layers['road'] as TLayer).objects.ContainsKey(AnsiString(objectID.ToString)) then
                           begin
-                            oraSession.ExecSQL(queryText, [objectID]);
+                            if side = -1 then
+                              oraSession.ExecSQL(queryTextLeft, [objectID])
+                            else if side = 1 then
+                              oraSession.ExecSQL(queryTextRight, [objectID])
+                            else
+                              oraSession.ExecSQL(queryText, [objectID]);
                             oraSession.Commit;
-                            publishEvent.SignalChangeObject(actionChange, objectID, 'CAPACITY_L');
-                            publishEvent.SignalChangeObject(actionChange, objectID, 'CAPACITY_R');
+                            if (side = -1) or (side = 0) then
+                              publishEvent.SignalChangeObject(actionChange, objectID, 'CAPACITY_L');
+                            if (side = 1) or (side = 0) then
+                              publishEvent.SignalChangeObject(actionChange, objectID, 'CAPACITY_R');
                           end;
                         end;
                       end;
@@ -286,6 +345,14 @@ begin
                     ' set' +
                     ' SPEED_L = (SPEED_L * 0) + ' + value + ', SPEED_R = (SPEED_R * 0) + ' + value + //preserves null values!
                     ' where OBJECT_ID = :A';
+                  queryTextLeft := 'update ' + table +
+                    ' set' +
+                    ' SPEED_L = (SPEED_L * 0) + ' + value + //preserves null values!
+                    ' where OBJECT_ID = :A';
+                  queryTextRight := 'update ' + table +
+                    ' set' +
+                    ' SPEED_R = (SPEED_R * 0) + ' + value + //preserves null values!
+                    ' where OBJECT_ID = :A';
                   if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
                   begin
                     publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
@@ -293,15 +360,37 @@ begin
                     try
                       for jsonObjectID in jsonObjectIDs do
                       begin
-                        if TryStrToInt(jsonObjectID.Value, objectID) then
+                        if jsonObjectID.Value.StartsWith('L-') then
+                        begin
+                          parsedID := jsonObjectID.Value.Substring(2);
+                          side := -1;
+                        end
+                        else if jsonObjectID.Value.StartsWith('R-') then
+                        begin
+                          parsedID := jsonObjectID.Value.Substring(2);
+                          side := 1;
+                        end
+                        else
+                        begin
+                          parsedID := jsonObjectID.Value;
+                          side := 0;
+                        end;
+                        if TryStrToInt(parsedID, objectID) then
                         begin
                           //check if this road exists
                           if aScenario.Layers.ContainsKey('road') and (aScenario.Layers['road'] as TLayer).objects.ContainsKey(AnsiString(objectID.ToString)) then
                           begin
-                            oraSession.ExecSQL(queryText, [objectID]);
+                            if side = -1 then
+                              oraSession.ExecSQL(queryTextLeft, [objectID])
+                            else if side = 1 then
+                              oraSession.ExecSQL(queryTextRight, [objectID])
+                            else
+                              oraSession.ExecSQL(queryText, [objectID]);
                             oraSession.Commit;
-                            publishEvent.SignalChangeObject(actionChange, objectID, 'SPEED_L');
-                            publishEvent.SignalChangeObject(actionChange, objectID, 'SPEED_R');
+                            if (side = -1) or (side = 0) then
+                              publishEvent.SignalChangeObject(actionChange, objectID, 'SPEED_L');
+                            if (side = 1) or (side = 0) then
+                              publishEvent.SignalChangeObject(actionChange, objectID, 'SPEED_R');
                           end;
                         end;
                       end;

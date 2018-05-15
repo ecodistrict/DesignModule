@@ -707,7 +707,7 @@ type
     function GetUSControlJSONFromDB(aTablePrefix: string): string;
     property USControls: TObjectDictionary<TWDID, TUSControl> read fUSControls;
   public
-    function GetTableSync(const aUSFederation: string): TSubscribeObject;
+    function GetTableSync(const aUSTableName: string): TSubscribeObject;
   end;
 
 
@@ -3070,14 +3070,14 @@ begin
   Result := fDBConnection as TOraSession;
 end;
 
-function TUSProject.GetTableSync(const aUSFederation: string): TSubscribeObject;
+function TUSProject.GetTableSync(const aUSTableName: string): TSubscribeObject;
 begin
   TMonitor.Enter(fUSTableSync);
   try
-    if not fUSTableSync.TryGetValue(aUSFederation, Result) then
+    if not fUSTableSync.TryGetValue(aUSTableName, Result) then
     begin
       Result := TSubscribeObject.Create;
-      fUSTableSync.Add(aUSFederation, Result);
+      fUSTableSync.Add(aUSTableName, Result);
     end;
   finally
     TMonitor.Exit(fUSTableSync);
