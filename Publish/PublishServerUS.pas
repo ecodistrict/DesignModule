@@ -111,7 +111,7 @@ type
     function autoDiffRange: Double;
     function BuildLegendJSON(aLegendFormat: TLegendFormat): string;
     function CreateUSLayer(aScenario: TScenario; const aTablePrefix: string; const aConnectString: string;
-      const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; const aDomain, aName: string): TUSLayer;
+      const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; const aDomain, aName: string): TLayerBase;
   end;
 
   TMetaLayer = TDictionary<Integer, TMetaLayerEntry>;
@@ -526,6 +526,26 @@ type
     property DefTableName: string read fDefTableName;
     property DatTableName: string read fDatTableName;
     procedure SetEvent(aDataEvent: TIMBEventEntry);
+  end;
+
+  TUSControl = class; // forward
+
+  TUSControlsLayer = class(TSimpleLayer)
+  constructor Create(aScenario: TUSScenario; const aDomain, aID, aName, aDescription: string;
+    aDefaultLoad: Boolean; const aConnectString: string; aSourceProjection: TGIS_CSProjectedCoordinateSystem);
+  destructor Destroy; override;
+  protected
+    fConnectString: string;
+    fOraSession: TOraSession;
+    fLayerType: Integer;
+    fNewPoiCatID: Integer;
+    fPoiCategories: TObjectDictionary<string, TUSPOI>;
+    fPalette: TWDPalette;
+    fSourceProjection: TGIS_CSProjectedCoordinateSystem; // ref
+    //fControls: TObjectDictionary<integer, TUSControl>;
+  public
+    procedure ReadObjects(aSender: TObject);
+    procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
   end;
 
   TUSLayer = class(TLayer)
@@ -1096,7 +1116,7 @@ end;
 
 
 function TMetaLayerEntry.CreateUSLayer(aScenario: TScenario; const aTablePrefix: string; const aConnectString: string;
-  const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; const aDomain, aName: string): TUSLayer;
+  const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; const aDomain, aName: string): TLayerBase;
 
   function defaultValue(aValue, aDefault: Double): Double; overload;
   begin
@@ -1191,8 +1211,8 @@ begin
       aDataEvent,
       aSourceProjection,
       CreatePaletteFromODB(LEGEND_DESC, odbList, True));
-    Result.fLegendJSON := BuildLegendJSON(lfVertical);
-    Result.query := SQLQuery(aTableprefix);
+    (Result as TUSLayer).fLegendJSON := BuildLegendJSON(lfVertical);
+    (Result as TUSLayer).query := SQLQuery(aTableprefix);
   end;
 end;
 
@@ -1802,21 +1822,21 @@ end;
 procedure TUSLayer.handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
 begin
   TMonitor.Enter(fUpdateQueueEvent);
-    try
-      begin
-        try
-          fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
-          fUpdateQueueEvent.SetEvent;
-        except
-          on e: Exception do
-          begin
-            Log.WriteLn('TUSLayer.handleChangeObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
-          end
-        end;
-      end
-    finally
-      TMonitor.Exit(fUpdateQueueEvent);
-    end;
+  try
+    begin
+      try
+        fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
+        fUpdateQueueEvent.SetEvent;
+      except
+        on e: Exception do
+        begin
+          Log.WriteLn('TUSLayer.handleChangeObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
+        end
+      end;
+    end
+  finally
+    TMonitor.Exit(fUpdateQueueEvent);
+  end;
 end;
 
 function TUSLayer.UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
@@ -2448,7 +2468,7 @@ end;
 procedure TUSScenario.ReadBasicData;
 var
   mlp: TPair<Integer, TMetaLayerEntry>;
-  layer: TUSLayer;
+  layer: TLayerBase;
   indicTableNames: TAllRowsSingleFieldResult;
   oraSession: TOraSession;
   metaLayer: TMetaLayer;
@@ -2487,7 +2507,10 @@ begin
               Layers.Add(layer.ID, layer);
               Log.WriteLn(elementID+': added layer '+layer.ID+', '+layer.domain+'/'+layer.description, llNormal, 1);
               // schedule reading objects and send to tiler
-              AddCommandToQueue(oraSession, layer.ReadObjects);
+              if layer is TUSLayer
+              then AddCommandToQueue(oraSession, (layer as TUSLayer).ReadObjects)
+              else if layer is TUSControlsLayer
+              then AddCommandToQueue(oraSession, (layer as TUSControlsLayer).ReadObjects)
             end
             else Log.WriteLn(elementID+': skipped layer ('+mlp.Key.ToString+') type '+mlp.Value.LAYER_TYPE.ToString+' '+mlp.Value.LAYER_TABLE+'-'+mlp.Value.VALUE_EXPR, llRemark, 1);
           end;
@@ -5730,6 +5753,34 @@ function TUSBuilderPropSum.SQLProperties(aTableAlias: string): string;
 begin
   Result := ''
   //TODO: Implement
+end;
+
+{ TUSControlsLayer }
+
+constructor TUSControlsLayer.Create(aScenario: TUSScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
+  const aConnectString: string; aSourceProjection: TGIS_CSProjectedCoordinateSystem);
+begin
+  fConnectString := aConnectString;
+  fSourceProjection := aSourceProjection;
+  //fControls := TObjectDictionary<integer, TUSControl>.Create([doOwnsValues]);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, [], [], aDefaultLoad);
+end;
+
+destructor TUSControlsLayer.Destroy;
+begin
+  //FreeAndNil(fControls);
+  inherited;
+end;
+
+procedure TUSControlsLayer.handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string);
+begin
+  // todo: implement
+end;
+
+procedure TUSControlsLayer.ReadObjects(aSender: TObject);
+begin
+  // todo: implement
+
 end;
 
 end.
