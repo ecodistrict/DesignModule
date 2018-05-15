@@ -75,6 +75,7 @@ uses
   MyThreads,
   WorldLegends, WorldDataCode,
   WorldTilerConsts,
+  OmniMREW,
 
   // bitmaps
   FMX.Platform,
@@ -167,22 +168,6 @@ const
   HSC_ERROR_NOTIMPLEMENTED = 501;
 
 type
-  // very lightweight multiple-readers-exclusive-writer lock.
-  // ref http://otl.17slon.com/index.htm
-  TOmniMREW = record
-  procedure Create;
-  strict private
-    omrewReference: integer; // Reference.Bit0 is 'writing in progress' flag
-  public
-    procedure BeginRead; inline;
-    procedure BeginWrite; inline;
-    procedure EndRead; inline;
-    procedure EndWrite; inline;
-
-    procedure Acquire; inline;
-    procedure Release; inline;
-  end;
-
   TTileCacheEntry = class
   constructor Create(const aPath: string);
   private
@@ -849,68 +834,6 @@ begin
   end;
 end;
 
-{ TOmniMREW }
-
-// copy of BeginWrite
-procedure TOmniMREW.Acquire;
-var
-  currentReference: integer;
-begin
-  // wait on writer to reset write flag so omrewReference.Bit0 must be 0 then set omrewReference.Bit0
-  repeat
-    currentReference := omrewReference AND NOT 1;
-  until currentReference = InterlockedCompareExchange(omrewReference, currentReference + 1, currentReference);
-  // now wait on all readers
-  repeat until omrewReference = 1;
-end;
-
-procedure TOmniMREW.BeginRead;
-var
-  currentReference: integer;
-begin
-  // wait on writer to reset write flag so Reference.Bit0 must be 0 than increase Reference
-  repeat
-    currentReference := omrewReference AND NOT 1;
-  until currentReference = InterlockedCompareExchange(omrewReference, currentReference + 2, currentReference);
-end;
-
-procedure TOmniMREW.BeginWrite;
-var
-  currentReference: integer;
-begin
-  // wait on writer to reset write flag so omrewReference.Bit0 must be 0 then set omrewReference.Bit0
-  //Log.WriteLn('>BWRL '+IntToHex(GetCurrentThreadID, 8));
-  repeat
-    currentReference := omrewReference AND NOT 1;
-  until currentReference = InterlockedCompareExchange(omrewReference, currentReference + 1, currentReference);
-  // now wait on all readers
-  repeat until omrewReference = 1;
-  //Log.WriteLn('<BWRL '+IntToHex(GetCurrentThreadID, 8));
-end;
-
-procedure TOmniMREW.Create;
-begin
-  EndWrite;
-end;
-
-procedure TOmniMREW.EndRead;
-begin
-  //Decrease omrewReference
-  InterlockedExchangeAdd(omrewReference, -2);
-end;
-
-procedure TOmniMREW.EndWrite;
-begin
-  omrewReference := 0;
-  //Log.WriteLn('EWRL '+IntToHex(GetCurrentThreadID, 8));
-end;
-
-// copy of EndWrite
-procedure TOmniMREW.Release;
-begin
-  omrewReference := 0;
-end;
-
 { TilesCache }
 
 var
@@ -1550,6 +1473,7 @@ begin
   tileFileName := aCacheFolder+TimeFolder+aFileName; // included layer id, data version and time of slice
   // get or create tile cache entry
   // lock list and then lock found or created item; unlock list first so items can be accessed in parallel
+  // refactor to mrow lock to avoid readers waiting on tilescache lock because of wait on lock of tce (not releasing tilces lock)
   TMonitor.Enter(tilesCache);
   try
     newTCE := not tilesCache.TryGetValue(tileFileName, tce);
@@ -1563,6 +1487,7 @@ begin
       tilesCache.Add(tileFileName, tce);
     end;
     // lock now to make other users wait
+    // we have to lock tce within lock on tilescache because of potential delete of tce in cleanup
     TMonitor.Enter(tce);
   finally
     TMonitor.Exit(tilesCache);
@@ -1576,12 +1501,25 @@ begin
         // create tile bitmap
         bitmap := FMX.Graphics.TBitmap.Create(aWidthPixels, aHeightPixels);
         try
+          // build tile bitmap contents
           try
-            // build tile bitmap contents
             Result := GenerateTileCalc(aExtent, bitmap, (aExtent.XMax-aExtent.XMin)/bitmap.Width, (aExtent.YMax-aExtent.YMin)/bitmap.Height);
+          except
+            on E: Exception
+            do Log.WriteLn('Exception generating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+          end;
+          try
             if Result=gtsOk then
             begin
-              tce.FromBitmap(bitmap);
+              try
+                tce.FromBitmap(bitmap);
+              except
+                on E: Exception do
+                begin
+                  Log.WriteLn('Exception saving tile bitmap to cache: '+E.Message, llError);
+                  Result := gtsRestart;
+                end;
+              end;
               // check if we have to save the bitmap
               if aCacheFolder<>'' then
               begin
@@ -1593,9 +1531,9 @@ begin
                   do Log.WriteLn('Could not save tile bitmap '+TimeFolder+aFileName+': '+E.Message, llWarning);
                 end;
               end;
-              // return copy of tile stream
-              aStream.CopyFrom(tce.stream, 0);
-              Result := gtsOk;
+              // return copy of tile stream if still Ok
+              if Result=gtsOk
+              then aStream.CopyFrom(tce.stream, 0);
             end
             else
             begin
@@ -1605,7 +1543,7 @@ begin
             end;
           except
             on E: Exception
-            do Log.WriteLn('Exception generating tile bitmap '+TimeFolder+aFileName+': '+E.Message, llError);
+            do Log.WriteLn('Exception in TSlice.GenerateTileCache for '+TimeFolder+aFileName+': '+E.Message, llError);
           end;
         finally
           bitmap.Free;
@@ -1617,6 +1555,7 @@ begin
     end
     else
     begin
+      //TMonitor.Enter(tce);
       // use existing tile from stream or file
       aStream.CopyFrom(tce.stream, 0);
       Result := gtsOk;
@@ -2360,8 +2299,8 @@ begin
             begin
               if Assigned(geometry) then
               begin
-              // Assume that geometry is modified if we received geometry in the payload.
-              // We remove the geometry from fLocations. The list will free the geometry.
+                // Assume that geometry is modified if we received geometry in the payload.
+                // We remove the geometry from fLocations. The list will free the geometry.
                 fGeometries.Remove(id);
                 sgo := TSliceGeometryICObject.Create(geometry, value, texture);
                 if fMaxExtent.IsEmpty
@@ -4401,7 +4340,7 @@ begin
       try
         if not (Assigned(fLayers) and fLayers.TryGetValue(aLayerID, layer))
         then layer := nil;
-        if Assigned(layer)
+        if Assigned(layer) and Assigned(layer.DataEvent)
         then layer.WORMLock.BeginRead; // lock layer itself inside layers lock
       finally
         globalModelAndLayersLock.EndRead;
@@ -4945,6 +4884,7 @@ begin
           stream.Position := 0;
           Response.ContentType := 'image/png';
           Response.ContentStream :=stream;
+          Response.SetCustomHeader('Access-Control-Allow-Origin', '*');
           stream := nil; // now owned by repsonse
         except
           on E: Exception
