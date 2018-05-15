@@ -340,7 +340,6 @@ function wsConnect() {
                 console.log('received old message, type: ' + message);
             }
         }
-
     };
     ws.onerror = function (evt) {
         if (evt.message)
