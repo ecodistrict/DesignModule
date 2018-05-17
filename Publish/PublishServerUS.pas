@@ -1199,7 +1199,7 @@ begin
           OBJECT_ID.ToString, // id
           aName,
           LEGEND_DESC.Replace('~~', '-').replace('\', '-'),
-          true,
+          False,
           aConnectString,
           aSourceProjection);
       end;
@@ -3385,7 +3385,7 @@ begin
   oraSession := TOraSession.Create(nil);
   ChangeStack := TStack<string>.Create;
   try
-    oraSession.connectString := ConnectStringFromSession(oraSession);
+    oraSession.connectString := ConnectStringFromSession(Self.OraSession);
     oraSession.open;
     while not TThread.CheckTerminated do
     begin
@@ -5950,6 +5950,27 @@ begin
   fOraSession.Open;
   //fControls := TObjectDictionary<integer, TUSControl>.Create([doOwnsValues]);
   inherited Create(aScenario, aDomain, aID, aName, aDescription, [], [], aDefaultLoad);
+  setPreviewBase64(
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4gUQDi064xlmkQAADKlJREFUeNrtnHl0FFUWxr9X9aqXdDqQzgJhyUISkgCCKChuI+ACbjgq4oDOoB4ZZlRERkbElR1RcRhRUBQGF' +
+    'AmQyBJMEDGCCqLOKBoYIYGEkIVs3dnTa3W9+SNdoROy9ZLunLHvOTlJva7ufvXVvb93762qAAELWMACFrCABSxgAfstGultExJ4XgVCggDwAAhjzE4IMdtEsSlwujoTDlAKlN4lUJoqUNogUMoEShnleUmg9KBA6SwFoAko1Z54lOoESj+URevk54hAaUIghJ2Mp5QS4HMCTJDHIsNo7eyHIpX9wqjt51+N3JY0' +
+    'vcJmh8LxciknSTdZJCn3Ny+gQ7yDBBjvGLJuWztEMeGakFb7NTbZccfDeefzzlliHEO5hLEpVrs9z98Ccn4UL9zheeMBQKEg1V9uT1JMuCaEMcZa7Rus4dnBbUkxlyWp8x1DSYyQ7QqeH/qbFJCnNJwDUuWwVShI9e4NCUEpCWoAIIRcEhhEIXAsY1Ni/M3Xh8gijmaEZCg5LsmvUeSnsM0gwE2OIfHzrUmakSl' +
+    'BtCvcUEow+cYQ3a9nzPkFRRYdgHBGyL0CkGlnzPB/z8B2mCd+nZ5ME2NVzJW5mC0Spjx6Jv9Erine30zkfBm2bZmXnZrksngAoFJybN+/EuN7AxM5X4nXHvOGJardjQKiVPQOJvI+Clt3mNeliL2BicQH4rVi3ldpyXRonOth21uZyPVk2LZhniE7Ncnr4vmbiVxPideGeYY97ydqPGBer2Ui30Nh24p52duSg0' +
+    'ckqWlP48gfTCQ9IF4r5h3bk0JjBykZfJhz+pKJnDfD1pl5SgUxfJWW7HPxfM1E3lviOZh3kyxexsZEzbBENfWGeEaTHeu3VpzLLTCHjhqmAYCuTgqhPGH336nT/TfPJIdzFAi5VQAOejOciZfC1rmfJ36TnkwTYlVemWCj0S6NmpRjqmuwKwCwsFBq/Hn/yL5qFddt8WcvPJ//xZF6OZwvcJI00Vv9ROJt5v17X' +
+    'wodFNV52G7bqzc99UqhuqPXQ/vwDfs/TNEmxKiw7K2SpjWbyp1b+WzmfeFNq1+KDe4NTOS8yDz90V3JXYrHGENtndjpZ9fU2bWvvFlcDgB558xt50jyiyw1vYWJnIfMmyCLl7l5aPCQaFWXXm2xMvxyyqgGgH7hAsaM1KB/hHDJfge+quu/fZ+ePfVI/0s+7+GpEaG9JU/k3AzbnQBudgzZDu9IDh8+VN0Z9FhD' +
+    'o715ZxtDzikjAGDm1AikvzsUfULaX8uefKmQDIlWqdYti6tVKohZq+Esm14fYvr9JF2wO7hSKTm8tzLGWcQkieO+9ERE4iHzbMezhgn9IxWdhu3JXCMm/+mUdeyoYPLO0jhh5KQcAMDhHcMwb+l5HD/Z8SXfiDBqPZV9uaK35om8i8zLcArbqqO7UrRdMQ8AwnUUahXHbUnX8+lZBhhNEgDgRK4RP51s6mIVlaT' +
+    'oAQp+RFKQ1wSklLBpd+l02Ufq8ysNog5AOAi5nhJyyNUUh7jCPDls1SrOkLk5UZOSoHYpV/n2xwY8Oj8f+hrRlYM1Fh4dHaRSer1sZ2aLRGYtKHROcXI5SbrblRSHdEM8BQEyiUM8QiB+vzeFDh6gdGvW5VVWjJqcA7u9e/uvfjEGM6dG9FjV0k6eWApJGm+TpLNeWUQ4YIksHsfBnnNgOB08QMncmawkMTz2bE' +
+    'G74lFKoA3mcfetFxdYpYJYe1I8AAhS83h/VaxzijMQHLdFIETrsYACx8UyYIEjbGu/3zuMD9cJbte2sxcW4Lvjje2+9sd7wnHuyGj0DbnYtPloTYICPjCVkmOfbk6Mjx6gKHMMXQuen+6xgIzj3nEoJa1aOAiDohQeVS+dLRg/nmjCB6kV2JJeBQC4+vJgXDdGCx+ZfN05ymnsfoFSjUcCEmCMo7Qqum5McF9PZ' +
+    'xmsubjoxw1uzdCc00a8uLqkZfux6ZFQKnx63Z/0Cxdw4zityVEyTQRjKrcFVFEaBIA2c4KrjQwTPJ6hsyDJ8WrsXJfY6nVRbEbr6BEaXHulFv6wUSnq5hyLEA6E8G4LaBNF68X6FbxoZx5Pjudhds5nJ17bB6tfjJHa7nf8ZBMWripCWaXV5wKWVdqccyzmtoB2QAQgOYr7fudLPT8Yq5XVOPGhwmKVMHNqBJn9' +
+    'YGRVy4Q44MrLNNh/qBb3/SXP9s0P9S1NCGe7UGG9ZMyjpNDxWXs+r5Uz9mo0a+BRGpMGACazFLnnQM05jyFDYGpJH1SciWtejsjyv0dH/O5qbWVzqgMUFJnZC3MG4sw5szDtiTOmjTsqjfINR+VVVhZ/w3HzqMk5jVFjf2qY+Idf686eN3sOQEIwf3mRzWZjMqs+ZYDRIwFtojhX/nvNxoq4Q8fqrR4K2OIyIVr' +
+    'exnEXF/SUeLVePuNNRkkcc5lGKjp2BYJUnLBgZVHQ25vLGwtLLNYRt+SQuga7ijEEiyLT5pw29hl390mWmqGvlxnqjq3eUIaPd1c7X/hKE0XR4qkH2gDMljdmzClQfJJV7fYsT+eb+7cIlqBW8XyzgKXlVuzMNOjkReuGq7Sl467QcmoVh/xvRtPrx2rLFq0pCR5z54mO8kIy5+XCkCdfPldwocL1c/zex5XWNz' +
+    'ZUSE4p2iaI4mdeqURsorgBwIqWFtPLRWTj9iqXJ5mbb4LZIjFH1VE/YmhQrFydpGboy2vq7P0dDBRfez4m1vm97yyNiwoJ5su6+o70rOohdzx8uvLrH+rFbjKPrfuwAov+cYGXtWDN3ab5tm7wr9v9QJsovgBgvbz94hulcNUTD3xda2IMSgDoG8KXJcapBABoMknSGxvKwuX9HpkWSWMGKlsd6M5Mw9n6RntUd' +
+    '76nuMwaed/sPLZ1d5XU2SJDCGFvflBOlr5VxuSuFAO+YMDtVlHsdse725mqTRQfR3MjtcUTDx2rt3X3/dlH62sACABw5QhN39A+zbh58/2yJlFkLexZ9Vx0m+aDTVy+ttSlO/MZg7D7s+oqs4V1Frbk9XfLW8pSBhxkwG12URRd+a5uCyhQSmyi+ICzJ86YUyB0xxOrqm04nW+S6zjr+GtCggBAX23D2s3lLRnz' +
+    '+uVxlwDs6cWFda7iYsotoUWpbyf26+jK3eY0vXXxmgs2J+YdYMB0V8Vz1QOZkyeudIWJp8+aqmvqRJlx1tsnhGoB4IEnzrSIEztIWTHlltBWt3/kFZiQfbQ+rLuOBwCzH4wsfW9FXLRC4Npl3qadVXj+tRLCWHM0MOCgBDxoF0W3rhW7db+KTRSfFyjtC+CvMhND+/Ds3tt07TYaii9YzZIEnaOrg4H9Fcg/b8Y' +
+    'vp4wtR7nw8QFapYJrddQLXi0yAVB3N0ta8ezgqlnTIwe2c5M6CCHs3a2VZPGaC5KMEpl57nieRwLKnihQGgZgGgA88VIR0YVS2/hxIcKlTQROJxc4z8yKCgaA+BgVIsMoqzSI5suHBxXdeXNoq0uMFquE/+Q01XAERtZFB4gQqF+ZO8j25xn9Omwebk6rksXjnJjnkXgetaYcTGQCpetkT2xOOaLb9cT9h2vrzR' +
+    'Yp5J5JOokxxhFCmN3OyOHv6vG7q7QQBK5Vn5ExJhFCvNKO+XiP3vrsihJIUsvTTgc8CdtW9b27b5QkSf6dyXOcEsANAJB1qI6EhvC4YkTrVlpirErZ5jkQwnEEQ6JVcCTUpE3IeXTXBGMMhBC2dZeeLFhZYpfFc3jeDG+I55GAbcTM5jmuH4CxAPDltw0YMljBUhLVfnuUjBDCNu2oIs+tKpUYa0aVE/O89uis1' +
+    '26wdHjiMADDZU8cMzLIFjtIyftDwG179GTBq6VeZ16PCehgYpqzJ36SVcP7wxN37DNY5y8vEeVUxZHnzbD3wEPb3vRAl5jobZOZtyPDQP62rNgmSVD1BPN6TEB/M5EQwj7apSfPLCuRnJJkrzPPJwL6g4k79hnIM8tKepx5PhPQl0xMy6y2zltSbPMF83zpgT3KRJl5Oz81kHlLfMc8nwnY00wkhLBte/Rk3hLf' +
+    'Ms8vAvYEE9Myq8m8JcU+Z57fBPQmE9Mzq61PLy6yMnaxtvUV8/zpgR4xUWZeelY1mbu4yCpJzW0uXzPPbwJ6ykRCCNueYSBzFxVLsuf5g3m9QsBOmGjtiInpWdVk7iL/M6/XCNgREwUeBeE6GqpWcRBFhsJiC9ZvrSxZ8s8LKlxsAPuNeZdEBnqBCZQuA/CCvK1Rc2V9QngDY2ANjfaIRqPUckGeAZ8x4CF/Ma/' +
+    'XmkDprG7887ElPKWKgFodGxUoXStQWiFQanD8lFOe36vg+cEBeVyBMyGcClAGlAhYwAIWsIAFLGDt2/8A9SRhjpW+ExQAAAAASUVORK5CYII=');
 end;
 
 destructor TUSControlsLayer.Destroy;
@@ -5973,6 +5994,7 @@ var
   x: Double;
   y: Double;
   p: TWDGeometryPoint;
+  icon, contextOption: string;
 begin
   // todo: implement
   query := TOraTable.Create(nil);
@@ -6000,6 +6022,16 @@ begin
       y := query.Fields[2].AsFloat;
       x := query.Fields[3].AsFloat;
       p := TWDGeometryPoint.Create(x, y, 0);
+      if active > 0 then
+      begin
+        icon := 'Content/images/control-enabled.png';
+        contextOption := 'Disable';
+      end
+      else
+      begin
+        icon := 'Content/images/control-disabled.png';
+        contextOption := 'Enable';
+      end;
       try
         projectGeometryPoint(p, fSourceProjection);
         //so := TCircleMarker.Create(Self, id.ToString, p.y, p.x, 7); //, Double.NaN, [[sojnDraggable, 'true']]);
@@ -6007,9 +6039,9 @@ begin
           Self, id.ToString, 'L.marker',
           p, gtPoint,
           [
-             ['icon', '{"iconUrl":"../Content/images/control24.png"}'],
+             ['icon', '{"iconUrl":"' + icon + '"}'],
              [sojnContextMenu, 'true'],
-             [sojnContextmenuItems, '[{"text": "Remove","index": 0, "tag":"'+id.tostring+'"},{"text": "Properties","index": 1, "tag":"'+id.tostring+'"}]'], // , {"separator": true, "index": 1}
+             [sojnContextmenuItems, '[{"text": "' + contextOption + '","index": 0, "tag":"'+id.tostring+'"},{"text": "Properties","index": 1, "tag":"'+id.tostring+'"},{"text": "Remove","index": 2, "tag":"'+id.tostring+'"}]'], // , {"separator": true, "index": 1}
              //   //[sojnContextmenuInheritItems, t],
              [sojnInteractive, 'true'],
              [sojnDraggable, 'true']
