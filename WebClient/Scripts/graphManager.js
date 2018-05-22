@@ -524,7 +524,7 @@ var GraphManager = {
     {
         if (aScaleType == "time")
         {
-            var result = DataManager.PublisherDateTimeToDate(aValue);
+            var result = new Date((aValue - 25569) * 86400 * 1000);
             result.value = result.getTime();
             result.GetDisplayValue = (function () { return this; }).bind(result);
             return result;

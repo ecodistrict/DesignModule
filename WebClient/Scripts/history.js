@@ -1,3 +1,27 @@
+function BreakdownTime(aTime) {
+    var dates = aTime.split(/[ ]+/)[0].split(/[-]+/);
+    var times = aTime.split(/[ ]+/)[1].split(/[:]+/);
+
+    return {
+        year: dates[0],
+        month: dates[1],
+        day: dates[2],
+        hours: times[0],
+        minutes: times[1],
+        seconds: times[2]
+    };
+}
+
+function GetTimeObject(obj) {
+    var date = new Date();
+    date.setUTCFullYear(obj.year, obj.month - 1, obj.day);
+    date.setUTCHours(obj.hours);
+    date.setUTCMinutes(obj.minutes);
+    date.setUTCSeconds(obj.seconds);
+    return date;
+}
+
+
 L.Control.History = L.Control.extend({
     options: {
         collapsed: true,
@@ -214,7 +238,8 @@ L.Control.History = L.Control.extend({
     },
 
     _addHistoryItem: function (obj) {
-        obj.time = DataManager.GetTimeObject(DataManager.BreakdownTime(obj.time)); //Change JSON UTC timestamp to javascript utc timestamp
+
+        obj.time = GetTimeObject(BreakdownTime(obj.time)); //Change JSON UTC timestamp to javascript utc timestamp
         obj.active = false;
         this._historyItems.push(obj);
         var len = this._historyItems.length;

@@ -213,7 +213,7 @@ L.Control.Measures = L.Control.extend({
                 // todo: add to history if history is used!
                 var selectedRadio = document.querySelector('input[name=measureOption]:checked');
                 if (selectedRadio) {
-                    if (typeof selectedRadio.parameters === "undefined") {
+                    if ((typeof selectedRadio.parameters === "undefined") || (selectedRadio.parameters == null)) {
                         _this._measuresHistory.addMeasure(
                             {
                                 id: selectedRadio.value,
@@ -239,7 +239,12 @@ L.Control.Measures = L.Control.extend({
                         modalDialogClose();
                     }
                     else {
+                        // first close measures dialog
+                        modalDialogClose();
                         // open parameters dialog
+                        var dialogDiv = modalDialogCreate("Measure parameters", 'Parameters of the selected measure');
+                        showMeasureProperties(dialogDiv, selectedRadio.parameters);
+                        // todo: add handler function here somewhere..
 
                     }
                 }
@@ -258,26 +263,6 @@ L.Control.Measures = L.Control.extend({
                 applyButton.children[0].setAttribute("disabled", true);
             }
         }
-    },
-
-    _showMeasureProperties: function showSelectedObjectsProperties(container, objProps) {
-        propertiesTables = {};
-        
-        objProps.properties.sort(function (a, b) {
-            return a.ordering - b.ordering;
-        });
-
-        var title = container.appendChild(document.createElement('h2'));
-        title.innerText = 'Selected measure properties';
-
-        container.appendChild(document.createElement('HR'));
-
-        tableContainer = container.appendChild(document.createElement('div'));
-
-        tableContainer.id = "attributesContainer";
-
-        buildAttributesTable(tableContainer);
-        // attribute names are used as rows
     },
 
     _addMeasureLine: function (aForm, aAction) {

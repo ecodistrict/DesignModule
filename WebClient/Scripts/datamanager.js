@@ -5,6 +5,7 @@
     activeBasicLayers: {}, // used in select.js
     selectedObjectIDs: {}, // used in select.js and formdialog.js
 
+    /* moved to graph manager
     PublisherDateTimeToDate: function (aDateTime) {
         return new Date((aDateTime - 25569) * 86400 * 1000);
     },
@@ -31,6 +32,7 @@
         date.setUTCSeconds(obj.seconds);
         return date;
     },
+    */
 
     NewRangeTimeSliderData: function (aData) {
         if (DataManager.timeRangeSlider == null) {
