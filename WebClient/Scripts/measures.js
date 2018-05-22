@@ -213,29 +213,35 @@ L.Control.Measures = L.Control.extend({
                 // todo: add to history if history is used!
                 var selectedRadio = document.querySelector('input[name=measureOption]:checked');
                 if (selectedRadio) {
-                    _this._measuresHistory.addMeasure(
-                      {
-                          id: selectedRadio.value,
-                          name: selectedRadio.action,
-                          description: selectedRadio.title,
-                          measure: measureDefinition.measure
-                      },
-                      getSelectedObjects(),
-                      _this.options.selectCategories
-                    );
-                    wsSend({
-                        type: 'measure',
-                        payload: {
-                            apply: {
+                    if (typeof selectedRadio.parameters === "undefined") {
+                        _this._measuresHistory.addMeasure(
+                            {
                                 id: selectedRadio.value,
                                 name: selectedRadio.action,
                                 description: selectedRadio.title,
                                 measure: measureDefinition.measure
+                            },
+                            getSelectedObjects(),
+                            _this.options.selectCategories
+                        );
+                        wsSend({
+                            type: 'measure',
+                            payload: {
+                                apply: {
+                                    id: selectedRadio.value,
+                                    name: selectedRadio.action,
+                                    description: selectedRadio.title,
+                                    measure: measureDefinition.measure
+                                }
                             }
-                        }
-                    });
-                    _this._collapse();
-                    modalDialogClose();
+                        });
+                        _this._collapse();
+                        modalDialogClose();
+                    }
+                    else {
+                        // open parameters dialog
+
+                    }
                 }
             });
             applyButton.id = "measuresApplyButton";
@@ -254,6 +260,26 @@ L.Control.Measures = L.Control.extend({
         }
     },
 
+    _showMeasureProperties: function showSelectedObjectsProperties(container, objProps) {
+        propertiesTables = {};
+        
+        objProps.properties.sort(function (a, b) {
+            return a.ordering - b.ordering;
+        });
+
+        var title = container.appendChild(document.createElement('h2'));
+        title.innerText = 'Selected measure properties';
+
+        container.appendChild(document.createElement('HR'));
+
+        tableContainer = container.appendChild(document.createElement('div'));
+
+        tableContainer.id = "attributesContainer";
+
+        buildAttributesTable(tableContainer);
+        // attribute names are used as rows
+    },
+
     _addMeasureLine: function (aForm, aAction) {
         if (this._selectedObjectTypes(aAction.objecttypes)) {
             var rb = aForm.appendChild(document.createElement('input'));
@@ -264,6 +290,7 @@ L.Control.Measures = L.Control.extend({
             rb.value = aAction.id;
             rb.action = aAction.action;
             rb.title = aAction.description;
+            rb.parameters = aAction.parameters;
             var label = aForm.appendChild(document.createElement('label'));
             label.className = 'selectMeasureLabel';
             label.appendChild(document.createTextNode(aAction.action));

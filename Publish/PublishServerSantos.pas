@@ -1048,8 +1048,7 @@ begin
           santosLayer := TSantosLayer.Create(Result, fCurrentBusBlock, fBaseDay[0], fBaseDay[1], fBaseDay[2], 'Santos', 'Santos'+fCurrentBusBlock.ToString,
               'Bus block '+fCurrentBusBlock.ToString, 'Bus block '+fCurrentBusBlock.ToString+' stops',
               (self as TMCProject).controlInterface.DataSource, tablePrefix, fIMB3Connection.Publish('EBUS_CHARGELOCATION'), indic_event, soc_event);
-          if FileExists(ExtractFilePath(ParamStr(0))+'previews\Santos.png') then
-            santosLayer.previewBase64 := PNGFileToBase64(ExtractFilePath(ParamStr(0))+'previews\Santos.png');
+          santosLayer.LoadPreviewFromCache('santos.png');
           TMonitor.Enter(santosLayer.fSliderData);
           try
             for bs in santosLayer.fSliderData.BusStops.Values do

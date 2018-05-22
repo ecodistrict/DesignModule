@@ -29,11 +29,9 @@ function initSelectedObjectsProperties(e) {
         AddErrorMessage('Unable to get properties: no objects selected', 'warning', 10000);
 }
 
-function showSelectedObjectsProperties(container, aSelectedObjectsProperties) {
+function showSelectedObjectsProperties(container, data) {
     propertiesTables = {};
-    aSelectedObjectsProperties = aSelectedObjectsProperties.selectedObjectsProperties;
-
-    objProps = aSelectedObjectsProperties;
+    objProps = data.selectedObjectsProperties;
 
     objProps.properties.sort(function (a, b) {
         return a.ordering - b.ordering;
