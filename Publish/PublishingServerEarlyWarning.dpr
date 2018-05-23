@@ -978,8 +978,7 @@ begin
     scenario,
     'Benzene', 'Sensors', 'Sensors', 'Sensors for benzene', True, '', True, False, 0.8, jsonLegend);
   scenario.AddLayer(layer);
-
-  layer.previewBase64 := PNGFileToBase64(ExtractFilePath(ParamStr(0))+'previews\EWSensorLayer.png');
+  layer.LoadPreviewFromCache('EWSensorLayer.png');
 
   clientMessageHandlers.Add('windData',
     procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)

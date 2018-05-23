@@ -213,29 +213,40 @@ L.Control.Measures = L.Control.extend({
                 // todo: add to history if history is used!
                 var selectedRadio = document.querySelector('input[name=measureOption]:checked');
                 if (selectedRadio) {
-                    _this._measuresHistory.addMeasure(
-                      {
-                          id: selectedRadio.value,
-                          name: selectedRadio.action,
-                          description: selectedRadio.title,
-                          measure: measureDefinition.measure
-                      },
-                      getSelectedObjects(),
-                      _this.options.selectCategories
-                    );
-                    wsSend({
-                        type: 'measure',
-                        payload: {
-                            apply: {
+                    if ((typeof selectedRadio.parameters === "undefined") || (selectedRadio.parameters == null)) {
+                        _this._measuresHistory.addMeasure(
+                            {
                                 id: selectedRadio.value,
                                 name: selectedRadio.action,
                                 description: selectedRadio.title,
                                 measure: measureDefinition.measure
+                            },
+                            getSelectedObjects(),
+                            _this.options.selectCategories
+                        );
+                        wsSend({
+                            type: 'measure',
+                            payload: {
+                                apply: {
+                                    id: selectedRadio.value,
+                                    name: selectedRadio.action,
+                                    description: selectedRadio.title,
+                                    measure: measureDefinition.measure
+                                }
                             }
-                        }
-                    });
-                    _this._collapse();
-                    modalDialogClose();
+                        });
+                        _this._collapse();
+                        modalDialogClose();
+                    }
+                    else {
+                        // first close measures dialog
+                        modalDialogClose();
+                        // open parameters dialog
+                        var dialogDiv = modalDialogCreate("Measure parameters", 'Parameters of the selected measure');
+                        showMeasureProperties(dialogDiv, selectedRadio.parameters);
+                        // todo: add handler function here somewhere..
+
+                    }
                 }
             });
             applyButton.id = "measuresApplyButton";
@@ -264,6 +275,7 @@ L.Control.Measures = L.Control.extend({
             rb.value = aAction.id;
             rb.action = aAction.action;
             rb.title = aAction.description;
+            rb.parameters = aAction.parameters;
             var label = aForm.appendChild(document.createElement('label'));
             label.className = 'selectMeasureLabel';
             label.appendChild(document.createTextNode(aAction.action));

@@ -3081,7 +3081,7 @@ begin
     aTilerFQDN, aTilerStatusURL, aDataSource,
     aDBConnection, aAddBasicLayers,
     aMaxNearestObjectDistanceInMeters, mapView);
-
+  {
   ClientMessageHandlers.Add('measure',
     procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
     var
@@ -3114,6 +3114,7 @@ begin
         form.Free;
       end;
     end);
+  }
   fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
   fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
   fUpdateThread := TThread.CreateAnonymousThread(HandleControlsQueueEvent);

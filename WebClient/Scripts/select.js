@@ -29,11 +29,9 @@ function initSelectedObjectsProperties(e) {
         AddErrorMessage('Unable to get properties: no objects selected', 'warning', 10000);
 }
 
-function showSelectedObjectsProperties(container, aSelectedObjectsProperties) {
+function showSelectedObjectsProperties(container, data) {
     propertiesTables = {};
-    aSelectedObjectsProperties = aSelectedObjectsProperties.selectedObjectsProperties;
-
-    objProps = aSelectedObjectsProperties;
+    objProps = data.selectedObjectsProperties;
 
     objProps.properties.sort(function (a, b) {
         return a.ordering - b.ordering;
@@ -52,6 +50,26 @@ function showSelectedObjectsProperties(container, aSelectedObjectsProperties) {
     // attribute names are used as rows
 }
 
+function showMeasureProperties(container, data) {
+    propertiesTables = {};
+    objProps = data;
+
+    objProps.properties.sort(function (a, b) {
+        return a.ordering - b.ordering;
+    });
+
+    var title = container.appendChild(document.createElement('h2'));
+    title.innerText = 'Selected measure properties';
+
+    container.appendChild(document.createElement('HR'));
+
+    tableContainer = container.appendChild(document.createElement('div'));
+
+    tableContainer.id = "attributesContainer";
+
+    buildAttributesTable(tableContainer);
+    // attribute names are used as rows
+}
 
 function buildAttributesTable(container) {
     var tableContainer = container.appendChild(document.createElement("div"));

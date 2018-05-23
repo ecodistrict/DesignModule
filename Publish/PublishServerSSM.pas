@@ -1249,7 +1249,7 @@ var
   scenarioID: Integer;
   federation: string;
   imlep: TPair<Integer, TMetaLayerEntry>;
-  layer: TUSLayer;
+  layer: TLayerBase;
 begin
   inherited; //remove? inherited functionality is empty at this moment -> what if TScenario implements it?
 
@@ -1311,16 +1311,17 @@ begin
                 SubscribeDataEvents(imb3Connection, federation, imlep.Value.IMB_EVENTCLASS),
                 sourceProjection, imlep.value.Domain, imlep.value.description);
               if Assigned(layer) then
-
+              begin
                 AddLayer(layer);
                 // schedule reading objects and send to
-                AddCommandToQueue(Self, layer.ReadObjects);
+                AddCommandToQueue(Self, (layer as TUSLayer).ReadObjects);
                 Log.WriteLn('Added layer '+imlep.value.Domain+'\'+imlep.value.description);
               end
               else Log.WriteLn('Could not add US layer '+imlep.value.Domain+'\'+imlep.value.description, llError);
             end;
           end;
           fUSLayersLoaded := True;
+        end;
       finally
         metaLayer.Free;
       end;
