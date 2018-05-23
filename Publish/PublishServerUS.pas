@@ -530,10 +530,35 @@ type
 
   TUSControl = class; // forward
 
+  TUSControlObject = class(TSimpleObject)
+  constructor Create(aSimpleLayer: TSimpleLayer; const aID: string; aGeometry: TWDGeometryPoint; aName, aDescription: string; aActive: Integer);
+  destructor Destroy; override;
+  private
+    fActive: Integer;
+    fName: string;
+    fDescription: string;
+  public
+    property Active: Integer read fActive write fActive;
+    property Name: string read fName write fName;
+    property Description: string read fDescription write fDescription;
+    function getIconJSON: string;
+    function getContextMenuJSON: string;
+    function getTooltipJSON: string;
+  end;
+
   TUSControlsLayer = class(TSimpleLayer)
   constructor Create(aScenario: TUSScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aConnectString: string; aSourceProjection: TGIS_CSProjectedCoordinateSystem);
   destructor Destroy; override;
+  private
+    fUpdateQueue: TList<TUSUpdateQueueEntry>;
+    fUpdateQueueEvent: TEvent;
+    fUpdateThread: TThread;
+    fGlobalEvent: TIMBEventEntry;
+    fScenarioEvent: TIMBEventEntry;
+    procedure UpdateQueuehandler();
+    procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
+    procedure handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
   protected
     fConnectString: string;
     fOraSession: TOraSession;
@@ -545,7 +570,6 @@ type
     //fControls: TObjectDictionary<integer, TUSControl>;
   public
     procedure ReadObjects(aSender: TObject);
-    procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
   end;
 
   TUSLayer = class(TLayer)
@@ -642,6 +666,8 @@ type
     //procedure ReadUSControls (aOraSession: TOraSession);
     //procedure HandleControlsUpdate(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
     //procedure HandleControlsQueueEvent();
+  public
+    property IMBConnection: TIMBConnection read fIMBConnection;
   public
     property Tableprefix: string read fTableprefix;
     //property USControlStatuses: TObjectDictionary<Integer, TUSControlStatus> read fUSControlStatuses;
@@ -1852,7 +1878,7 @@ begin
       except
         on e: Exception do
         begin
-          Log.WriteLn('TUSLayer.handleChangeObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
+          Log.WriteLn('TUSLayer.handleTableChange. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
         end
       end;
     end
@@ -2170,7 +2196,7 @@ begin
             oid := AnsiString(query.Fields[0].AsInteger.ToString);
             objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
             if (objects.Count mod 10000) = 0 then
-              Log.WriteLn('Busy reading objects: ' + objects.Count.ToString + ' for ' + fScenario.ID + '-' + name);
+              Log.Progress('Busy reading objects: ' + objects.Count.ToString + ' for ' + fScenario.ID + '-' + name);
             query.Next;
           end
           except
@@ -2300,42 +2326,51 @@ end;
 function TUSScenario.GetUSControlsJSON: string;
 var
   layerBase: TLayerBase;
-  usLayer: TUSLayer;
-  layerObject: TLayerObject;
-  controlObject : TGeometryPointLayerObject;
-  active: Integer;
+  controlsLayer: TUSControlsLayer;
+  simpleObject: TSimpleObject;
+  controlObject: TUSControlObject;
   usControl: TUSControl;
 begin
   Result := '';
+  controlsLayer := nil;
   TMonitor.Enter(fLayers);
   try
     for layerBase in fLayers.Values do
-      if (layerBase is TUSLayer) and ((layerBase as TUSLayer).fLayerType = 10) then //TODO: better check!?
-      begin
-        usLayer := layerBase as TUSLayer;
-        usLayer.objectsLock.BeginRead;
-        try
-          for layerObject in usLayer.objects.Values do
-          begin
-            controlObject := layerObject as TGeometryPointLayerObject;
-            active := Round(controlObject.value);
-            TMonitor.Enter((fProject as TUSProject).USControls);
-            try
-              if not (fProject as TUSProject).USControls.TryGetValue(string(UTF8String(layerObject.ID)), usControl) then
-                usControl := nil;
-            finally
-              TMonitor.Exit((fProject as TUSProject).USControls);
-            end;
-            if (Result <> '') and (usControl <> nil) then
-              Result := Result + ',';
-            Result := Result + '"' + string(layerObject.ID) + '":{"active":' + active.ToString + ', "name": "' + usControl.Description + '"}';
-          end;
-        finally
-          usLayer.objectsLock.EndRead;
-        end;
-      end;
+      if layerBase is TUSControlsLayer then
+        controlsLayer := (layerBase as TUSControlsLayer);
   finally
     TMonitor.Exit(fLayers);
+  end;
+  if Assigned(controlsLayer) then
+  begin
+    TMonitor.Enter((fProject as TUSProject).USControls); //todo: switch to read locking
+    try
+      TMonitor.Enter(controlsLayer.objects);
+      try
+        for usControl in (fProject as TUSProject).USControls.Values do
+        begin
+          if Result <> '' then
+            Result := Result + ',';
+          if controlsLayer.objects.TryGetValue(usControl.ID, simpleObject) and (simpleObject is TUSControlObject) then
+          begin
+            controlObject := (simpleObject as TUSControlObject);
+            Result := Result + '"' + string(usControl.ID) + '":{"active":' + controlObject.Active.ToString + ', "name": "' + usControl.Description + '"}';
+          end
+          else
+          begin
+            Result := Result + '"' + string(usControl.ID) + '":{"active": false, "name": "' + usControl.Description + '"}';
+          end;
+        end;
+      finally
+        TMonitor.Exit(controlsLayer.objects);
+      end;
+    finally
+      TMonitor.Exit((fProject as TUSProject).USControls);
+    end;
+  end
+  else
+  begin
+    //todo: read controls info from database instead of layer?
   end;
   Result := '{' + Result + '}';
 end;
@@ -3041,7 +3076,6 @@ begin
   // fSourceProjection.Projection.LatitudeOfCenter fSourceProjection.Projection.LongitudeOfCenter,
 
   fPreLoadScenarios := aPreLoadScenarios;
-  SubscribeTo(GetTableSync('GENE_CONTROL'), handleInternalControlsChange);
 
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName,
     aTilerFQDN, aTilerStatusURL, aDataSource,
@@ -3087,8 +3121,9 @@ begin
   fUpdateThread.NameThreadForDebugging('Project controls queue handler');
   fUpdateThread.Start;
   fControlsUpdateEvent := fIMB3Connection.Subscribe(OraSession.Username+
-          '#GENE_CONTROL', False);
+          '.GENE_CONTROL', False);
   fControlsUpdateEvent.OnChangeObject := HandleControlsUpdate;
+  SubscribeTo(GetTableSync('GENE_CONTROL'), handleInternalControlsChange);
 end;
 
 destructor TUSProject.Destroy;
@@ -5971,18 +6006,56 @@ begin
     '26wdHjiMADDZU8cMzLIFjtIyftDwG179GTBq6VeZ16PCehgYpqzJ36SVcP7wxN37DNY5y8vEeVUxZHnzbD3wEPb3vRAl5jobZOZtyPDQP62rNgmSVD1BPN6TEB/M5EQwj7apSfPLCuRnJJkrzPPJwL6g4k79hnIM8tKepx5PhPQl0xMy6y2zltSbPMF83zpgT3KRJl5Oz81kHlLfMc8nwnY00wkhLBte/Rk3hLf' +
     'Ms8vAvYEE9Myq8m8JcU+Z57fBPQmE9Mzq61PLy6yMnaxtvUV8/zpgR4xUWZeelY1mbu4yCpJzW0uXzPPbwJ6ykRCCNueYSBzFxVLsuf5g3m9QsBOmGjtiInpWdVk7iL/M6/XCNgREwUeBeE6GqpWcRBFhsJiC9ZvrSxZ8s8LKlxsAPuNeZdEBnqBCZQuA/CCvK1Rc2V9QngDY2ANjfaIRqPUckGeAZ8x4CF/Ma/' +
     'XmkDprG7887ElPKWKgFodGxUoXStQWiFQanD8lFOe36vg+cEBeVyBMyGcClAGlAhYwAIWsIAFLGDt2/8A9SRhjpW+ExQAAAAASUVORK5CYII=');
+
+  fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
+  fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
+  fUpdateThread := TThread.CreateAnonymousThread(UpdateQueuehandler);
+  fUpdateThread.NameThreadForDebugging(Scenario.ID + 'TUSControlsLayer queue handler');
+  fUpdateThread.FreeOnTerminate := False;
+  fUpdateThread.Start;
+  fGlobalEvent := aScenario.IMBConnection.Subscribe(fOraSession.Username + '.GENE_CONTROL', False);
+  fScenarioEvent := aScenario.IMBConnection.Subscribe(aScenario.Federation + '.GENE_CONTROL', False);
+  fGlobalEvent.OnChangeObject := handleChangeObject;
+  fScenarioEvent.OnChangeObject := handleChangeObject;
+  SubscribeTo((aScenario.project as TUSProject).GetTableSync('GENE_CONTROL'), handleTableChange);
+  SubscribeTo((aScenario.project as TUSProject).GetTableSync(aScenario.Federation + '.GENE_CONTROL'), handleTableChange);
 end;
 
 destructor TUSControlsLayer.Destroy;
 begin
-  //FreeAndNil(fControls);
   inherited;
+  fUpdateThread.Terminate;
+  fUpdateQueueEvent.SetEvent;
+  FreeAndNil(fUpdateThread);
+  FreeAndNil(fUpdateQueueEvent);
+  FreeAndNil(fUpdateQueue);
   FreeAndNil(fOraSession);
 end;
 
 procedure TUSControlsLayer.handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string);
 begin
-  // todo: implement
+  handleTableChange(nil, aAction, aObjectID);
+end;
+
+procedure TUSControlsLayer.handleTableChange(aSender: TSubscribeObject;
+  const aAction, aObjectID: Integer);
+begin
+  TMonitor.Enter(fUpdateQueueEvent);
+  try
+    begin
+      try
+        fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
+        fUpdateQueueEvent.SetEvent;
+      except
+        on e: Exception do
+        begin
+          Log.WriteLn('TUSControlsLayer.handleTableObject. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
+        end
+      end;
+    end
+  finally
+    TMonitor.Exit(fUpdateQueueEvent);
+  end;
 end;
 
 procedure TUSControlsLayer.ReadObjects(aSender: TObject);
@@ -5994,7 +6067,7 @@ var
   x: Double;
   y: Double;
   p: TWDGeometryPoint;
-  icon, contextOption: string;
+  name, description: string;
 begin
   // todo: implement
   query := TOraTable.Create(nil);
@@ -6005,14 +6078,16 @@ begin
     query.SQL.Text :=
       'SELECT ' +
           't1.OBJECT_ID as OBJECT_ID, '+
-          't1.ACTIVE as VALUE, '+
-          't2.Y as Y, '+
-          't2.X as X '+
-      'FROM ' + (scenario as TUSScenario).Tableprefix +'GENE_CONTROL t1 '+
-          'LEFT JOIN '+
-          'GENE_CONTROL t2 '+
+          't2.ACTIVE as VALUE, '+
+          't1.Y as Y, '+
+          't1.X as X, '+
+          't1.NAME as NAME, '+
+          't1.DESCRIPTION as DESCRIPTION '+
+      'FROM GENE_CONTROL t1 '+
+          'LEFT JOIN ' +
+          (scenario as TUSScenario).Tableprefix +'GENE_CONTROL t2 '+
           'on t1.OBJECT_ID = t2.OBJECT_ID '+
-      'WHERE t2.PARENT_ID is NULL';
+      'WHERE t1.PARENT_ID is NULL';
 
     query.Execute;
     while not query.Eof do
@@ -6021,41 +6096,225 @@ begin
       active := query.Fields[1].AsInteger;
       y := query.Fields[2].AsFloat;
       x := query.Fields[3].AsFloat;
+      name := query.Fields[4].AsString;
+      description := query.Fields[5].AsString;
       p := TWDGeometryPoint.Create(x, y, 0);
-      if active > 0 then
-      begin
-        icon := 'Content/images/control-enabled.png';
-        contextOption := 'Disable';
-      end
-      else
-      begin
-        icon := 'Content/images/control-disabled.png';
-        contextOption := 'Enable';
-      end;
-      try
-        projectGeometryPoint(p, fSourceProjection);
-        //so := TCircleMarker.Create(Self, id.ToString, p.y, p.x, 7); //, Double.NaN, [[sojnDraggable, 'true']]);
-        so := TSimpleObject.Create(
-          Self, id.ToString, 'L.marker',
-          p, gtPoint,
-          [
-             ['icon', '{"iconUrl":"' + icon + '"}'],
-             [sojnContextMenu, 'true'],
-             [sojnContextmenuItems, '[{"text": "' + contextOption + '","index": 0, "tag":"'+id.tostring+'"},{"text": "Properties","index": 1, "tag":"'+id.tostring+'"},{"text": "Remove","index": 2, "tag":"'+id.tostring+'"}]'], // , {"separator": true, "index": 1}
-             //   //[sojnContextmenuInheritItems, t],
-             [sojnInteractive, 'true'],
-             [sojnDraggable, 'true']
-          ],
-          []);
-      finally
-        //p.Free;
-      end;
+      projectGeometryPoint(p, fSourceProjection);
+      so := TUSControlObject.Create(
+          Self, id.ToString, p, name, description, active);
       AddObject(so, so.jsonNewObject);
       query.Next;
     end;
   finally
     query.Free;
   end;
+end;
+
+procedure TUSControlsLayer.UpdateQueuehandler;
+
+  procedure ReadMultipleControls(const aIdString: string; const oraSession: TOraSession);
+  var
+   query: TOraQuery;
+   id: Integer;
+   o: TSimpleObject;
+   control: TUSControlObject;
+   active: Integer;
+   x, y: Double;
+   name, description: string;
+   p: TWDGeometryPoint;
+  begin
+    query := TOraQuery.Create(nil);
+    try
+      query.Session := oraSession;
+      query.SQL.Text :=
+        'SELECT ' +
+            't1.OBJECT_ID as OBJECT_ID, '+
+            't2.ACTIVE as VALUE, '+
+            't1.Y as Y, '+
+            't1.X as X, '+
+            't1.NAME as NAME, '+
+            't1.DESCRIPTION as DESCRIPTION '+
+        'FROM GENE_CONTROL t1 '+
+            'LEFT JOIN ' +
+            (scenario as TUSScenario).Tableprefix +'GENE_CONTROL t2 '+
+            'on t1.OBJECT_ID = t2.OBJECT_ID '+
+        'WHERE t1.PARENT_ID is NULL and t1.OBJECT_ID in (' + aIdString + ')';
+      query.UniDirectional := True;
+      query.Open;
+      query.First;
+      TMonitor.Enter(objects);
+      try
+        while (not query.Eof) do
+        begin
+          id := query.FieldByName('OBJECT_ID').AsInteger;
+          active := query.Fields[1].AsInteger;
+          y := query.Fields[2].AsFloat;
+          x := query.Fields[3].AsFloat;
+          name := query.Fields[4].AsString;
+          description := query.Fields[5].AsString;
+          p := TWDGeometryPoint.Create(x, y, 0);
+          projectGeometryPoint(p, fSourceProjection);
+          if objects.TryGetValue(id.ToString, o) and (o is TUSControlObject) then
+            begin
+              control := (o as TUSControlObject);
+              control.Active := active;
+              control.Name := name;
+              control.Description := Description;
+              control.geometry := p;
+              control.addOptionStructure(sojnIcon, control.getIconJSON);
+              control.addOptionStructure(sojnContextMenuItems, control.getContextMenuJSON);
+              control.addPropertyStructure(sojnTooltip, control.getTooltipJSON);
+              UpdateObject(control, sojnTooltip, control.getTooltipJSON);
+              UpdateObject(control, 'options', control.jsonOptionsValue);
+            end
+          else
+            begin
+              control := TUSControlObject.Create(
+                Self, id.ToString, p, name, description, active);
+              AddObject(control, control.jsonNewObject);
+            end;
+          query.Next;
+        end;
+      finally
+        TMonitor.Exit(objects);
+      end;
+    finally
+      query.Free;
+    end;
+  end;
+
+var
+  localQueue: TList<TUSUpdateQueueEntry>;
+  tempQueue: TList<TUSUpdateQueueEntry>;
+  entry: TUSUpdateQueueEntry;
+  changeStack: TStack<string>;
+  oraSession: TOraSession;
+  simpleObject: TSimpleObject;
+  idsString: string;
+  counter: Integer;
+begin
+  localQueue := TList<TUSUpdateQueueEntry>.Create;
+  try
+    changeStack := TStack<string>.Create;
+    try
+      oraSession := TOraSession.Create(nil);
+      try
+        oraSession.ConnectString := fConnectString;
+        oraSession.Open;
+        while not TThread.CheckTerminated do
+        begin
+          if fUpdateQueueEvent.WaitFor=wrSignaled then
+          begin
+            // swap queues
+            TMonitor.Enter(fUpdateQueueEvent);
+            try
+              tempQueue := fUpdateQueue;
+              fUpdateQueue := localQueue;
+              localQueue := tempQueue;
+            finally
+              TMonitor.Exit(fUpdateQueueEvent);
+            end;
+            if localQueue.Count > 0 then
+            begin
+              for entry in localQueue do
+              begin
+                if entry.action = actionDelete then
+                begin
+                  TMonitor.Enter(objects);
+                  try
+                    if objects.TryGetValue(entry.objectID.ToString, simpleObject) then
+                    begin
+                      RemoveObject(simpleObject);
+                    end;
+                  finally
+                    TMonitor.Exit(objects);
+                  end;
+                end
+                else if (entry.action = actionChange) or (entry.action = actionNew) then
+                begin
+                  changeStack.Push(entry.objectID.ToString);
+                end;
+              end;
+              localQueue.Clear;
+              counter := 0;
+              idsString := '';
+              while changeStack.Count > 0 do
+              begin
+                if idsString <> '' then
+                  idsString := idsString + ',';
+                idsString := idsString + changeStack.Pop();
+                counter := counter + 1;
+                if counter >= 999 then
+                begin
+                  ReadMultipleControls(idsString, oraSession);
+                  idsString := '';
+                  counter := 0;
+                end;
+              end;
+              if idsString <> '' then
+                ReadMultipleControls(idsString, oraSession);
+            end;
+          end;
+        end;
+      finally
+        oraSession.Free;
+      end;
+    finally
+      changeStack.Free;
+    end;
+  finally
+    localQueue.Free;
+  end;
+end;
+
+{ TUSControlObject }
+
+constructor TUSControlObject.Create(aSimpleLayer: TSimpleLayer; const aID: string;
+  aGeometry: TWDGeometryPoint; aName, aDescription: string; aActive: Integer);
+begin
+  fActive := aActive;
+  fName := aName;
+  fDescription := aDescription;
+  inherited Create(aSimpleLayer, aID, 'L.marker', aGeometry, gtPoint,
+          [
+             [sojnIcon, getIconJSON],
+             [sojnContextMenu, 'true'],
+             [sojnContextmenuItems, getContextMenuJSON], // , {"separator": true, "index": 1}
+             //   //[sojnContextmenuInheritItems, t],
+             [sojnInteractive, 'true'],
+             [sojnDraggable, 'true']
+          ],
+          [[sojnTooltip, getTooltipJSON]]);
+end;
+
+destructor TUSControlObject.Destroy;
+begin
+
+  inherited;
+end;
+
+function TUSControlObject.getContextMenuJSON: string;
+var
+  contextOption: string;
+begin
+  if Active <> 0 then
+    contextOption := 'Disable'
+  else
+    contextOption := 'Enable';
+  Result := '[{"text": "' + contextOption + '","index": 0, "tag":"'+id+'"},{"text": "Properties","index": 1, "tag":"'+id+'"},{"text": "Remove","index": 2, "tag":"'+id+'"}]'
+end;
+
+function TUSControlObject.getIconJSON: string;
+begin
+  if Active <> 0 then
+    Result := '{"iconUrl":"Content/images/control-enabled.png"}'
+  else
+    Result := '{"iconUrl":"Content/images/control-disabled.png"}';
+end;
+
+function TUSControlObject.getTooltipJSON: string;
+begin
+  Result := '"' + Description + '"';
 end;
 
 end.

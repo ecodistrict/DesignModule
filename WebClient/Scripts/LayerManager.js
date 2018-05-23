@@ -455,7 +455,12 @@ LayerManager.SimpleObject = function (data, layergroup) {
             // first fixup
             this.fixupOptions(data.options);
             // apply new options
-            this.object.setStyle(data.options);
+
+            if (typeof data.options.icon !== "undefined") {
+                this.object.setIcon(data.options.icon);
+            }
+            if (typeof this.object.setStyle !== "undefined") //setStyle not available for all objects
+                this.object.setStyle(data.options);
         }
         // other properties
         this.fixupOtherProperties(data);
