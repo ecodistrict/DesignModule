@@ -56,6 +56,7 @@ const
 //  idPrefixChargeLocation = 'CRG' ;
 
   cINDIC_DAT_TYPE_BLOCK = '1';
+    cINDIC_DAT_TYPE_ID_LENGTH = 5;
   cINDIC_DAT_TYPE_BUSTYPE = '2';
   cINDIC_DAT_TYPE_GRID = '3';
 
@@ -200,6 +201,7 @@ type
     fUpdateTimer: TTimer;
     fLastUpdate: THighResTicks;
     fCurrentTime: TDateTime;
+    fTimeTableTime: TDateTime;
 
     // new
     fBusData: TBusData;
@@ -216,7 +218,7 @@ type
     procedure updateStop(const aID: string; aStop: TBusStop2; aObject: TSimpleObject);
     procedure showStops;
     procedure updateStopsBase;
-    procedure UpdateStopsOnTime(aTime: TDateTime);
+    function UpdateStopsOnTime(aTime: TDateTime): TDateTime;
 
     procedure formEditChargeLocation(const aChargeLocation: string; aClient: TClient);
 
@@ -243,6 +245,8 @@ type
   private
     fTimeSliderTimer: TTimer;
     fCurrentBusBlock: Integer;
+    fCurrentChargerID: Integer;
+    fCurrentChargerStopName: string;
     fSantosLayers: TObjectDictionary<TScenario, TSantosLayer>; // ref
     fBaseDay: Array of Word;
     // base bus parameters
@@ -504,7 +508,9 @@ var
   measureCat: TMeasureCategory;
 begin
   fSantosLayers := TObjectDictionary<TScenario, TSantosLayer>.Create([]);
-  fCurrentBusBlock := 2; // Param?
+  fCurrentBusBlock := 1001; //2; // Param?
+  fCurrentChargerID := -1;
+  fCurrentChargerStopName := '';
 
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
                    aDataSource, aDBConnection, aMapView, aPreLoadScenarios , False, aMaxNearestObjectDistanceInMeters);
@@ -552,7 +558,7 @@ begin
       end;
     end);
 
-  measureCat := TMeasureCategory.Create('bus', 'Bus', 'Adjust e-bus parameters', 'Adjust e-bus parameters', '', 'Set', 'BatteryCapacity, AverageEnergyConsumption,DriverEfficiency,PowerConsumptionHVAC', 1);
+  measureCat := TMeasureCategory.Create('bus', 'Bus', 'Adjust e-bus parameters', 'Adjust e-bus parameters', '', 'Set', ''{'"BatteryCapacity AverageEnergyConsumption, DriverEfficiency,PowerConsumptionHVAC'}, 1);
   Measures.Add(tagEditBusParameters, measureCat);
   EnableControl(measuresControl);
 
@@ -692,15 +698,15 @@ var
   isNew: Boolean;
   socChart: TChart;
   t: TDateTime;
-  tableExists: boolean;
+  //tableExists: boolean;
 const
   SocChartID = 'santosSoc';
 begin
   zero := SantosTimeToDateTime('00:00', fBaseDay);
   tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_BLOCK +
-               aBlockID.ToString.PadLeft(3,'0') + cINDIC_DAT_BLOCK_SOC;
+               aBlockID.ToString.PadLeft(cINDIC_DAT_TYPE_ID_LENGTH,'0') + cINDIC_DAT_BLOCK_SOC;
 
-  tableExists := MyOraLib.tableExists(aSession, tableName);
+  //tableExists := MyOraLib.tableExists(aSession, tableName);
 
   TMonitor.Enter(aScenario.Charts);
   try
@@ -709,7 +715,7 @@ begin
     TMonitor.Exit(aScenario.Charts);
   end;
 
-  if isNew and tableExists then
+  if isNew {and tableExists} then
   begin
     socChart := TChartLines.Create(aScenario, 'Santos' , SocChartID, 'State of Charge',
                  'State of Charge', True, 'line',
@@ -725,35 +731,38 @@ begin
       socChart.Show();
       socChart.description := 'State of Charge ('+aBlockID.ToString+')';
        // Clear
-      if not isNew then
-        socChart.reset;
+      if not isNew
+      then socChart.reset;
 
-      if tableExists then
-      begin
+      //if tableExists then
+      //begin
+      try
         query := TOraQuery.Create(nil);
         try
           query.Session := aSession;
-          query.SQL.Text := 'SELECT X,Y,LPAD(TRIM(TIME), 5, ''0'') as TIME ' +
-                            'FROM ' + tableName + ' ORDER BY TIME ASC';
+          query.SQL.Text :=
+            'SELECT X,Y,LPAD(TRIM(TIME), 5, ''0'') as TIME ' +
+            'FROM ' + tableName + ' ORDER BY TIME ASC';
           query.Open;
-            while not Query.Eof do
-            begin
-              t := SantosTimeToDateTime(Query.FieldByName('TIME').AsString, fBaseDay);
-              minOfDay := MinutesBetween(zero, t) *60;
-              (socChart as TChartLines).AddValue(
-                minOfDay,
-                [Query.FieldByName('Y').AsFloat/100]
-              );
-              Query.Next;
-            end;
-
+          while not Query.Eof do
+          begin
+            t := SantosTimeToDateTime(Query.FieldByName('TIME').AsString, fBaseDay);
+            minOfDay := MinutesBetween(zero, t) *60;
+            (socChart as TChartLines).AddValue(minOfDay, [Query.FieldByName('Y').AsFloat/100]);
+            Query.Next;
+          end;
         finally
           query.Free;
         end;
-
-        if isNew then
-          aScenario.addChart(socChart);
+      except
+        on E: Exception
+        do Log.WriteLn('Ignoring exception reading graph data for '+tableName+': '+e.Message, llError);
+        // ignore errors
       end;
+
+      if isNew then
+        aScenario.addChart(socChart);
+      //end;
     finally
       TMonitor.Exit(socChart);
     end;
@@ -775,18 +784,19 @@ var
 const
   ChgPwrChartID = 'santosPeakBusses';
 begin
-  if aName.IsEmpty
-  then name := ' Charge Location ' + aCharger.ToString
-  else name := aName;
+  //if aName.IsEmpty
+  //then name := ' Charge Location ' + aCharger.ToString
+  //else name := aName;
+  name := aName;
   {$IFDEF DEBUG}
   Log.WriteLn('Loading peak busses chart for: ' + name);
   {$ENDIF}
   zero := SantosTimeToDateTime('00:00', fBaseDay);
-  tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(3,'0') + cINDIC_DAT_GRID_PEAK_BUSSES;
+  tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(cINDIC_DAT_TYPE_ID_LENGTH,'0') + cINDIC_DAT_GRID_PEAK_BUSSES;
 
   tableExists := MyOraLib.TableExists(aSession, tableName);
 
-  chartID := ChgPwrChartID + aCharger.ToString;
+  chartID := ChgPwrChartID;// + aCharger.ToString;
 
   TMonitor.Enter(aScenario.Charts);
   try
@@ -837,6 +847,7 @@ begin
 
       if isNew then
         aScenario.addChart(chgPeakBussesChart);
+
     finally
       TMonitor.Exit(chgPeakBussesChart);
     end;
@@ -864,7 +875,7 @@ begin
   Log.WriteLn('Loading total power chart for: ' + name);
   {$ENDIF}
   zero := SantosTimeToDateTime('00:00', fBaseDay);
-  tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(3,'0') + cINDIC_DAT_GRID_TOTALPOWER;
+  tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(cINDIC_DAT_TYPE_ID_LENGTH,'0') + cINDIC_DAT_GRID_TOTALPOWER;
 
   tableExists := MyOraLib.TableExists(aSession, tableName);
 
@@ -947,7 +958,7 @@ begin
   Log.WriteLn('Loading peak busses warnings chart for: ' + name);
   {$ENDIF}
   zero := SantosTimeToDateTime('00:00', fBaseDay);
-  tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(3,'0') + cINDIC_DAT_GRID_PEAK_BUSSES_WARN;
+  tableName := aTablePrefix + 'EBUS_INDIC_DAT' + cINDIC_DAT_TYPE_GRID + aCharger.ToString.PadLeft(cINDIC_DAT_TYPE_ID_LENGTH,'0') + cINDIC_DAT_GRID_PEAK_BUSSES_WARN;
 
   tableExists := MyOraLib.TableExists(aSession, tableName);
 
@@ -1186,6 +1197,7 @@ begin
   fUpdateTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*10);
   fLastUpdate := hrtNow;
   fCurrentTime := Now;
+  fTimeTableTime := fCurrentTime;
 
   setLength(fBaseDay, 3);
   fBaseDay[0] := aBaseDay;
@@ -1402,6 +1414,10 @@ begin
               stop.charger.poleType := strPoleType;
               stop.charger.numberOfPoles := poleCount;
               stop.charger.maxPower := maxPower;
+
+              (scenario.project as TSantosProject).fCurrentChargerID := stop.charger.objectID;
+              (scenario.project as TSantosProject).fCurrentChargerStopName := stop.name;
+
               oraSession := TOraSession.Create(nil);
               try
                 oraSession.connectString := fConnectString;
@@ -1420,12 +1436,16 @@ begin
                 finally
                   oraQuery.free;
                 end;
+
+                (scenario.project as TSantosProject).ReadChartChargerPeakBusses(oraSession, scenario, fTablePrefix, (scenario.project as TSantosProject).fCurrentChargerID, (scenario.project as TSantosProject).fCurrentChargerStopName);
+
               finally
                 oraSession.Free;
               end;
 
               fEventEntry.SignalChangeObject(actionChange, stop.charger.objectID);
-              log.WriteLn('UPDATED CHARGELOCATION ' + stop.id + ' to ' + polecount.ToString + ' chargers of type: ' + strPoleType);
+              log.WriteLn('UPDATED CHARGELOCATION ' + stop.id + ' to ' + polecount.ToString + ' chargers of type: ' + strPoleType, llOK);
+
             end;
           finally
             TMonitor.Exit(fSliderData);
@@ -1484,7 +1504,7 @@ begin
         aClient.signalString('{"type":"timesliderEvents","payload":{"setCurrentTime":"'+FormatDateTime(publisherDateTimeFormat, fCurrentTime)+'"}}');
     end);
 
-  UpdateStopsOnTime(fCurrentTime);
+  fTimeTableTime := UpdateStopsOnTime(fCurrentTime);
 
 
   { todo:
@@ -1668,7 +1688,7 @@ begin
       try
         if fSliderData.BusStops.TryGetValue(objectID, bs) then
         begin
-          if fSliderData.fTimeTable.TryGetValue(fCurrentTime, sr) then
+          if fSliderData.fTimeTable.TryGetValue(fTimeTableTime, sr) then
           begin
             if sr.BusStops.TryGetValue(bs, br) then
             begin
@@ -1678,7 +1698,7 @@ begin
                 try
                   oraSession.connectString := fConnectString;
                   oraSession.Open;
-
+                  (scenario.project as TSantosProject).fCurrentBusBlock := busid;
                   (scenario.project as TSantosProject).ReadChartBlockSoC(oraSession, scenario, fTablePrefix, busid);
                 finally
                   oraSession.Free;
@@ -1834,6 +1854,7 @@ var
   bdes: TBusTimeTable;
   at: TDateTime;
   curDate: TDateTime;
+  bde: TBusDataEntry;
 begin
   TMonitor.Enter(fBusData);
   try
@@ -1869,7 +1890,22 @@ begin
           Integer.Parse(Copy(arrivalTime,4,2))/(24*60)+
           Integer.Parse(Copy(arrivalTime,7,2))/(24*60*60);
         // ignore double entries and use last (drop of/pickup problems?)
-        bdes.AddOrSetValue(at, TBusDataEntry.Create(at, tripName, stopID, soc));
+        if not bdes.TryGetValue(at, bde) then
+        begin
+          bde := TBusDataEntry.Create(at, tripName, stopID, soc);
+          bdes.AddOrSetValue(at, bde);
+        end
+        else
+        begin
+          // todo: check for changes in other fields: not supported for now
+          //if bde.tripName<>tripName
+          //then log.WriteLn('changed trip name: '+bde.tripName+' <> '+tripName, llWarning);
+          //if bde.stopID<>stopID
+          //then log.WriteLn('changed stop id: '+bde.stopID+' <> '+stopID, llWarning);
+          bde.tripName := tripName;
+          bde.stopID := stopID;
+          bde.soc := soc;
+        end;
         query.Next;
       end;
     finally
@@ -2113,10 +2149,10 @@ begin
   end;
 end;
 
-procedure TSantosLayer.UpdateStopsOnTime(aTime: TDateTime);
+function TSantosLayer.UpdateStopsOnTime(aTime: TDateTime): TDateTime;
 var
   ttt: TArray<TDateTime>;
-  sliderTime: TDateTime;
+  //sliderTime: TDateTime;
   t: Integer;
   sl: TSliderRecord;
   ibsp: TPair<string, TBusStop2>;
@@ -2133,17 +2169,17 @@ begin
     if length(ttt)>0 then
     begin
       // find time on or below slider time
-      sliderTime := ttt[0]; // sentinel: lowest value
+      Result := ttt[0]; // sentinel: lowest value
       for t := length(ttt)-1  downto 0 do
       begin
         if ttt[t]<=aTime then
         begin
-          sliderTime := ttt[t];
+          Result := ttt[t];
           break;
         end;
       end;
       // process data on slider time
-      if fSliderData.TimeTable.TryGetValue(sliderTime, sl) then
+      if fSliderData.TimeTable.TryGetValue(Result, sl) then
       begin
         for ibsp in fSliderData.BusStops do
         begin
@@ -2207,7 +2243,8 @@ begin
           end;
         end;
       end;
-    end;
+    end
+    else Result := aTime;
   finally
     TMonitor.Exit(fSliderData);
   end;
@@ -2228,22 +2265,31 @@ begin
       oraSession.connectString := fConnectString;
       oraSession.Open;
       readBusData(oraSession , fTablePrefix);
+
+
+      // update slider
+      jsonTSData := jsonTimesliderData;
+      scenario.forEachSubscriber<TClient>(
+        procedure(aClient: TClient)
+        begin
+          // send data to time slider
+          aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
+        end);
+      // update base stop options
+      updateStopsBase;
+      // update stops based on time slider time
+      fTimeTableTime := UpdateStopsOnTime(fCurrentTime);
+
+      if (scenario.project as TSantosProject).fCurrentBusBlock>=0
+      then (scenario.project as TSantosProject).ReadChartBlockSoC(oraSession, scenario, fTablePrefix, (scenario.project as TSantosProject).fCurrentBusBlock);
+
+      if (scenario.project as TSantosProject).fCurrentChargerID>=0
+      then (scenario.project as TSantosProject).ReadChartChargerPeakBusses(oraSession, scenario, fTablePrefix, (scenario.project as TSantosProject).fCurrentChargerID, (scenario.project as TSantosProject).fCurrentChargerStopName);
+
     finally
       oraSession.Free;
     end;
-
-    // update slider
-    jsonTSData := jsonTimesliderData;
-    scenario.forEachSubscriber<TClient>(
-      procedure(aClient: TClient)
-      begin
-        // send data to time slider
-        aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
-      end);
-    // update base stop options
-    updateStopsBase;
-    // update stops based on time slider time
-    UpdateStopsOnTime(fCurrentTime);
+    Log.WriteLn('Data changed: handled', llOK);
   except
     on e: Exception
     do Log.WriteLn('Exception in TSantosLayer.HandleDataUpdate: '+e.Message, llError);
@@ -2452,14 +2498,14 @@ begin
 end;
 
 procedure TSantosLayer.initTimeTable(aSession: TOraSession);
-var
+//var
 //  query: TOraQuery;
   // todo: ttEntry, ttEntryPrev: TTimeStop;
 //  i: Integer;
-  tableName: string;
+  //tableName: string;
 //  indicTableExists: boolean;
 begin
-  tableName := 'EBUS_INDIC_DAT10' + fBlockID.ToString.PadLeft(2,'0') + '01'; // SoC
+  //tableName := 'EBUS_INDIC_DAT10' + fBlockID.ToString.PadLeft(cINDIC_DAT_TYPE_ID_LENGTH,'0') + '01'; // SoC
 // todo:  indicTableExists := MyOraLib.TableExists(aSession, fTablePrefix+tableName);
 
   Log.WriteLn('Loading timetable');
