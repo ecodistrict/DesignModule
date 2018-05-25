@@ -1,5 +1,7 @@
 
 function modalDialogCreate(aTitle, aDescription) {
+    // first 'close' any open dialogs
+    modalDialogClose();
     var dialog = document.getElementById('modalDialog');
     // show dialog
     dialog.style.opacity = 1;
