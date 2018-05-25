@@ -243,9 +243,35 @@ L.Control.Measures = L.Control.extend({
                         modalDialogClose();
                         // open parameters dialog
                         var dialogDiv = modalDialogCreate("Measure parameters", 'Parameters of the selected measure');
-                        showMeasureProperties(dialogDiv, selectedRadio.parameters);
-                        // todo: add handler function here somewhere..
-
+                        buildAttributesEditDialog(dialogDiv, { selectedObjectsProperties: selectedRadio.parameters }, function (e) {
+                            // todo: apply parameter values
+                            var parameters = GetEditedAttributes();
+                            _this._measuresHistory.addMeasure(
+                                {
+                                    id: selectedRadio.value,
+                                    name: selectedRadio.action,
+                                    description: selectedRadio.title,
+                                    measure: measureDefinition.measure,
+                                    parameters: parameters
+                                },
+                                getSelectedObjects(),
+                                _this.options.selectCategories
+                            );
+                            wsSend({
+                                type: 'measure',
+                                payload: {
+                                    apply: {
+                                        id: selectedRadio.value,
+                                        name: selectedRadio.action,
+                                        description: selectedRadio.title,
+                                        measure: measureDefinition.measure,
+                                        parameters: parameters
+                                    }
+                                }
+                            });
+                            _this._collapse();
+                            modalDialogClose();
+                        });
                     }
                 }
             });

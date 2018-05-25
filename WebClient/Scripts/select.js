@@ -30,75 +30,89 @@ function initSelectedObjectsProperties(e) {
 }
 
 function showSelectedObjectsProperties(container, data) {
+    buildAttributesEditDialog(container, data, ApplyNewProperties, 'Selected object properties');
+}
+
+function buildAttributesEditDialog(container, data, applyHandler, title) {
+    // optional title
+    if (typeof title !== "undefined") {
+        var title = container.appendChild(document.createElement('h2'));
+        title.innerText = title;
+        container.appendChild(document.createElement('hr'));
+    }
+
+    // properties/attributes table
     propertiesTables = {};
     objProps = data.selectedObjectsProperties;
-
-    objProps.properties.sort(function (a, b) {
-        return a.ordering - b.ordering;
-    });
-
-    var title = container.appendChild(document.createElement('h2'));
-    title.innerText = 'Selected object properties';
-
-    container.appendChild(document.createElement('HR'));
+    objProps.properties.sort(function (a, b) { return a.ordering - b.ordering; });
 
     tableContainer = container.appendChild(document.createElement('div'));
-
     tableContainer.id = "attributesContainer";
-
-    buildAttributesTable(tableContainer);
+    buildAttributesTable(tableContainer, objProps);
     // attribute names are used as rows
-}
-
-function showMeasureProperties(container, data) {
-    propertiesTables = {};
-    objProps = data;
-
-    objProps.properties.sort(function (a, b) {
-        return a.ordering - b.ordering;
-    });
-
-    var title = container.appendChild(document.createElement('h2'));
-    title.innerText = 'Selected measure properties';
-
-    container.appendChild(document.createElement('HR'));
-
-    tableContainer = container.appendChild(document.createElement('div'));
-
-    tableContainer.id = "attributesContainer";
-
-    buildAttributesTable(tableContainer);
-    // attribute names are used as rows
-}
-
-function buildAttributesTable(container) {
-    var tableContainer = container.appendChild(document.createElement("div"));
-    tableContainer.id = "tableContainer";
-    for (var i = 0; i < objProps.properties.length; i++) {
-        objProps.properties[i].id = objProps.properties[i].name.replace(/\s+/g, '');
-        createAttributeTable(objProps.properties[i], tableContainer);
-    }
 
     container.appendChild(document.createElement("hr"));
 
     var buttonContainer = container.appendChild(document.createElement("div"));
     buttonContainer.className = 'modalDialogDevideButtons';
-
     modelDialogAddButton(buttonContainer, "Cancel", modalDialogClose);
-    modelDialogAddButton(buttonContainer, "Apply", ApplyNewProperties);
+    modelDialogAddButton(buttonContainer, "Apply", applyHandler);
+}
+
+function buildAttributesTable(container, properties) {
+    var tableContainer = container.appendChild(document.createElement("div"));
+    tableContainer.id = "tableContainer";
+    for (var i = 0; i < properties.properties.length; i++) {
+        properties.properties[i].id = properties.properties[i].name.replace(/\s+/g, '');
+        createAttributeTable(properties.properties[i], tableContainer);
+    }
+}
+
+function GetEditedAttributes() {
+    // todo: access global properties and table via objProps and propertiesTable: change to parameters?
+    var inProperties = objProps.properties; 
+    var resultProperties = [];
+    for (var i = 0; i < inProperties.length; i++) {
+        var table = propertiesTables[inProperties[i].id];
+        var inputNode = table.querySelectorAll("input")[0];
+        if (typeof inputNode !== "undefined") {
+            if (inputNode.type != "checkbox") {
+                try {
+                    switch (inProperties[i].type) {
+                        case "int": inProperties[i].value = parseInt(inputNode.value);
+                            break;
+                        case "float": inProperties[i].value = parseFloat(inputNode.value);
+                            break;
+                        default: inProperties[i].value = inputNode.value;
+                            break;
+                    }
+                }
+                catch (Exception){
+                    inProperties[i].value = null;
+                }
+            }
+            else {
+                inProperties[i].value = inputNode.checked;
+            }
+            resultProperties.push(inProperties[i]);
+        }
+        else {
+            inputNode = table.querySelectorAll("select")[0];
+            inProperties[i].value = inputNode.options[inputNode.selectedIndex].value;
+            resultProperties.push(inProperties[i]);
+        }
+    }
+    return resultProperties;
 }
 
 function ApplyNewProperties() {
     var changes = false;
     var properties = objProps.properties;
-    objProps.properties = [];
+    var propertiesApply = [];
 
     for (var i = 0; i < properties.length; i++) {
-
         var table = propertiesTables[properties[i].id];
-
         var inputNode = table.querySelectorAll("input")[0];
-
         if (typeof inputNode !== "undefined") {
             if (inputNode.type != "checkbox") {
                 if (!(properties[i].value == null && inputNode.value == "") && properties[i].value != inputNode.value) {
@@ -112,14 +126,13 @@ function ApplyNewProperties() {
                         default: properties[i].value = inputNode.value;
                             break;
                     }
-
-                    objProps.properties.push(properties[i]);
+                    propertiesApply.push(properties[i]);
                 }
             }
             else if (inputNode.checked != BoolParse(properties[i].value)) {
                 changes = true;
                 properties[i].value = inputNode.checked;
-                objProps.properties.push(properties[i]);
+                propertiesApply.push(properties[i]);
             }
         }
         else {
@@ -127,23 +140,19 @@ function ApplyNewProperties() {
             if (properties[i].value != inputNode.options[inputNode.selectedIndex].value) {
                 changes = true;
                 properties[i].value = inputNode.options[inputNode.selectedIndex].value;
-                objProps.properties.push(properties[i]);
+                propertiesApply.push(properties[i]);
             }
         }
-
     }
 
     if (changes) {
         // send to Server (publishing server)
-
         var request = {};
         request.applyObjectsProperties = objProps;
+        request.applyObjectsProperties.properties = propertiesApply; // objProps.proprties is hereby also changed!
         // todo: NEW MESSAGE FORMAT
         wsSend(request);
     }
-    else
-        objProps.properties = properties;
-    //No closing on apply??
     modalDialogClose();
 }
 
