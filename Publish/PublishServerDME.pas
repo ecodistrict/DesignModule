@@ -547,8 +547,8 @@ begin
                         oraSession.ExecSQL(queryText, [objectID]);
                         oraSession.Commit;
                         publishEvent.SignalChangeObject(actionChange, objectID, 'ACTIVE');
-                        if aScenario is TUSScenario then
-                          (aScenario as TUSScenario).ChangeUSControl(actionChange, objectID, 'control', 'Value');
+//                        if aScenario is TUSScenario then
+//                          (aScenario as TUSScenario).ChangeUSControl(actionChange, objectID, 'control', 'Value');
                       end;
                     end;
                   end;

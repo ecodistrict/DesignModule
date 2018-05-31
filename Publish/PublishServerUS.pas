@@ -54,6 +54,11 @@ const
 
   MEASURES_TABLE_NAME = 'META_MEASURES';
 
+  tagEnable = 'Enable';
+  tagDisable = 'Disable';
+  tagProperties = 'Properties';
+  tagRemove = 'Remove';
+
 type
   TUSLayer = class; // forward
   TUSScenario = class; //forward
@@ -559,6 +564,7 @@ type
     procedure UpdateQueuehandler();
     procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
     procedure handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
+    //procedure changeActive(const aControlID, aActive: Integer);
   protected
     fConnectString: string;
     fOraSession: TOraSession;
@@ -568,6 +574,7 @@ type
     fPalette: TWDPalette;
     fSourceProjection: TGIS_CSProjectedCoordinateSystem; // ref
     //fControls: TObjectDictionary<integer, TUSControl>;
+    procedure handleUpdateLayerObject(aClient: TClient; aPayload: TJSONObject); override;
   public
     procedure ReadObjects(aSender: TObject);
   end;
@@ -673,7 +680,8 @@ type
     //property USControlStatuses: TObjectDictionary<Integer, TUSControlStatus> read fUSControlStatuses;
     function GetUSControlsJSON: string;
     procedure SendUSControlsMessage(aClient: TClient);
-    procedure ChangeUSControl(aAction, aControlID: Integer; const aObjectName, aAttribute: string);
+    //procedure ChangeUSControl(aAction, aControlID: Integer; const aObjectName, aAttribute: string);
+    procedure UpsertUSControlStatus(const aControlID, aActive: Integer);
   public
     procedure ReadBasicData(); override;
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
@@ -761,6 +769,7 @@ type
     procedure HandleControlsQueueEvent();
   public
     function GetTableSync(const aUSTableName: string): TSubscribeObject;
+    procedure SendInternalTableUpdate(const aUSTableName: string; aAction, aObjectID: Integer);
   end;
 
 
@@ -2278,19 +2287,19 @@ end;
 
 { TUSScenario }
 
-procedure TUSScenario.ChangeUSControl(aAction, aControlID: Integer; const aObjectName, aAttribute: string);
-var
-  layerBase: TLayerBase;
-begin
-  TMonitor.Enter(fLayers);
-  try
-    for layerBase in fLayers.Values do
-      if (layerBase is TUSLayer) and ((layerBase as TUSLayer).fLayerType = 10) then //TODO: find other way to check if layer is a control layer -> how can we link this?
-        (layerBase as TUSLayer).handleChangeObject(aAction, aControlID, aObjectName, aAttribute);
-  finally
-    TMonitor.Exit(fLayers);
-  end;
-end;
+//procedure TUSScenario.ChangeUSControl(aAction, aControlID: Integer; const aObjectName, aAttribute: string);
+//var
+//  layerBase: TLayerBase;
+//begin
+//  TMonitor.Enter(fLayers);
+//  try
+//    for layerBase in fLayers.Values do
+//      if (layerBase is TUSLayer) and ((layerBase as TUSLayer).fLayerType = 10) then //TODO: find other way to check if layer is a control layer -> how can we link this?
+//        (layerBase as TUSLayer).handleChangeObject(aAction, aControlID, aObjectName, aAttribute);
+//  finally
+//    TMonitor.Exit(fLayers);
+//  end;
+//end;
 
 constructor TUSScenario.Create(aProject: TProject; const aID, aName, aDescription, aFederation: string; aAddBasicLayers: Boolean; aMapView: TMapView;
   aIMBConnection: TIMBConnection; const aTablePrefix: string);
@@ -2850,6 +2859,90 @@ begin
   aClient.signalString('{"type":"scenarioControlsMessage", "payload": { "scenarioControls": ' + GetUSControlsJSON + '}}');
 end;
 
+procedure TUSScenario.UpsertUSControlStatus(const aControlID, aActive: Integer);
+
+  procedure ExcecuteUpsert(const aOraSession: TOraSession; const aIDs: string);
+  begin
+    aOraSession.ExecSQL(
+        'MERGE INTO ' + TablePrefix + 'GENE_CONTROL t1' +
+        ' using (SELECT OBJECT_ID, :ACTIVE as ACTIVE FROM GENE_CONTROL WHERE OBJECT_ID in (' + aIDs + ')) t2' +
+        ' ON' +
+        ' (t1.OBJECT_ID = t2.OBJECT_ID)' +
+        ' WHEN MATCHED then' +
+        ' UPDATE SET ACTIVE = t2.ACTIVE' +
+        ' WHEN not matched then' +
+        ' INSERT (OBJECT_ID, ACTIVE)' +
+        ' VALUES (t2.OBJECT_ID, t2.ACTIVE)'
+        , [aActive]);
+  end;
+
+var
+  query: TOraQuery;
+  oraSession: TOraSession;
+  idList: TList<Integer>;
+  currentIDs: string;
+  currentID: Integer;
+  i: Integer;
+  table: TSubscribeObject;
+  publishEvent: TIMBEventEntry;
+  publishEventName: string;
+begin
+  //procedure might go into infinite loop if db is currupt (2 controls with eachother as parent id)
+  oraSession := (project as TUSProject).oraSession;
+  idList := TList<Integer>.Create;
+  idList.Add(aControlID);
+  currentIDs := aControlID.ToString;
+  query := TOraQuery.Create(nil);
+  try
+    query.Session := oraSession;
+    while currentIDs <> '' do
+    begin
+      query.SQL.Text := 'SELECT OBJECT_ID FROM GENE_CONTROL WHERE PARENT_ID in (' + currentIDs + ')';
+      currentIDs := '';
+      query.ExecSQL;
+      while not query.Eof do
+      begin
+        currentID := query.FieldByName('OBJECT_ID').AsInteger;
+        if currentIDs <> '' then
+          currentIDs := currentIDs + ',';
+        currentIDs := currentIDs + currentID.ToString;
+        idList.Add(currentID);
+        query.Next;
+      end;
+    end;
+  finally
+    query.Free
+  end;
+  currentIDs := '';
+  for I := 0 to idList.Count - 1 do
+  begin
+    if currentIDs <> '' then
+      currentIDs := currentIDs + ',';
+    currentIDs := currentIDs + idList[i].ToString;
+    if (i mod 1000) = 999 then
+    begin
+      ExcecuteUpsert(oraSession, currentIDs);
+      currentIDs := '';
+    end;
+  end;
+  if currentIDs <> '' then
+    ExcecuteUpsert(oraSession, currentIDs);
+  oraSession.Commit;
+  publishEventName := Federation + '.GENE_CONTROL';
+  table := (project as TUSProject).GetTableSync(publishEventName);
+  publishEvent := (project as TUSProject).IMB3Connection.publish(publishEventName, false);
+  try
+    for i := 0 to idList.Count - 1 do
+    begin
+      publishEvent.SignalChangeObject(actionChange, idList[i], 'ACTIVE');
+      table.SendAnonymousEvent(actionChange, idList[i]);
+    end;
+
+  finally
+    publishEvent.UnPublish();
+  end;
+end;
+
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aGeometry: TWDGeometry): string;
 //var
   //layers: TList<TLayerBase>;
@@ -3166,10 +3259,10 @@ function TUSProject.GetTableSync(const aUSTableName: string): TSubscribeObject;
 begin
   TMonitor.Enter(fUSTableSync);
   try
-    if not fUSTableSync.TryGetValue(aUSTableName, Result) then
+    if not fUSTableSync.TryGetValue(aUSTableName.ToUpper, Result) then
     begin
       Result := TSubscribeObject.Create;
-      fUSTableSync.Add(aUSTableName, Result);
+      fUSTableSync.Add(aUSTableName.ToUpper, Result);
     end;
   finally
     TMonitor.Exit(fUSTableSync);
@@ -3284,15 +3377,36 @@ procedure TUSProject.handleClientMessage(aClient: TClient; aScenario: TScenario;
   aJSONObject: TJSONObject);
 var
   jsonMeasures, selectCategories, selectedObjects: TJSONArray;
-  jsonMeasure, jsonArrayItem, jsonValue: TJSONValue;
+  jsonMeasure, jsonArrayItem, jsonValue, jsonProperty: TJSONValue;
   jsonStringValue, selectCategoriesString, selectedObjectsString: string;
   responseJSON, requestType, requestID: string;
   baseLayer: TLayerBase;
   selectionLayer: TUSBasicLayer;
-  jsonSelectedCategories: TJSONArray;
+//  jsonSelectedCategories: TJSONArray;
   jsonProperties: TJSONArray;
   commitBuilder: TUSCommitBuilder;
   changedCount: Integer;
+  id, propID, propValue: string;
+  point: TGIS_Point;
+  lat, lon: Double;
+  measure: TMeasureAction;
+  propertyDictionary: TDictionary<string, string>;
+  objects: TDictionary<string, Integer>;
+  foundLeft, foundRight, foundNormal: Boolean;
+  leftID, rightID, normalID, mainID, nextID, parentIDValue: Integer;
+  query: TOraQuery;
+  controlName, controlDescription: string;
+  adjustedIDs: TDictionary<Integer, Integer>;
+  adjustedID: Integer;
+  publishEvent: TIMBEventEntry;
+  publishEventName: string;
+  table: TSubscribeObject;
+  fromID, toID: Integer;
+  turncostID: Variant;
+  fRoadfNode, fRoadtNode, tRoadfNode, tRoadtNode: Variant;
+  nodeA, nodeB, nodeC: Variant;
+  connectedRoads: Boolean;
+  roadTableName, turncostTableName: string;
 begin
   inherited;
   if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
@@ -3349,11 +3463,10 @@ begin
   if aJSONObject.TryGetValue<TJSONValue>('applyObjectsProperties', jsonValue) then
   begin
     Log.WriteLn('Apply object properties');
-    jsonSelectedCategories := jsonValue.GetValue<TJSONArray>('selectedCategories');
     if jsonValue.TryGetValue<TJSONArray>('selectedObjects', selectedObjects)
       and jsonValue.TryGetValue<TJSONArray>('selectedCategories', selectCategories)
-      and (jsonSelectedCategories.Count=1)
-      and aScenario.Layers.TryGetValue(jsonSelectedCategories.Items[0].Value, baseLayer)
+      and (selectCategories.Count=1)
+      and aScenario.Layers.TryGetValue(selectCategories.Items[0].Value, baseLayer)
       and (baseLayer is TUSBasicLayer) then
     begin
       selectionLayer := (baseLayer as TUSBasicLayer);
@@ -3369,6 +3482,436 @@ begin
 //        aClient.SendMessage('Succesfully applied changes. Objects changed: ' + changedCount.toString, mtSucces, 10000)
 //      else
 //        aClient.SendMessage('Error applying changes. Objects changed before error: ' + changedCount.toString, mtError);
+    end;
+  end;
+  if aJSONObject.TryGetValue<TJSONValue>('applyMeasureProperties', jsonValue) then
+  begin
+    adjustedIDs := TDictionary<Integer, Integer>.Create();
+    try
+      if jsonValue.TryGetValue<string>('measureID', id) and FindMeasure(id, measure) and
+        jsonValue.TryGetValue<TJsonArray>('properties', jsonProperties) and
+        jsonValue.TryGetValue<Double>('lat', lat) and
+        jsonValue.TryGetValue<Double>('lon', lon) and
+        jsonValue.TryGetValue<TJSONArray>('selectedObjects', selectedObjects) and
+        jsonValue.TryGetValue<TJSONArray>('selectCategories', selectCategories) then
+      begin
+        point.X := lon;
+        point.Y := lat;
+        point := sourceProjection.FromGeocs(point);
+        propertyDictionary := TDictionary<string, string>.Create;
+        try
+          begin
+            for jsonProperty in jsonProperties do
+              if jsonProperty.TryGetValue<string>('id', propID) and jsonProperty.TryGetValue<string>('value', propValue) then
+              begin
+                if propValue <> '' then
+                  propertyDictionary.AddOrSetValue(propID, propValue);
+              end;
+          end;
+          if not propertyDictionary.TryGetValue('Name', controlName) then
+            controlName := 'Unknown name';
+          if not propertyDictionary.TryGetValue('Description', controlDescription) then
+            controlDescription := 'Unknown description';
+          objects := TDictionary<string, Integer>.Create;
+          try
+            foundLeft := False;
+            foundRight := False;
+            foundNormal := False;
+            for jsonArrayItem in selectedObjects do
+            begin
+              if jsonArrayItem.Value.StartsWith('L-') then
+              begin
+                foundLeft := True;
+                objects.AddOrSetValue(jsonArrayItem.Value.Substring(2), -1);
+              end
+              else if jsonArrayItem.Value.StartsWith('R-') then
+              begin
+                foundRight := True;
+                objects.AddOrSetValue(jsonArrayItem.Value.Substring(2), 1);
+              end
+              else
+              begin
+                foundNormal := True;
+                objects.AddOrSetValue(jsonArrayItem.Value, 0);
+              end;
+            end;
+            if (measure.actionID < -100) and (measure.actionID > -110) then
+            begin
+              adjustedIDs.Clear;
+              oraSession.StartTransaction;
+              try
+                //lock the table so we can extract highest id and use that to determine ids of the new controls
+                query := TOraQuery.Create(nil);
+                try
+                  query.Session := oraSession;
+                  query.SQL.Text := 'LOCK TABLE GENE_CONTROL IN EXCLUSIVE MODE';
+                  query.ExecSQL;
+                  query.SQL.Text := 'SELECT (MAX(OBJECT_ID) + 1) as NEWID FROM GENE_CONTROL';
+                  query.ExecSQL;
+                  if query.FindFirst then
+                  begin
+                    nextID := query.FieldByName('NEWID').AsInteger;
+                    if propertyDictionary.ContainsKey('ParentID') then
+                    begin
+                      if Integer.TryParse(propertyDictionary['ParentID'], parentIDValue) then
+                      begin
+                        if propertyDictionary.ContainsKey('Speed')
+                          or propertyDictionary.ContainsKey('Capacity')
+                          or propertyDictionary.ContainsKey('Lanesmask') then
+                        begin
+                          query.SQL.Text := 'INSERT INTO GENE_CONTROL (OBJECT_ID, NAME, DESCRIPTION, X, Y, PARENT_ID) VALUES (:OBJECT_ID, :NAME, :DESCRIPTION, :X, :Y, :PARENT_ID)';
+                          query.ParamByName('X').Value := point.X;
+                          query.ParamByName('Y').Value := point.Y;
+                          query.ParamByName('PARENT_ID').Value := parentIDValue;
+                          if foundLeft then
+                          begin
+                            leftID := nextID;
+                            nextID := nextID + 1;
+                            query.ParamByName('OBJECT_ID').Value := leftID;
+                            if foundRight then
+                            begin
+                              query.ParamByName('NAME').Value := controlName + '-L';
+                              query.ParamByName('DESCRIPTION').Value := controlDescription + '-L';
+                            end
+                            else
+                            begin
+                              query.ParamByName('NAME').Value := controlName;
+                              query.ParamByName('DESCRIPTION').Value := controlDescription;
+                            end;
+                            query.ExecSQL;
+                            adjustedIDs.Add(leftID, actionNew);
+                          end;
+                          if foundRight then
+                          begin
+                            rightID := nextID;
+                            nextID := nextID + 1;
+                            query.ParamByName('OBJECT_ID').Value := rightID;
+                            if foundLeft then
+                            begin
+                              query.ParamByName('NAME').Value := controlName + '-R';
+                              query.ParamByName('DESCRIPTION').Value := controlDescription + '-R';
+                            end
+                            else
+                            begin
+                              query.ParamByName('NAME').Value := controlName;
+                              query.ParamByName('DESCRIPTION').Value := controlDescription;
+                            end;
+                            query.ExecSQL;
+                            adjustedIDs.Add(rightID, actionNew);
+                          end;
+                        end;
+                      end;
+                    end
+                    else
+                    begin
+                      if propertyDictionary.ContainsKey('Speed')
+                        or propertyDictionary.ContainsKey('Capacity')
+                        or propertyDictionary.ContainsKey('Lanesmask') then
+                      begin
+                        query.SQL.Text := 'INSERT INTO GENE_CONTROL (OBJECT_ID, NAME, DESCRIPTION, X, Y, PARENT_ID) VALUES (:OBJECT_ID, :NAME, :DESCRIPTION, :X, :Y, :PARENT_ID)';
+                        query.ParamByName('X').Value := point.X;
+                        query.ParamByName('Y').Value := point.Y;
+                        if foundLeft and foundRight then
+                        begin
+                          //create parent control
+                          mainID := nextID;
+                          nextID := nextID + 1;
+                          query.ParamByName('OBJECT_ID').Value := mainID;
+                          query.ParamByName('NAME').Value := controlName;
+                          query.ParamByName('DESCRIPTION').Value := controlDescription;
+                          query.ParamByName('PARENT_ID').Clear;
+                          query.ExecSQL;
+                          adjustedIDs.Add(mainID, actionNew);
+                          //create control left
+                          leftID := nextID;
+                          nextID := nextID + 1;
+                          query.ParamByName('OBJECT_ID').Value := leftID;
+                          query.ParamByName('NAME').Value := controlName + '-L';
+                          query.ParamByName('DESCRIPTION').Value := controlDescription + '-L';
+                          query.ParamByName('PARENT_ID').Value := mainID;
+                          query.ExecSQL;
+                          adjustedIDs.Add(leftID, actionNew);
+                          //create control right
+                          rightID := nextID;
+                          nextID := nextID + 1;
+                          query.ParamByName('OBJECT_ID').Value := rightID;
+                          query.ParamByName('NAME').Value := controlName + '-R';
+                          query.ParamByName('DESCRIPTION').Value := controlDescription + '-R';
+                          query.ParamByName('PARENT_ID').Value := mainID;
+                          query.ExecSQL;
+                          adjustedIDs.Add(rightID, actionNew);
+                        end
+                        else if foundLeft then
+                        begin
+                          leftID := nextID;
+                          nextID := nextID + 1;
+                          query.ParamByName('OBJECT_ID').Value := leftID;
+                          query.ParamByName('NAME').Value := controlName;
+                          query.ParamByName('DESCRIPTION').Value := controlDescription;
+                          query.ParamByName('PARENT_ID').Clear;
+                          query.ExecSQL;
+                          adjustedIDs.Add(leftID, actionNew);
+                        end
+                        else if foundRight then
+                        begin
+                          rightID := nextID;
+                          nextID := nextID + 1;
+                          query.ParamByName('OBJECT_ID').Value := rightID;
+                          query.ParamByName('NAME').Value := controlName;
+                          query.ParamByName('DESCRIPTION').Value := controlDescription;
+                          query.ParamByName('PARENT_ID').Clear;
+                          query.ExecSQL;
+                          adjustedIDs.Add(rightID, actionNew);
+                        end;
+                      end
+                    end;
+                    //done making controls, now set objects
+                    query.SQL.Text := 'INSERT INTO GENE_CONTROL_OBJECTS (CONTROL_ID, OBJECT_ID, OBJECT_TABLE) VALUES (:CONTROL_ID, :OBJECT_ID, :OBJECT_TABLE)';
+                    query.ParamByName('OBJECT_TABLE').Value := 'GENE_ROAD'; //for now can only use GENE_ROAD change when OTConnector is updated
+                    for id in objects.Keys do
+                    begin
+                      query.ParamByName('OBJECT_ID').Value := id;
+                      if objects[id] = -1 then
+                        query.ParamByName('CONTROL_ID').Value := leftID
+                      else if objects[id] = 1 then
+                        query.ParamByName('CONTROL_ID').Value := rightID
+                      else
+                        query.ParamByName('CONTROL_ID').Value := mainID;
+                      query.ExecSQL;
+                    end;
+                    //done writing objects, now set properties
+                    query.SQL.Text := 'INSERT INTO GENE_CONTROL_PROPERTIES (CONTROL_ID, FIELD, VALUE) VALUES (:CONTROL_ID, :FIELD, :VALUE)';
+                    for propID in propertyDictionary.Keys do
+                    begin
+                      query.ParamByName('VALUE').Value := propertyDictionary[propID];
+                      if propID = 'Speed' then
+                      begin
+                        if foundLeft then
+                        begin
+                          query.ParamByName('CONTROL_ID').Value := leftID;
+                          query.ParamByName('FIELD').Value := 'SPEED_L';
+                          query.ExecSQL;
+                        end;
+                        if foundRight then
+                        begin
+                          query.ParamByName('CONTROL_ID').Value := rightID;
+                          query.ParamByName('FIELD').Value := 'SPEED_R';
+                          query.ExecSQL;
+                        end;
+                      end
+                      else if propID = 'Capacity' then
+                      begin
+                        if foundLeft then
+                        begin
+                          query.ParamByName('CONTROL_ID').Value := leftID;
+                          query.ParamByName('FIELD').Value := 'CAPACITY_L';
+                          query.ExecSQL;
+                        end;
+                        if foundRight then
+                        begin
+                          query.ParamByName('CONTROL_ID').Value := rightID;
+                          query.ParamByName('FIELD').Value := 'CAPACITY_R';
+                          query.ExecSQL;
+                        end;
+                      end
+                      else if propID = 'Lanesmask' then
+                      begin
+                        if foundLeft then
+                        begin
+                          query.ParamByName('CONTROL_ID').Value := leftID;
+                          query.ParamByName('FIELD').Value := 'LANESMASK_L';
+                          query.ExecSQL;
+                        end;
+                        if foundRight then
+                        begin
+                          query.ParamByName('CONTROL_ID').Value := rightID;
+                          query.ParamByName('FIELD').Value := 'LANESMASK_R';
+                          query.ExecSQL;
+                        end;
+                      end
+                      else if propID = 'Exitlanes' then
+                      begin
+                        if foundLeft then
+                        begin
+                          query.ParamByName('CONTROL_ID').Value := leftID;
+                          query.ParamByName('FIELD').Value := 'EXITLANES_L';
+                          query.ExecSQL;
+                        end;
+                        if foundRight then
+                        begin
+                          query.ParamByName('CONTROL_ID').Value := rightID;
+                          query.ParamByName('FIELD').Value := 'EXITLANES_R';
+                          query.ExecSQL;
+                        end;
+                      end;
+                    end;
+                  end;
+                finally
+                  query.Free;
+                end;
+                oraSession.Commit;
+              except
+                oraSession.Rollback;
+                adjustedIDs.Clear;
+                Log.WriteLn('Error adding control in TUSProject.handleClientMessage. ActionID: ' + measure.actionID.ToString, llError);
+              end;
+              publishEventName := OraSession.Username + '.GENE_CONTROL';
+              table := GetTableSync('GENE_CONTROL');
+              publishEvent := IMB3Connection.publish(publishEventName, false);
+              try
+                for adjustedID in adjustedIDs.Keys do
+                begin
+                  publishEvent.SignalChangeObject(adjustedIDs[adjustedID], adjustedID);
+                  table.SendAnonymousEvent(adjustedIDs[adjustedID], adjustedID);
+                end;
+              finally
+                publishEvent.UnPublish();
+              end;
+            end
+            else if measure.actionID = -150 then
+            begin
+              adjustedIDs.Clear;
+              if propertyDictionary.ContainsKey('Name')
+                and propertyDictionary.ContainsKey('Description')
+                and propertyDictionary.ContainsKey('FromRoad')
+                and propertyDictionary.ContainsKey('ToRoad')
+                and propertyDictionary.ContainsKey('Turncost')
+                and Integer.TryParse(propertyDictionary['FromRoad'], fromID)
+                and Integer.TryParse(propertyDictionary['ToRoad'], toID) then
+              begin
+                oraSession.StartTransaction;
+                try
+                  //lock the table so we can extract highest id and use that to determine ids of the new controls
+                  query := TOraQuery.Create(nil);
+                  try
+                    roadTableName := (aClient.currentScenario as TUSScenario).Tableprefix + 'GENE_ROAD';
+                    turncostTableName := (aClient.currentScenario as TUSScenario).Tableprefix + 'TRAF_TURNCOST';
+                    query.SQL.Text := 'SELECT FNODE_, TNODE_ FROM ' + roadTableName + ' WHERE OBJECT_ID=:OBJECT_ID AND NOT FNODE_ IS NULL AND NOT TNODE_ IS NULL';
+                    query.ParamByName('OBJECT_ID').Value := fromID;
+                    query.ExecSQL;
+                    if query.FindFirst then
+                    begin
+                      fRoadfNode := query.FieldByName('FNODE_').Value;
+                      fRoadtNode := query.FieldByName('TNODE_').Value;
+                      query.ParamByName('OBJECT_ID').Value := toID;
+                      query.ExecSQL;
+                      if query.FindFirst then
+                      begin
+                        tRoadfNode := query.FieldByName('FNODE_').Value;
+                        tRoadtNode := query.FieldByName('TNODE_').Value;
+                        connectedRoads := False;
+                        if fRoadfNode = tRoadfNode then
+                        begin
+                          nodeA := fRoadtNode;
+                          nodeB := fRoadfNode;
+                          nodeC := tRoadtNode;
+                          connectedRoads := True;
+                        end
+                        else if fRoadfNode = tRoadtNode then
+                        begin
+                          nodeA := fRoadtNode;
+                          nodeB := fRoadfNode;
+                          nodeC := tRoadfNode;
+                          connectedRoads := True;
+                        end
+                        else if fRoadtNode = tRoadfNode then
+                        begin
+                          nodeA := fRoadfNode;
+                          nodeB := fRoadtNode;
+                          nodeC := tRoadtNode;
+                          connectedRoads := True;
+                        end
+                        else if fRoadtNode = tRoadtNode then
+                        begin
+                          nodeA := fRoadfNode;
+                          nodeB := fRoadtNode;
+                          nodeC := tRoadfNode;
+                          connectedRoads := True;
+                        end;
+                        if connectedRoads then
+                        begin
+                          query.SQL.Text := 'SELECT OBJECT_ID FROM ' + turncostTableName + ' WHERE NODE_A=:NODE_A AND NODE_B=:NODE_B AND NODE_C=:NODE_C';
+                          query.ParamByName('NODE_A').Value := nodeA;
+                          query.ParamByName('NODE_B').Value := nodeB;
+                          query.ParamByName('NODE_C').Value := nodeC;
+                          query.ExecSQL;
+                          if query.FindFirst then
+                          begin
+                            turncostID := query.FieldByName('OBJECT_ID').Value;
+                            query.SQL.Text := 'LOCK TABLE GENE_CONTROL IN EXCLUSIVE MODE';
+                            query.ExecSQL;
+                            query.SQL.Text := 'SELECT (MAX(OBJECT_ID) + 1) as NEWID FROM GENE_CONTROL';
+                            query.ExecSQL;
+                            if query.FindFirst then
+                            begin
+                              nextID := query.FieldByName('NEWID').AsInteger;
+                              mainID := nextID;
+                              nextID := nextID + 1;
+
+                              //insert control
+                              query.SQL.Text := 'INSERT INTO GENE_CONTROL (OBJECT_ID, NAME, DESCRIPTION, X, Y, PARENT_ID) VALUES (:OBJECT_ID, :NAME, :DESCRIPTION, :X, :Y, :PARENT_ID)';
+                              query.ParamByName('X').Value := point.X;
+                              query.ParamByName('Y').Value := point.Y;
+                              query.ParamByName('OBJECT_ID').Value := mainID;
+                              query.ParamByName('Name').Value := propertyDictionary['Name'];
+                              query.ParamByName('Description').Value := propertyDictionary['Description'];
+                              if propertyDictionary.ContainsKey('ParentID')
+                                and Integer.TryParse(propertyDictionary['ParentID'], parentIDValue) then
+                                query.ParamByName('PARENT_ID').Value := parentIDValue
+                              else
+                                query.ParamByName('PARENT_ID').Clear;
+                              query.ExecSQL;
+
+                              //insert control object
+                              query.SQL.Text := 'INSERT INTO GENE_CONTROL_OBJECTS (CONTROL_ID, OBJECT_ID, OBJECT_TABLE) VALUES (:CONTROL_ID, :OBJECT_ID, :OBJECT_TABLE)';
+                              query.ParamByName('CONTROL_ID').Value := mainID;
+                              query.ParamByName('OBJECT_ID').Value := turncostID;
+                              query.ParamByName('OBJECT_TABLE').Value := 'GENE_ROAD'; //for now can only use GENE_ROAD change when OTConnector is updated
+                              query.ExecSQL;
+
+                              //insert control property
+                              query.SQL.Text := 'INSERT INTO GENE_CONTROL_PROPERTIES (CONTROL_ID, FIELD, VALUE) VALUES (:CONTROL_ID, :FIELD, :VALUE)';
+                              query.ParamByName('CONTROL_ID').Value := mainID;
+                              query.ParamByName('FIELD').Value := 'TURNDELAY';
+                              query.ParamByName('VALUE').Value := propertyDictionary['Turncost'];
+                              query.ExecSQL;
+                              adjustedIDs.Add(mainID, actionNew);
+                            end;
+                          end;
+                        end;
+                      end;
+                    end;
+                  finally
+                    query.Free;
+                  end;
+                  oraSession.Commit;
+                except
+                  adjustedIDs.Clear;
+                  oraSession.Rollback;
+                end;
+                publishEventName := OraSession.Username + '.GENE_CONTROL';
+                table := GetTableSync('GENE_CONTROL');
+                publishEvent := IMB3Connection.publish(publishEventName, false);
+                try
+                  for adjustedID in adjustedIDs.Keys do
+                  begin
+                    publishEvent.SignalChangeObject(adjustedIDs[adjustedID], adjustedID);
+                    table.SendAnonymousEvent(adjustedIDs[adjustedID], adjustedID);
+                  end;
+                finally
+                  publishEvent.UnPublish();
+                end;
+              end;
+            end;
+          finally
+            objects.Free;
+          end;
+        finally
+          propertyDictionary.Free;
+        end;
+      end;
+    finally
+      FreeAndNil(adjustedIDs);
     end;
   end;
 end;
@@ -3606,13 +4149,14 @@ var
   controlActive, controlID: Integer;
   payloadArray: TJSONArray;
   scenario: TUSScenario;
-  oraSession: TOraSession;
-  queryText: string;
-  publishEventName: string;
-  publishEvent: TIMBEventEntry;
+//  oraSession: TOraSession;
+//  queryText: string;
+//  publishEventName: string;
+//  publishEvent: TIMBEventEntry;
   scenarioID: Integer;
   baseScenario: TScenario;
   requestID, requestType, responseJSON: string;
+//  table: TSubscribeObject;
 begin
   inherited;
   if aJSONObject.TryGetValue<TJSONValue>('payload', payloadValue) then
@@ -3623,24 +4167,29 @@ begin
       if Assigned(aClient.currentScenario) and (aClient.currentScenario is TUSScenario) then
       begin
         scenario := aClient.currentScenario as TUSScenario;
-        oraSession := fDBConnection as TOraSession;
-        queryText := 'update ' + scenario.Tableprefix + 'GENE_CONTROL ' +
-                        'set active = :A where OBJECT_ID = :B';
-        publishEventName := oraSession.Username + '#' + scenario.Name + '.GENE_CONTROL';
-        publishEvent := IMB3Connection.publish(publishEventName, false);
-        try
-          for jsonArrayItem in payloadArray do
+        for jsonArrayItem in payloadArray do
           if jsonArrayItem.TryGetValue<Integer>('id', controlID) and jsonArrayItem.TryGetValue<Integer>('active', controlActive) then
           begin
-            oraSession.ExecSQL(queryText, [controlActive, controlID]);
-            oraSession.Commit;
-            publishEvent.SignalChangeObject(actionChange, controlID, 'ACTIVE');
-            if Assigned(aClient.currentScenario) and (aClient.currentScenario is TUSScenario) then
-              (aClient.currentScenario as TUSScenario).ChangeUSControl(actionChange, controlID, 'control', 'Value');
+            scenario.UpsertUSControlStatus(controlID, controlActive);
           end;
-        finally
-          publishEvent.UnPublish;
-        end;
+//        oraSession := fDBConnection as TOraSession;
+//        queryText := 'update ' + scenario.Tableprefix + 'GENE_CONTROL ' +
+//                        'set active = :A where OBJECT_ID = :B';
+//        publishEventName := oraSession.Username + '#' + scenario.Name + '.GENE_CONTROL';
+//        table := GetTableSync(publishEventName);
+//        publishEvent := IMB3Connection.publish(publishEventName, false);
+//        try
+//          for jsonArrayItem in payloadArray do
+//          if jsonArrayItem.TryGetValue<Integer>('id', controlID) and jsonArrayItem.TryGetValue<Integer>('active', controlActive) then
+//          begin
+//            oraSession.ExecSQL(queryText, [controlActive, controlID]);
+//            oraSession.Commit;
+//            publishEvent.SignalChangeObject(actionChange, controlID, 'ACTIVE');
+//            table.SendAnonymousEvent(actionChange, controlID);
+//          end;
+//        finally
+//          publishEvent.UnPublish;
+//        end;
       end;
     end
     else if (aMessageType = 'copyScenario') and payloadValue.TryGetValue<Integer>('scenario', scenarioID) then
@@ -3862,7 +4411,7 @@ begin
     query := TOraQuery.Create(nil);
     try
       query.Session := OraSession;
-      query.SQL.Text := 'SELECT OBJECT_ID, NAME, DESCRIPTION, Y, X FROM ' + Table;
+      query.SQL.Text := 'SELECT OBJECT_ID, NAME, DESCRIPTION, Y, X FROM ' + Table + ' WHERE PARENT_ID is NULL';
       query.Open;
       try
         TMonitor.Enter(fUSControls);
@@ -3884,6 +4433,12 @@ begin
     end;
   end;
   //TODO: Subscribe to IMB updates
+end;
+
+procedure TUSProject.SendInternalTableUpdate(const aUSTableName: string;
+  aAction, aObjectID: Integer);
+begin
+  GetTableSync(aUSTableName).SendAnonymousEvent(aAction, aObjectID);
 end;
 
 function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView; const aProjectID: string = ''): TMapView;
@@ -5976,6 +6531,41 @@ end;
 
 { TUSControlsLayer }
 
+//procedure TUSControlsLayer.changeActive(const aControlID, aActive: Integer);
+//var
+//  oraSession: TOraSession;
+//  queryText, publishEventName: string;
+//  publishEvent: TIMBEventEntry;
+//  table: TSubscribeObject;
+//  project: TUSProject;
+//begin
+//  project := (scenario.project as TUSProject);
+//  oraSession := project.OraSession;
+//
+//  //this query will do an upsert in Oracle
+//  queryText :=  'MERGE INTO ' + (scenario as TUSScenario).fTableprefix + 'GENE_CONTROL t1' +
+//                  ' using (SELECT :ID as OBJECT_ID, :ACTIVE as ACTIVE FROM dual) t2' +
+//                ' ON' +
+//                  ' (t1.OBJECT_ID = t2.OBJECT_ID)' +
+//                ' WHEN MATCHED then' +
+//                  ' UPDATE SET ACTIVE = t2.ACTIVE' +
+//                ' WHEN not matched then' +
+//                  ' INSERT (OBJECT_ID, ACTIVE)' +
+//                  ' VALUES (:ID, :ACTIVE)';
+//  oraSession.ExecSQL(queryText, [aControlID, aActive]);
+//  oraSession.Commit;
+//
+//  publishEventName := oraSession.Username + '#' + scenario.Name + '.GENE_CONTROL';
+//  table := project.GetTableSync(publishEventName);
+//  publishEvent := project.IMB3Connection.publish(publishEventName, false);
+//  try
+//    publishEvent.SignalChangeObject(actionChange, aControlID, 'ACTIVE');
+//    table.SendAnonymousEvent(actionChange, aControlID);
+//  finally
+//    publishEvent.UnPublish();
+//  end;
+//end;
+
 constructor TUSControlsLayer.Create(aScenario: TUSScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
   const aConnectString: string; aSourceProjection: TGIS_CSProjectedCoordinateSystem);
 begin
@@ -6014,7 +6604,7 @@ begin
   fUpdateThread.NameThreadForDebugging(Scenario.ID + 'TUSControlsLayer queue handler');
   fUpdateThread.FreeOnTerminate := False;
   fUpdateThread.Start;
-  fGlobalEvent := aScenario.IMBConnection.Subscribe(fOraSession.Username + '.GENE_CONTROL', False);
+  fGlobalEvent := aScenario.IMBConnection.Subscribe((scenario.project as TUSProject).OraSession.Username + '.GENE_CONTROL', False);
   fScenarioEvent := aScenario.IMBConnection.Subscribe(aScenario.Federation + '.GENE_CONTROL', False);
   fGlobalEvent.OnChangeObject := handleChangeObject;
   fScenarioEvent.OnChangeObject := handleChangeObject;
@@ -6056,6 +6646,42 @@ begin
     end
   finally
     TMonitor.Exit(fUpdateQueueEvent);
+  end;
+end;
+
+procedure TUSControlsLayer.handleUpdateLayerObject(aClient: TClient;
+  aPayload: TJSONObject);
+var
+  objectID: string;
+  controlID: Integer;
+  contextmenuClick: TJsonObject;
+  tag: string;
+begin
+  objectID := aPayload.GetValue<string>('objectid');
+  if Integer.TryParse(objectID, controlID) then
+  begin
+    if aPayload.TryGetValue<TJsonObject>('contextmenuClick', contextmenuclick)
+      and contextmenuclick.TryGetValue<string>('tag', tag) then
+    begin
+      if tag = tagEnable then
+      begin
+        (scenario as TUSScenario).UpsertUSControlStatus(controlID, 1);
+      end
+      else if tag = tagDisable then
+      begin
+        (scenario as TUSScenario).UpsertUSControlStatus(controlID, 0);
+      end
+      else if tag = tagProperties then
+      begin
+
+      end
+      else if tag = tagRemove then
+      begin
+
+      end;
+    end
+    else
+      inherited;
   end;
 end;
 
@@ -6276,6 +6902,7 @@ begin
   fActive := aActive;
   fName := aName;
   fDescription := aDescription;
+  fID := aID;
   inherited Create(aSimpleLayer, aID, 'L.marker', aGeometry, gtPoint,
           [
              [sojnIcon, getIconJSON],
@@ -6299,10 +6926,10 @@ var
   contextOption: string;
 begin
   if Active <> 0 then
-    contextOption := 'Disable'
+    contextOption := tagDisable
   else
-    contextOption := 'Enable';
-  Result := '[{"text": "' + contextOption + '","index": 0, "tag":"'+id+'"},{"text": "Properties","index": 1, "tag":"'+id+'"},{"text": "Remove","index": 2, "tag":"'+id+'"}]'
+    contextOption := tagEnable;
+  Result := '[{"text": "' + contextOption + '","index": 0, "tag":"'+contextOption+'"},{"text": "Properties","index": 1, "tag":"'+tagProperties+'"},{"text": "Remove","index": 2, "tag":"'+tagRemove+'"}]'
 end;
 
 function TUSControlObject.getIconJSON: string;
@@ -6315,7 +6942,7 @@ end;
 
 function TUSControlObject.getTooltipJSON: string;
 begin
-  Result := '"' + Description + '"';
+  Result := '"' + ID + ': ' + description + '"';
 end;
 
 end.

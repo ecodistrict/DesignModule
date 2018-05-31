@@ -368,7 +368,7 @@ LayerManager.SimpleObject = function (data, layergroup) {
     this.fixupOptions = function (options) {
         // icon
         if (typeof options.icon !== 'undefined') {
-            var icon = L.icon(data.options.icon);
+            var icon = L.icon(options.icon);
             options.icon = icon;
         }
         if (typeof options.contextmenuItems !== 'undefined') {
@@ -408,6 +408,7 @@ LayerManager.SimpleObject = function (data, layergroup) {
                 });
             });
         }
+        
         // fixup tooltip
         if (typeof data.tooltip !== 'undefined') {
             if (typeof data.tooltip.options !== 'undefined') {
@@ -455,12 +456,16 @@ LayerManager.SimpleObject = function (data, layergroup) {
             // first fixup
             this.fixupOptions(data.options);
             // apply new options
-
-            if (typeof data.options.icon !== "undefined") {
-                this.object.setIcon(data.options.icon);
-            }
             if (typeof this.object.setStyle !== "undefined") //setStyle not available for all objects
                 this.object.setStyle(data.options);
+            else {
+                if (typeof data.options.icon !== "undefined") {
+                    this.object.setIcon(data.options.icon);
+                }
+                if (typeof data.options.contextmenuItems !== "undefined") {
+                    this.object.options.contextmenuItems = data.options.contextmenuItems;
+                }
+            }
         }
         // other properties
         this.fixupOtherProperties(data);

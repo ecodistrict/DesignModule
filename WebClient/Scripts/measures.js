@@ -243,9 +243,25 @@ L.Control.Measures = L.Control.extend({
                         modalDialogClose();
                         // open parameters dialog
                         var dialogDiv = modalDialogCreate("Measure parameters", 'Parameters of the selected measure');
-                        showMeasureProperties(dialogDiv, selectedRadio.parameters);
-                        // todo: add handler function here somewhere..
 
+                        var measure = {};
+                        measure.properties = [];
+                        for (var i = 0; i < selectedRadio.parameters.properties.length; i++)
+                        {
+                            var prop = selectedRadio.parameters.properties[i];
+                            var newProp = {};
+                            for (var key in prop)
+                                newProp[key] = prop[key];
+                            measure.properties.push(newProp);
+                        }
+                        measure.measureID = selectedRadio.value;
+                        var pos = map.getCenter();
+                        measure.lat = pos.lat;
+                        measure.lon = pos.lng;
+                        measure.selectCategories = measuresControl.options.selectCategories;
+                        measure.selectedObjects = getSelectedObjects();
+                        showMeasureProperties(dialogDiv, measure);
+                        // todo: add handler function here somewhere..
                     }
                 }
             });

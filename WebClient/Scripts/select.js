@@ -46,8 +46,11 @@ function showSelectedObjectsProperties(container, data) {
 
     tableContainer.id = "attributesContainer";
 
-    buildAttributesTable(tableContainer);
+    var buttonContainer = buildAttributesTable(tableContainer);
     // attribute names are used as rows
+
+    modelDialogAddButton(buttonContainer, "Cancel", modalDialogClose);
+    modelDialogAddButton(buttonContainer, "Apply", function () { return ApplyNewProperties("applyObjectsProperties", false); });
 }
 
 function showMeasureProperties(container, data) {
@@ -67,8 +70,12 @@ function showMeasureProperties(container, data) {
 
     tableContainer.id = "attributesContainer";
 
-    buildAttributesTable(tableContainer);
+    var buttonContainer = buildAttributesTable(tableContainer);
     // attribute names are used as rows
+ 
+
+    modelDialogAddButton(buttonContainer, "Cancel", modalDialogClose);
+    modelDialogAddButton(buttonContainer, "Apply", function () { return ApplyNewProperties("applyMeasureProperties", true); });
 }
 
 function buildAttributesTable(container) {
@@ -84,11 +91,10 @@ function buildAttributesTable(container) {
     var buttonContainer = container.appendChild(document.createElement("div"));
     buttonContainer.className = 'modalDialogDevideButtons';
 
-    modelDialogAddButton(buttonContainer, "Cancel", modalDialogClose);
-    modelDialogAddButton(buttonContainer, "Apply", ApplyNewProperties);
+    return buttonContainer;
 }
 
-function ApplyNewProperties() {
+function ApplyNewProperties(type, sendAll) {
     var changes = false;
     var properties = objProps.properties;
     objProps.properties = [];
@@ -97,37 +103,40 @@ function ApplyNewProperties() {
 
         var table = propertiesTables[properties[i].id];
 
-        var inputNode = table.querySelectorAll("input")[0];
+        if (typeof table !== "undefined") {
 
-        if (typeof inputNode !== "undefined") {
-            if (inputNode.type != "checkbox") {
-                if (!(properties[i].value == null && inputNode.value == "") && properties[i].value != inputNode.value) {
-                    changes = true;
+            var inputNode = table.querySelectorAll("input")[0];
 
-                    switch (properties[i].type) {
-                        case "int": properties[i].value = parseInt(inputNode.value);
-                            break;
-                        case "float": properties[i].value = parseFloat(inputNode.value);
-                            break;
-                        default: properties[i].value = inputNode.value;
-                            break;
+            if (typeof inputNode !== "undefined") {
+                if (inputNode.type != "checkbox") {
+                    if (sendAll || (!(properties[i].value == null && inputNode.value == "") && properties[i].value != inputNode.value)) {
+                        changes = true;
+
+                        switch (properties[i].type) {
+                            case "int": properties[i].value = parseInt(inputNode.value);
+                                break;
+                            case "float": properties[i].value = parseFloat(inputNode.value);
+                                break;
+                                default: properties[i].value = inputNode.value;
+                                break;
+                        }
+
+                        objProps.properties.push(properties[i]);
                     }
-
+                }
+                else if (inputNode.checked != BoolParse(properties[i].value)) {
+                    changes = true;
+                    properties[i].value = inputNode.checked;
                     objProps.properties.push(properties[i]);
                 }
             }
-            else if (inputNode.checked != BoolParse(properties[i].value)) {
-                changes = true;
-                properties[i].value = inputNode.checked;
-                objProps.properties.push(properties[i]);
-            }
-        }
-        else {
-            inputNode = table.querySelectorAll("select")[0];
-            if (properties[i].value != inputNode.options[inputNode.selectedIndex].value) {
-                changes = true;
-                properties[i].value = inputNode.options[inputNode.selectedIndex].value;
-                objProps.properties.push(properties[i]);
+            else {
+                inputNode = table.querySelectorAll("select")[0];
+                if (properties[i].value != inputNode.options[inputNode.selectedIndex].value) {
+                    changes = true;
+                    properties[i].value = inputNode.options[inputNode.selectedIndex].value;
+                    objProps.properties.push(properties[i]);
+                }
             }
         }
 
@@ -137,7 +146,7 @@ function ApplyNewProperties() {
         // send to Server (publishing server)
 
         var request = {};
-        request.applyObjectsProperties = objProps;
+        request[type] = objProps;
         // todo: NEW MESSAGE FORMAT
         wsSend(request);
     }
