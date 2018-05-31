@@ -243,25 +243,35 @@ L.Control.Measures = L.Control.extend({
                         modalDialogClose();
                         // open parameters dialog
                         var dialogDiv = modalDialogCreate("Measure parameters", 'Parameters of the selected measure');
-
-                        var measure = {};
-                        measure.properties = [];
-                        for (var i = 0; i < selectedRadio.parameters.properties.length; i++)
-                        {
-                            var prop = selectedRadio.parameters.properties[i];
-                            var newProp = {};
-                            for (var key in prop)
-                                newProp[key] = prop[key];
-                            measure.properties.push(newProp);
-                        }
-                        measure.measureID = selectedRadio.value;
-                        var pos = map.getCenter();
-                        measure.lat = pos.lat;
-                        measure.lon = pos.lng;
-                        measure.selectCategories = measuresControl.options.selectCategories;
-                        measure.selectedObjects = getSelectedObjects();
-                        showMeasureProperties(dialogDiv, measure);
-                        // todo: add handler function here somewhere..
+                        buildAttributesEditDialog(dialogDiv, { selectedObjectsProperties: selectedRadio.parameters }, function (e) {
+                            // todo: apply parameter values
+                            var parameters = GetEditedAttributes();
+                            _this._measuresHistory.addMeasure(
+                                {
+                                    id: selectedRadio.value,
+                                    name: selectedRadio.action,
+                                    description: selectedRadio.title,
+                                    measure: measureDefinition.measure,
+                                    parameters: parameters
+                                },
+                                getSelectedObjects(),
+                                _this.options.selectCategories
+                            );
+                            wsSend({
+                                type: 'measure',
+                                payload: {
+                                    apply: {
+                                        id: selectedRadio.value,
+                                        name: selectedRadio.action,
+                                        description: selectedRadio.title,
+                                        measure: measureDefinition.measure,
+                                        parameters: parameters
+                                    }
+                                }
+                            });
+                            _this._collapse();
+                            modalDialogClose();
+                        });
                     }
                 }
             });
