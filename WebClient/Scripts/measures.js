@@ -243,16 +243,30 @@ L.Control.Measures = L.Control.extend({
                         modalDialogClose();
                         // open parameters dialog
                         var dialogDiv = modalDialogCreate("Measure parameters", 'Parameters of the selected measure');
-                        buildAttributesEditDialog(dialogDiv, { selectedObjectsProperties: selectedRadio.parameters }, function (e) {
+                        var measureObject = {};
+                        measureObject.properties = [];
+                        for (var i = 0; i < selectedRadio.parameters.properties.length; i++) { //copy parameters so orrigional stay the same
+                            var newProp = {};
+                            for (key in selectedRadio.parameters.properties[i])
+                                newProp[key] = selectedRadio.parameters.properties[i][key];
+                            measureObject.properties.push(newProp);
+                        }
+                                
+                        buildAttributesEditDialog(dialogDiv, { selectedObjectsProperties: measureObject }, function (e) {
                             // todo: apply parameter values
                             var parameters = GetEditedAttributes();
+                            var pos = map.getCenter();
+                            var selectedObjects = getSelectedObjects();
+                            var selectCategories = _this.options.selectCategories;
                             _this._measuresHistory.addMeasure(
                                 {
                                     id: selectedRadio.value,
                                     name: selectedRadio.action,
                                     description: selectedRadio.title,
                                     measure: measureDefinition.measure,
-                                    parameters: parameters
+                                    parameters: parameters,
+                                    lat: pos.lat,
+                                    lon: pos.lng
                                 },
                                 getSelectedObjects(),
                                 _this.options.selectCategories
@@ -265,7 +279,11 @@ L.Control.Measures = L.Control.extend({
                                         name: selectedRadio.action,
                                         description: selectedRadio.title,
                                         measure: measureDefinition.measure,
-                                        parameters: parameters
+                                        parameters: parameters,
+                                        lat: pos.lat,
+                                        lon: pos.lng,
+                                        selectedObjects: selectedObjects,
+                                        selectCategories: selectCategories
                                     }
                                 }
                             });

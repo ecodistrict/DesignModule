@@ -767,6 +767,7 @@ type
     procedure HandleControlsUpdate(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
     procedure handleInternalControlsChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
     procedure HandleControlsQueueEvent();
+    procedure HandleClientMeasureMessage(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject);
   public
     function GetTableSync(const aUSTableName: string): TSubscribeObject;
     procedure SendInternalTableUpdate(const aUSTableName: string; aAction, aObjectID: Integer);
@@ -3218,6 +3219,7 @@ begin
           '.GENE_CONTROL', False);
   fControlsUpdateEvent.OnChangeObject := HandleControlsUpdate;
   SubscribeTo(GetTableSync('GENE_CONTROL'), handleInternalControlsChange);
+  clientMessageHandlers.AddOrSetValue('measure', HandleClientMeasureMessage);
 end;
 
 destructor TUSProject.Destroy;
@@ -3373,27 +3375,21 @@ begin
   Result := '{"controls":' + ControlsJSON + ', "scenarios":' + ScenariosJSON + '}';
 end;
 
-procedure TUSProject.handleClientMessage(aClient: TClient; aScenario: TScenario;
-  aJSONObject: TJSONObject);
+procedure TUSProject.HandleClientMeasureMessage(aProject: TProject;
+  aClient: TClient; const aType: string; aPayload: TJSONObject);
 var
-  jsonMeasures, selectCategories, selectedObjects: TJSONArray;
-  jsonMeasure, jsonArrayItem, jsonValue, jsonProperty: TJSONValue;
-  jsonStringValue, selectCategoriesString, selectedObjectsString: string;
-  responseJSON, requestType, requestID: string;
-  baseLayer: TLayerBase;
-  selectionLayer: TUSBasicLayer;
-//  jsonSelectedCategories: TJSONArray;
+  applyObject: TJSONObject;
+  selectCategories, selectedObjects: TJSONArray;
+  jsonArrayItem, jsonProperty: TJSONValue;
   jsonProperties: TJSONArray;
-  commitBuilder: TUSCommitBuilder;
-  changedCount: Integer;
   id, propID, propValue: string;
   point: TGIS_Point;
   lat, lon: Double;
   measure: TMeasureAction;
   propertyDictionary: TDictionary<string, string>;
   objects: TDictionary<string, Integer>;
-  foundLeft, foundRight, foundNormal: Boolean;
-  leftID, rightID, normalID, mainID, nextID, parentIDValue: Integer;
+  foundLeft, foundRight: Boolean;
+  leftID, rightID, mainID, curMaxID, parentIDValue: Integer;
   query: TOraQuery;
   controlName, controlDescription: string;
   adjustedIDs: TDictionary<Integer, Integer>;
@@ -3408,92 +3404,19 @@ var
   connectedRoads: Boolean;
   roadTableName, turncostTableName: string;
 begin
-  inherited;
-  if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
-  begin
-    for jsonMeasure in jsonMeasures do
-      begin
-        selectCategoriesString := '';
-        if jsonMeasure.TryGetValue('selectCategories', selectCategories) then
-        begin
-          for jsonArrayItem in selectCategories do
-            if jsonArrayItem.TryGetValue<string>(jsonStringValue) then
-            begin
-              if selectCategoriesString <> '' then
-                selectCategoriesString := selectCategoriesString + ', ';
-              selectCategoriesString := selectCategoriesString + jsonStringValue;
-            end;
-        end;
-        selectedObjectsString := '';
-        if jsonMeasure.TryGetValue('selectedObjects', selectedObjects) then
-        begin
-          for jsonArrayItem in selectedObjects do
-            if jsonArrayItem.TryGetValue<string>(jsonStringValue) then
-            begin
-              if selectedObjectsString <> '' then
-                selectedObjectsString := selectedObjectsString + ', ';
-              selectedObjectsString := selectedObjectsString + jsonStringValue;
-            end;
-        end;
-        //measureHistory := TMeasureHistory.Create();
-      end;
-  end;
-  if aJSONObject.TryGetValue<TJSONValue>('dialogDataRequest', jsonValue)
-    and jsonValue.TryGetValue('type', requestType)
-    and jsonValue.TryGetValue('id', requestID) then //TODO: make a seperate thread to handle data requests
-  begin
-    if requestType = 'controls' then
-    begin
-      responseJSON := getUSControlsJSON;
-      responseJSON := '{"type": "dialogDataResponse", "payload": { "data": ' + responseJSON +
-                          ', "id": "' + requestID + '"' +
-                          ', "type": "' + requestType + '" }}';
-      aClient.signalString(responseJSON);
-    end
-    else if (requestType = 'scenarioControls') and (aScenario is TUSScenario) then
-    begin
-      responseJSON := (aScenario as TUSScenario).GetUSControlsJSON;
-      responseJSON := '{"type": "dialogDataResponse", "payload": { "data": ' + responseJSON +
-                          ', "id": "' + requestID + '"' +
-                          ', "type": "' + requestType + '" }}';
-      aClient.signalString(responseJSON);
-    end;
-    //TODO: generate a response for unknown requestTypes? -> Requires work around for the inheritance fallthrough
-  end;
-  if aJSONObject.TryGetValue<TJSONValue>('applyObjectsProperties', jsonValue) then
-  begin
-    Log.WriteLn('Apply object properties');
-    if jsonValue.TryGetValue<TJSONArray>('selectedObjects', selectedObjects)
-      and jsonValue.TryGetValue<TJSONArray>('selectedCategories', selectCategories)
-      and (selectCategories.Count=1)
-      and aScenario.Layers.TryGetValue(selectCategories.Items[0].Value, baseLayer)
-      and (baseLayer is TUSBasicLayer) then
-    begin
-      selectionLayer := (baseLayer as TUSBasicLayer);
-      jsonProperties := jsonValue.GetValue<TJSONArray>('properties');
-      commitBuilder := TUSCommitBuilder.Create(selectionLayer.ObjectProperties, jsonProperties);
-      if commitBuilder.CommitChangesToDB(OraSession, IMB3Connection, selectedObjects, changedCount) then
-        aClient.SendMessage('Succesfully handled changes. Objects selected: ' + changedCount.toString, mtSucces, 10000)
-      else
-        aClient.SendMessage('Error applying changes to objects.', mtError);
-
-//      commitBuilder.ParseJSONProperties(jsonProperties);
-//      if commitBuilder.CommitChangesToDB(selectionLayer, OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
-//        aClient.SendMessage('Succesfully applied changes. Objects changed: ' + changedCount.toString, mtSucces, 10000)
-//      else
-//        aClient.SendMessage('Error applying changes. Objects changed before error: ' + changedCount.toString, mtError);
-    end;
-  end;
-  if aJSONObject.TryGetValue<TJSONValue>('applyMeasureProperties', jsonValue) then
+  if aPayload.TryGetValue<TJSONObject>('apply', applyObject) then
   begin
     adjustedIDs := TDictionary<Integer, Integer>.Create();
     try
-      if jsonValue.TryGetValue<string>('measureID', id) and FindMeasure(id, measure) and
-        jsonValue.TryGetValue<TJsonArray>('properties', jsonProperties) and
-        jsonValue.TryGetValue<Double>('lat', lat) and
-        jsonValue.TryGetValue<Double>('lon', lon) and
-        jsonValue.TryGetValue<TJSONArray>('selectedObjects', selectedObjects) and
-        jsonValue.TryGetValue<TJSONArray>('selectCategories', selectCategories) then
+      leftID := -1; //to prevent compiler warnings
+      rightID := -1;
+      mainID := -1;
+      if applyObject.TryGetValue<string>('id', id) and FindMeasure(id, measure) and
+        applyObject.TryGetValue<TJsonArray>('parameters', jsonProperties) and
+        applyObject.TryGetValue<Double>('lat', lat) and
+        applyObject.TryGetValue<Double>('lon', lon) and
+        applyObject.TryGetValue<TJSONArray>('selectedObjects', selectedObjects) and
+        applyObject.TryGetValue<TJSONArray>('selectCategories', selectCategories) then
       begin
         point.X := lon;
         point.Y := lat;
@@ -3516,7 +3439,6 @@ begin
           try
             foundLeft := False;
             foundRight := False;
-            foundNormal := False;
             for jsonArrayItem in selectedObjects do
             begin
               if jsonArrayItem.Value.StartsWith('L-') then
@@ -3531,7 +3453,7 @@ begin
               end
               else
               begin
-                foundNormal := True;
+                //todo: implement found normal -> when they require unsided properties
                 objects.AddOrSetValue(jsonArrayItem.Value, 0);
               end;
             end;
@@ -3546,11 +3468,11 @@ begin
                   query.Session := oraSession;
                   query.SQL.Text := 'LOCK TABLE GENE_CONTROL IN EXCLUSIVE MODE';
                   query.ExecSQL;
-                  query.SQL.Text := 'SELECT (MAX(OBJECT_ID) + 1) as NEWID FROM GENE_CONTROL';
+                  query.SQL.Text := 'SELECT MAX(OBJECT_ID) as NEWID FROM GENE_CONTROL';
                   query.ExecSQL;
                   if query.FindFirst then
                   begin
-                    nextID := query.FieldByName('NEWID').AsInteger;
+                    curMaxID := query.FieldByName('NEWID').AsInteger;
                     if propertyDictionary.ContainsKey('ParentID') then
                     begin
                       if Integer.TryParse(propertyDictionary['ParentID'], parentIDValue) then
@@ -3565,8 +3487,8 @@ begin
                           query.ParamByName('PARENT_ID').Value := parentIDValue;
                           if foundLeft then
                           begin
-                            leftID := nextID;
-                            nextID := nextID + 1;
+                            curMaxID := curMaxID + 1;
+                            leftID := curMaxID;
                             query.ParamByName('OBJECT_ID').Value := leftID;
                             if foundRight then
                             begin
@@ -3583,8 +3505,8 @@ begin
                           end;
                           if foundRight then
                           begin
-                            rightID := nextID;
-                            nextID := nextID + 1;
+                            curMaxID := curMaxID + 1;
+                            rightID := curMaxID;
                             query.ParamByName('OBJECT_ID').Value := rightID;
                             if foundLeft then
                             begin
@@ -3614,8 +3536,8 @@ begin
                         if foundLeft and foundRight then
                         begin
                           //create parent control
-                          mainID := nextID;
-                          nextID := nextID + 1;
+                          curMaxID := curMaxID + 1;
+                          mainID := curMaxID;
                           query.ParamByName('OBJECT_ID').Value := mainID;
                           query.ParamByName('NAME').Value := controlName;
                           query.ParamByName('DESCRIPTION').Value := controlDescription;
@@ -3623,8 +3545,8 @@ begin
                           query.ExecSQL;
                           adjustedIDs.Add(mainID, actionNew);
                           //create control left
-                          leftID := nextID;
-                          nextID := nextID + 1;
+                          curMaxID := curMaxID + 1;
+                          leftID := curMaxID;
                           query.ParamByName('OBJECT_ID').Value := leftID;
                           query.ParamByName('NAME').Value := controlName + '-L';
                           query.ParamByName('DESCRIPTION').Value := controlDescription + '-L';
@@ -3632,8 +3554,8 @@ begin
                           query.ExecSQL;
                           adjustedIDs.Add(leftID, actionNew);
                           //create control right
-                          rightID := nextID;
-                          nextID := nextID + 1;
+                          curMaxID := curMaxID + 1;
+                          rightID := curMaxID;
                           query.ParamByName('OBJECT_ID').Value := rightID;
                           query.ParamByName('NAME').Value := controlName + '-R';
                           query.ParamByName('DESCRIPTION').Value := controlDescription + '-R';
@@ -3643,8 +3565,8 @@ begin
                         end
                         else if foundLeft then
                         begin
-                          leftID := nextID;
-                          nextID := nextID + 1;
+                          curMaxID := curMaxID + 1;
+                          leftID := curMaxID;
                           query.ParamByName('OBJECT_ID').Value := leftID;
                           query.ParamByName('NAME').Value := controlName;
                           query.ParamByName('DESCRIPTION').Value := controlDescription;
@@ -3654,8 +3576,8 @@ begin
                         end
                         else if foundRight then
                         begin
-                          rightID := nextID;
-                          nextID := nextID + 1;
+                          curMaxID := curMaxID + 1;
+                          rightID := curMaxID;
                           query.ParamByName('OBJECT_ID').Value := rightID;
                           query.ParamByName('NAME').Value := controlName;
                           query.ParamByName('DESCRIPTION').Value := controlDescription;
@@ -3840,13 +3762,13 @@ begin
                             turncostID := query.FieldByName('OBJECT_ID').Value;
                             query.SQL.Text := 'LOCK TABLE GENE_CONTROL IN EXCLUSIVE MODE';
                             query.ExecSQL;
-                            query.SQL.Text := 'SELECT (MAX(OBJECT_ID) + 1) as NEWID FROM GENE_CONTROL';
+                            query.SQL.Text := 'SELECT MAX(OBJECT_ID) as NEWID FROM GENE_CONTROL';
                             query.ExecSQL;
                             if query.FindFirst then
                             begin
-                              nextID := query.FieldByName('NEWID').AsInteger;
-                              mainID := nextID;
-                              nextID := nextID + 1;
+                              curMaxID := query.FieldByName('NEWID').AsInteger;
+                              curMaxID := curMaxID + 1;
+                              mainID := curMaxID;
 
                               //insert control
                               query.SQL.Text := 'INSERT INTO GENE_CONTROL (OBJECT_ID, NAME, DESCRIPTION, X, Y, PARENT_ID) VALUES (:OBJECT_ID, :NAME, :DESCRIPTION, :X, :Y, :PARENT_ID)';
@@ -3888,6 +3810,7 @@ begin
                 except
                   adjustedIDs.Clear;
                   oraSession.Rollback;
+                  aClient.SendMessage('Error adding control', mtError, 10000);
                 end;
                 publishEventName := OraSession.Username + '.GENE_CONTROL';
                 table := GetTableSync('GENE_CONTROL');
@@ -3901,6 +3824,8 @@ begin
                 finally
                   publishEvent.UnPublish();
                 end;
+                if adjustedIDs.Count > 0 then
+                  aClient.SendMessage('Succesfully added control', mtSucces, 10000);
               end;
             end;
           finally
@@ -3912,6 +3837,97 @@ begin
       end;
     finally
       FreeAndNil(adjustedIDs);
+    end;
+  end;
+end;
+
+procedure TUSProject.handleClientMessage(aClient: TClient; aScenario: TScenario;
+  aJSONObject: TJSONObject);
+var
+  jsonMeasures, selectCategories, selectedObjects: TJSONArray;
+  jsonMeasure, jsonArrayItem, jsonValue: TJSONValue;
+  jsonStringValue, selectCategoriesString, selectedObjectsString: string;
+  responseJSON, requestType, requestID: string;
+  baseLayer: TLayerBase;
+  selectionLayer: TUSBasicLayer;
+  jsonProperties: TJSONArray;
+  commitBuilder: TUSCommitBuilder;
+  changedCount: Integer;
+begin
+  inherited;
+  if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
+  begin
+    for jsonMeasure in jsonMeasures do
+      begin
+        selectCategoriesString := '';
+        if jsonMeasure.TryGetValue('selectCategories', selectCategories) then
+        begin
+          for jsonArrayItem in selectCategories do
+            if jsonArrayItem.TryGetValue<string>(jsonStringValue) then
+            begin
+              if selectCategoriesString <> '' then
+                selectCategoriesString := selectCategoriesString + ', ';
+              selectCategoriesString := selectCategoriesString + jsonStringValue;
+            end;
+        end;
+        selectedObjectsString := '';
+        if jsonMeasure.TryGetValue('selectedObjects', selectedObjects) then
+        begin
+          for jsonArrayItem in selectedObjects do
+            if jsonArrayItem.TryGetValue<string>(jsonStringValue) then
+            begin
+              if selectedObjectsString <> '' then
+                selectedObjectsString := selectedObjectsString + ', ';
+              selectedObjectsString := selectedObjectsString + jsonStringValue;
+            end;
+        end;
+        //measureHistory := TMeasureHistory.Create();
+      end;
+  end;
+  if aJSONObject.TryGetValue<TJSONValue>('dialogDataRequest', jsonValue)
+    and jsonValue.TryGetValue('type', requestType)
+    and jsonValue.TryGetValue('id', requestID) then //TODO: make a seperate thread to handle data requests
+  begin
+    if requestType = 'controls' then
+    begin
+      responseJSON := getUSControlsJSON;
+      responseJSON := '{"type": "dialogDataResponse", "payload": { "data": ' + responseJSON +
+                          ', "id": "' + requestID + '"' +
+                          ', "type": "' + requestType + '" }}';
+      aClient.signalString(responseJSON);
+    end
+    else if (requestType = 'scenarioControls') and (aScenario is TUSScenario) then
+    begin
+      responseJSON := (aScenario as TUSScenario).GetUSControlsJSON;
+      responseJSON := '{"type": "dialogDataResponse", "payload": { "data": ' + responseJSON +
+                          ', "id": "' + requestID + '"' +
+                          ', "type": "' + requestType + '" }}';
+      aClient.signalString(responseJSON);
+    end;
+    //TODO: generate a response for unknown requestTypes? -> Requires work around for the inheritance fallthrough
+  end;
+  if aJSONObject.TryGetValue<TJSONValue>('applyObjectsProperties', jsonValue) then
+  begin
+    Log.WriteLn('Apply object properties');
+    if jsonValue.TryGetValue<TJSONArray>('selectedObjects', selectedObjects)
+      and jsonValue.TryGetValue<TJSONArray>('selectedCategories', selectCategories)
+      and (selectCategories.Count=1)
+      and aScenario.Layers.TryGetValue(selectCategories.Items[0].Value, baseLayer)
+      and (baseLayer is TUSBasicLayer) then
+    begin
+      selectionLayer := (baseLayer as TUSBasicLayer);
+      jsonProperties := jsonValue.GetValue<TJSONArray>('properties');
+      commitBuilder := TUSCommitBuilder.Create(selectionLayer.ObjectProperties, jsonProperties);
+      if commitBuilder.CommitChangesToDB(OraSession, IMB3Connection, selectedObjects, changedCount) then
+        aClient.SendMessage('Succesfully handled changes. Objects selected: ' + changedCount.toString, mtSucces, 10000)
+      else
+        aClient.SendMessage('Error applying changes to objects.', mtError);
+
+//      commitBuilder.ParseJSONProperties(jsonProperties);
+//      if commitBuilder.CommitChangesToDB(selectionLayer, OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
+//        aClient.SendMessage('Succesfully applied changes. Objects changed: ' + changedCount.toString, mtSucces, 10000)
+//      else
+//        aClient.SendMessage('Error applying changes. Objects changed before error: ' + changedCount.toString, mtError);
     end;
   end;
 end;
@@ -4095,7 +4111,22 @@ end;
 procedure TUSProject.handleInternalControlsChange(aSender: TSubscribeObject;
   const aAction, aObjectID: Integer);
 begin
-
+  TMonitor.Enter(fUpdateQueueEvent);
+  try
+    begin
+      try
+        fUpdateQueue.Add(TUSUpdateQueueEntry.Create(aObjectID, aAction));
+        fUpdateQueueEvent.SetEvent;
+      except
+        on e: Exception do
+        begin
+          Log.WriteLn('TUSProject.handleInternalControlsChange. objectid: ' + aObjectID.ToString + ', action: ' + aAction.ToString+': '+e.Message, llError);
+        end
+      end;
+    end
+  finally
+    TMonitor.Exit(fUpdateQueueEvent);
+  end;
 end;
 
 procedure TUSProject.handleTypedClientMessage(aClient: TClient;
@@ -4222,7 +4253,9 @@ begin
                             ', "type": "' + requestType + '" }}';
         aClient.signalString(responseJSON);
       end;
-    end;
+    end
+    else if True then
+
   end;
 end;
 
