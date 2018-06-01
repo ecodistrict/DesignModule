@@ -395,6 +395,7 @@ LayerManager.SimpleObject = function (data, layergroup) {
         // fixup handler for end of drag to signal bck to interface
         if (data.options && data.options.draggable) {
             this.object.on('dragend', function (e) {
+                //todo: stop propagation to prevent click on map from firing at the dragend -> upgrade to leaflet 1.3 to gain access to orrigional event
                 wsSend({
                     type: "updatelayerobject",
                     payload: {

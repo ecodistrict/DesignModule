@@ -6684,25 +6684,53 @@ end;
 
 procedure TUSControlsLayer.handleUpdateLayerObject(aClient: TClient;
   aPayload: TJSONObject);
+
+  procedure DeleteMultipleIDs(aQuery: TOraQuery; aDeleteIDs: string; aDeleteTables: TDictionary<string, string>);
+  var
+    key: string;
+  begin
+    for key in aDeleteTables.Keys do
+    begin
+      aQuery.SQL.Text := 'LOCK TABLE ' + key + ' IN EXCLUSIVE MODE';
+      aQuery.ExecSQL;
+      aQuery.SQL.Text := 'DELETE FROM ' + key + ' WHERE ' + aDeleteTables[key] + ' IN (' + aDeleteIDs + ')';
+      aQuery.ExecSQL;
+    end;
+  end;
+
 var
   objectID: string;
   controlID: Integer;
-  contextmenuClick: TJsonObject;
+  contextmenuClick: TJSONObject;
+  moveTo: TJSONObject;
   tag: string;
+  point: TGIS_Point;
+  query: TOraQuery;
+  publishEvent: TIMBEventEntry;
+  table: TSubscribeObject;
+  usProject: TUSProject;
+  usScenario: TUSScenario;
+  deleteIDs: TList<Integer>;
+  deleteTables: TDictionary<string, string>;
+  deleteString: string;
+  deleteID: Integer;
+  error: Boolean;
+  I: Integer;
 begin
-  objectID := aPayload.GetValue<string>('objectid');
-  if Integer.TryParse(objectID, controlID) then
+  usScenario := (scenario as TUSScenario);
+  usProject := (scenario.project as TUSProject);
+  if aPayload.TryGetValue<string>('objectid', objectID) and  Integer.TryParse(objectID, controlID) then
   begin
     if aPayload.TryGetValue<TJsonObject>('contextmenuClick', contextmenuclick)
       and contextmenuclick.TryGetValue<string>('tag', tag) then
     begin
       if tag = tagEnable then
       begin
-        (scenario as TUSScenario).UpsertUSControlStatus(controlID, 1);
+        usScenario.UpsertUSControlStatus(controlID, 1);
       end
       else if tag = tagDisable then
       begin
-        (scenario as TUSScenario).UpsertUSControlStatus(controlID, 0);
+        usScenario.UpsertUSControlStatus(controlID, 0);
       end
       else if tag = tagProperties then
       begin
@@ -6710,7 +6738,127 @@ begin
       end
       else if tag = tagRemove then
       begin
+        //remove control from gene_control, gene_control_object & gene_control_properties
+        //remove control from all scenario's...
+        //send updates
+        //in theory this could go wrong -> lock tables as we go along then commit after?
+        deleteIDs := TList<Integer>.Create;
+        try
+          error := False;
+          usProject.OraSession.StartTransaction;
+          try
+            query := TOraQuery.Create(nil);
+            try
+              query.Session := usProject.OraSession;
 
+              //lock the table
+              query.SQL.Text := 'LOCK TABLE GENE_CONTROL IN EXCLUSIVE MODE';
+              query.ExecSQL;
+
+              //read controls we have to delete from db, so we can process them all
+              deleteIDs.Add(controlID);
+              deleteString := controlID.ToString;
+              while deleteString <> '' do
+              begin
+                query.SQL.Text := 'SELECT OBJECT_ID FROM GENE_CONTROL WHERE PARENT_ID in (' + deleteString + ')';
+                deleteString := '';
+                query.ExecSQL;
+                while not query.EoF do
+                begin
+                  deleteID := query.FieldByName('OBJECT_ID').AsInteger;
+                  deleteIDs.Add(deleteID);
+                  if deleteString <> '' then
+                    deleteString := deleteString + ',';
+                  deleteString := deleteString + deleteID.ToString;
+                  query.Next;
+                end;
+              end;
+
+              deleteTables := TDictionary<string, string>.Create;
+              try
+                deleteTables.Add('GENE_CONTROL', 'OBJECT_ID');
+                deleteTables.Add('GENE_CONTROL_OBJECTS', 'CONTROL_ID');
+                deleteTables.Add('GENE_CONTROL_PROPERTIES', 'CONTROL_ID');
+
+                query.SQL.Text := 'SELECT TABLE_NAME FROM All_Tables WHERE OWNER=:OWNER and TABLE_NAME like :REG ORDER BY TABLE_NAME';
+                query.ParamByName('OWNER').Value := query.Session.username.ToUpper;
+                query.ParamByName('REG').Value := 'V%#GENE_CONTROL';
+                query.ExecSQL;
+                while not query.EoF do
+                begin
+                  deleteTables.Add(query.FieldByName('TABLE_NAME').AsString, 'OBJECT_ID');
+                  query.Next;
+                end;
+
+                deleteString := '';
+                for I := 0 to deleteIDs.Count - 1 do
+                begin
+                  if deleteString <> '' then
+                    deleteString := deleteString + ',';
+                  deleteString := deleteString + deleteIDs[I].ToString;
+                  if I mod 1000 = 999 then
+                  begin
+                    DeleteMultipleIDs(query, deleteString, deleteTables);
+                  end;
+                end;
+                if deleteString <> '' then
+                  DeleteMultipleIDs(query, deleteString, deleteTables);
+              finally
+                deleteTables.Free;
+              end;
+            finally
+              query.Free;
+            end;
+            usProject.OraSession.Commit;
+          except
+            error := True;
+            usProject.OraSession.Rollback;
+          end;
+          if not error then
+          begin
+            table := usProject.GetTableSync('GENE_CONTROL');
+            publishEvent := usProject.IMB3Connection.Publish(usProject.OraSession.Username + '.GENE_CONTROL', false);
+            try
+              for deleteID in deleteIDs do
+              begin
+                publishEvent.SignalChangeObject(actionDelete, deleteID);
+                table.SendAnonymousEvent(actionDelete, deleteID);
+              end;
+            finally
+              publishEvent.UnPublish;
+            end;
+          end;
+        finally
+          deleteIDs.Free;
+        end;
+      end;
+    end
+    else if aPayload.TryGetValue<TJsonObject>('moveto', moveTo) then
+    begin
+      if moveTo.TryGetValue<Double>('lat', point.Y) and moveTo.TryGetValue<Double>('lon', point.X) then
+      begin
+        point := fSourceProjection.FromGeocs(point);
+        query := TOraQuery.Create(nil);
+        try
+          query.Session := usProject.OraSession;
+          query.SQL.Text := 'UPDATE GENE_CONTROL SET X = :X, Y=:Y WHERE OBJECT_ID=:OBJECT_ID';
+          query.ParamByName('X').Value := point.X;
+          query.ParamByName('Y').Value := point.Y;
+          query.ParamByName('OBJECT_ID').Value := controlID;
+          query.ExecSQL;
+          query.Session.Commit;
+          table := usProject.GetTableSync('GENE_CONTROL');
+          publishEvent := usProject.IMB3Connection.Publish(query.Session.Username + '.GENE_CONTROL', false);
+          try
+            publishEvent.SignalChangeObject(actionChange, controlID, 'X');
+            publishEvent.SignalChangeObject(actionChange, controlID, 'Y');
+            table.SendAnonymousEvent(actionChange, controlID);
+          finally
+            publishEvent.UnPublish;
+          end;
+        finally
+          query.Free;
+        end;
       end;
     end
     else
