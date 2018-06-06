@@ -7279,6 +7279,7 @@ procedure TUSControlsLayer.UpdateQueuehandler;
               control.addOptionStructure(sojnIcon, control.getIconJSON);
               control.addOptionStructure(sojnContextMenuItems, control.getContextMenuJSON);
               control.addPropertyStructure(sojnTooltip, control.getTooltipJSON);
+              UpdateObject(control, sojnGeometry, control.jsonGeometryValue);
               UpdateObject(control, sojnTooltip, control.getTooltipJSON);
               UpdateObject(control, 'options', control.jsonOptionsValue);
             end

@@ -85,7 +85,7 @@ L.Control.Files = L.Control.extend({
         this._uploadButton = L.DomUtil.create('div', className + '-upload', form);
         var innerFileBrowse = L.DomUtil.create('input', 'button files-button', this._uploadButton);
         innerFileBrowse.type = 'file';
-        innerFileBrowse.multiple = true;
+        innerFileBrowse.multiple = true;    
         L.DomEvent.on(innerFileBrowse, "change", function (e) {
             this._uploadFiles(e.target.files);
         }, this);
@@ -238,8 +238,8 @@ L.Control.Files = L.Control.extend({
     },
 
     _expand: function () {
-
-        if (this.hasElements()) {
+        
+        if (this.hasElements() || true) { //Niek: don't we always want to expand for the upload option? -> or do we want to check whether uploads are available?
             L.DomUtil.addClass(this._container, 'leaflet-control-files-expanded');
             this._form.style.height = null;
             var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
