@@ -57,6 +57,7 @@ const
   tagEnable = 'Enable';
   tagDisable = 'Disable';
   tagProperties = 'Properties';
+  tagSelectObjects = 'SelectObjects';
   tagRemove = 'Remove';
 
 type
@@ -551,6 +552,19 @@ type
     function getTooltipJSON: string;
   end;
 
+  TUSControlProperties = class
+  constructor Create(const aControlID: Integer; aQuery: TOraQuery);
+  destructor Destroy; override;
+  private
+    fID: Integer;
+    fName: string;
+    fDescription: string;
+    fProperties: TDictionary<string, string>;
+    fChildren: TList<TUSControlProperties>;
+  public
+    function GetJSON: string;
+  end;
+
   TUSControlsLayer = class(TSimpleLayer)
   constructor Create(aScenario: TUSScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aConnectString: string; aSourceProjection: TGIS_CSProjectedCoordinateSystem);
@@ -565,6 +579,10 @@ type
     procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
     procedure handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
     //procedure changeActive(const aControlID, aActive: Integer);
+  private
+    function RemoveControl(aControlID: Integer): Boolean;
+    procedure SelectControlObjects(aClient: TClient; aControlID: Integer);
+    procedure ShowControlProperties(aClient: TClient; aControlID: Integer);
   protected
     fConnectString: string;
     fOraSession: TOraSession;
@@ -3378,12 +3396,16 @@ end;
 procedure TUSProject.HandleClientMeasureMessage(aProject: TProject;
   aClient: TClient; const aType: string; aPayload: TJSONObject);
 var
+  layer: TLayerBase;
+  basicLayer: TUSBasicLayer;
+  obj: TLayerObject;
+  geometry: TWDGeometry;
   applyObject: TJSONObject;
   selectCategories, selectedObjects: TJSONArray;
   jsonArrayItem, jsonProperty: TJSONValue;
   jsonProperties: TJSONArray;
   id, propID, propValue: string;
-  point: TGIS_Point;
+  point, point1, point2: TGIS_Point;
   lat, lon: Double;
   measure: TMeasureAction;
   propertyDictionary: TDictionary<string, string>;
@@ -3393,7 +3415,7 @@ var
   query: TOraQuery;
   controlName, controlDescription: string;
   adjustedIDs: TDictionary<Integer, Integer>;
-  adjustedID: Integer;
+  adjustedID, i, j: Integer;
   publishEvent: TIMBEventEntry;
   publishEventName: string;
   table: TSubscribeObject;
@@ -3444,17 +3466,20 @@ begin
               if jsonArrayItem.Value.StartsWith('L-') then
               begin
                 foundLeft := True;
-                objects.AddOrSetValue(jsonArrayItem.Value.Substring(2), -1);
+                id := jsonArrayItem.Value.Substring(2);
+                objects.AddOrSetValue(id, -1);
               end
               else if jsonArrayItem.Value.StartsWith('R-') then
               begin
                 foundRight := True;
-                objects.AddOrSetValue(jsonArrayItem.Value.Substring(2), 1);
+                id := jsonArrayItem.Value.Substring(2);
+                objects.AddOrSetValue(id, 1);
               end
               else
               begin
                 //todo: implement found normal -> when they require unsided properties
-                objects.AddOrSetValue(jsonArrayItem.Value, 0);
+                id := jsonArrayItem.Value;
+                objects.AddOrSetValue(id, 0);
               end;
             end;
             if (measure.actionID < -100) and (measure.actionID > -110) then
@@ -3466,6 +3491,54 @@ begin
                 query := TOraQuery.Create(nil);
                 try
                   query.Session := oraSession;
+
+                  if (objects.Count > 0) and (selectCategories.Count > 0) and Assigned(aClient.currentScenario) then
+                  begin
+                    TMonitor.Enter(aClient.currentScenario.Layers);
+                    try
+                      aClient.currentScenario.Layers.TryGetValue(selectCategories.Items[0].Value, layer);
+                    finally
+                      TMonitor.Exit(aClient.currentScenario.Layers);
+                    end;
+                    if Assigned(layer) and (layer is TUSBasicLayer) then
+                    begin
+                      basicLayer := (layer as TUSBasicLayer);
+                      basicLayer.objectsLock.BeginRead;
+                      try
+                        if basicLayer.objects.TryGetValue(AnsiString(id), obj) then
+                        begin
+                          if (obj is TGeometryLayerObject) then
+                          begin
+                            geometry := (obj as TGeometryLayerObject).geometry;
+                            if geometry.parts.Count > 0 then
+                            begin
+                              i := Ceil(geometry.parts.Count / 2) - 1;
+                              if geometry.parts[i].points.Count = 1 then
+                              begin
+                                point.X := geometry.parts[i].points[0].y;
+                                point.Y := geometry.parts[i].points[0].x;
+                                point := sourceProjection.FromGeocs(point);
+                              end
+                              else if geometry.parts[i].points.Count > 1 then
+                              begin
+                                j := Ceil(geometry.parts[i].points.Count / 2) - 1;
+                                point1.X := geometry.parts[i].points[j].x;
+                                point1.Y := geometry.parts[i].points[j].y;
+                                point2.X := geometry.parts[i].points[j+1].x;
+                                point2.Y := geometry.parts[i].points[j+1].y;
+                                point1 := sourceProjection.FromGeocs(point1);
+                                point2 := sourceProjection.FromGeocs(point2);
+                                point.X := (point1.X + point2.X) / 2;
+                                point.Y := (point1.Y + point2.Y) / 2;
+                              end;
+                            end;
+                          end;
+                        end;
+                      finally
+                        basicLayer.objectsLock.EndRead;
+                      end;
+                    end;
+                  end;
                   query.SQL.Text := 'LOCK TABLE GENE_CONTROL IN EXCLUSIVE MODE';
                   query.ExecSQL;
                   query.SQL.Text := 'SELECT MAX(OBJECT_ID) as NEWID FROM GENE_CONTROL';
@@ -3588,17 +3661,30 @@ begin
                       end
                     end;
                     //done making controls, now set objects
-                    query.SQL.Text := 'INSERT INTO GENE_CONTROL_OBJECTS (CONTROL_ID, OBJECT_ID, OBJECT_TABLE) VALUES (:CONTROL_ID, :OBJECT_ID, :OBJECT_TABLE)';
+                    query.SQL.Text := 'INSERT INTO GENE_CONTROL_OBJECTS (CONTROL_ID, OBJECT_ID, OBJECT_TABLE, SIDE, OBJECT_TYPE) VALUES (:CONTROL_ID, :OBJECT_ID, :OBJECT_TABLE, :SIDE, :OBJECT_TYPE)';
                     query.ParamByName('OBJECT_TABLE').Value := 'GENE_ROAD'; //for now can only use GENE_ROAD change when OTConnector is updated
+                    if selectCategories.Count > 0 then
+                      query.ParamByName('OBJECT_TYPE').Value := selectCategories.Items[0].Value
+                    else
+                      query.ParamByName('OBJECT_TYPE').Clear;
                     for id in objects.Keys do
                     begin
                       query.ParamByName('OBJECT_ID').Value := id;
                       if objects[id] = -1 then
-                        query.ParamByName('CONTROL_ID').Value := leftID
+                      begin
+                        query.ParamByName('CONTROL_ID').Value := leftID;
+                        query.ParamByName('SIDE').Value := -1;
+                      end
                       else if objects[id] = 1 then
-                        query.ParamByName('CONTROL_ID').Value := rightID
+                      begin
+                        query.ParamByName('CONTROL_ID').Value := rightID;
+                        query.ParamByName('SIDE').Value := 1;
+                      end
                       else
+                      begin
                         query.ParamByName('CONTROL_ID').Value := mainID;
+                        query.ParamByName('SIDE').Value := 0;
+                      end;
                       query.ExecSQL;
                     end;
                     //done writing objects, now set properties
@@ -3689,6 +3775,8 @@ begin
               finally
                 publishEvent.UnPublish();
               end;
+              if adjustedIDs.Count > 0 then
+                  aClient.SendMessage('Succesfully added control', mtSucces, 10000);
             end
             else if measure.actionID = -150 then
             begin
@@ -3752,6 +3840,43 @@ begin
                         end;
                         if connectedRoads then
                         begin
+                          TMonitor.Enter(aClient.currentScenario.Layers);
+                          try
+                            aClient.currentScenario.Layers.TryGetValue('road', layer);
+                          finally
+                            TMonitor.Exit(aClient.currentScenario.Layers);
+                          end;
+                          if Assigned(layer) and (layer is TUSBasicLayer) then
+                          begin
+                            basicLayer := (layer as TUSBasicLayer);
+                            basicLayer.objectsLock.BeginRead;
+                            try
+                              if basicLayer.objects.TryGetValue(AnsiString(fromID.ToString), obj) then
+                              begin
+                                if (obj is TGeometryLayerObject) then
+                                begin
+                                  geometry := (obj as TGeometryLayerObject).geometry;
+                                  if (geometry.parts.Count > 0) then
+                                  begin
+                                    if (fRoadfNode = nodeB) and (geometry.parts[0].points.Count > 0) then
+                                    begin
+                                      point.X := geometry.parts[0].points[0].x;
+                                      point.Y := geometry.parts[0].points[0].y;
+                                      point := sourceProjection.FromGeocs(point);
+                                    end
+                                    else if ((geometry.parts[geometry.parts.Count - 1].points.Count > 0)) then
+                                    begin
+                                      point.X := geometry.parts[geometry.parts.Count - 1].points[geometry.parts[geometry.parts.Count - 1].points.Count -1].x;
+                                      point.Y := geometry.parts[geometry.parts.Count - 1].points[geometry.parts[geometry.parts.Count - 1].points.Count -1].y;
+                                      point := sourceProjection.FromGeocs(point);
+                                    end;
+                                  end;
+                                end;
+                              end;
+                            finally
+                              basicLayer.objectsLock.EndRead;
+                            end;
+                          end;
                           query.SQL.Text := 'SELECT OBJECT_ID FROM ' + turncostTableName + ' WHERE NODE_A=:NODE_A AND NODE_B=:NODE_B AND NODE_C=:NODE_C';
                           query.ParamByName('NODE_A').Value := nodeA;
                           query.ParamByName('NODE_B').Value := nodeB;
@@ -3785,10 +3910,12 @@ begin
                               query.ExecSQL;
 
                               //insert control object
-                              query.SQL.Text := 'INSERT INTO GENE_CONTROL_OBJECTS (CONTROL_ID, OBJECT_ID, OBJECT_TABLE) VALUES (:CONTROL_ID, :OBJECT_ID, :OBJECT_TABLE)';
+                              query.SQL.Text := 'INSERT INTO GENE_CONTROL_OBJECTS (CONTROL_ID, OBJECT_ID, OBJECT_TABLE, SIDE, OBJECT_TYPE) VALUES (:CONTROL_ID, :OBJECT_ID, :OBJECT_TABLE, :SIDE, :OBJECT_TYPE)';
                               query.ParamByName('CONTROL_ID').Value := mainID;
                               query.ParamByName('OBJECT_ID').Value := turncostID;
                               query.ParamByName('OBJECT_TABLE').Value := 'GENE_ROAD'; //for now can only use GENE_ROAD change when OTConnector is updated
+                              query.ParamByName('SIDE').Value := 0;
+                              query.ParamByName('OBJECT_TYPE').Value := 'turncost';
                               query.ExecSQL;
 
                               //insert control property
@@ -6684,20 +6811,6 @@ end;
 
 procedure TUSControlsLayer.handleUpdateLayerObject(aClient: TClient;
   aPayload: TJSONObject);
-
-  procedure DeleteMultipleIDs(aQuery: TOraQuery; aDeleteIDs: string; aDeleteTables: TDictionary<string, string>);
-  var
-    key: string;
-  begin
-    for key in aDeleteTables.Keys do
-    begin
-      aQuery.SQL.Text := 'LOCK TABLE ' + key + ' IN EXCLUSIVE MODE';
-      aQuery.ExecSQL;
-      aQuery.SQL.Text := 'DELETE FROM ' + key + ' WHERE ' + aDeleteTables[key] + ' IN (' + aDeleteIDs + ')';
-      aQuery.ExecSQL;
-    end;
-  end;
-
 var
   objectID: string;
   controlID: Integer;
@@ -6710,12 +6823,6 @@ var
   table: TSubscribeObject;
   usProject: TUSProject;
   usScenario: TUSScenario;
-  deleteIDs: TList<Integer>;
-  deleteTables: TDictionary<string, string>;
-  deleteString: string;
-  deleteID: Integer;
-  error: Boolean;
-  I: Integer;
 begin
   usScenario := (scenario as TUSScenario);
   usProject := (scenario.project as TUSProject);
@@ -6734,103 +6841,15 @@ begin
       end
       else if tag = tagProperties then
       begin
-
+        ShowControlProperties(aClient, controlID);
+      end
+      else if tag = tagSelectObjects then
+      begin
+        SelectControlObjects(aClient, controlID);
       end
       else if tag = tagRemove then
       begin
-        //remove control from gene_control, gene_control_object & gene_control_properties
-        //remove control from all scenario's...
-        //send updates
-        //in theory this could go wrong -> lock tables as we go along then commit after?
-        deleteIDs := TList<Integer>.Create;
-        try
-          error := False;
-          usProject.OraSession.StartTransaction;
-          try
-            query := TOraQuery.Create(nil);
-            try
-              query.Session := usProject.OraSession;
-
-              //lock the table
-              query.SQL.Text := 'LOCK TABLE GENE_CONTROL IN EXCLUSIVE MODE';
-              query.ExecSQL;
-
-              //read controls we have to delete from db, so we can process them all
-              deleteIDs.Add(controlID);
-              deleteString := controlID.ToString;
-              while deleteString <> '' do
-              begin
-                query.SQL.Text := 'SELECT OBJECT_ID FROM GENE_CONTROL WHERE PARENT_ID in (' + deleteString + ')';
-                deleteString := '';
-                query.ExecSQL;
-                while not query.EoF do
-                begin
-                  deleteID := query.FieldByName('OBJECT_ID').AsInteger;
-                  deleteIDs.Add(deleteID);
-                  if deleteString <> '' then
-                    deleteString := deleteString + ',';
-                  deleteString := deleteString + deleteID.ToString;
-                  query.Next;
-                end;
-              end;
-
-              deleteTables := TDictionary<string, string>.Create;
-              try
-                deleteTables.Add('GENE_CONTROL', 'OBJECT_ID');
-                deleteTables.Add('GENE_CONTROL_OBJECTS', 'CONTROL_ID');
-                deleteTables.Add('GENE_CONTROL_PROPERTIES', 'CONTROL_ID');
-
-                query.SQL.Text := 'SELECT TABLE_NAME FROM All_Tables WHERE OWNER=:OWNER and TABLE_NAME like :REG ORDER BY TABLE_NAME';
-                query.ParamByName('OWNER').Value := query.Session.username.ToUpper;
-                query.ParamByName('REG').Value := 'V%#GENE_CONTROL';
-                query.ExecSQL;
-                while not query.EoF do
-                begin
-                  deleteTables.Add(query.FieldByName('TABLE_NAME').AsString, 'OBJECT_ID');
-                  query.Next;
-                end;
-
-                deleteString := '';
-                for I := 0 to deleteIDs.Count - 1 do
-                begin
-                  if deleteString <> '' then
-                    deleteString := deleteString + ',';
-                  deleteString := deleteString + deleteIDs[I].ToString;
-                  if I mod 1000 = 999 then
-                  begin
-                    DeleteMultipleIDs(query, deleteString, deleteTables);
-                  end;
-                end;
-                if deleteString <> '' then
-                  DeleteMultipleIDs(query, deleteString, deleteTables);
-              finally
-                deleteTables.Free;
-              end;
-            finally
-              query.Free;
-            end;
-            usProject.OraSession.Commit;
-          except
-            error := True;
-            usProject.OraSession.Rollback;
-          end;
-          if not error then
-          begin
-            table := usProject.GetTableSync('GENE_CONTROL');
-            publishEvent := usProject.IMB3Connection.Publish(usProject.OraSession.Username + '.GENE_CONTROL', false);
-            try
-              for deleteID in deleteIDs do
-              begin
-                publishEvent.SignalChangeObject(actionDelete, deleteID);
-                table.SendAnonymousEvent(actionDelete, deleteID);
-              end;
-            finally
-              publishEvent.UnPublish;
-            end;
-          end;
-        finally
-          deleteIDs.Free;
-        end;
+        RemoveControl(controlID);
       end;
     end
     else if aPayload.TryGetValue<TJsonObject>('moveto', moveTo) then
@@ -6912,6 +6931,294 @@ begin
           Self, id.ToString, p, name, description, active);
       AddObject(so, so.jsonNewObject);
       query.Next;
+    end;
+  finally
+    query.Free;
+  end;
+end;
+
+function TUSControlsLayer.RemoveControl(aControlID: Integer): Boolean;
+
+  procedure DeleteMultipleIDs(aQuery: TOraQuery; aDeleteIDs: string; aDeleteTables: TDictionary<string, string>);
+  var
+    key: string;
+  begin
+    for key in aDeleteTables.Keys do
+    begin
+      aQuery.SQL.Text := 'LOCK TABLE ' + key + ' IN EXCLUSIVE MODE';
+      aQuery.ExecSQL;
+      aQuery.SQL.Text := 'DELETE FROM ' + key + ' WHERE ' + aDeleteTables[key] + ' IN (' + aDeleteIDs + ')';
+      aQuery.ExecSQL;
+    end;
+  end;
+
+var
+  query: TOraQuery;
+  publishEvent: TIMBEventEntry;
+  table: TSubscribeObject;
+  usProject: TUSProject;
+  deleteIDs: TList<Integer>;
+  deleteTables: TDictionary<string, string>;
+  deleteString: string;
+  deleteID: Integer;
+  error: Boolean;
+  I: Integer;
+begin
+  Result := False;
+  deleteIDs := TList<Integer>.Create;
+  try
+    error := False;
+    usProject := ((scenario as TUSScenario).project as TUSProject);
+    usProject.OraSession.StartTransaction;
+    try
+      query := TOraQuery.Create(nil);
+      try
+        query.Session := usProject.OraSession;
+
+        //lock the table
+        query.SQL.Text := 'LOCK TABLE GENE_CONTROL IN EXCLUSIVE MODE';
+        query.ExecSQL;
+
+        //read controls we have to delete from db, so we can process them all
+        deleteIDs.Add(aControlID);
+        deleteString := aControlID.ToString;
+        while deleteString <> '' do
+        begin
+          query.SQL.Text := 'SELECT OBJECT_ID FROM GENE_CONTROL WHERE PARENT_ID in (' + deleteString + ')';
+          deleteString := '';
+          query.ExecSQL;
+          while not query.EoF do
+          begin
+            deleteID := query.FieldByName('OBJECT_ID').AsInteger;
+            deleteIDs.Add(deleteID);
+            if deleteString <> '' then
+              deleteString := deleteString + ',';
+            deleteString := deleteString + deleteID.ToString;
+            query.Next;
+          end;
+        end;
+
+        deleteTables := TDictionary<string, string>.Create;
+        try
+          deleteTables.Add('GENE_CONTROL', 'OBJECT_ID');
+          deleteTables.Add('GENE_CONTROL_OBJECTS', 'CONTROL_ID');
+          deleteTables.Add('GENE_CONTROL_PROPERTIES', 'CONTROL_ID');
+
+          query.SQL.Text := 'SELECT TABLE_NAME FROM All_Tables WHERE OWNER=:OWNER and TABLE_NAME like :REG ORDER BY TABLE_NAME';
+          query.ParamByName('OWNER').Value := query.Session.username.ToUpper;
+          query.ParamByName('REG').Value := 'V%#GENE_CONTROL';
+          query.ExecSQL;
+          while not query.EoF do
+          begin
+            deleteTables.Add(query.FieldByName('TABLE_NAME').AsString, 'OBJECT_ID');
+            query.Next;
+          end;
+
+          deleteString := '';
+          for I := 0 to deleteIDs.Count - 1 do
+          begin
+            if deleteString <> '' then
+              deleteString := deleteString + ',';
+            deleteString := deleteString + deleteIDs[I].ToString;
+            if I mod 1000 = 999 then
+            begin
+              DeleteMultipleIDs(query, deleteString, deleteTables);
+            end;
+          end;
+          if deleteString <> '' then
+            DeleteMultipleIDs(query, deleteString, deleteTables);
+        finally
+          deleteTables.Free;
+        end;
+      finally
+        query.Free;
+      end;
+      usProject.OraSession.Commit;
+    except
+      error := True;
+      usProject.OraSession.Rollback;
+    end;
+    if not error then
+    begin
+      table := usProject.GetTableSync('GENE_CONTROL');
+      publishEvent := usProject.IMB3Connection.Publish(usProject.OraSession.Username + '.GENE_CONTROL', false);
+      try
+        for deleteID in deleteIDs do
+        begin
+          publishEvent.SignalChangeObject(actionDelete, deleteID);
+          table.SendAnonymousEvent(actionDelete, deleteID);
+        end;
+      finally
+        publishEvent.UnPublish;
+      end;
+      Result := True;
+    end;
+  finally
+    deleteIDs.Free;
+  end;
+end;
+
+procedure TUSControlsLayer.SelectControlObjects(aClient: TClient;
+  aControlID: Integer);
+var
+  query: TOraQuery;
+  idsString, geoJSONString: string;
+  idsList: TList<string>;
+  id: string;
+  selectCategory: string;
+  objectIDs: TList<string>;
+  side: Integer;
+  valid: Boolean;
+  layer: TLayerBase;
+  basicLayer: TLayer;
+  layerObject: TLayerObject;
+begin
+  query := TOraQuery.Create(nil);
+  try
+    query.Session := ((Scenario as TUSScenario).project as TUSProject).OraSession;
+    idsList := TList<string>.Create;
+    try
+      objectIDs := TList<string>.Create;
+      try
+        idsList.Add(aControlID.ToString);
+        idsString := aControlID.ToString;
+        while idsString <> '' do
+        begin
+          query.SQL.Text := 'SELECT OBJECT_ID FROM GENE_CONTROL WHERE PARENT_ID in (' + idsString + ')';
+          idsString := '';
+          query.ExecSQL;
+          while not query.EoF do
+          begin
+            id := query.FieldByName('OBJECT_ID').AsString;
+            idsList.Add(id);
+            if idsString <> '' then
+              idsString := idsString + ',';
+            idsString := idsString + id;
+            query.Next;
+          end;
+        end;
+        for id in idsList do
+        begin
+          if idsString <> '' then
+            idsString := idsString + ',';
+          idsString := idsString + id;
+        end;
+        query.SQL.Text := 'SELECT OBJECT_ID, SIDE, OBJECT_TYPE FROM GENE_CONTROL_OBJECTS WHERE CONTROL_ID in (' + idsString + ')';
+        idsString := '';
+        geoJSONString := '';
+        basicLayer := nil;
+        valid := True;
+        query.ExecSQL;
+        while not query.EoF do
+        begin
+          if (selectCategory = '') or (query.FieldByName('OBJECT_TYPE').AsString = selectCategory) then
+          begin
+            if (selectCategory = '') and (query.FieldByName('OBJECT_TYPE').AsString <> '') then
+            begin
+              selectCategory := query.FieldByName('OBJECT_TYPE').AsString;
+              TMonitor.Enter(scenario.Layers);
+              try
+                if scenario.Layers.TryGetValue(selectCategory, layer) and layer.basicLayer and (layer is TLayer) then
+                begin
+                  basicLayer := (layer as TLayer);
+                end;
+              finally
+                TMonitor.Exit(scenario.Layers);
+              end;
+            end;
+            if Assigned(basicLayer) then
+            begin
+              id := query.FieldByName('OBJECT_ID').AsString;
+              basicLayer.objectsLock.BeginRead;
+              try
+                if not basicLayer.objects.TryGetValue(AnsiString(id), layerObject) then
+                  layerObject := nil;
+              finally
+                basicLayer.objectsLock.EndRead;
+              end;
+              if Assigned(layerObject) then
+              begin
+              if query.FieldByName('SIDE').IsNull then
+                begin
+                  if idsString <> '' then
+                    idsString := idsString + ',';
+                  idsString := idsString + '"' + id + '"';
+                  if geoJSONString <> '' then
+                    geoJSONString := geoJSONString + ',';
+                  geoJSONString := geoJSONString + layerObject.JSON2D[0, basicLayer.geometryType, ''];
+                end
+                else
+                begin
+                  side := query.FieldByName('SIDE').AsInteger;
+                  if geoJSONString <> '' then
+                    geoJSONString := geoJSONString + ',';
+                  geoJSONString := geoJSONString + layerObject.JSON2D[side, basicLayer.geometryType, ''];
+                  if side = -1 then
+                  begin
+                    if idsString <> '' then
+                      idsString := idsString + ',';
+                    idsString := idsString + '"L-' + id + '"';
+                  end
+                  else if side = 1 then
+                  begin
+                    if idsString <> '' then
+                      idsString := idsString + ',';
+                    idsString := idsString + '"R-' + id + '"';
+                  end
+                  else
+                  begin
+                    if idsString <> '' then
+                      idsString := idsString + ',';
+                    idsString := idsString + '"' + id + '"';
+                  end;
+                end;
+              end;
+            end;
+          end
+          else
+          begin
+            valid := False;
+            //todo: logging?
+          end;
+          query.Next;
+        end;
+        if valid and (idsString <> '') then
+        begin
+          aClient.signalString('{"type":"selectedObjects","payload":{"selectCategories":["'+selectCategory+'"],'+
+           '"mode":"=",'+
+           '"ids":['+idsString+'],'+
+           '"objects":['+geoJSONString+']}}');
+        end
+        else if valid then
+          aClient.SendMessage('Control {' + aControlID.ToString +  '} contains no objects', mtWarning, 10000)
+        else
+          aClient.SendMessage('Unable to select objects of control {' + aControlID.ToString + '}', mtError, 10000);
+      finally
+        objectIDs.Free;
+      end;
+    finally
+      idsList.Free;
+    end;
+  finally
+    query.Free;
+  end;
+
+end;
+
+procedure TUSControlsLayer.ShowControlProperties(aClient: TClient;
+  aControlID: Integer);
+var
+  controlProperties: TUSControlProperties;
+  query: TOraQuery;
+begin
+  query := TOraQuery.Create(nil);
+  try
+    query.Session := (Scenario.project as TUSProject).OraSession;
+    try
+      controlProperties := TUSControlProperties.Create(aControlID, query);
+      aClient.signalString('{"type":"controlProperties","payload":' + controlProperties.GetJSON + '}');
+    finally
+      FreeAndNil(controlProperties);
     end;
   finally
     query.Free;
@@ -7110,7 +7417,10 @@ begin
     contextOption := tagDisable
   else
     contextOption := tagEnable;
-  Result := '[{"text": "' + contextOption + '","index": 0, "tag":"'+contextOption+'"},{"text": "Properties","index": 1, "tag":"'+tagProperties+'"},{"text": "Remove","index": 2, "tag":"'+tagRemove+'"}]'
+  Result := '[{"text": "' + contextOption + '","index": 0, "tag":"'+contextOption+'"},' +
+              '{"text": "Properties","index": 1, "tag":"'+tagProperties+'"},' +
+              '{"text": "Select objects","index": 2, "tag":"'+tagSelectObjects+'"},' +
+              '{"text": "Remove","index": 3, "tag":"'+tagRemove+'"}]'
 end;
 
 function TUSControlObject.getIconJSON: string;
@@ -7124,6 +7434,99 @@ end;
 function TUSControlObject.getTooltipJSON: string;
 begin
   Result := '"' + ID + ': ' + description + '"';
+end;
+
+{ TUSControlProperties }
+
+constructor TUSControlProperties.Create(const aControlID: Integer;
+  aQuery: TOraQuery);
+var
+  childIDs: TList<Integer>;
+  field, value: string;
+  id: Integer;
+begin
+  fID := aControlID;
+  fProperties := TDictionary<string, string>.Create;
+  fChildren := TList<TUSControlProperties>.Create;
+
+  //read name & description
+  aQuery.SQL.Text := 'SELECT NAME, DESCRIPTION FROM GENE_CONTROL WHERE OBJECT_ID=:CONTROL_ID';
+  aQuery.ParamByName('CONTROL_ID').Value := aControlID;
+  aQuery.ExecSQL;
+  if aQuery.FindFirst then
+  begin
+    fName := aQuery.FieldByName('NAME').AsString;
+    fDescription := aQuery.FieldByName('DESCRIPTION').AsString;
+  end;
+
+  //read properties
+  aQuery.SQL.Text := 'SELECT FIELD, VALUE FROM GENE_CONTROL_PROPERTIES WHERE CONTROL_ID=:CONTROL_ID';
+  aQuery.ParamByName('CONTROL_ID').Value := aControlID;
+  aQuery.ExecSQL;
+  while not aQuery.EoF do
+  begin
+    field := aQuery.FieldByName('FIELD').AsString;
+    value := aQuery.FieldByName('VALUE').AsString;
+    fProperties.Add(field, value);
+    aQuery.Next;
+  end;
+
+  //read child controls
+  childIDs := TList<Integer>.Create;
+  try
+    aQuery.SQL.Text := 'SELECT OBJECT_ID FROM GENE_CONTROL WHERE PARENT_ID=:CONTROL_ID';
+    aQuery.ParamByName('CONTROL_ID').Value := aControlID;
+    aQuery.ExecSQL;
+    while not aQuery.EoF do
+    begin
+      id := aQuery.FieldByName('OBJECT_ID').AsInteger;
+      childIDs.Add(id);
+      aQuery.Next;
+    end;
+    for id in childIDs do
+    begin
+      fChildren.Add(TUSControlProperties.Create(id, aQuery));
+    end;
+  finally
+    childIDs.Free;
+  end;
+end;
+
+destructor TUSControlProperties.Destroy;
+begin
+  FreeAndNil(fChildren);
+  FreeAndNil(fProperties);
+  inherited;
+end;
+
+function TUSControlProperties.GetJSON: string;
+var
+  prop: string;
+  propertyString: string;
+  childString: string;
+  controlProperty: TUSControlProperties;
+begin
+  propertyString := '';
+  for prop in fProperties.Keys do
+  begin
+    if propertyString <> '' then
+      propertyString := propertyString + ',';
+    propertyString := propertyString + '{"field":"' + prop + '","value":"' + fProperties[prop] + '"}';
+  end;
+
+  childString := '';
+  for controlProperty in fChildren do
+  begin
+    if childString <> '' then
+      childString := childString + ',';
+    childString := childString + controlProperty.GetJSON;
+  end;
+
+  Result := '{"id":"' + fID.ToString + '",' +
+            '"name":"' + fName + '",' +
+            '"description":"' + fDescription + '",' +
+            '"properties":[' + propertyString + '],' +
+            '"children":[' + childString + ']}';
 end;
 
 end.
