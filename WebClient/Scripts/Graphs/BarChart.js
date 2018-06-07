@@ -23,6 +23,7 @@
     this.converted = false;
     this.titleMargin = 30;
     this.valueColors = this.graphObject.valueColors;
+    this.groupFilter = {};
 
     //public functions
     this.Initialize = function (container) {
@@ -587,26 +588,47 @@
 
                     var textField = row.appendChild(document.createElement("td"));
                     textField.className = "bar-label-text-td";
-                    textField.innerHTML = this.valueColors.entries[i].value;
+                    textField.innerHTML = name;       
                 }
             }
         }
         else if (this.seriesNames.length > 0)
         {
+            var chart = this;
             var table = this.labelDiv.appendChild(document.createElement("table"));
             table.className = "bar-label-table";
             for (var i = 0; i < this.seriesNames.length; i++) {
-                var name = this.seriesNames[i];
+                let name = this.seriesNames[i];
                 var row = table.appendChild(document.createElement("tr"));
                 row.className = "bar-label-row";
 
                 var colorField = row.appendChild(document.createElement("td"));
                 colorField.className = "bar-label-color-td";
-                colorField.style.backgroundColor = this._seriesToColor(this.seriesNames[i]);
+                if (!this.groupFilter[name])
+                    colorField.style.backgroundColor = this._seriesToColor(this.seriesNames[i]);
+                else {
+                    colorField.style.borderStyle = "solid";
+                    colorField.style.borderColor = this._seriesToColor(this.seriesNames[i]);
+                    colorField.style.borderWidth = "3px";
+                }
 
                 var textField = row.appendChild(document.createElement("td"));
                 textField.className = "bar-label-text-td";
                 textField.innerHTML = this.seriesNames[i];
+
+                row.addEventListener('click', function (e) {
+                    if (chart.groupFilter[name]) {
+                        chart.groupFilter[name] = false;
+                        chart.Update(chart._unconvertedData);
+                        chart._updateLabels();
+                    }
+                    else {
+                        chart.groupFilter[name] = true;
+                        chart.Update(chart._unconvertedData);
+                        chart._updateLabels();
+                    }
+                });
+                row.style.cursor = "pointer";
             }
         }
         else
@@ -731,17 +753,38 @@
 
     this._convertOldData = function (data)
     {
+        this._unconvertedData = JSON.parse(JSON.stringify(data)); //make deep copy!
+        //todo:
+        //store unconverted data
+        //filter the categories according to legend toggles
+        //rest should work?
         var newData = [];
 
         if (data.columns.length == 0)
             return newData;
 
         var categoryCount = data.columns[0].length - 1;
-
+        
         for (var i = 0; i < categoryCount; i++)
         {
-            newData.push({ title: data.columns[0][i+1], data: [] });
+            newData.push({ title: data.columns[0][i + 1], data: [] });
         }
+
+        //this.groupFilter[' Autosnelweg'] = true;
+
+        for (var i = data.columns.length - 1; i >= 0; i--)
+        {
+            if (this.groupFilter[data.columns[i][0]])
+                data.columns.splice(i, 1);
+        }
+
+        for (var i = data.groups.length - 1; i >= 0; i--)
+            for (var j = data.groups[i].length - 1; j >= 0; j--)
+                if (this.groupFilter[data.groups[i][j]]) {
+                    data.groups[i].splice(j, 1);
+                    if (data.groups[i].length == 0)
+                        data.groups.splice(i, 1);
+                }
 
 
         var stackbar = {};

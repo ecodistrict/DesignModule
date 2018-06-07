@@ -93,7 +93,6 @@ svg text { }
 
 .bar-label-table {
     margin: 5px;
-    pointer-events: none;
 }
 
 .bar-label-row {
@@ -101,8 +100,11 @@ svg text { }
 }
 
 .bar-label-color-td {
-    width: 15px;
-    min-width:15px;
+    width: 18px;
+    min-width: 18px;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
 }
 
 .bar-label-text-td {
