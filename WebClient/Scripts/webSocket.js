@@ -291,6 +291,21 @@ var wsLookup = {
     },
     canCopyScenario: function (payload) {
         DataManager.canCopyScenario = payload
+    },
+    controlProperties: function (payload) {
+        //make function that shows properties
+        //properties at the moment are:
+        /*
+            {
+                name: ...,
+                description: ...,
+                id: ...,
+                properties: [{field: ..., value: ...},...],
+                children: [{zelfde als dit object}]
+            }
+        */
+        //so recursive function that builds the HTML code
+        //using ul and li tags
     }
 };
 

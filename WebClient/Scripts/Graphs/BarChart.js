@@ -149,6 +149,9 @@
     };
 
     this.ReInit = function (aGraphObject) {
+        //remove the old unconverted data
+        delete this._unconvertedData;
+        delete this._unconvertedRefData;
         // re-do init stuff
         this.graphObject = aGraphObject;
         if (this.graphObject.axis)
@@ -157,7 +160,7 @@
         if (this.converted) {
             this.graphObject.data = this._convertOldData(this.graphObject.data);
             if (this.graphObject.ref)
-                this.graphObject.ref.data = this._convertOldData(this.graphObject.ref.data);
+                this.graphObject.ref.data = this._convertOldData(this.graphObject.ref.data, true);
         }
         this.Update();
     };
@@ -619,11 +622,15 @@
                 row.addEventListener('click', function (e) {
                     if (chart.groupFilter[name]) {
                         chart.groupFilter[name] = false;
+                        if (chart._unconvertedRefData && chart.graphObject.ref && chart.graphObject.ref.data)
+                            chart.graphObject.ref.data = chart._convertOldData(chart._unconvertedRefData, true);
                         chart.Update(chart._unconvertedData);
                         chart._updateLabels();
                     }
                     else {
                         chart.groupFilter[name] = true;
+                        if (chart._unconvertedRefData && chart.graphObject.ref && chart.graphObject.ref.data)
+                            chart.graphObject.ref.data = chart._convertOldData(chart._unconvertedRefData, true);
                         chart.Update(chart._unconvertedData);
                         chart._updateLabels();
                     }
@@ -751,9 +758,12 @@
         this.converted = true;
     }
 
-    this._convertOldData = function (data)
+    this._convertOldData = function (data, isRef)
     {
-        this._unconvertedData = JSON.parse(JSON.stringify(data)); //make deep copy!
+        if (!isRef)
+            this._unconvertedData = JSON.parse(JSON.stringify(data)); //make deep copy!
+        else
+            this._unconvertedRefData = JSON.parse(JSON.stringify(data));
         //todo:
         //store unconverted data
         //filter the categories according to legend toggles
