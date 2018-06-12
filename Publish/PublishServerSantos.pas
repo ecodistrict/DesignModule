@@ -186,7 +186,7 @@ type
     fSourceProjection: TGIS_CSProjectedCoordinateSystem; // ref
     fTablePrefix: String;
     fBlockID: Integer;
-    fSoCPalette: TRampPalette;
+    fSoCPalette: TWDPalette;
     fTimeSliderTimer: TTimer;
     fBaseDay: array of word; // [d,m,y]
     fChargerTypes: TStrings;
@@ -263,13 +263,13 @@ type
 
 implementation
 
-const
+//const
   // TODO: DB Legend? Ini?
-  NoChargeColor: TAlphaRGBPixel = $FFFF0000;
-  LowChargeColor: TAlphaRGBPixel = $FFFFA500;
-  MediumChargeColor: TAlphaRGBPixel = $FFFFFF00;
-  HighChargeColor: TAlphaRGBPixel = $FF008000;
-  Nothing: TAlphaRGBPixel = $AAAAAAAA;
+  //NoChargeColor: TAlphaRGBPixel = $FFFF0000;
+  //LowChargeColor: TAlphaRGBPixel = $FFFFA500;
+  //MediumChargeColor: TAlphaRGBPixel = $FFFFFF00;
+  //HighChargeColor: TAlphaRGBPixel = $FF008000;
+  //Nothing: TAlphaRGBPixel = $AAAAAAAA;
 
 function SantosTimeToDateTime(const aTime: string; aBaseDay: Array of word): TDateTime;
 var
@@ -545,7 +545,7 @@ begin
 
   LoadBusDefaults;
 
-  ClientMessageHandlers.Add('measure',
+  ClientMessageHandlers.AddOrSetValue('measure',
     procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
     var
       formID: string;
@@ -1136,7 +1136,8 @@ constructor TSantosLayer.Create(aScenario: TScenario; aBusBlock: Integer;
   aPubEntry: TIMBEventEntry; aIndicEntry, aSocEntry: TIMBEventEntry);
 var
   oraSession: TOraSession;
-  entries: TPaletteRampEntryArray;
+  //entries: TPaletteRampEntryArray;
+  entries: TPaletteDiscreteEntryArray;
 begin
   // TODO
   inherited Create(aScenario, aDomain, aID, aName, aDescription);
@@ -1162,6 +1163,7 @@ begin
   fBusData := TBusData.Create;
   fSliderData := TSliderData.Create;
 
+  {
   setlength(entries, 7);
   entries[0] := TRampPaletteEntry.Create(NoChargeColor, 0, '0');
   entries[1] := TRampPaletteEntry.Create(NoChargeColor, 10, '10');
@@ -1171,8 +1173,16 @@ begin
   entries[5] := TRampPaletteEntry.Create(HighChargeColor, 90, '');
   entries[6] := TRampPaletteEntry.Create(HighChargeColor, 100, '100');
   fSoCPalette := TRampPalette.Create('State of Charge', entries, Nothing, Nothing, HighChargeColor);
-
   legendJSON := BuildRamplLegendJSON(fSoCPalette);
+  }
+
+  setlength(entries, 3);
+  entries[0] := TDiscretePaletteEntry.Create(TGeoColors.Create(RGBToAlphaColor(255, 0, 0)), 0, 25, '0-25%');
+  entries[1] := TDiscretePaletteEntry.Create(TGeoColors.Create(RGBToAlphaColor(255, 204, 0)), 25, 35, '25-35%');
+  entries[2] := TDiscretePaletteEntry.Create(TGeoColors.Create(RGBToAlphaColor(51, 204, 51)), 35, 100, '35-100%');
+
+  fSoCPalette := TDiscretePalette.Create('State of Charge', entries, TGeoColors.Create($AAAAAAAA));
+  legendJSON := BuildDiscreteLegendJSON(fSoCPalette as TDiscretePalette, TLegendFormat.lfVertical);
 
   oraSession := TOraSession.Create(nil);
   try
