@@ -50,7 +50,8 @@
 
         this._container.id = this.sliderID;
         this._container.addEventListener('contextmenu', this.containerRightClick);
-        
+
+        // work-a-round for auto width bug firefox
         var mouseUpFunction = function (e) {
             draggable.enable();
             document.removeEventListener('mouseup', mouseUpFunction);
@@ -61,6 +62,7 @@
         this._slider.on('start', this.sliderStart.bind(this));
         this._slider.on('slide', this.sliderMove.bind(this));
         this._slider.on('set', this.sliderSet.bind(this));
+        // work-a-round for auto width bug firefox
         this._slider.on('start', function (e) {
             draggable.disable();
             document.addEventListener('mouseup', mouseUpFunction)
