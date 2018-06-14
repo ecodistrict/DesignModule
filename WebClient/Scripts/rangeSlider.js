@@ -44,21 +44,13 @@
 
         // add drag support to main div
         var draggable = this._draggable = new L.Draggable(this._container);
-        this._draggable.ref = this;
-        //this._draggable._originalupdatePosition = this._draggable._updatePosition;
         this._draggable.enable();
-        this._draggable._onUp = (function (e) {
-            if (e._simulated || !this._enabled) { return; }
-            this.finishDrag();
-        }).bind(this._draggable); // work-a-round, no up event is fired
-
         L.DomEvent.disableClickPropagation(this._container);
         L.DomEvent.disableScrollPropagation(this._container);
 
         this._container.id = this.sliderID;
         this._container.addEventListener('contextmenu', this.containerRightClick);
-        this._container.addEventListener('click', this.containerLeftClick);
-
+        
         var mouseUpFunction = function (e) {
             draggable.enable();
             document.removeEventListener('mouseup', mouseUpFunction);
@@ -88,11 +80,6 @@
         if (slider) {
             slider.goLive();
         }
-    },
-
-    containerLeftClick: function (e) {
-        e.preventDefault(); //prevent showing of contextmenu since we use right-mouse for something else
-        e.stopPropagation();
     },
 
     /* Not sure how useful this is atm... */
