@@ -4,6 +4,7 @@
     queryDialogData: null, // used in queryDialog.js
     activeBasicLayers: {}, // used in select.js
     selectedObjectIDs: {}, // used in select.js and formdialog.js
+    sliders: [],
 
     /* moved to graph manager
     PublisherDateTimeToDate: function (aDateTime) {

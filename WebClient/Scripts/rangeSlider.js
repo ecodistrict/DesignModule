@@ -39,11 +39,25 @@
     initLayout: function () {
         var inversed = (this.sliderOptions.colorInversed) ? 'Inversed' : '';
 
-        var className = (this.sliderOptions && this.sliderOptions.orientation == 'vertical') ? 'leaflet-control-rangeSliderVertical' + inversed : 'leaflet-control-rangeSliderHorizontal' + inversed,
-            container = this._container = L.DomUtil.create('div', className);
+        var className = (this.sliderOptions && this.sliderOptions.orientation == 'vertical') ? 'leaflet-control-rangeSliderVertical' + inversed : 'leaflet-control-rangeSliderHorizontal' + inversed;
+        this._container = L.DomUtil.create('div', className);
 
-        container.id = this.sliderID;
-        container.addEventListener('contextmenu', this.containerRightClick);
+        // add drag support to main div
+        this._draggable = new L.Draggable(this._container);
+        this._draggable.ref = this;
+        //this._draggable._originalupdatePosition = this._draggable._updatePosition;
+        this._draggable.enable();
+        this._draggable._onUp = (function (e) {
+            if (e._simulated || !this._enabled) { return; }
+            this.finishDrag();
+        }).bind(this._draggable); // work-a-round, no up event is fired
+
+        L.DomEvent.disableClickPropagation(this._container);
+        L.DomEvent.disableScrollPropagation(this._container);
+
+        this._container.id = this.sliderID;
+        this._container.addEventListener('contextmenu', this.containerRightClick);
+        this._container.addEventListener('click', this.containerLeftClick);
 
 
         this._sliderDiv = L.DomUtil.create('div', className + '-sliderDiv');
