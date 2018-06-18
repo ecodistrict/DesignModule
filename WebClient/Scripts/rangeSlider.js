@@ -50,23 +50,14 @@
 
         this._container.id = this.sliderID;
         this._container.addEventListener('contextmenu', this.containerRightClick);
-
-        // work-a-round for auto width bug firefox
-        var mouseUpFunction = function (e) {
-            draggable.enable();
-            document.removeEventListener('mouseup', mouseUpFunction);
-        };
-
+        
         this._sliderDiv = L.DomUtil.create('div', className + '-sliderDiv');
         this._slider = noUiSlider.create(this._sliderDiv, this.sliderOptions);
         this._slider.on('start', this.sliderStart.bind(this));
         this._slider.on('slide', this.sliderMove.bind(this));
         this._slider.on('set', this.sliderSet.bind(this));
-        // work-a-round for auto width bug firefox
-        this._slider.on('start', function (e) {
-            draggable.disable();
-            document.addEventListener('mouseup', mouseUpFunction)
-        });
+        this._slider.on('end', function (e) { draggable.enable(); });
+        this._slider.on('start', function (e) { draggable.disable(); });
         this._container.appendChild(this._sliderDiv);
 
         this.valueTextDiv = L.DomUtil.create('div', className + '-sliderTextDiv');
