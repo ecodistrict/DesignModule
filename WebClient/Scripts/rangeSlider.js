@@ -56,8 +56,11 @@
         this._slider.on('start', this.sliderStart.bind(this));
         this._slider.on('slide', this.sliderMove.bind(this));
         this._slider.on('set', this.sliderSet.bind(this));
+
+        // work-a-round for firefox and chrome to avoid dragging of control when dragging slider
         this._slider.on('end', function (e) { draggable.enable(); });
         this._slider.on('start', function (e) { draggable.disable(); });
+
         this._container.appendChild(this._sliderDiv);
 
         this.valueTextDiv = L.DomUtil.create('div', className + '-sliderTextDiv');

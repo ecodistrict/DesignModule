@@ -79,4 +79,5 @@
     display: inline;
     text-align: center;
     height: 100%;
+    pointer-events: none;
 }
