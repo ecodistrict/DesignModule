@@ -802,6 +802,7 @@ type
     procedure HandleControlsQueueEvent();
   private //typed message handles
     procedure HandleClientMeasureMessage(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject);
+    procedure HandleControlPropertyChange(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject);
   public
     function GetTableSync(const aUSTableName: string): TSubscribeObject;
     procedure SendInternalTableUpdate(const aUSTableName: string; aAction, aObjectID: Integer);
@@ -3052,6 +3053,7 @@ begin
   SubscribeTo(GetTableSync('GENE_CONTROL'), handleInternalControlsChange);
   clientMessageHandlers.AddOrSetValue('measure', HandleClientMeasureMessage);
   clientMessageHandlers.AddOrSetValue('graphLabelClick', HandleClientGraphLabelClick);
+  clientMessageHandlers.AddOrSetValue('changeControlProperties', HandleControlPropertyChange);
 end;
 
 destructor TUSProject.Destroy;
@@ -3870,6 +3872,76 @@ begin
 //      else
 //        aClient.SendMessage('Error applying changes. Objects changed before error: ' + changedCount.toString, mtError);
     end;
+  end;
+end;
+
+procedure TUSProject.HandleControlPropertyChange(aProject: TProject;
+  aClient: TClient; const aType: string; aPayload: TJSONObject);
+var
+  jsonArray: TJSONArray;
+  jsonValue: TJSONValue;
+  query: TOraQuery;
+  id: Integer;
+  field, value: string;
+  changeIDs: TDictionary<Integer, Integer>;
+  publishEventName: string;
+  table: TSubscribeObject;
+  publishEvent: TIMBEventEntry;
+begin
+  query := TOraQuery.Create(nil);
+  try
+    query.Session := OraSession;
+    changeIDs := TDictionary<Integer, Integer>.Create;
+    try
+      if aPayload.TryGetValue<TJSONArray>('change', jsonArray) then
+      begin
+        query.SQL.Text := 'UPDATE GENE_CONTROL_PROPERTIES SET VALUE=:VALUE WHERE CONTROL_ID=:CONTROL_ID AND FIELD=:FIELD';
+        for jsonValue in jsonArray do
+        begin
+          if jsonValue.TryGetValue<Integer>('id', id) and
+            jsonValue.TryGetValue<string>('field', field) and
+            jsonValue.TryGetValue<string>('value', value) then
+          begin
+            query.ParamByName('CONTROL_ID').Value := id;
+            query.ParamByName('FIELD').Value := field;
+            query.ParamByName('VALUE').Value := value;
+            query.ExecSQL;
+            changeIDs.AddOrSetValue(id, id);
+          end;
+        end;
+      end;
+      if aPayload.TryGetValue<TJSONArray>('delete', jsonArray) then
+      begin
+        query.SQL.Text := 'DELETE FROM GENE_CONTROL_PROPERTIES WHERE CONTROL_ID=:CONTROL_ID AND FIELD=:FIELD';
+        for jsonValue in jsonArray do
+        begin
+          if jsonValue.TryGetValue<Integer>('id', id) and
+            jsonValue.TryGetValue<string>('field', field) then
+          begin
+            query.ParamByName('CONTROL_ID').Value := id;
+            query.ParamByName('FIELD').Value := field;
+            query.ExecSQL;
+            changeIDs.AddOrSetValue(id, id);
+          end;
+        end;
+      end;
+      publishEventName := OraSession.Username + '.GENE_CONTROL';
+      table := GetTableSync('GENE_CONTROL');
+      publishEvent := IMB3Connection.publish(publishEventName, false);
+      try
+        for id in changeIDs.Keys do
+        begin
+          publishEvent.SignalChangeObject(actionChange, id, 'OBJECT_ID');
+          table.SendAnonymousEvent(actionChange, id);
+        end;
+      finally
+        publishEvent.UnPublish();
+      end;
+    finally
+      changeIDs.Free;
+    end;
+  finally
+    query.Free;
   end;
 end;
 

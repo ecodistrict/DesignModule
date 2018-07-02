@@ -1,0 +1,20 @@
+﻿.ctrlUL {
+    list-style-type: none;
+    border-top: 1px solid #ddd;
+}
+
+.ctrlLI {
+
+}
+
+.ctrlFieldSpan {
+    display: inline-block;
+    width: 100px;
+    text-overflow: ellipsis;
+    padding: 2px;
+    border-right: 1px solid #ddd;
+}
+
+.ctrlValueSpan {
+    padding: 2px;
+}

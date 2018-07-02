@@ -44,6 +44,7 @@
     <link rel="stylesheet" href="Content/layermanager.css" />
     <link rel="stylesheet" href="Content/ScenarioControlsManager.css" />
     <link rel="stylesheet" href="Content/controlsControl.css" />
+    <link rel="stylesheet" href="Content/ControlPropertiesDialog.css" />
 
     <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
@@ -251,9 +252,8 @@
         // details
         var detailsControl = L.control.details(DataManager.detailsInfo);
         map.addControl(detailsControl);
-
-
-
+        
+        
         //history
         var historyControl = L.control.history(baseLayers); // todo (NK): why pass baseLayers as options?
         map.addControl(historyControl);
