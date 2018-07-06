@@ -11,7 +11,6 @@ L.Control.TimeSlider = L.Control.extend({
         collapsed: true,
         position: 'bottomright',
         autoZIndex: true,
-        hideSingleBase: false,
         showSettings: true,
         settingsShowing: false
     },

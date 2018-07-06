@@ -26,8 +26,7 @@ L.Control.History = L.Control.extend({
     options: {
         collapsed: true,
         position: 'topright',
-        autoZIndex: true,
-        hideSingleBase: false
+        autoZIndex: true
     },
 
     initialize: function (options) {
