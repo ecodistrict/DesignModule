@@ -1,22 +1,16 @@
-/* .leaflet-control-files derived from .leaflet--control-layers (leaflet.css) */
-
+/* .leaflet-control-files derived from .leaflet-control-layers (leaflet.css) */
 .leaflet-control-files {
     box-shadow: 0 1px 5px rgba(0,0,0,0.4);
     background: #fff;
     border-radius: 5px;
 }
-
 .leaflet-control-files-toggle {
     background-position: 50% 50%;
     background-repeat: no-repeat;
     display: block;
-}
-
-/* files control */
-.leaflet-control-files-toggle {
-  background-image: url('images/files.png');
-  width: 36px;
-  height: 36px;
+    background-image: url('images/files.png');
+    width: 36px;
+    height: 36px;
 }
 .leaflet-retina .leaflet-control-files-toggle {
   background-image: url('images/files-2x.png');
@@ -53,7 +47,9 @@
   position: relative;
   top: 1px;
 }
-.leaflet-control-files label {  display: block }
+.leaflet-control-files label {  
+    display: block;
+}
 .leaflet-control-files-separator {
   height: 0;
   border-top: 1px solid #ddd;
@@ -67,6 +63,7 @@
   margin: 0;
   padding: 0;
 }
+/*
 .leaflet-control-files ul {
   list-style-type: none;
   margin: 0;
@@ -81,19 +78,15 @@
 .leaflet-control-files li ul li:hover {  background: #f0f0f0 }
 .leaflet-control-files li a:link,
 .leaflet-control-files li a:visited {
-  /*: ;
-  background-color: white;
-  color: white;
-  text-decoration: none;
-  display: inline-block;*/
   text-decoration: none;
   color: #000;
   display: block;
   font-size: 16px;
 }
-
-.files-remove-button {  background-image: url(images/filesremove.png) }
-
+*/ 
+.files-remove-button {
+    background-image: url(images/filesremove.png)
+}
 .files-icon-button {
   background-repeat: no-repeat;
   width: 16px;
@@ -103,8 +96,9 @@
   opacity: 0.7;
   float: right;
 }
-
-.files-add-button {  background-image: url(images/domainadd.png) }
+.files-add-button {  
+    background-image: url(images/domainadd.png) 
+}
 .files-remove-button:hover {
   opacity: 1.0;
   cursor: pointer;
@@ -201,4 +195,42 @@ span[class^="files-name"]:hover {
 #phone .files-name-inactive, .files-name-inactive {
   background: rgba(173, 216, 230, 1);
   color:#000;
+}
+
+
+.leaflet-control-files-base {
+    display:table;
+    width:100%;
+    border-spacing: 2px;
+}
+
+.files-row {
+    display: table-row;
+    line-height: 22px;
+}
+
+.files-filename {
+    display: table-cell;
+    font-size: 16px;
+    padding-left: 10px;
+    padding-right: 10px;
+    background: rgba(173, 216, 230, 0.4);
+    margin:4px;
+    border-radius: 4px;
+}
+
+.files-filetype {
+    display: table-cell;
+    font-style: italic;
+    padding-left: 10px;
+    background: rgba(173, 216, 230, 0.4);
+    margin: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.files-filetype:hover {
+    /*opacity: 1.0;*/
+    /*background: #f0f0f0*/
+    /*background: rgb(100, 181, 208);*/
+    background: rgba(173, 216, 230, 1.0);
 }
