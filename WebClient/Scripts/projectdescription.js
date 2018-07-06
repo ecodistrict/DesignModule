@@ -79,12 +79,15 @@ L.control.projectDescription.showScenarios = function () {
         if (DataManager.canCopyScenario)
             modelDialogAddButton(mddb, 'Copy Scenario', function () {
                 var selectedRadio = document.querySelector('input[name=activeScenario]:checked');
-                wsSend({
-                    type: "copyScenario",
-                    payload: {
-                        scenario: selectedRadio.value
-                    }
-                })
+                console.warn("Copy scenario turned off for now");
+                AddErrorMessage("Copy scenario turned off for now", "warning", 10000);
+
+                //wsSend({
+                //    type: "copyScenario",
+                //    payload: {
+                //        scenario: selectedRadio.value
+                //    }
+                //});
             });
 
         L.control.projectDescription.CheckCurrentScenarios(options);
