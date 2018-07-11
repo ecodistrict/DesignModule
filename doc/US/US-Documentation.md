@@ -4,7 +4,8 @@
 
 ### <font color="#41b8f4">PBLS\_PROJECT:</font>
 
-![PBLS_PROJECT Table] [PBLS_PROJECT]<BR>
+![PBLS_PROJECT Table](US-Documentation-Images/PBLS_PROJECT.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**1. PBLS_PROJECT Table**</FONT>
 
 #### Table creation and modification
@@ -41,7 +42,8 @@ Determines the scenarios from the META\_SCENARIO table that will be available fo
   
 ### <font color="#41b8f4">META\_SCENARIO:</font>
 
-![META_SCENARIO Table] [META_SCENARIO]<BR>
+![META_SCENARIO Table](US-Documentation-Images/META_SCENARIO.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**2. META_SCENARIO Table**</FONT>
 
 #### Table creation and modification
@@ -78,7 +80,8 @@ Used to determine which scenarios must be loaded. More advanced form of ‘SCENA
 
 ### <font color="#41b8f4">META\_MEASURES:</font>
 
-![META\_MEASURES Table] [META_MEASURES]<BR>
+![META\_MEASURES Table](US-Documentation-Images/META_MEASURES.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**3. META_MEASURES Table**</FONT>
 
 #### Table creation and modification:
@@ -86,7 +89,7 @@ Used to determine which scenarios must be loaded. More advanced form of ‘SCENA
 ACTION\_PARAMETERS column is increased in size to support defining the properties. SQL statement for this adjustment:<BR>
 
     ALTER TABLE META_MEASURES MODIFY (ACTION_PARAMETERS VARCHAR2(2048));
-<BR><BR>
+<BR>
 SQL to create the entire table:
 
     CREATE TABLE META_MEASURES (
@@ -107,7 +110,8 @@ Must be unique, is used as ID.<BR>
 Determines the category under which this measure will be shown in the measures menu.<BR>
 **MEASURE**<BR>
 Name of the measure.<BR>
-![Measures Menu] [Measures Menu]<BR>
+![Measures Menu](US-Documentation-Images/MEASURE-MENU.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**4. Measures Menu**</FONT><BR>
 **DESCRIPTION**<BR>
 At the moment the description is not used.<BR>
@@ -115,7 +119,8 @@ At the moment the description is not used.<BR>
 Object type this measure applies to, linked to ‘OBJECT\_TYPE’ from the {scenario-prefix}#META\_OBJECT table. Only if an object of that type is selected will this measure appear in the measure menu.<BR>
 **ACTION**<BR>
 This is the subcategory of the measures. After a measure is clicked a new dialog is opened showing all the subcategories.<BR>
-![Measure Dialog] [Measure Dialog]<BR>
+![Measure Dialog](US-Documentation-Images/MEASURE-DIALOG.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**5. Measure Dialog**</FONT><BR>
 **ACTION\_PARAMETERS**<BR>
 This field is either null or contains a json object containing all the information necessary to display properties for this measure. If this field is not null after selecting an action a second dialog window will open displaying all the properties available for this measure. For example:<BR>
@@ -163,10 +168,10 @@ You can add as many properties as you need, as long as the separate property obj
     {“properties”:[{prop1},{prop2},{prop3}…]}
 <BR>
 Keep in mind all property objects need to contain all the fields mentioned above.
-![Measure Properties] [Measure Properties]<BR>
+![Measure Properties](US-Documentation-Images/MEASURE-PROPERTIES.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**6. Measure Properties**</FONT><BR>
 
-<BR>
 **ACTION\_ID**<BR>
 This is how the publisher recognizes which measure is selected by the client. The processing of the measure is hardcoded in the publisher.<BR>
 
@@ -174,7 +179,8 @@ This is how the publisher recognizes which measure is selected by the client. Th
 
 ### <font color="#41b8f4">GENE\_CONTROL</font>
 
-![GENE\_CONTROL Table] [GENE_CONTROL]<BR>
+![GENE\_CONTROL Table](US-Documentation-Images/GENE_CONTROL.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**7. GENE_CONTROL Table**</FONT>
 
 #### Table creation
@@ -207,7 +213,8 @@ Controls have a hierarchical structure that is determined by their ‘PARENT\_ID
 
 ### <font color="#41b8f4">GENE\_CONTROL\_OBJECTS</font>
 
-![GENE\_CONTROL\_OBJECTS Table] [GENE_CONTROL_OBJECTS]<BR>
+![GENE\_CONTROL\_OBJECTS Table](US-Documentation-Images/GENE_CONTROL_OBJECTS.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**8. GENE\_CONTROL\_OBJECTS Table**</FONT>
 
 #### Table creation
@@ -237,7 +244,8 @@ The type of the object. This is linked to the column ‘OBJECT\_TYPE’ from the
 
 ### <font color="#41b8f4">GENE\_CONTROL\_PROPERTIES</font>
 
-![GENE\_CONTROL\_PROPERTIES Table] [GENE_CONTROL_PROPERTIES]<BR>
+![GENE\_CONTROL\_PROPERTIES Table](US-Documentation-Images/GENE_CONTROL_PROPERTIES.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**9. GENE\_CONTROL\_PROPERTIES Table**</FONT>
 
 #### Introduction 
@@ -264,7 +272,8 @@ The value the control changes this property to.<BR>
 
 ### <font color="#41b8f4">{Scenario-prefix}#GENE\_CONTROL</font>
 
-![{Scenario-prefix}#GENE\_CONTROL Table] [SCENARIO_GENE_CONTROL]<BR>
+![{Scenario-prefix}#GENE\_CONTROL Table](US-Documentation-Images/SCENARIO_GENE_CONTROL.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**10. {Scenario-prefix}#GENE\_Control Table**</FONT>
 
 #### Introduction
@@ -290,7 +299,8 @@ States whether the control is active or not. "0" means inactive, "1" means activ
 
 ### <font color="#41b8f4">{Scenario-prefix}#GENE\_OBJECT</font>
 
-![GENE\_OBJECT Table] [GENE_OBJECT]<BR>
+![GENE\_OBJECT Table](US-Documentation-Images/GENE_OBJECT.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**11. GENE\_OBJECT Table**</FONT>
 
 #### Table creation
@@ -326,7 +336,8 @@ Filter that is applied to all the SQL queries to retrieve the objects from the d
 
 ### <font color="#41b8f4">{Scenario-prefix}#GENE\_OBJECT\_PROPERTY</font>
 
-![GENE\_OBJECT\_PROPERTY Table] [GENE_OBJECT_PROPERTY]<BR>
+![GENE\_OBJECT\_PROPERTY Table](US-Documentation-Images/GENE_OBJECT_PROPERTY.png)
+<BR>
 <FONT SIZE="1" color="#41b8f4">**12. GENE\_OBJECT\_PROPERTY Table**</FONT>
 
 #### Table creation
@@ -370,7 +381,8 @@ Should be filled in if a ‘JOIN\_TABLE’ is given. Denotes on what column of t
 **JOIN\_TABLE\_ID**<BR>
 Should be filled in if a ‘JOIN\_TABLE’ is given. Denotes on what column of the ‘JOIN\_TABLE’ table the join will be done. The total query for the property that the publisher will build will look something like this:
  
-    {basis_tabel} t1 join ‘JOIN_TABLE’ t2 on t1.’BASE_TABLE_ID’ = t2.’JOIN_TABLE_ID’.
+    {basis_tabel} t1 join "JOIN_TABLE" t2 on t1."BASE_TABLE_ID" = t2."JOIN_TABLE_ID"
+
 <BR>
 **SIDE**<BR>
 Denotes for what side this property is meant. (null) is the same as 0 which means no side is selected. The combination of ‘META\_OBJECT\_ID’ + ‘PROPERTY\_DESCRIPTION’ + ‘SIDE’ must be unique. In the screenshots “INTENSITY\_L” or “INTENSITY\_R” will be displayed for the “Intensity” property depending on the side of the selected object. If multiple objects are selected the values will be retrieved from the right columns on an object by object basis.<BR>
@@ -419,21 +431,3 @@ Since the TRAF\_ZONE already contained the location of a zone through its 'X\_CE
         NULL,
         NULL
     );
-
-
-
-
-
-
-[PBLS_PROJECT]: US-documentation-Images/PBLS_PROJECT.png
-[META_SCENARIO]: US-documentation-Images/META_SCENARIO.png
-[META_MEASURES]: US-documentation-Images/META_MEASURES.png
-[Measures Menu]: US-documentation-Images/MEASURE-MENU.png
-[Measure Dialog]: US-documentation-Images/MEASURE-DIALOG.png
-[Measure Properties]: US-documentation-Images/MEASURE-PROPERTIES.png
-[GENE_CONTROL]: US-documentation-Images/GENE_CONTROL.png
-[GENE_CONTROL_OBJECTS]: US-documentation-Images/GENE_CONTROL_OBJECTS.png
-[GENE_CONTROL_PROPERTIES]: US-documentation-Images/GENE_CONTROL_PROPERTIES.png
-[SCENARIO_GENE_CONTROL]: US-documentation-Images/SCENARIO_GENE_CONTROL.png
-[GENE_OBJECT]: US-documentation-Images/GENE_OBJECT.png
-[GENE_OBJECT_PROPERTY]: US-documentation-Images/GENE_OBJECT_PROPERTY.png
