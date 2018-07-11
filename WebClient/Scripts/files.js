@@ -9,13 +9,11 @@ L.Control.Files = L.Control.extend({
     options: {
         collapsed: true,
         position: 'bottomleft',
-        autoZIndex: true,
-        hideSingleBase: false
+        autoZIndex: true
     },
 
     initialize: function (options) {
         L.setOptions(this, options);
-
         this._filesItems = [];
         this._filesList;
         this._downloads = {};
@@ -24,12 +22,12 @@ L.Control.Files = L.Control.extend({
     onAdd: function (map) {
         this._initLayout();
         this._update();
-
         this._map = map;
         return this._container;
     },
 
     onRemove: function () {
+        // nothing to do
     },
 
     _initLayout: function () {
@@ -45,7 +43,7 @@ L.Control.Files = L.Control.extend({
         }
 
         var form = this._form = L.DomUtil.create('form', className + '-list');
-
+        // expanded or collapsed
         if (this.options.collapsed) {
             if (!L.Browser.android) {
                 L.DomEvent.on(container, {
@@ -53,11 +51,9 @@ L.Control.Files = L.Control.extend({
                     mouseleave: this._collapse
                 }, this);
             }
-
             var link = this._layersLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
             link.title = 'Files available for download';
-
             if (L.Browser.touch) {
                 L.DomEvent
                     .on(link, 'click', L.DomEvent.stop)
@@ -65,31 +61,21 @@ L.Control.Files = L.Control.extend({
             } else {
                 L.DomEvent.on(link, 'focus', this._expand, this);
             }
-
             this._map.on('click', this._collapse, this);
-            // TODO: keyboard accessibility
-        } else {
+        } else
             this._expand();
-        }
-
+        // fill form
         form.appendChild(document.createTextNode("download files"));
         L.DomUtil.create('br', '', form);
-
         this._filesList = L.DomUtil.create('div', className + '-base', form);
-
         this._separator = L.DomUtil.create('div', className + '-separator', form);
-
         form.appendChild(document.createTextNode("upload files"));
         L.DomUtil.create('br', '', form);
-
         this._uploadButton = L.DomUtil.create('div', className + '-upload', form);
         var innerFileBrowse = L.DomUtil.create('input', 'button files-button', this._uploadButton);
         innerFileBrowse.type = 'file';
         innerFileBrowse.multiple = true;    
-        L.DomEvent.on(innerFileBrowse, "change", function (e) {
-            this._uploadFiles(e.target.files);
-        }, this);
-
+        L.DomEvent.on(innerFileBrowse, "change", function (e) { this._uploadFiles(e.target.files); }, this);
         container.appendChild(form);
 
         // add file drop event
@@ -115,15 +101,13 @@ L.Control.Files = L.Control.extend({
             this._uploadFiles(e.dataTransfer.files); // todo: seems dataTransfer = null in newest firefox.. seems bug..
             container.removeAttribute("style");
         }, this);
-
     },
 
     _update: function () {
         if (!this._container) { return this; }
-
-
+        // clear all
         L.DomUtil.empty(this._filesList);
-
+        // fill
         if (this._filesItems.length > 0) {
             for (var i = this._filesItems.length - 1; i >= 0; i--) {
                 this._makeFilesItem(this._filesItems[i]);
@@ -132,44 +116,45 @@ L.Control.Files = L.Control.extend({
         else {
             var label = document.createElement('label');
             label.className = 'files-empty-line';
-
             var name = document.createElement('span');
             name.className = 'files-empty-name';
             name.innerHTML = "No files available";
-
             label.appendChild(name);
             this._filesList.appendChild(label);
         }
-
         return this;
     },
 
     _makeFilesItem: function (item) {
-        var label = document.createElement('label');
-        label.className = 'files-remove-line';
-
-        var name = document.createElement('span');
-        name.innerHTML = item.fileName;
-
-        name.className = 'files-name';
-        name.item = item;
-        item.name = name;
-        L.DomEvent.on(name, 'click', this._downloadFile, this);
-
-        var holder = document.createElement('div');
-        holder.appendChild(name);
-        label.appendChild(holder);
-        this._filesList.appendChild(label);
-
-        return label;
+        var row = document.createElement('div');
+        row.className = 'files-row';
+        var name = document.createElement('div');
+        name.className = 'files-filename';
+        //name.innerHTML = item.fileName;
+        var sp = document.createElement('span');
+        sp.innerHTML = item.fileName;
+        name.appendChild(sp);
+        row.appendChild(name);
+        for (var ft in item.fileTypes) {
+            var filetype = document.createElement('div');
+            filetype.className = 'files-filetype';
+            var sp = document.createElement('span');
+            sp.fileName = item.fileName;
+            sp.fileType = item.fileTypes[ft];
+            sp.innerHTML = sp.fileType;
+            L.DomEvent.on(sp, 'click', this._downloadFile, this);
+            filetype.appendChild(sp);
+            row.appendChild(filetype);
+        }
+        // add row to table div
+        this._filesList.appendChild(row);
     },
 
     _downloadFile: function (e) {
-        // always single file
-        var item = e.currentTarget.item;
+        // always single file of specific type
         wsSend({
             type: "downloadFile",
-            payload: { fileName: item.fileName }
+            payload: { fileName: e.currentTarget.fileName, fileType: e.currentTarget.fileType }
         });
     },
 
@@ -225,7 +210,6 @@ L.Control.Files = L.Control.extend({
                     fr.readAsArrayBuffer(e.target.file.slice(e.target.fileOffset, e.target.fileOffset + fileSliceSize));
                 }
             };
-            
             // trigger load of slice of file into an array buffer (async)
             fr.file = file;
             fr.fileOffset = 0;
@@ -233,26 +217,19 @@ L.Control.Files = L.Control.extend({
         }
     },
 
-    hasElements: function () {
-        return this._filesItems.length > 0 || this._filesItems.length > 0;
-    },
-
     _expand: function () {
-        
-        if (this.hasElements() || true) { //Niek: don't we always want to expand for the upload option? -> or do we want to check whether uploads are available?
-            L.DomUtil.addClass(this._container, 'leaflet-control-files-expanded');
-            this._form.style.height = null;
-            var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
+        L.DomUtil.addClass(this._container, 'leaflet-control-files-expanded');
+        this._form.style.height = null;
+        var acceptableHeight = this._map._size.y - (this._container.offsetTop + 50);
 
-            if (acceptableHeight < this._form.clientHeight) {
-                L.DomUtil.addClass(this._form, 'leaflet-control-files-scrollbar');
-                this._form.style.paddingBottom = "30px";
-                this._form.style.height = acceptableHeight + 'px';
-            } else {
-                L.DomUtil.removeClass(this._form, 'leaflet-control-files-scrollbar');
-            }
-            L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
+        if (acceptableHeight < this._form.clientHeight) {
+            L.DomUtil.addClass(this._form, 'leaflet-control-files-scrollbar');
+            this._form.style.paddingBottom = "30px";
+            this._form.style.height = acceptableHeight + 'px';
+        } else {
+            L.DomUtil.removeClass(this._form, 'leaflet-control-files-scrollbar');
         }
+        L.DomEvent.addListener(this._container, 'touchmove', L.DomEvent.stopPropagation);
     },
 
     _collapse: function () {
@@ -263,17 +240,36 @@ L.Control.Files = L.Control.extend({
         if (typeof message.add !== "undefined") {
             // add entries to downloadable files (if not already in list)
             for (var a = 0; a < message.add.length; a++) {
-                var aname = message.add[a];
+                var messageFileEntry = message.add[a];
                 var found = false;
                 for (var ai = 0; ai < this._filesItems.length; ai++) {
-                    if (this._filesItems[ai].fileName == aname) {
+                    if (this._filesItems[ai].fileName == messageFileEntry.fileName) {
                         found = true;
+                        // merge file types
+                        var fileItem2 = this._filesItems[ai];
+                        if (messageFileEntry.fileTypes !== "undefined") {
+                            // add all file types uniquely to the locally cached list
+                            for (var t in messageFileEntry.fileTypes) {
+                                var found2 = false;
+                                for (var t2 in fileItem2.fileTypes) {
+                                    if (t == t2) {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if (!found2) {
+                                    fileItem2.fileTypes.push(t);
+                                }
+                            }
+                        }
                         break;
                     }
                 }
                 if (!found) {
+                    // add new file entry to cache local information
                     var fileItem = {};
-                    fileItem.fileName = aname;
+                    fileItem.fileName = messageFileEntry.fileName;
+                    fileItem.fileTypes = messageFileEntry.fileTypes;
                     this._filesItems.push(fileItem);
                 }
             }

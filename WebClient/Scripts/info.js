@@ -2,8 +2,7 @@ L.Control.Info = L.Control.extend({
     options: {
         collapsed: true,
         position: 'bottomleft',
-        autoZIndex: true,
-        hideSingleBase: false
+        autoZIndex: true
     },
 
     initialize: function (info, options) {

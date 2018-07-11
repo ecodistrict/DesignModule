@@ -3,7 +3,6 @@
         collapsed: true,
         position: 'bottomright',
         autoZIndex: true,
-        hideSingleBase: false,
 
         current: false,
         reference: false,

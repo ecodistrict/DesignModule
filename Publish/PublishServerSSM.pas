@@ -2,7 +2,7 @@ unit PublishServerSSM;
 
 interface
 
-{$MESSAGE warn 'simulationControl anad other ssm messages are of old type and no longer implemented in web client'}
+{$MESSAGE warn 'simulationControl and other ssm messages are of old type and no longer implemented in web client'}
 
 uses
   Logger,

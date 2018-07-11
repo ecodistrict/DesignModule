@@ -28,6 +28,8 @@ uses
 
   //GisDefs,
   GisCsSystems, GisLayerSHP, GisLayerVector,
+  GisFunctions,
+  GisUtils,
 
   System.JSON,
   System.Generics.Collections,
@@ -268,8 +270,8 @@ type
 
     procedure AddDIMeasureHistory(aMeasureHistory: TDIMeasureHistory);
     procedure AddDownloadableTableNames(const aID: string);
-    procedure GenerateDownloadableFile(aProject: TProject; aClient: TClient; const aName: string);
-    procedure HandleFileUpload(aClient: TClient; const aFileInfo: TClientFileUploadInfo); override;
+    procedure GenerateDownloadableFile(aProject: TProject; aClient: TClient; const aTableName, aFileType: string);
+    procedure handleFileUpload(aClient: TClient; const aFileInfo: TClientFileUploadInfo); override;
 
     function ProjectSchemaName: string;
 
@@ -1458,7 +1460,7 @@ begin
     while not query.Eof do
     begin
       tableName :=  query.Fields[0].AsString;
-      addDownloadableFile(tableName, GenerateDownloadableFile);
+      addDownloadableFile(tableName, ['shape', 'text'], GenerateDownloadableFile);
       query.Next;
     end;
   finally
@@ -1500,7 +1502,7 @@ begin
   inherited;
 end;
 
-procedure TEcodistrictProject.GenerateDownloadableFile(aProject: TProject; aClient: TClient; const aName: string);
+procedure TEcodistrictProject.GenerateDownloadableFile(aProject: TProject; aClient: TClient; const aTableName, aFileType: string);
 var
   stream: TStream;
   query: TFDQuery;
@@ -1510,6 +1512,7 @@ var
   fieldName: string;
   Line: TStringList;
   writer: TStreamWriter;
+  geometryFields: TStrings;
 begin
   // todo: implement
   // get schema name
@@ -1548,87 +1551,156 @@ begin
       "text"
   }
   fieldNames := '';
-  query := TFDQuery.Create(nil);
-  try
-    query.Connection := fDBConnection as TFDConnection;
-    query.SQL.Text :=
-      'SELECT column_name, data_type '+
-      'FROM information_schema.columns '+
-      'WHERE table_schema = '''+schemaName+''' and table_name='''+aName+''' '+
-      'ORDER BY ordinal_position';
-    query.Open();
-    while not query.Eof do
-    begin
-      if query.Fields[1].AsString='USER-DEFINED'
-      then fieldName := 'ST_AsGeoJSON('+query.Fields[0].AsString+') as '+query.Fields[0].AsString
-      else fieldName := query.Fields[0].AsString;
-      if fieldNames<>''
-      then fieldNames := fieldNames+',';
-      fieldNames := fieldNames+fieldName;
-      query.Next;
-    end;
-  finally
-    query.Free;
-  end;
-  // send contents of table to client as csv file
-  stream := TMemoryStream.Create();
-  writer := TStreamWriter.Create(stream);
+  geometryFields := TStringList.Create;
   try
     query := TFDQuery.Create(nil);
     try
       query.Connection := fDBConnection as TFDConnection;
       query.SQL.Text :=
-        'SELECT '+fieldNames+' '+
-        'FROM '+schemaName+'.'+aName;
+        'SELECT column_name, data_type '+
+        'FROM information_schema.columns '+
+        'WHERE table_schema = '''+schemaName+''' and table_name='''+aTableName+''' '+
+        'ORDER BY ordinal_position';
       query.Open();
-      Line := TStringList.Create;
-      try
-        Line.Delimiter := #9; // ccTab ';';
-        Line.StrictDelimiter := True;
-        //Line.QuoteChar
-        // add header
-        for f := 0 to query.FieldCount-1 do
+      while not query.Eof do
+      begin
+        if query.Fields[1].AsString='USER-DEFINED' then
         begin
-          case query.Fields[f].DataType of
-            ftString,
-            ftWideMemo:  Line.Add(query.Fields[f].FieldName+':string');
-            ftInteger:   Line.Add(query.Fields[f].FieldName+':integer');
-            ftBoolean:   Line.Add(query.Fields[f].FieldName+':boolean');
-            ftFloat:     Line.Add(query.Fields[f].FieldName+':float');
-          else
-                         Line.Add(query.Fields[f].FieldName+':'+Ord(query.Fields[f].DataType).toString);
-            Log.WriteLn('Unknown field type in download query result: '+query.Fields[f].FieldName+': '+Ord(query.Fields[f].DataType).toString, llWarning);
-          end;
-        end;
-        writer.WriteLine(Line.DelimitedText);
-        // add rows of values
-        while not query.Eof do
-        begin
-          line.Clear;
-          for f := 0 to query.FieldCount-1 do
-          begin
-            case query.Fields[f].DataType of
-              ftBoolean:   Line.Add(query.Fields[f].AsBoolean.ToString(TUseBoolStrs.True).toLower);
-              ftFloat:     Line.Add(query.Fields[f].AsFloat.ToString(dotFormat));
-            else
-                           Line.Add(query.Fields[f].AsString);
-            end;
-          end;
-          writer.WriteLine(Line.DelimitedText);
-          query.Next;
-        end;
-      finally
-        Line.Free;
+          fieldName := 'ST_AsGeoJSON('+query.Fields[0].AsString+') as '+query.Fields[0].AsString;
+          geometryFields.Add(fieldName);
+        end
+        else fieldName := query.Fields[0].AsString;
+        if fieldNames<>''
+        then fieldNames := fieldNames+',';
+        fieldNames := fieldNames+fieldName;
+        query.Next;
       end;
     finally
       query.Free;
     end;
-    writer.Flush;
-    stream.Position := 0;
-    aClient.SendDownloadableFileStream(aName+'.txt', stream);
+    // send contents of table to client as csv file
+    stream := TMemoryStream.Create();
+    writer := TStreamWriter.Create(stream);
+    try
+      query := TFDQuery.Create(nil);
+      try
+        query.Connection := fDBConnection as TFDConnection;
+        query.SQL.Text :=
+          'SELECT '+fieldNames+' '+
+          'FROM '+schemaName+'.'+aTableName;
+        query.Open();
+
+        if aFileType='text' then
+        begin
+          Line := TStringList.Create;
+          try
+            Line.Delimiter := #9; // ccTab ';';
+            Line.StrictDelimiter := True;
+            //Line.QuoteChar
+            // add header
+            for f := 0 to query.FieldCount-1 do
+            begin
+              if geometryFields.IndexOf(query.Fields[f].FieldName)>=0 then
+              begin
+                Line.Add(query.Fields[f].FieldName+':geometry');
+              end
+              else
+              begin
+                case query.Fields[f].DataType of
+                  ftString,
+                  ftWideMemo:  Line.Add(query.Fields[f].FieldName+':string');
+                  ftInteger:   Line.Add(query.Fields[f].FieldName+':integer');
+                  ftBoolean:   Line.Add(query.Fields[f].FieldName+':boolean');
+                  ftFloat:     Line.Add(query.Fields[f].FieldName+':float');
+                else
+                               Line.Add(query.Fields[f].FieldName+':'+Ord(query.Fields[f].DataType).toString);
+                  Log.WriteLn('Unknown field type in download query result: '+query.Fields[f].FieldName+': '+Ord(query.Fields[f].DataType).toString, llWarning);
+                end;
+              end;
+            end;
+            writer.WriteLine(Line.DelimitedText);
+            // add rows of values
+            while not query.Eof do
+            begin
+              line.Clear;
+              for f := 0 to query.FieldCount-1 do
+              begin
+                case query.Fields[f].DataType of
+                  ftBoolean:   Line.Add(query.Fields[f].AsBoolean.ToString(TUseBoolStrs.True).toLower);
+                  ftFloat:     Line.Add(query.Fields[f].AsFloat.ToString(dotFormat));
+                else
+                               Line.Add(query.Fields[f].AsString);
+                end;
+              end;
+              writer.WriteLine(Line.DelimitedText);
+              query.Next;
+            end;
+          finally
+            Line.Free;
+          end;
+        end
+        else if aFileType='shape' then
+        begin
+          if geometryFields.Count=1 then
+          begin
+            //
+            for f := 0 to query.FieldCount-1 do
+            begin
+              TGIS_Utils.GisCreateShapeFromJSON(
+              if geometryFields.IndexOf(query.Fields[f].FieldName)>=0 then
+              begin
+                //Line.Add(query.Fields[f].FieldName+':geometry');
+
+              end
+              else
+              begin
+                case query.Fields[f].DataType of
+                  ftString,
+                  ftWideMemo:;  //Line.Add(query.Fields[f].FieldName+':string');
+                  ftInteger:;   //Line.Add(query.Fields[f].FieldName+':integer');
+                  ftBoolean:;   //Line.Add(query.Fields[f].FieldName+':boolean');
+                  ftFloat:;     //Line.Add(query.Fields[f].FieldName+':float');
+                else
+                               //Line.Add(query.Fields[f].FieldName+':'+Ord(query.Fields[f].DataType).toString);
+                  Log.WriteLn('Unknown field type in download query result: '+query.Fields[f].FieldName+': '+Ord(query.Fields[f].DataType).toString, llWarning);
+                end;
+              end;
+            end;
+            // todo: create shape file
+            while not query.Eof do
+            begin
+              shape := TGIS_Utils.GisCreateShapeFromJSON(query.FieldByName(geometryFields[0]).AsString);
+              // add properties to shape
+
+              // todo: add shape to file
+
+              query.Next;
+            end;
+            // todo: copy shape contents to stream
+          end
+          else
+          begin
+            Log.WriteLn('File type "'+aFileType+'" does not supported '+geometryFields.Count.ToString+' number of geometry fields that are in '+aTableName, llError);
+            // todo: report error to client
+          end;
+        end
+        else
+        begin
+          Log.WriteLn('File type "'+aFileType+'" not supported for downloading '+aTableName, llError);
+          // todo: report error to client
+        end;
+      finally
+        query.Free;
+      end;
+      writer.Flush;
+      stream.Position := 0;
+      aClient.SendDownloadableFileStream(aTableName+'.txt', stream);
+    finally
+      writer.Free;
+      stream.Free;
+    end;
   finally
-    writer.Free;
-    stream.Free;
+    geometryFields.Free;
   end;
 end;
 
@@ -2007,6 +2079,14 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
   end;
 
   procedure ProcessFileOnExt(const aFileExt, aPath: string);
+  var
+    shapeFile: TGIS_LayerSHP;
+    shape: TGIS_Shape;
+    //partI: Integer;
+    //pointI: Integer;
+    //p: TGIS_Point3D;
+    //id: Int64;
+    geoJSON: string;
   begin
     if aFileExt='.txt' then
     begin
@@ -2021,7 +2101,43 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
     //end
     else if aFileExt='.shp' then
     begin
+      shapeFile := TGIS_LayerSHP.Create;
+      try
+        // load shape file
+        shapeFile.Name := 'uploaded shape file';
+        shapeFile.Path := aPath;
+        shapeFile.Open;
+        // todo: implement
+        shape := shapeFile.FindFirst(GisWholeWorld);
+        //objJSON := '';
+        while Assigned(shape) do
+        begin
+          if Assigned(shape) then
+          begin
+            geoJSON := TGIS_Utils.GisExportMultiPointToJSON(shape);
+            //id := shape.Uid;
+            //projection := (layer.scenario.project as TNWBLiveFeedProject).sourceProjection;
+            (*
+            for partI := 0 to shape.GetNumParts-1 do
+            begin
+              for pointI := 0 to shape.GetPartSize(partI)-1 do
+              begin
+                p := shape.GetPoint3D(partI, pointI);
+                //p := projection.ToGeocs3D(p);
 
+                // p.X, p.Y, p.Z
+
+                //partG.AddPoint(p.X, p.Y, p.Z);
+              end;
+            end;
+            *)
+          end;
+
+          shape := shapeFile.FindNext;
+        end;
+      finally
+        shapeFile.Free;
+      end;
     end
   end;
 
