@@ -84,9 +84,9 @@ Used to determine which scenarios must be loaded. More advanced form of ‘SCENA
 #### Table creation and modification:
 
 ACTION\_PARAMETERS column is increased in size to support defining the properties. SQL statement for this adjustment:<BR>
-```
-ALTER TABLE META_MEASURES MODIFY (ACTION_PARAMETERS VARCHAR2(2048));
-```<BR><BR>
+
+    ALTER TABLE META_MEASURES MODIFY (ACTION_PARAMETERS VARCHAR2(2048));
+<BR><BR>
 SQL to create the entire table:
 
     CREATE TABLE META_MEASURES (
@@ -119,9 +119,36 @@ This is the subcategory of the measures. After a measure is clicked a new dialog
 <FONT SIZE="1" color="#41b8f4">**5. Measure Dialog**</FONT><BR>
 **ACTION\_PARAMETERS**<BR>
 This field is either null or contains a json object containing all the information necessary to display properties for this measure. If this field is not null after selecting an action a second dialog window will open displaying all the properties available for this measure. For example:<BR>
-```
-{"properties":[{"name":"Speed","type":"float","editable":"true","value":"20","ordering":"3","category":"Traffic"},{"name":"Capacity","type":"float","editable":"true","value":"600","ordering":"4","category":"Traffic"},{"name":"Intensity","type":"float","editable":"true","value":"0","ordering":"5","category":"Traffic"}]}
-```
+
+    {"properties": 
+        [
+        	{
+        		"name":"Speed",
+        		"type":"float",
+        		"editable":"true",
+        		"value":"20",
+        		"ordering":"3",
+        		"category":"Traffic"
+        	},
+        	{
+        		"name":"Capacity",
+        		"type":"float",
+        		"editable":"true",
+        		"value":"600",
+        		"ordering":"4",
+        		"category":"Traffic"
+        	},
+        	{
+        		"name":"Intensity",
+        		"type":"float",
+        		"editable":"true",
+        		"value":"0",
+        		"ordering":"5",
+        		"category":"Traffic"
+        	}
+        ]
+    }    
+
 Here we have the following fields (case sensitive):<BR>
 
 * **name**: name of the parameter.
@@ -132,9 +159,9 @@ Here we have the following fields (case sensitive):<BR>
 * **category**: at this moment this property is passed to the webclient but not used. Can be used in the future to display the properties in their categories.
 
 You can add as many properties as you need, as long as the separate property objects are separated by a comma:
-```
-{“properties”:[{prop1},{prop2},{prop3}…]}
-```<BR>
+
+    {“properties”:[{prop1},{prop2},{prop3}…]}
+<BR>
 Keep in mind all property objects need to contain all the fields mentioned above.
 ![Measure Properties] [Measure Properties]<BR>
 <FONT SIZE="1" color="#41b8f4">**6. Measure Properties**</FONT><BR>
@@ -342,9 +369,9 @@ The table where the property field is found, if the property comes from the same
 Should be filled in if a ‘JOIN\_TABLE’ is given. Denotes on what column of the original table the join will be done (normally this will be OBJECT_ID, though OBJECT_ID is not a default value!).<BR>
 **JOIN\_TABLE\_ID**<BR>
 Should be filled in if a ‘JOIN\_TABLE’ is given. Denotes on what column of the ‘JOIN\_TABLE’ table the join will be done. The total query for the property that the publisher will build will look something like this:
-``` 
-{basis_tabel} t1 join ‘JOIN_TABLE’ t2 on t1.’BASE_TABLE_ID’ = t2.’JOIN_TABLE_ID’.`
-```<BR>
+ 
+    {basis_tabel} t1 join ‘JOIN_TABLE’ t2 on t1.’BASE_TABLE_ID’ = t2.’JOIN_TABLE_ID’.
+<BR>
 **SIDE**<BR>
 Denotes for what side this property is meant. (null) is the same as 0 which means no side is selected. The combination of ‘META\_OBJECT\_ID’ + ‘PROPERTY\_DESCRIPTION’ + ‘SIDE’ must be unique. In the screenshots “INTENSITY\_L” or “INTENSITY\_R” will be displayed for the “Intensity” property depending on the side of the selected object. If multiple objects are selected the values will be retrieved from the right columns on an object by object basis.<BR>
 **EDITABLE**<BR>
@@ -380,9 +407,8 @@ For the traffic indicator module some tables where added. The indicator module w
 
 The TRAF\_ZONE tables was changed to contain a shape field to allow the publisher to visualize layers for it's objects (both basic and normal layers). To modify an old TRAF\_ZONE table the following SQL statement can be run:
 
-```
-ALTER TABLE {Scenario-prefix}#TRAF_ZONE ADD (SHAPE MDSYS.SDO_GEOMETRY);
-```<BR>
+    ALTER TABLE {Scenario-prefix}#TRAF_ZONE ADD (SHAPE MDSYS.SDO_GEOMETRY);
+<BR>
 
 Since the TRAF\_ZONE already contained the location of a zone through its 'X\_CENTROID' and 'Y\_CENTROID' field you can run the following statement to fill the shape fields:
 
