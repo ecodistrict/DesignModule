@@ -1,0 +1,24 @@
+.timeslider-toggle-button {
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    background: #fff;
+    border-radius: 5px;
+  }
+  
+  .timeslider-toggle-button a {
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    display: block;  
+    background-image: url('../../../Content/images/timeslider.png');
+    width: 36px;
+    height: 36px;
+  }
+  
+  .leaflet-retina .timeslider-toggle-button a {
+    background-image: url('../../../Content/images/timeslider-2x.png');
+    background-size: 26px 26px;
+  }
+  
+  .leaflet-touch .timeslider-toggle-button a {
+    width: 44px;
+    height: 44px;
+  }

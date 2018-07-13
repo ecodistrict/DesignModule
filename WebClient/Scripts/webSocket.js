@@ -133,22 +133,10 @@ var wsLookup = {
         }
         if (typeof payload.timeslider !== 'undefined') {
             if (payload.timeslider) {
-                if (payload.timeslider == 1) {
-                    map.addControl(timesliderControl);
-                    timesliderControl._collapse();
-                    InfoTextControl['leaflet-control-timeslider'] = { active: false };
-
-                }
-                else if (payload.timeslider == 2) {
-                    map.addControl(timesliderControl);
-                    timesliderControl._expand();
-                    InfoTextControl['leaflet-control-timeslider'] = { description: 'Change the time', active: true };
-                }
+                timeSliderController.createTimeSlider(payload.timeslider);
             }
             else {
-                timesliderControl._collapse();
-                InfoTextControl['leaflet-control-timeslider'] = { active: false };
-                map.removeControl(timesliderControl);
+                timeSliderController.removeTimeSlider();
             }
         }
         if (typeof payload.selectionEnabled !== 'undefined') {
@@ -298,7 +286,7 @@ var wsLookup = {
         ScenarioControlsManager.handleMessage(payload);
     },
     timesliderEvents: function (payload) {
-        timeslider.HandleEvents(payload);
+        timeSliderController.processServerMessage(payload);
     },
     canCopyScenario: function (payload) {
         DataManager.canCopyScenario = payload

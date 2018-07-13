@@ -1,0 +1,25 @@
+.scale-viewport {
+    overflow: hidden;
+}
+
+.scale-viewport .underlay-container .underlay {
+    cursor: col-resize;
+}
+
+.scale-viewport .events-container {
+    cursor: crosshair;
+    stroke-width: 1;
+    stroke: black;
+}
+
+.scale-viewport .pointer {
+    stroke-width: 2;
+    stroke: black;
+}
+
+.scale-viewport .value-label {
+    text-anchor: start;
+    pointer-events: auto;
+    font-size: 14px;
+    cursor: pointer;
+}

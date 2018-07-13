@@ -1,0 +1,26 @@
+/* D3 override */
+
+.domain {
+    fill: none;
+    stroke: black;
+    stroke-width: 1;
+  }
+  line {
+    stroke: black;
+    stroke-width: 1;
+  }
+  text {  
+      color: black;
+  }
+  .xaxis {  
+      top: 8px;
+  }
+  .extent {
+      fill: steelblue;
+      stroke: white;
+  }
+  .d3-tip {
+      font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+  }
+  
+  
