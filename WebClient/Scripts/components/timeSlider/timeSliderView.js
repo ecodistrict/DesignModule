@@ -9,7 +9,7 @@ var TimeSliderView = L.Control.extend({
     },
 
     initLayout: function () {
-        this.scaleView = new ScaleView({
+        this.scaleView = new ScaleSliderView({
             element: this.element,
             model: this.model,
             modelValueDecorator: this.timeFormat,

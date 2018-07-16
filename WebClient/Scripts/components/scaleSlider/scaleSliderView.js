@@ -1,5 +1,5 @@
 
-var ScaleView = L.Control.extend({
+var ScaleSliderView = L.Control.extend({
 
     initialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided to the View');
@@ -382,4 +382,4 @@ var ScaleView = L.Control.extend({
     }
 
 });
-L.extend(ScaleView.prototype, L.Evented.prototype);
+L.extend(ScaleSliderView.prototype, L.Evented.prototype);

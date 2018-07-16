@@ -8,7 +8,7 @@ var TimeSliderController = L.Class.extend({
     initialize: function (opts) {
         this.map = opts.map;
         
-        this.model = new ScaleModel({
+        this.model = new ScaleSliderModel({
             value: new Date()
         });
 

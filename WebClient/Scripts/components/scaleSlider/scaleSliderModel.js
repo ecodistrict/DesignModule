@@ -1,4 +1,4 @@
-var ScaleModel = L.Class.extend({
+var ScaleSliderModel = L.Class.extend({
 
     initialize: function (opts) {
         opts = opts || {};
@@ -38,4 +38,4 @@ var ScaleModel = L.Class.extend({
     }
 
 });
-L.extend(ScaleModel.prototype, L.Evented.prototype);
+L.extend(ScaleSliderModel.prototype, L.Evented.prototype);
