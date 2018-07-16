@@ -127,10 +127,8 @@ var
 begin
   try
     // todo: reset sessionmodel imb4 connection
-    sessionModel.Connection.connected := false;
-    sessionModel.Connection.connected := true;
     connectionError := False;
-    if sessionModel.Connection.connected then
+    if sessionModel.Connection.Reset() then
     begin
       // add parameters with default values
       // DataSourceParameterName and FederationParameterName parameters should be set to
@@ -143,7 +141,7 @@ begin
       begin
         WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
       end;
-
+      sourceESPG := -1;
       //projectName := GetSetting(ProjectNameSwitch,
       if aParameters.ParameterExists(DataSourceParameterName) then
       begin

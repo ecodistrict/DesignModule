@@ -694,6 +694,7 @@ type
   private
     fTableprefix: string;
     fIMBConnection: TIMBConnection; // ref
+    fLayerRefreshEvent: TIMBEventEntry;
     fUSChartGroups: TObjectList<TUSChartGroup>;
     //fUSControlStatuses: TObjectDictionary<Integer, TUSControlStatus>; //owns, locks with monitor
     //fUpdateQueue: TList<TUSUpdateQueueEntry>;
@@ -718,6 +719,7 @@ type
   public
     procedure ReadBasicData(); override;
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    procedure LayerRefreshed(aTilerLayerID: Integer; const aElementID: string; aTimeStamp: TDateTime; aLayer: TSubscribeObject); override;
   public
     // select objects
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
@@ -975,11 +977,11 @@ begin
   begin
     setLength(Result, Length(Result)+1);
     Result[Length(Result)-1] :=
-    aIMBConnection.Subscribe(
-    aUserName+
-    aTableprefix.Substring(aTableprefix.Length-1)+ // #
-    aTableprefix.Substring(0, aTablePrefix.length-1)+
-    '.'+ev.Trim, False); // add with absolute path
+      aIMBConnection.Subscribe(
+        aUserName+
+        aTableprefix.Substring(aTableprefix.Length-1)+ // #
+        aTableprefix.Substring(0, aTablePrefix.length-1)+
+        '.'+ev.Trim, False); // add with absolute path
   end;
 end;
 
@@ -2342,6 +2344,11 @@ constructor TUSScenario.Create(aProject: TProject; const aID, aName, aDescriptio
 begin
   fTablePrefix := aTablePrefix;
   fIMBConnection := aIMBConnection;
+  fLayerRefreshEvent := fIMBConnection.Publish(
+    (aProject as TUSProject).OraSession.Username+
+    aTableprefix.Substring(aTableprefix.Length-1)+ // #
+    aTableprefix.Substring(0, aTablePrefix.length-1)+
+    '.'+'TilerLayers', false);
   fUSChartGroups := TObjectList<TUSChartGroup>.Create(True);
   //fUSControlStatuses := TObjectDictionary<Integer, TUSControlStatus>.Create([doOwnsValues]);
   inherited Create(aProject, aID, aName, aDescription, aFederation, aAddbasicLayers, aMapView);
@@ -2363,6 +2370,11 @@ end;
 
 destructor TUSScenario.Destroy;
 begin
+  if Assigned(fLayerRefreshEvent) then
+  begin
+    fLayerRefreshEvent.UnPublish;
+    fLayerRefreshEvent := nil;
+  end;
   inherited;
   FreeAndNil(fUSChartGroups);
   //FreeAndNil(fUSControlStatuses);
@@ -2424,6 +2436,12 @@ function TUSScenario.HandleClientSubscribe(aClient: TClient): Boolean;
 begin
   Result := inherited;
   SendUSControlsMessage(aClient);
+end;
+
+procedure TUSScenario.LayerRefreshed(aTilerLayerID: Integer; const aElementID: string; aTimeStamp: TDateTime; aLayer: TSubscribeObject);
+begin
+  if Assigned(fLayerRefreshEvent)
+  then fLayerRefreshEvent.SignalChangeObject(actionChange, aTilerLayerID, aElementID);
 end;
 
 procedure TUSScenario.ReadBasicData;

@@ -51,8 +51,6 @@ type
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
   destructor Destroy; override;
-  private
-    fUSIMBConnection: TIMBConnection;
   public
     procedure ReadBasicData(); override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
@@ -90,10 +88,6 @@ constructor TUSDesignProject.Create(aSessionModel: TSessionModel;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
 begin
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection, aMapView, aPreLoadScenarios, True, aMaxNearestObjectDistanceInMeters, aSourceEPSG);
-  fUSIMBConnection := aIMB3Connection;{TIMBConnection.Create(
-      GetSetting('IMB3RemoteHost', 'vps17642.public.cloudvps.com'),
-      GetSetting('IMB3RemotePort', 4000),
-      'PublisherDME-Design', 21, '');}
   EnableControl(selectControl);
   EnableControl(measuresControl);
   EnableControl(measuresHistoryControl);
@@ -189,7 +183,7 @@ begin
               if succeeded then
               begin
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.TRAF_OD';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 publishEvent.SignalChangeObject(actionChange, 0, 'CAR_TRIPS'); //todo: send object id = 0 in case of everything?
                 publishEvent.UnPublish;
               end;
@@ -216,7 +210,7 @@ begin
               if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
               begin
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 try
                   for jsonObjectID in jsonObjectIDs do
                   begin
@@ -288,7 +282,7 @@ begin
               if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
               begin
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 try
                   for jsonObjectID in jsonObjectIDs do
                   begin
@@ -356,7 +350,7 @@ begin
               if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
               begin
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 try
                   for jsonObjectID in jsonObjectIDs do
                   begin
@@ -410,7 +404,7 @@ begin
                 ' set' +
                 ' CAR_TRIPS = CAR_TRIPS ' + value;
               publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.TRAF_OD';
-              publishEvent := fUSIMBConnection.publish(publishEventName, false);
+              publishEvent := fIMB3Connection.publish(publishEventName, false);
               try
                 oraSession.ExecSQL(queryText);
                 oraSession.Commit;
@@ -435,7 +429,7 @@ begin
               if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
               begin
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_BUILDING';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 try
                   for jsonObjectID in jsonObjectIDs do
                   begin
@@ -505,18 +499,18 @@ begin
               begin
                 queryResult := ReturnAllResults(oraSession, 'SELECT OBJECT_ID FROM ' + table1 + ' WHERE groupname =  ''HSM Steel''');
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_INDUSTRY_SRC';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 for rowResult in queryResult do
                   publishEvent.SignalChangeObject(actionChange, StrToIntDef(rowResult[0], -1), 'ACTIVE'); //todo: send object id = 0 in case of everything?
                 publishEvent.UnPublish;
 
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.OPS_SOURCES';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 publishEvent.SignalChangeObject(actionChange, 30042, 'FACTOR'); //todo: send object id = 0 in case of everything?
                 publishEvent.UnPublish;
 
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_BUILDING';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 publishEvent.SignalChangeObject(actionChange, 15928, 'INHABIT'); //todo: send object id = 0 in case of everything?
                 publishEvent.UnPublish;
               end;
@@ -535,7 +529,7 @@ begin
               if jsonMeasure.TryGetValue<TJSONArray>('selectedObjects', jsonObjectIDs) then
               begin
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.PBLS_CONTROLS';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 try
                   for jsonObjectID in jsonObjectIDs do
                   begin
@@ -610,7 +604,7 @@ begin
                   ' ZONE  = CASE WHEN (ZONE is null or zone = '''') then ''' + value + ''' else zone || '';' +  value + ''' END' +
                   ' where ZONE_TYPE=1 and (zone is null or not zone like ''%' + value + '%'')';
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 try
                   oraSession.ExecSQL(queryText, [objectID]);
                   oraSession.Commit;
@@ -651,7 +645,7 @@ begin
                   ' ZONE = null' +
                   ' where ZONE_TYPE=1 and (not zone is null or not zone = '''')';
                 publishEventName := oraSession.Username + '#' + aClient.currentScenario.Name + '.GENE_ROAD';
-                publishEvent := fUSIMBConnection.publish(publishEventName, false);
+                publishEvent := fIMB3Connection.publish(publishEventName, false);
                 try
                   oraSession.ExecSQL(queryText, [objectID]);
                   oraSession.Commit;
