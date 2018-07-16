@@ -27,7 +27,6 @@ var TimeSliderController = L.Class.extend({
         this.timeSliderView.on('timeClicked', this.toggleTimeSliderSettings.bind(this));
         window.addEventListener('resize', this.timeSliderView.resize.bind(this.timeSliderView));
 
-        this.timeSliderSettingsShown = false;
         this.timeSliderSettingsView = new TimeSliderSettingsView({
             map: this.map,
             model: this.model,
@@ -74,7 +73,7 @@ var TimeSliderController = L.Class.extend({
     },
 
     toggleTimeSliderSettings: function () {        
-        if (!this.timeSliderSettingsShown) {
+        if (!this.timeSliderSettingsView.isVisible()) {
             this.showTimeSliderSettings();
         } else {
             this.hideTimeSliderSettings();
@@ -82,12 +81,10 @@ var TimeSliderController = L.Class.extend({
     },
 
     showTimeSliderSettings: function () {
-        this.timeSliderSettingsShown = true;
         this.timeSliderSettingsView.show();
     },
 
     hideTimeSliderSettings: function () {
-        this.timeSliderSettingsShown = false;
         this.timeSliderSettingsView.hide();
     }
 });

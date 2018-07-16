@@ -32,13 +32,17 @@ var TimeSliderSettingsView = L.Control.extend({
     },
 
     show: function () {
-        this.createSettings();
+        this._createSettings();
         this.map.addControl(this);     
     },
 
     hide: function () {
         this.map.removeControl(this);
-        this.clearSettings();
+        this._clearSettings();
+    },
+
+    isVisible: function () {
+        return !!this._div.firstChild;
     },
 
     notifyClose: function () {
@@ -176,7 +180,7 @@ var TimeSliderSettingsView = L.Control.extend({
         }
     },
 
-    createSettings: function () {
+    _createSettings: function () {
         // content holding settings elements
         this._content = this._div.appendChild(L.DomUtil.create('div', 'settings-content'));
         this._title = this._div.appendChild(L.DomUtil.create('div', 'settings-title'));
@@ -189,7 +193,7 @@ var TimeSliderSettingsView = L.Control.extend({
         });
     },
     
-    clearSettings: function (aClearPosition) {    
+    _clearSettings: function (aClearPosition) {    
         if (this._div) {
             // clear previous contents
             while (this._div.firstChild) {
