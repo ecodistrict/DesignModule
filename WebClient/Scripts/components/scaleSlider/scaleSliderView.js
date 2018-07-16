@@ -45,6 +45,11 @@ var ScaleSliderView = L.Control.extend({
         this.registerUserEventsHandlers();
     },
 
+    setZoomLevel: function (zoomLevel) {
+        this.innerSpaceTransform = d3.zoomIdentity.translate(0, 0).scale(zoomLevel);
+        this.redraw();
+    },
+
     buildViewport: function () {
         this.svgViewport = d3.select(this.element)
             .append('svg')

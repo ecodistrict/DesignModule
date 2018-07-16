@@ -38,6 +38,10 @@ var TimeSliderView = L.Control.extend({
         L.DomUtil.addClass(this.element, 'hidden');        
     },
 
+    setZoomLevel: function (zoomLevel) {
+        this.scaleView.setZoomLevel(zoomLevel);
+    },
+
     notifyClose: function () {
         this.fire('close');
     },
