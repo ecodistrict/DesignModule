@@ -1,18 +1,9 @@
-var TimeSliderUtils = {
-    createTimeScale: function (currentTime) {
-        var hour = 1000 * 60 * 60;
-        var day = hour * 24;
-        var tsStart = new Date(currentTime.getTime() - day);
-        var tsEnd = new Date(currentTime.getTime() + day);
-        return d3.scaleTime().domain([tsStart, tsEnd]);
-    }
-};
-
 var TimeSliderView = L.Control.extend({
 
     initialize: function (opts) {
         this.element = opts.element;
         this.model = opts.model;
+        this.timeFormat = opts.timeFormat || d3.timeFormat('%Y-%m-%d %H:%M');
 
         this.initLayout();
     },
@@ -21,11 +12,12 @@ var TimeSliderView = L.Control.extend({
         this.scaleView = new ScaleView({
             element: this.element,
             model: this.model,
-            modelValueDecorator: d3.timeFormat('%Y-%m-%d %H:%M'),
+            modelValueDecorator: this.timeFormat,
             modelValueScaleCreator: TimeSliderUtils.createTimeScale,
             padding: { left: 32, right: 32 }
         });
         this.scaleView.on('eventSelected', this.notifyEventSelected.bind(this));
+        this.scaleView.on('valueClicked', this.notifyTimeClicked.bind(this));
 
         var close = L.DomUtil.create('div', 'timeslider-close');
         close.innerHTML = '&#x2715;';
@@ -48,6 +40,10 @@ var TimeSliderView = L.Control.extend({
 
     notifyClose: function () {
         this.fire('close');
+    },
+
+    notifyTimeClicked: function () {
+        this.fire('timeClicked');
     },
 
     notifyEventSelected: function (data) {

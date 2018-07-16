@@ -12,15 +12,28 @@ var TimeSliderController = L.Class.extend({
             value: new Date()
         });
 
+        var timeFormat = d3.timeFormat('%Y-%m-%d %H:%M');
+
         this.timeSliderToggleView = new TimeSliderToggleView();
         this.timeSliderToggleView.on('clicked', this.expandTimeSlider.bind(this));
         
         this.timeSliderView = new TimeSliderView({
             element: d3.select('div.timeslider').node(),
-            model: this.model
+            model: this.model,
+            timeFormat: timeFormat
         });
         this.timeSliderView.on('close', this.collapseTimeSlider.bind(this));
+        this.timeSliderView.on('eventSelected', function () {});
+        this.timeSliderView.on('timeClicked', this.toggleTimeSliderSettings.bind(this));
         window.addEventListener('resize', this.timeSliderView.resize.bind(this.timeSliderView));
+
+        this.timeSliderSettingsShown = false;
+        this.timeSliderSettingsView = new TimeSliderSettingsView({
+            map: this.map,
+            model: this.model,
+            timeFormat: timeFormat
+        });
+        this.timeSliderSettingsView.on('close', this.hideTimeSliderSettings.bind(this));
     },
 
     createTimeSlider: function (timeSliderDisplayMode) {
@@ -56,7 +69,26 @@ var TimeSliderController = L.Class.extend({
     collapseTimeSlider: function () {
         this.timeSliderToggleView.show();            
         this.timeSliderView.hide();
+        this.hideTimeSliderSettings();
         InfoTextControl['leaflet-control-timeslider'] = { active: false };
+    },
+
+    toggleTimeSliderSettings: function () {        
+        if (!this.timeSliderSettingsShown) {
+            this.showTimeSliderSettings();
+        } else {
+            this.hideTimeSliderSettings();
+        }
+    },
+
+    showTimeSliderSettings: function () {
+        this.timeSliderSettingsShown = true;
+        this.timeSliderSettingsView.show();
+    },
+
+    hideTimeSliderSettings: function () {
+        this.timeSliderSettingsShown = false;
+        this.timeSliderSettingsView.hide();
     }
 });
 L.extend(TimeSliderController.prototype, L.Evented.prototype);
