@@ -21,7 +21,7 @@ var ScaleSliderView = L.Control.extend({
         this.modelValueScaleCreator = opts.modelValueScaleCreator || function () { return d3.scaleLinear(); };
 
         this.padding = L.extend({ left: 20, top: 0, right: 20, bottom: 0 }, opts.padding || {});
-        this.xAxisMargin = L.extend({ top: 10, left: 0, right: 0, bottom: 0 }, opts.xAxisMargin || {});
+        this.xAxisMargin = L.extend({ top: 19, left: 0, right: 0, bottom: 0 }, opts.xAxisMargin || {});
 
         this.render();
     },
@@ -276,13 +276,17 @@ var ScaleSliderView = L.Control.extend({
         var events = eventsContainer.selectAll("rect.event").data(this.model.events);
         var scale = this.currentScale();
 
+        function constructEventLevelClass(level) {
+            if (typeof level !== 'number') return '';
+
+            return 'event-level-' + level;
+        }
+
         events.enter()
             .append("rect")
-            .attr("class", "event")
+            .attr("class", function (d) { return "event " + constructEventLevelClass(d.level); })
             .attr("x", function (d) { return scale(d.start); })
-            .attr("y", 2)
             .attr("width", function (d) { return scale(d.end) - scale(d.start); })
-            .attr("height", 4)
             .on('mouseover', this.tip.show)
             .on('mouseout', this.tip.hide)
             .on('click', this.modelEventClicked.bind(this))

@@ -8,8 +8,6 @@
 
 .scale-slider-viewport .events-container {
     cursor: crosshair;
-    stroke-width: 1;
-    stroke: black;
 }
 
 .scale-slider-viewport .pointer {
@@ -27,4 +25,18 @@
 .scale-slider-viewport .brush .selection {
     fill: steelblue;
     stroke: white;
+}
+
+.scale-slider-viewport .event {
+    height: 4px;
+}
+.scale-slider-viewport .event,
+.scale-slider-viewport .event-level-0  {
+    y: 2px;
+}
+.scale-slider-viewport .event-level-1 {
+    y: 8px;
+}
+.scale-slider-viewport .event-level-2 {
+    y: 14px;
 }
