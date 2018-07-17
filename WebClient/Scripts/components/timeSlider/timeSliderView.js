@@ -19,7 +19,7 @@ var TimeSliderView = L.Control.extend({
         this.scaleView.on('eventSelected', this.notifyEventSelected.bind(this));
         this.scaleView.on('valueClicked', this.notifyTimeClicked.bind(this));
 
-        var close = L.DomUtil.create('div', 'timeslider-close');
+        var close = L.DomUtil.create('div', 'timeslider-close noselect');
         close.innerHTML = '&#x2715;';
         close.onclick = this.notifyClose.bind(this);
         this.element.appendChild(close);

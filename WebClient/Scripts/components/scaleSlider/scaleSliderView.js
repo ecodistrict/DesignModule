@@ -53,7 +53,7 @@ var ScaleSliderView = L.Control.extend({
     buildViewport: function () {
         this.svgViewport = d3.select(this.element)
             .append('svg')
-            .attr('class', 'scale-viewport')
+            .attr('class', 'scale-slider-viewport')
             .attr('width', this.width)
             .attr('height', this.height);
 
@@ -121,12 +121,17 @@ var ScaleSliderView = L.Control.extend({
     },
 
     buildBrush: function () {
+        var brushTopY = this.xAxisMargin.top + 2;
+        var brushHeight = this.innerSpaceGeometry.height > brushTopY ? 
+            this.innerSpaceGeometry.height - brushTopY : 0;
+
         this.brush = d3.brushX()
-            .on('brush', this.brushed.bind(this));
+            .extent([[0, brushTopY], [this.innerSpaceGeometry.width, brushTopY + brushHeight]])
+            .on('brush', this.brushed.bind(this));        
 
         var g = this.innerSpace.select('.brush-container').append("g")
             .attr("class", "brush")
-            .call(this.brush);
+            .call(this.brush);        
 
         g.selectAll("rect.overlay").remove();
         g.selectAll('.brush rect').on('contextmenu', this.brushMousedownHandler.bind(this));
@@ -147,7 +152,7 @@ var ScaleSliderView = L.Control.extend({
         var position = this.valueLabelPosition();
 
         this.valueLabel = this.innerSpace.select('.value-label-container').append('text')
-            .attr('class', 'value-label')
+            .attr('class', 'value-label noselect')
             .attr('x', position.x)
             .attr('y', position.y)
             .on('click', this.modelValueLabelClicked.bind(this));
@@ -236,6 +241,7 @@ var ScaleSliderView = L.Control.extend({
 
         var gXAxis = this.svgViewport.select('.axis-x');
         gXAxis.call(this.xAxis.scale(scale));
+        this.svgViewport.selectAll('.axis-x .tick').classed('noselect', true);        
     },
 
     updateBrush: function () {
@@ -353,10 +359,10 @@ var ScaleSliderView = L.Control.extend({
     registerUserEventsHandlers: function () {
         this.svgViewport.on('contextmenu', function () { d3.event.preventDefault(); });
         this.innerSpace.select('.underlay-container .underlay')
-            .on('contextmenu', this.underlayMousedownHandler.bind(this));
+            .on('contextmenu', this.underlayMousedownHandler.bind(this), false);
     },
 
-    underlayMousedownHandler: function () {
+    underlayMousedownHandler: function () {        
         // stop default handling
         d3.event.preventDefault();
         d3.event.stopImmediatePropagation();
