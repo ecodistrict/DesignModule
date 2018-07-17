@@ -9,15 +9,16 @@ var TimeSliderView = L.Control.extend({
     },
 
     initLayout: function () {
+        var timesliderViewport = L.DomUtil.create('div', 'timeslider-viewport');        
         this.scaleView = new ScaleSliderView({
-            element: this.element,
+            element: timesliderViewport,
             model: this.model,
             modelValueDecorator: this.timeFormat,
             modelValueScaleCreator: TimeSliderUtils.createTimeScale,
-            padding: { left: 32, right: 32 }
         });
         this.scaleView.on('eventSelected', this.notifyEventSelected.bind(this));
         this.scaleView.on('valueClicked', this.notifyTimeClicked.bind(this));
+        this.element.appendChild(timesliderViewport);
 
         var close = L.DomUtil.create('div', 'timeslider-close noselect');
         close.innerHTML = '&#x2715;';

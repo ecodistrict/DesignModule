@@ -20,8 +20,8 @@ var ScaleSliderView = L.Control.extend({
         this.modelValueDecorator = opts.modelValueDecorator || function (value) { return '' + value; };
         this.modelValueScaleCreator = opts.modelValueScaleCreator || function () { return d3.scaleLinear(); };
 
-        this.padding = L.extend({ left: 20, top: 0, right: 20, bottom: 0 }, opts.padding || {});
-        this.xAxisMargin = L.extend({ top: 19, left: 0, right: 0, bottom: 0 }, opts.xAxisMargin || {});
+        this.padding = L.extend({ left: 0, top: 0, right: 0, bottom: 0 }, opts.padding || {});
+        this.xAxisMargin = L.extend({ top: 10, left: 15, right: 15, bottom: 0 }, opts.xAxisMargin || {});
 
         this._render();
     },
@@ -118,7 +118,7 @@ var ScaleSliderView = L.Control.extend({
 
     _buildScale: function () {
         this.baseScale = this.modelValueScaleCreator(this.model.value)
-            .range([0, this.innerSpaceGeometry.width]);
+            .range(this._xAxisRange());
     },
 
     _buildXAxis: function () {
@@ -126,7 +126,7 @@ var ScaleSliderView = L.Control.extend({
 
         this.innerSpace.select('.axis-container').append("g")
             .attr("class", "axis axis-x")
-            .attr("transform", "translate(" + this.xAxisMargin.left + ", " + this.xAxisMargin.top + ")");
+            .attr("transform", "translate(0, " + this.xAxisMargin.top + ")");
 
         this._updateXAxis();
     },
@@ -233,7 +233,7 @@ var ScaleSliderView = L.Control.extend({
         // we need to shift everything by x*(1 - k). 
         // In such case x will be center of the zoomed scale.    
         var modelValueScale = this.modelValueScaleCreator(this.model.value)
-            .range([0, this.innerSpaceGeometry.width]);
+            .range(this._xAxisRange());
         var valuePosition = modelValueScale(this.model.value);
         var transform = d3.zoomIdentity.translate(valuePosition * (1 - this.innerSpaceTransform.k), 0)
             .scale(this.innerSpaceTransform.k);
@@ -292,6 +292,8 @@ var ScaleSliderView = L.Control.extend({
             .on('click', this._modelEventClicked.bind(this))
             .style("fill", function (d) { return d.color; });
         events.transition()
+            .duration(0)
+            .attr("class", function (d) { return "event " + constructEventLevelClass(d.level); })
             .attr("x", function (d) { return scale(d.start); })
             .attr("width", function (d) { return scale(d.end) - scale(d.start); })
             .style("fill", function (d) { return d.color; });
@@ -309,7 +311,7 @@ var ScaleSliderView = L.Control.extend({
     },
 
     _brushed: function () {
-        if (!d3.event.sourceEvent) return; // if brush change occured not from UI then ignore this event
+        if (!d3.event.sourceEvent || d3.event.sourceEvent.type === 'zoom') return; // if not explicit brush change from UI then ignore.
 
         var currentScale = this._currentScale();
         var selection = d3.event.selection;
@@ -354,6 +356,14 @@ var ScaleSliderView = L.Control.extend({
             x: this.innerSpaceGeometry.width / 2 + 8,
             y: this.innerSpaceGeometry.height - 6
         };
+    },
+
+    _xAxisRange: function () {
+        var left = this.xAxisMargin.left;
+        var right = this.innerSpaceGeometry.width - this.xAxisMargin.right;
+        if (right < 0) right = 0;
+
+        return [left, right];
     },
 
     _currentScale: function () {

@@ -8,6 +8,8 @@
 
 .scale-slider-viewport .events-container {
     cursor: crosshair;
+    stroke-width: 1;
+    stroke: black;
 }
 
 .scale-slider-viewport .pointer {
