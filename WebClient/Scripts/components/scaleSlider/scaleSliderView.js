@@ -146,6 +146,7 @@ var ScaleSliderView = L.Control.extend({
 
         g.selectAll("rect.overlay").remove();
         g.selectAll('.brush rect').on('contextmenu', this._brushMousedownHandler.bind(this));
+        g.selectAll('.brush rect').on('wheel', this._forwardEventTo('.underlay'));
 
         this._updateBrush();
     },
@@ -368,6 +369,18 @@ var ScaleSliderView = L.Control.extend({
 
     _currentScale: function () {
         return this.xAxis.scale();
+    },
+
+    _forwardEventTo: function (target) {
+        return function () {
+            d3.event.preventDefault();
+            d3.event.stopImmediatePropagation();
+
+            var forwardedEvent = new d3.event.constructor(d3.event.type, d3.event);
+
+            var underlay = this.innerSpace.select(target).node();
+            underlay.dispatchEvent(forwardedEvent);
+        }.bind(this);
     },
 
     _registerUserEventsHandlers: function () {
