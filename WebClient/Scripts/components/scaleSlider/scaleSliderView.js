@@ -50,6 +50,8 @@ var ScaleSliderView = L.Control.extend({
     setZoomLevel: function (zoomLevel) {
         this.innerSpaceTransform = d3.zoomIdentity.translate(0, 0).scale(zoomLevel);
         this._redraw();
+
+        this.fire('zoomLevelChanged', { zoomLevel: this.innerSpaceTransform.k });
     },
 
     render: function () {
@@ -337,6 +339,8 @@ var ScaleSliderView = L.Control.extend({
 
         var zoomedScale = this.innerSpaceTransform.rescaleX(this.baseScale);
         this.model.value = zoomedScale.invert(this._pointerX());
+
+        this.fire('zoomLevelChanged', { zoomLevel: this.innerSpaceTransform.k });
     },
 
     _brushed: function () {

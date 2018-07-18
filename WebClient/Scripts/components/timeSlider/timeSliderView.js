@@ -24,6 +24,7 @@ var TimeSliderView = L.Control.extend({
         });
         this.scaleView.on('eventSelected', this.notifyEventSelected, this);
         this.scaleView.on('valueClicked', this.notifyTimeClicked, this);
+        this.scaleView.on('zoomLevelChanged', this.notifyZoomLevelChanged, this);
         this.element.appendChild(this.timesliderViewport);
 
         this.close = L.DomUtil.create('div', 'timeslider-close noselect');
@@ -40,6 +41,7 @@ var TimeSliderView = L.Control.extend({
 
         this.scaleView.off('eventSelected', this.notifyEventSelected, this);
         this.scaleView.off('valueClicked', this.notifyTimeClicked, this);
+        this.scaleView.off('zoomLevelChanged', this.notifyZoomLevelChanged, this);
         this.scaleView.remove();
 
         this.timesliderViewport = null;
@@ -85,6 +87,10 @@ var TimeSliderView = L.Control.extend({
 
     notifyEventSelected: function (data) {
         this.fire('eventSelected', data);
+    },
+
+    notifyZoomLevelChanged: function (data) {
+        this.fire('zoomLevelChanged', data);
     }
 });
 L.extend(TimeSliderView.prototype, L.Evented.prototype);

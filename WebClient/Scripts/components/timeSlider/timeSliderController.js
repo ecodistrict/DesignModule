@@ -24,9 +24,10 @@ var TimeSliderController = L.Class.extend({
             model: this.model,
             timeFormat: this.timeFormat
         });
-        this.timeSliderView.on('close', this.collapseTimeSlider.bind(this));
-        this.timeSliderView.on('eventSelected', this.eventSelected.bind(this));
-        this.timeSliderView.on('timeClicked', this.toggleTimeSliderSettings.bind(this));
+        this.timeSliderView.on('close', this.collapseTimeSlider, this);
+        this.timeSliderView.on('eventSelected', this.eventSelected, this);
+        this.timeSliderView.on('timeClicked', this.toggleTimeSliderSettings, this);
+        this.timeSliderView.on('zoomLevelChanged', this.zoomLevelChanged, this);
         window.addEventListener('resize', this.timeSliderView.resize.bind(this.timeSliderView));
 
         this.timeSliderSettingsView = new TimeSliderSettingsView({
@@ -176,6 +177,13 @@ var TimeSliderController = L.Class.extend({
         wsSend({ 
             type: "timeslider",
             payload: { selectedEvent: selectedEvent }
+        });
+    },
+
+    zoomLevelChanged: function (data) {
+        wsSend({ 
+            type: "timeslider",
+            payload: { zoomLevelChanged: data.zoomLevel }
         });
     }
 });
