@@ -1,3 +1,10 @@
+/**
+ * ScaleSlider is a generic scale-based slider that can work with arbitrary data types. 
+ * This slider supports selecting a current value, setting a brush and display events on the scale.
+ * 
+ * ScaleSliderView visually represents the model state on a scale-based slider.
+ */
+
 
 var ScaleSliderView = L.Control.extend({
 
