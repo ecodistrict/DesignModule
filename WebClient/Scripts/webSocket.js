@@ -133,7 +133,7 @@ var wsLookup = {
         }
         if (typeof payload.timeslider !== 'undefined') {
             if (payload.timeslider) {
-                timeSliderController.createTimeSlider(payload.timeslider);
+                timeSliderController.createTimeSlider(payload.timeslider, payload.options);
             }
             else {
                 timeSliderController.removeTimeSlider();

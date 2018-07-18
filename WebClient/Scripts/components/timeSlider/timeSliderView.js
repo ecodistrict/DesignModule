@@ -4,30 +4,60 @@ var TimeSliderView = L.Control.extend({
         this.element = opts.element;
         this.model = opts.model;
         this.timeFormat = opts.timeFormat || d3.timeFormat('%Y-%m-%d %H:%M');
+        this.features = L.extend({
+            brush: true
+        }, opts.features || {});
 
-        this.initLayout();
-    },
+        this.render();
+    },   
 
-    initLayout: function () {
-        var timesliderViewport = L.DomUtil.create('div', 'timeslider-viewport');        
+    render: function () {
+        if (this.scaleView) return; // already rendered
+
+        this.timesliderViewport = L.DomUtil.create('div', 'timeslider-viewport');        
         this.scaleView = new ScaleSliderView({
-            element: timesliderViewport,
+            element: this.timesliderViewport,
             model: this.model,
+            features: this.features,
             modelValueDecorator: this.timeFormat,
             modelValueScaleCreator: TimeSliderUtils.createTimeScale,
         });
-        this.scaleView.on('eventSelected', this.notifyEventSelected.bind(this));
-        this.scaleView.on('valueClicked', this.notifyTimeClicked.bind(this));
-        this.element.appendChild(timesliderViewport);
+        this.scaleView.on('eventSelected', this.notifyEventSelected, this);
+        this.scaleView.on('valueClicked', this.notifyTimeClicked, this);
+        this.element.appendChild(this.timesliderViewport);
 
-        var close = L.DomUtil.create('div', 'timeslider-close noselect');
-        close.innerHTML = '&#x2715;';
-        close.onclick = this.notifyClose.bind(this);
-        this.element.appendChild(close);
+        this.close = L.DomUtil.create('div', 'timeslider-close noselect');
+        this.close.innerHTML = '&#x2715;';
+        this.close.onclick = this.notifyClose.bind(this);
+        this.element.appendChild(this.close);
+    },
+
+    remove: function () {
+        if (!this.scaleView) return; // already removed
+
+        this.element.removeChild(this.timesliderViewport);
+        this.element.removeChild(this.close);
+
+        this.scaleView.off('eventSelected', this.notifyEventSelected, this);
+        this.scaleView.off('valueClicked', this.notifyTimeClicked, this);
+        this.scaleView.remove();
+
+        this.timesliderViewport = null;
+        this.scaleView = null;
+        this.close = null;
+    },
+
+    configureFeatures: function (features) {
+        this.features = L.extend(this.features, features);
+        if (this.scaleView) {
+            this.scaleView.configureFeatures(features);
+        }
     },
 
     resize: function () {
-        this.scaleView.resize();
+        if (this.scaleView) {
+            this.scaleView.resize();
+        }
     },
 
     show: function () {
@@ -40,7 +70,9 @@ var TimeSliderView = L.Control.extend({
     },
 
     setZoomLevel: function (zoomLevel) {
-        this.scaleView.setZoomLevel(zoomLevel);
+        if (this.scaleView) {
+            this.scaleView.setZoomLevel(zoomLevel);
+        }
     },
 
     notifyClose: function () {

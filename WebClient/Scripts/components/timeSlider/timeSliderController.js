@@ -37,7 +37,13 @@ var TimeSliderController = L.Class.extend({
         this.timeSliderSettingsView.on('close', this.hideTimeSliderSettings.bind(this));
     },
 
-    createTimeSlider: function (timeSliderDisplayMode) {
+    createTimeSlider: function (timeSliderDisplayMode, options) {
+        options = options || {};
+        
+        if (options.features) {
+            this.timeSliderView.configureFeatures(options.features);
+        }
+        
         this.map.addControl(this.timeSliderToggleView);
         this.setTimeSliderDisplayMode(timeSliderDisplayMode);
     },

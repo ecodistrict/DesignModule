@@ -9,13 +9,10 @@ var ScaleSliderView = L.Control.extend({
         L.setOptions(this, opts.leafletOptions);
 
         this.element = opts.element;
-        this.width = this.element.offsetWidth;
-        this.height = this.element.offsetHeight;
-
         this.model = opts.model;
-        this.model.on('value', this._modelValueChanged.bind(this));
-        this.model.on('brush', this._modelBrushChanged.bind(this));
-        this.model.on('events', this._modelEventsChanged.bind(this));
+        this.features = L.extend({
+            brush: true
+        }, opts.features || {});
 
         this.modelValueDecorator = opts.modelValueDecorator || function (value) { return '' + value; };
         this.modelValueScaleCreator = opts.modelValueScaleCreator || function () { return d3.scaleLinear(); };
@@ -23,7 +20,20 @@ var ScaleSliderView = L.Control.extend({
         this.padding = L.extend({ left: 0, top: 0, right: 0, bottom: 0 }, opts.padding || {});
         this.xAxisMargin = L.extend({ top: 10, left: 15, right: 15, bottom: 0 }, opts.xAxisMargin || {});
 
-        this._render();
+        this.render();
+    },
+
+    configureFeatures: function (features) {
+        features = features || {};
+        this.features = L.extend(this.features, features);
+
+        if (this.features.brush) {        
+            this._removeBrush();
+            this._buildBrush();
+            this._updateBrush();
+        } else {
+            this._removeBrush();
+        }
     },
 
     resize: function () {
@@ -42,7 +52,16 @@ var ScaleSliderView = L.Control.extend({
         this._redraw();
     },
 
-    _render: function () {
+    render: function () {
+        if (this.svgViewport) return; // already rendered
+
+        this.width = this.element.offsetWidth;
+        this.height = this.element.offsetHeight;
+
+        this.model.on('value', this._modelValueChanged, this);
+        this.model.on('brush', this._modelBrushChanged, this);
+        this.model.on('events', this._modelEventsChanged, this);
+
         this._buildViewport();
         this._buildInnerSpaceGeometry();
         this._buildInnerSpace();
@@ -56,10 +75,21 @@ var ScaleSliderView = L.Control.extend({
         this._buildValueLabel();
         this._buildTooltip();
 
-        this._updateEvents();
+        this._redraw();
 
         this._registerUserEventsHandlers();
-    },    
+    },
+
+    remove: function () {
+        if (!this.svgViewport) return; // already removed
+
+        this.model.off('value', this._modelValueChanged, this);
+        this.model.off('brush', this._modelBrushChanged, this);
+        this.model.off('events', this._modelEventsChanged, this);
+
+        this.svgViewport.remove();
+        this.svgViewport = null;
+    },
 
     _buildViewport: function () {
         this.svgViewport = d3.select(this.element)
@@ -127,8 +157,6 @@ var ScaleSliderView = L.Control.extend({
         this.innerSpace.select('.axis-container').append("g")
             .attr("class", "axis axis-x")
             .attr("transform", "translate(0, " + this.xAxisMargin.top + ")");
-
-        this._updateXAxis();
     },
 
     _buildBrush: function () {
@@ -147,8 +175,6 @@ var ScaleSliderView = L.Control.extend({
         g.selectAll("rect.overlay").remove();
         g.selectAll('.brush rect').on('contextmenu', this._brushMousedownHandler.bind(this));
         g.selectAll('.brush rect').on('wheel', this._forwardEventTo('.underlay'));
-
-        this._updateBrush();
     },
 
     _buildPointer: function () {
@@ -168,8 +194,6 @@ var ScaleSliderView = L.Control.extend({
             .attr('x', position.x)
             .attr('y', position.y)
             .on('click', this._modelValueLabelClicked.bind(this));
-
-        this._updateValueLabel();
     },
 
     _buildTooltip: function () {
@@ -200,8 +224,7 @@ var ScaleSliderView = L.Control.extend({
     },
 
     _resizeBrush: function () {
-        // completetly rebuild the brush on resize
-        this.innerSpace.select('.brush').remove();
+        this._removeBrush();
         this._buildBrush();
     },
 
@@ -246,6 +269,7 @@ var ScaleSliderView = L.Control.extend({
     },
 
     _updateBrush: function () {
+        if (!this.features.brush) return; // brush feature is not supported
         if (d3.event && d3.event.type === 'brush') return; // if we are already updating the brush then skip.
 
         var gBrush = this.svgViewport.select('.brush');
@@ -300,6 +324,10 @@ var ScaleSliderView = L.Control.extend({
             .style("fill", function (d) { return d.color; });
         events.exit()
             .remove();
+    },
+
+    _removeBrush: function () {
+        this.innerSpace.select('.brush').remove();
     },
 
     _zoomed: function () {
@@ -394,13 +422,15 @@ var ScaleSliderView = L.Control.extend({
         d3.event.preventDefault();
         d3.event.stopImmediatePropagation();
 
-        var x = d3.event.offsetX - this.innerSpaceGeometry.left;
-        var initialBrushHalfWidthInPixels = 20;
+        if (this.features.brush) {
+            var x = d3.event.offsetX - this.innerSpaceGeometry.left;
+            var initialBrushHalfWidthInPixels = 20;
 
-        this.model.brush = {
-            start: this._currentScale().invert(x - initialBrushHalfWidthInPixels),
-            end: this._currentScale().invert(x + initialBrushHalfWidthInPixels)
-        };
+            this.model.brush = {
+                start: this._currentScale().invert(x - initialBrushHalfWidthInPixels),
+                end: this._currentScale().invert(x + initialBrushHalfWidthInPixels)
+            };
+        }        
     },
 
     _brushMousedownHandler: function () {
