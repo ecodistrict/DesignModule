@@ -18,9 +18,9 @@ Generic scale-based slider that can work with arbitrary data types. This slider 
 
 The component has a simple Model-View design. 
 
-[**ScaleSliderModel**](#ScaleSliderModel) is the source of the data. The model provides a subscription mechanism for tracking its state. Whenever model state is changed a corresponding event is emitted. Model stores *current value*, *brush* as a range selection and *events* that are objects attached to scale.
+[**ScaleSliderModel**](#ScaleSliderModelApi) <a name="ScaleSliderModel"></a> is the source of the data. The model provides a subscription mechanism for tracking its state. Whenever model state is changed a corresponding event is emitted. Model stores *current value*, *brush* as a range selection and *events* that are objects attached to scale.
 
-[**ScaleSliderView**](#ScaleSliderView) visually represents the model state on a scale-based slider. When user interacts with the slider and changes *current value*/*brush* these changes are stored into the model. Note that the only source of truth for the view is the model. It means that visual state always reflect the model state and they can't be out of sync. This is achieved in the following way: user interacts with the view => view modifies the model without changing the view itself => if model is ok with the change then model emits a change event => view react on the change event and redraws the scene using the latest model data.
+[**ScaleSliderView**](#ScaleSliderViewApi) <a name="ScaleSliderView"></a> visually represents the model state on a scale-based slider. When user interacts with the slider and changes *current value*/*brush* these changes are stored into the model. Note that the only source of truth for the view is the model. It means that visual state always reflect the model state and they can't be out of sync. This is achieved in the following way: user interacts with the view => view modifies the model without changing the view itself => if model is ok with the change then model emits a change event => view react on the change event and redraws the scene using the latest model data.
 
 
 **Note** that model is injected into the view and is not created inside of the view. This allows to create an external object that will manage the model state, e.g. will receive server messages and change the model accordingly.
@@ -29,7 +29,7 @@ The component has a simple Model-View design.
 
 ## API reference
 
-### ScaleSliderModel <a name="ScaleSliderModel"></a>
+### ScaleSliderModel <a name="ScaleSliderModelApi"></a>
 **ScaleSliderModel** extends [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
 
 #### Usage example
@@ -114,7 +114,7 @@ When constructing a model an options object can be passed to constructor.
 | level | number | Event level in a range \[0..\]. Level represents row where this event will be displayed. If Level is not provided then 0 is the default value. |
 
 
-### ScaleSliderView <a name="ScaleSliderView"></a>
+### ScaleSliderView <a name="ScaleSliderViewApi"></a>
 
 **ScaleSliderView** extends [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
 
