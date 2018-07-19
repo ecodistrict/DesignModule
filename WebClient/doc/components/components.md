@@ -1,5 +1,5 @@
 # Components
-UI is built from components that represent certain widgets or controls or groups of a domain-specific controls.
+UI is build from components that represent certain widgets or controls or groups of a domain-specific controls.
 
 | Component | Description |
 |---|---|

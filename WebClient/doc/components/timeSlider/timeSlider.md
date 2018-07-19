@@ -73,6 +73,7 @@ The component has Model View Controller (MVC) design.
 
 ### Options <a name="createOptions"></a>
 Options object that should be passed to *Controller's* constructor.
+
 | Property | Description |
 |---|---|
 | map | Leaflet map object. The map will be used to place a time slider toggle button. |
@@ -100,7 +101,8 @@ Message payload is an object where each property name represents an action to be
 
 ### Client message <a name="clientMessage"></a>
 *Controller* is responsible for sending messages to server whenever *time slider* state changes.
-The message is a json with two properies
+The message is a json with two properties
+
 | Property | Type | Description |
 |---|---|---|
 | type | string | This property represent a message source. For time slider the value is **always** `'timeslider'`. |
@@ -109,6 +111,7 @@ The message is a json with two properies
 
 #### Client message payload <a name="clientMessagePayload"></a>
 Payload is an object which can contain one of the following properties.
+
 | Property | Type | Description |
 |---|---|---|
 | active | boolean | Indicates whether *time slider* is shown. `true` when shown, `false` when hidden. This message is sent whenever time slider visibility changes, e.g. when time slider is collapsed, expanded or removed.|
@@ -136,6 +139,7 @@ Option object allows specify time slider features. Note that these settings are 
 
 #### Features <a name="features"></a>
 Object specifying features set. If a feature is not mentioned in this object then a current mode of the feature will be used. Each feature has an initial default value that is used during the startup and this default value becomes a current value. Current value can be changed at any time.
+
 | Property | Type | Default | Description |
 |---|---|---|---|
 | brush | boolean | true | Brush feature is the ability to make a time range selection using brush. When brush is enabled time slider will allow user to create/remove a brush using right mouse click. In such case all brush changes will be sent to the server. Also server can send a *brush* message and it will be reflected on the time slider. When *brush* is disabled then it will never be shown on the time slider and server will not be informed of any *brush* change. Set value *true* to enable the brush feature and *false* to disable it. |
