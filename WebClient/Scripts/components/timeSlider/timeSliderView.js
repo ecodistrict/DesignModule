@@ -1,3 +1,10 @@
+/**
+ * TimeSlider is a UI component for displaying and manipulating a timeline.
+ * 
+ * TimeSliderView is a view representing a time slider control and allows 
+ * setting current time, applying a brush, displaying time-anchored events.
+ */
+
 var TimeSliderView = L.Control.extend({
 
     initialize: function (opts) {

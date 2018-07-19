@@ -1,3 +1,9 @@
+/**
+ * TimeSlider is a UI component for displaying and manipulating a timeline.
+ * 
+ * TimeSliderUtils is an utility class holding time slider domain utilities.
+ */
+
 var TimeSliderUtils = {
     createTimeScale: function (currentTime) {
         var tsStart = new Date(currentTime.getTime() - TimeSliderUtils.DAY);

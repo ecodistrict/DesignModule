@@ -1,3 +1,10 @@
+/**
+ * TimeSlider is a UI component for displaying and manipulating a timeline.
+ * 
+ * TimeSliderToggleView is a view representing a toggle button that shows 
+ * the TimeSlider control when clicked.
+ */
+
 var TimeSliderToggleView = L.Control.extend({
 
     options: {

@@ -1,3 +1,13 @@
+/**
+ * TimeSlider is a UI component for displaying and manipulating a timeline.
+ * 
+ * TimeSliderController holds the model and all the views. Controller makes a decision 
+ * when to show or hide each view. Also controller communicates with server and process 
+ * server messages. Regarding to server message controller can change the model state 
+ * or directly ask any view to do some additional actions. Also Controller is responsible 
+ * for sending messages back to the server, e.g. when model is changed.
+ */
+
 var TimeSliderDisplayMode = {
     COLLAPSE: 1,
     EXPAND: 2    
@@ -91,10 +101,14 @@ var TimeSliderController = L.Class.extend({
         }
 
         if (messagePayload.setBrush) {
-            this.model.brush = {
-                start: timeParser(messagePayload.setBrush.start),
-                end: timeParser(messagePayload.setBrush.end)
-            };
+            if (messagePayload.setBrush.start && messagePayload.setBrush.end) {
+                this.model.brush = {
+                    start: timeParser(messagePayload.setBrush.start),
+                    end: timeParser(messagePayload.setBrush.end)
+                };
+            } else {
+                this.model.brush = null;
+            }
         }
 
         if (messagePayload.setZoomLevel) {
@@ -183,7 +197,7 @@ var TimeSliderController = L.Class.extend({
     zoomLevelChanged: function (data) {
         wsSend({ 
             type: "timeslider",
-            payload: { zoomLevelChanged: data.zoomLevel }
+            payload: { zoomLevel: data.zoomLevel }
         });
     }
 });

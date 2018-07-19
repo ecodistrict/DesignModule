@@ -1,4 +1,10 @@
-// timeslider settings
+/**
+ * TimeSlider is a UI component for displaying and manipulating a timeline.
+ * 
+ * TimeSliderSettingsView is a view representing time slider settings dialog.
+ * Allows more precise setup of the selected date-time. Click on current date 
+ * label to open the dialog.
+ */
 
 var TimeSliderSettingsView = L.Control.extend({
 
@@ -203,7 +209,10 @@ var TimeSliderSettingsView = L.Control.extend({
     },
 
     _submitDate: function () {
-        this.model.value = d3.timeParse(this.timeFormat)(document.getElementsByClassName('dateInput')[0].value);
+        var newDate = d3.timeParse(this.timeFormat)(document.getElementsByClassName('dateInput')[0].value);
+        if (newDate) {
+            this.model.value = newDate;
+        }        
     },
     
     _fastBackward: function () {

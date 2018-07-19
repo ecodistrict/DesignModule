@@ -320,7 +320,10 @@ var ScaleSliderView = L.Control.extend({
             .append("rect")
             .attr("class", function (d) { return "event " + constructEventLevelClass(d.level); })
             .attr("x", function (d) { return scale(d.start); })
-            .attr("width", function (d) { return scale(d.end) - scale(d.start); })
+            .attr("width", function (d) {
+                var width = scale(d.end) - scale(d.start);
+                return width > 0 ? width : 0; 
+            })
             .on('mouseover', this.tip.show)
             .on('mouseout', this.tip.hide)
             .on('click', this._modelEventClicked.bind(this))
@@ -329,7 +332,10 @@ var ScaleSliderView = L.Control.extend({
             .duration(0)
             .attr("class", function (d) { return "event " + constructEventLevelClass(d.level); })
             .attr("x", function (d) { return scale(d.start); })
-            .attr("width", function (d) { return scale(d.end) - scale(d.start); })
+            .attr("width", function (d) {
+                var width = scale(d.end) - scale(d.start);
+                return width > 0 ? width : 0;
+            })
             .style("fill", function (d) { return d.color; });
         events.exit()
             .remove();
