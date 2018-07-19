@@ -75,7 +75,7 @@ When constructing a model an options object can be passed to constructor.
 |---|---|---|
 | value | any | Current value of the model. When assigning a value to the property a [value](#valueEvent) event is emitted. Can by of any desired type. |
 | brush | [Brush](#brush) | Current brush object. Represents range selection on a scale. When assigning a value to the property a [brush](#brushEvent) event is emitted. |
-| events | Array &lt;[Event](#event)&gt; | **Readonly**. Property that holds current events that should be displayed on a scale. The only way to modyfy this property is to use [setEvents](#setEventsMethod) or [addEvents](#addEventsMethod) functions. When this property is changed then [events](#eventsEvent) event is emitted. |
+| events | Array &lt;[Event](#event)&gt; | **Readonly**. Property that holds current events that should be displayed on a scale. The only way to modify this property is to use [setEvents](#setEventsMethod) or [addEvents](#addEventsMethod) functions. When this property is changed then [events](#eventsEvent) event is emitted. |
 
 
 #### Methods
