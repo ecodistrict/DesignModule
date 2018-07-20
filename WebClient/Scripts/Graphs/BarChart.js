@@ -267,28 +267,75 @@
             .attr("height", this.graphObject.xAxisMargin)
             .attr("transform", "translate(" + this.graphObject.yAxisMargin + "," + dataHeight + ")");
 
-        var label = this.xAxisGroup.selectAll("text")
-			.data(data)
-			.attr("x", function (d, i) { return xScale((i + 0.5) * categoryWidth); })
-            .attr("y", 0)
-			.attr("dy", "1.1em")
-			.attr("text-anchor", "middle")
-			.attr("pointer-events", "none")
-			.attr("class", "graph-title-text")
-			.style("font-size", "12px")
-			.text(function (d) { return d.title })
-            .call(this._wrapLetters, xScale(categoryWidth) - 5);
+        var label
 
-        label.enter().append("text")
-			.attr("x", function (d, i) { return xScale((i + 0.5) * categoryWidth); })
-            .attr("y", 0)
-			.attr("dy", "1.1em")
-			.attr("text-anchor", "middle")
-			.attr("pointer-events", "none")
-			.attr("class", "graph-title-text")
-			.style("font-size", "12px")
-			.text(function (d) { return d.title })
-            .call(this._wrapLetters, xScale(categoryWidth) - 5);
+        if (this.graphObject.clickable == clickOptions.labels) {
+            var graphObject = this.graphObject;
+            label = this.xAxisGroup.selectAll("text")
+                .data(data)
+                .attr("x", function (d, i) { return xScale((i + 0.5) * categoryWidth); })
+                .attr("y", 0)
+                .attr("dy", "1.1em")
+                .attr("text-anchor", "middle")
+                .attr("class", "graph-title-text")
+                .style("font-size", "12px")
+                .style("cursor", "pointer")
+                .on('click', function (d, i) {
+                    wsSend({
+                        "type": "graphLabelClick",
+                        "payload": {
+                            "graphID": graphObject.id,
+                            "labelTitle": d.title
+                        }
+                    });
+                })
+                .text(function (d) { return d.title })
+                .call(this._wrapLetters, xScale(categoryWidth) - 5);
+
+            label.enter().append("text")
+                .attr("x", function (d, i) { return xScale((i + 0.5) * categoryWidth); })
+                .attr("y", 0)
+                .attr("dy", "1.1em")
+                .attr("text-anchor", "middle")
+                .attr("class", "graph-title-text")
+                .style("font-size", "12px")
+                .style("cursor", "pointer")
+                .on('click', function (d, i) {
+                    wsSend({
+                        "type": "graphLabelClick",
+                        "payload": {
+                            "graphID": graphObject.id,
+                            "labelTitle": d.title
+                        }
+                    });
+                })
+                .text(function (d) { return d.title })
+                .call(this._wrapLetters, xScale(categoryWidth) - 5);
+        }
+        else {
+            label = this.xAxisGroup.selectAll("text")
+                .data(data)
+                .attr("x", function (d, i) { return xScale((i + 0.5) * categoryWidth); })
+                .attr("y", 0)
+                .attr("dy", "1.1em")
+                .attr("text-anchor", "middle")
+                .attr("pointer-events", "none")
+                .attr("class", "graph-title-text")
+                .style("font-size", "12px")
+                .text(function (d) { return d.title })
+                .call(this._wrapLetters, xScale(categoryWidth) - 5);
+
+            label.enter().append("text")
+                .attr("x", function (d, i) { return xScale((i + 0.5) * categoryWidth); })
+                .attr("y", 0)
+                .attr("dy", "1.1em")
+                .attr("text-anchor", "middle")
+                .attr("pointer-events", "none")
+                .attr("class", "graph-title-text")
+                .style("font-size", "12px")
+                .text(function (d) { return d.title })
+                .call(this._wrapLetters, xScale(categoryWidth) - 5);
+        }
 
         label.exit().remove();
 

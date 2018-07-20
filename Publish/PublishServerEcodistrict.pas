@@ -26,8 +26,14 @@ uses
   PublishServerDB,
   PublishServerLib,
 
+  //GisDefs,
+  GisCsSystems, GisLayerSHP, GisLayerVector,
+  GisFunctions,
+  GisUtils,
+
   System.JSON,
   System.Generics.Collections,
+  System.Classes,
   System.SysUtils;
 
 const
@@ -73,6 +79,8 @@ type
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aSelectedIDs: TArray<string>): string; overload; override;
 
     function selectObjectsProperties(aClient: TClient; const aSelectCategories, aSelectedObjects: TArray<string>): string; override;
+  public
+    function ScenarioSchemaName: string;
   end;
 
   {
@@ -240,6 +248,8 @@ type
     function handleTilerStatus(aTiler: TTiler): string;
 
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
+    procedure handleTypedClientMessage(aClient: TClient; const aMessageType: string; var aJSONObject: TJSONObject); override;
+
 
   public
     //
@@ -259,6 +269,11 @@ type
     function ReadDIMeasuresHistory: Boolean;
 
     procedure AddDIMeasureHistory(aMeasureHistory: TDIMeasureHistory);
+    procedure AddDownloadableTableNames(const aID: string);
+    procedure GenerateDownloadableFile(aProject: TProject; aClient: TClient; const aTableName, aFileType: string);
+    procedure handleFileUpload(aClient: TClient; const aFileInfo: TClientFileUploadInfo); override;
+
+    function ProjectSchemaName: string;
 
     function ReadScenario(const aID: string): TScenario; override;
     procedure ReadBasicData(); override;
@@ -548,9 +563,14 @@ var
   ikpip: TPair<string, TEcodistrictKpi>;
 begin
   // read ecodistrict data
-  if fID=fProject.ProjectID
-  then scenarioSchema := EcoDistrictSchemaId(fID)
-  else scenarioSchema := EcoDistrictSchemaId(fProject.ProjectID, fID);
+//  if fID=fProject.ProjectID
+//  then scenarioSchema := EcoDistrictSchemaId(fID)
+//  else scenarioSchema := EcoDistrictSchemaId(fProject.ProjectID, fID);
+
+  scenarioSchema := ScenarioSchemaName;
+
+  // data table names
+  (project as TEcodistrictProject).AddDownloadableTableNames(scenarioSchema);
 
   // build layers from di_queries
   for iqp in (project as TEcodistrictProject).DIQueries do
@@ -1005,9 +1025,11 @@ begin
   Result := '';
   layers := TList<TLayerBase>.Create;
   try
-    if fID=fProject.ProjectID
-    then scenarioSchema := EcoDistrictSchemaId(fID)
-    else scenarioSchema := EcoDistrictSchemaId(fProject.ProjectID, fID);
+//    if fID=fProject.ProjectID
+//    then scenarioSchema := EcoDistrictSchemaId(fID)
+//    else scenarioSchema := EcoDistrictSchemaId(fProject.ProjectID, fID);
+
+    scenarioSchema := ScenarioSchemaName;
 
     if selectLayersOnCategories(aSelectCategories, layers) then
     begin
@@ -1131,9 +1153,11 @@ begin
   Result := '';
   layers := TList<TLayer>.Create;
   try
-    if fID=fProject.ProjectID
-    then scenarioSchema := EcoDistrictSchemaId(fID)
-    else scenarioSchema := EcoDistrictSchemaId(fProject.ProjectID, fID);
+//    if fID=fProject.ProjectID
+//    then scenarioSchema := EcoDistrictSchemaId(fID)
+//    else scenarioSchema := EcoDistrictSchemaId(fProject.ProjectID, fID);
+
+    scenarioSchema := ScenarioSchemaName;
 
     for category in aSelectCategories do
     begin
@@ -1240,7 +1264,7 @@ begin
         if jsonProperties<>'' then
         begin
           Result :=
-            '{"type":"selectedObjectsProperties","payload":'+
+            '{"selectedObjectsProperties":'+
               '{'+
                 '"selectedCategories": ["'+category+'"],'+
                 '"properties":['+jsonProperties+'],'+
@@ -1262,6 +1286,14 @@ begin
   finally
     layers.Free;
   end;
+end;
+
+function TEcodistrictScenario.ScenarioSchemaName: string;
+begin
+  // read ecodistrict data
+  if fID=fProject.ProjectID
+  then Result := EcoDistrictSchemaId(fID)
+  else Result := EcoDistrictSchemaId(fProject.ProjectID, fID);
 end;
 
 function TEcodistrictScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aSelectedIDs: TArray<string>): string;
@@ -1392,16 +1424,14 @@ end;
 { TEcodistrictProject }
 
 procedure TEcodistrictProject.AddDIMeasureHistory(aMeasureHistory: TDIMeasureHistory);
-var
-  projectSchema: string;
 begin
   // store locally (read if not loaded)
   DIMeasuresHistory.Add(aMeasureHistory.id, aMeasureHistory);
   // store to database
-  projectSchema := EcoDistrictSchemaId(projectID);
+  //projectSchema := EcoDistrictSchemaId(projectID);
 
   (fDBConnection as TFDConnection).ExecSQL(
-    'INSERT INTO '+projectSchema+'.di_measureshistory (id, measure, object_ids, timeutc, variants, categories) '+
+    'INSERT INTO '+ProjectSchemaName+'.di_measureshistory (id, measure, object_ids, timeutc, variants, categories) '+
     'VALUES ('+
       ''''+aMeasureHistory.id.ToString+''','+
       ''''+aMeasureHistory.measure+''','+
@@ -1409,6 +1439,33 @@ begin
       'now() at time zone ''UTC'','+
       ''''+aMeasureHistory.variants+''','+
       ''''+aMeasureHistory.categories+''')');
+end;
+
+procedure TEcodistrictProject.AddDownloadableTableNames(const aID: string);
+var
+  query: TFDQuery;
+  tableName: string;
+begin
+  query := TFDQuery.Create(nil);
+  try
+    query.Connection := fDBConnection as TFDConnection;
+    query.SQL.Text :=
+      'SELECT table_name FROM information_schema.tables '+
+      'WHERE table_schema = '''+aID+''' and table_type=''BASE TABLE'' and table_name not in ('+
+        '''spatial_ref_sys'','+
+        '''dm_queries'','+
+        '''di_measures'', ''di_objectproperties'', ''di_queries'', ''di_restapi'', ''di_measureshistory'','+
+        '''kpi_results'')';
+    query.Open;
+    while not query.Eof do
+    begin
+      tableName :=  query.Fields[0].AsString;
+      addDownloadableFile(tableName, ['shape', 'text'], GenerateDownloadableFile);
+      query.Next;
+    end;
+  finally
+    query.Free;
+  end;
 end;
 
 constructor TEcodistrictProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
@@ -1432,6 +1489,7 @@ begin
   EnableControl(selectControl);
   EnableControl(measuresControl);
   EnableControl(measuresHistoryControl);
+  EnableControl(filesControl);
 end;
 
 destructor TEcodistrictProject.Destroy;
@@ -1442,6 +1500,208 @@ begin
   FreeAndNil(fDIMeasuresHistory);
   FreeAndNil(fKpiList);
   inherited;
+end;
+
+procedure TEcodistrictProject.GenerateDownloadableFile(aProject: TProject; aClient: TClient; const aTableName, aFileType: string);
+var
+  stream: TStream;
+  query: TFDQuery;
+  f: Integer;
+  schemaName: string;
+  fieldNames: string;
+  fieldName: string;
+  Line: TStringList;
+  writer: TStreamWriter;
+  geometryFields: TStrings;
+begin
+  // todo: implement
+  // get schema name
+  if Assigned(aClient.currentScenario)
+  then schemaName :=(aClient.currentScenario as TEcodistrictScenario).ScenarioSchemaName
+  else schemaName :=ProjectSchemaName;
+  // get column information to build query
+  {
+         "inet"
+      "bytea"
+      "uuid"
+            "real"
+            "bigint"
+      "USER-DEFINED"  -> geometry (can also check udt_name column which shuld say "geometry")
+      "integer"
+      "date"
+            "interval"
+            "smallint"
+            "ARRAY"
+            "oid"
+            ""char""
+            "timestamp with time zone"
+      "double precision"
+      "money"
+             "pg_node_tree"
+      "timestamp without time zone"
+      "character varying"
+      "boolean"
+               "pg_lsn"
+      "numeric"
+               "anyarray"
+               "xid"
+               "name"
+               "abstime"
+               "regproc"
+      "text"
+  }
+  fieldNames := '';
+  geometryFields := TStringList.Create;
+  try
+    query := TFDQuery.Create(nil);
+    try
+      query.Connection := fDBConnection as TFDConnection;
+      query.SQL.Text :=
+        'SELECT column_name, data_type '+
+        'FROM information_schema.columns '+
+        'WHERE table_schema = '''+schemaName+''' and table_name='''+aTableName+''' '+
+        'ORDER BY ordinal_position';
+      query.Open();
+      while not query.Eof do
+      begin
+        if query.Fields[1].AsString='USER-DEFINED' then
+        begin
+          fieldName := 'ST_AsGeoJSON('+query.Fields[0].AsString+') as '+query.Fields[0].AsString;
+          geometryFields.Add(fieldName);
+        end
+        else fieldName := query.Fields[0].AsString;
+        if fieldNames<>''
+        then fieldNames := fieldNames+',';
+        fieldNames := fieldNames+fieldName;
+        query.Next;
+      end;
+    finally
+      query.Free;
+    end;
+    // send contents of table to client as csv file
+    stream := TMemoryStream.Create();
+    writer := TStreamWriter.Create(stream);
+    try
+      query := TFDQuery.Create(nil);
+      try
+        query.Connection := fDBConnection as TFDConnection;
+        query.SQL.Text :=
+          'SELECT '+fieldNames+' '+
+          'FROM '+schemaName+'.'+aTableName;
+        query.Open();
+
+        if aFileType='text' then
+        begin
+          Line := TStringList.Create;
+          try
+            Line.Delimiter := #9; // ccTab ';';
+            Line.StrictDelimiter := True;
+            //Line.QuoteChar
+            // add header
+            for f := 0 to query.FieldCount-1 do
+            begin
+              if geometryFields.IndexOf(query.Fields[f].FieldName)>=0 then
+              begin
+                Line.Add(query.Fields[f].FieldName+':geometry');
+              end
+              else
+              begin
+                case query.Fields[f].DataType of
+                  ftString,
+                  ftWideMemo:  Line.Add(query.Fields[f].FieldName+':string');
+                  ftInteger:   Line.Add(query.Fields[f].FieldName+':integer');
+                  ftBoolean:   Line.Add(query.Fields[f].FieldName+':boolean');
+                  ftFloat:     Line.Add(query.Fields[f].FieldName+':float');
+                else
+                               Line.Add(query.Fields[f].FieldName+':'+Ord(query.Fields[f].DataType).toString);
+                  Log.WriteLn('Unknown field type in download query result: '+query.Fields[f].FieldName+': '+Ord(query.Fields[f].DataType).toString, llWarning);
+                end;
+              end;
+            end;
+            writer.WriteLine(Line.DelimitedText);
+            // add rows of values
+            while not query.Eof do
+            begin
+              line.Clear;
+              for f := 0 to query.FieldCount-1 do
+              begin
+                case query.Fields[f].DataType of
+                  ftBoolean:   Line.Add(query.Fields[f].AsBoolean.ToString(TUseBoolStrs.True).toLower);
+                  ftFloat:     Line.Add(query.Fields[f].AsFloat.ToString(dotFormat));
+                else
+                               Line.Add(query.Fields[f].AsString);
+                end;
+              end;
+              writer.WriteLine(Line.DelimitedText);
+              query.Next;
+            end;
+          finally
+            Line.Free;
+          end;
+        end
+        else if aFileType='shape' then
+        begin
+          if geometryFields.Count=1 then
+          begin
+            //
+            for f := 0 to query.FieldCount-1 do
+            begin
+              TGIS_Utils.GisCreateShapeFromJSON(
+              if geometryFields.IndexOf(query.Fields[f].FieldName)>=0 then
+              begin
+                //Line.Add(query.Fields[f].FieldName+':geometry');
+
+              end
+              else
+              begin
+                case query.Fields[f].DataType of
+                  ftString,
+                  ftWideMemo:;  //Line.Add(query.Fields[f].FieldName+':string');
+                  ftInteger:;   //Line.Add(query.Fields[f].FieldName+':integer');
+                  ftBoolean:;   //Line.Add(query.Fields[f].FieldName+':boolean');
+                  ftFloat:;     //Line.Add(query.Fields[f].FieldName+':float');
+                else
+                               //Line.Add(query.Fields[f].FieldName+':'+Ord(query.Fields[f].DataType).toString);
+                  Log.WriteLn('Unknown field type in download query result: '+query.Fields[f].FieldName+': '+Ord(query.Fields[f].DataType).toString, llWarning);
+                end;
+              end;
+            end;
+            // todo: create shape file
+            while not query.Eof do
+            begin
+              shape := TGIS_Utils.GisCreateShapeFromJSON(query.FieldByName(geometryFields[0]).AsString);
+              // add properties to shape
+
+              // todo: add shape to file
+
+              query.Next;
+            end;
+            // todo: copy shape contents to stream
+          end
+          else
+          begin
+            Log.WriteLn('File type "'+aFileType+'" does not supported '+geometryFields.Count.ToString+' number of geometry fields that are in '+aTableName, llError);
+            // todo: report error to client
+          end;
+        end
+        else
+        begin
+          Log.WriteLn('File type "'+aFileType+'" not supported for downloading '+aTableName, llError);
+          // todo: report error to client
+        end;
+      finally
+        query.Free;
+      end;
+      writer.Flush;
+      stream.Position := 0;
+      aClient.SendDownloadableFileStream(aTableName+'.txt', stream);
+    finally
+      writer.Free;
+      stream.Free;
+    end;
+  finally
+    geometryFields.Free;
+  end;
 end;
 
 function TEcodistrictProject.getMeasuresHistoryJSON: string;
@@ -1490,7 +1750,7 @@ var
   projectSchema: string;
 begin
   // todo: switch to DIMeasures in project
-  projectSchema := EcoDistrictSchemaId(projectID);
+  projectSchema := ProjectSchemaName; // EcoDistrictSchemaId(projectID);
 
   Result := FDReadJSON(
     fDBConnection as TFDConnection,
@@ -1605,9 +1865,6 @@ end;
 
 procedure TEcodistrictProject.handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject);
 var
-  jsonPair: TJSONPair;
-  dictScenariosID: string;
-  scenario: TScenario;
   jsonMeasures: TJSONArray;
   jsonMeasure: TJSONValue;
   measureId: string;
@@ -1659,16 +1916,19 @@ begin
         then categories := categories+',';
         categories := categories+jsonCategory.ToJSON;
       end;
-      projectSchema := EcoDistrictSchemaId(projectID);
-      if Assigned(aScenario) and (aScenario.ID<>projectID)
-      then scenarioSchema := EcoDistrictSchemaId(projectID, aScenario.ID)
+      projectSchema := ProjectSchemaName; // EcoDistrictSchemaId(projectID);
+//      if Assigned(aScenario) and (aScenario.ID<>projectID)
+//      then scenarioSchema := EcoDistrictSchemaId(projectID, aScenario.ID)
+//      else scenarioSchema := projectSchema;
+      if Assigned(aScenario)
+      then scenarioSchema := (aScenario as TEcodistrictScenario).ScenarioSchemaName
       else scenarioSchema := projectSchema;
       // todo: switch to DIMeasures in project
       sql := FDReadJSON(
-    	  fDBConnection as TFDConnection,
-    		'SELECT query '+
-    		'FROM '+projectSchema+'.di_measures '+
-    		'WHERE cat||id='''+measureId+'''').Replace('{case_id}', scenarioSchema).Replace('{ids}', objectIDs.Replace('"', ''''));
+        fDBConnection as TFDConnection,
+        'SELECT query '+
+        'FROM '+projectSchema+'.di_measures '+
+        'WHERE cat||id='''+measureId+'''').Replace('{case_id}', scenarioSchema).Replace('{ids}', objectIDs.Replace('"', ''''));
       if sql<>'' then
       begin
         // todo: check for sql injection -> fix
@@ -1685,21 +1945,6 @@ begin
       end
       else Log.WriteLn('Could not build SQL to apply measure '+measureId+' ('+categories+'): '+objectIDs);
     end;
-  end
-  // todo: renamed scenarioRefresh to new format: code still to be changed!
-  else if isObject(aJSONObject, 'scenarioRefresh', jsonPair) then
-  begin
-    // determine id used for dictionary
-    dictScenariosID := jsonPair.JsonValue.Value;
-    if (dictScenariosID='') or (dictScenariosID='null') or (dictScenariosID='None') or (dictScenariosID=ProjectID)
-    then dictScenariosID := EcodistrictBaseScenario;
-
-    if scenarios.TryGetValue(dictScenariosID, scenario) then
-    begin
-      scenario.ReadBasicData;
-      Log.WriteLn('refreshed scenario '+dictScenariosID);
-    end
-    else Log.WriteLn('scenario '+dictScenariosID+' not found to refresh', llWarning);
   end
   else if aJSONObject.TryGetValue<TJSONObject>('applyObjectsProperties', jsonApplyObjectsProperties) then
   begin
@@ -1753,18 +1998,19 @@ begin
         objectIDs := objectIDs+SafeSQLValue(jsonObjectID.ToJSON, True);
       end;
 
-      projectSchema := EcoDistrictSchemaId(projectID);
-      if Assigned(aScenario) and (aScenario.ID<>projectID)
-      then scenarioSchema := EcoDistrictSchemaId(projectID, aScenario.ID)
+      projectSchema := ProjectSchemaName; // EcoDistrictSchemaId(projectID);
+      //if Assigned(aScenario) and (aScenario.ID<>projectID)
+      //then scenarioSchema := EcoDistrictSchemaId(projectID, aScenario.ID)
+      //else scenarioSchema := projectSchema;
+      if Assigned(aScenario)
+      then scenarioSchema := (aScenario as TEcodistrictScenario).ScenarioSchemaName
       else scenarioSchema := projectSchema;
 
       sql := 'UPDATE '+scenarioSchema+'.'+tableName+' SET '+properties+' WHERE '+keyFieldName+' IN ('+objectIDs.Replace('"', '''')+')';
 
       Log.WriteLn(sql);
 
-
-      // todo: execute sql
-
+      // todo: execute sql and inform modules?
 
     end
     else Log.WriteLn('Apply object properties: selectedCategories.Count='+jsonSelectedCategories.Count.ToString+' (<>1)', llWarning);
@@ -1777,10 +2023,324 @@ begin
   end;
 end;
 
+procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo: TClientFileUploadInfo);
+
+  procedure ProcessTxtFile(const aPath: string);
+  var
+    Lines: TStringList;
+    l: Integer;
+    Header: TDictionary<string, Integer>;
+    Row: TStringList;
+  begin
+    Lines := TStringList.Create;
+    Header := TDictionary<string, integer>.Create;
+    Row := TStringList.Create;
+    try
+      Row.Delimiter := #9;
+      Lines.LoadFromFile(aFileInfo.path);
+      for l := 0 to Lines.Count-1 do
+      begin
+        if l=0 then
+        begin
+          // we expect the header on the first line
+        end
+        else
+        begin
+          // this should be data
+        end;
+      end;
+    finally
+      Lines.Free;
+      Header.Free;
+      Row.Free;
+    end;
+  end;
+
+  procedure ProcessShapeFile(const aTableName, aPath: string);
+  var
+    shapeFile: TGIS_LayerSHP;
+    shape: TGIS_Shape;
+  begin
+    shapeFile := TGIS_LayerSHP.Create;
+    try
+      shapeFile.Name := aTableName;
+      shapeFile.Path := aPath;
+      shapeFile.Open;
+      shape := shapeFile.FindFirst(GisWholeWorld);
+      while Assigned(Shape) do
+      begin
+        //fWVKID2UID.AddOrSetValue(TWDID(shape.GetField('WVK_ID')), shape.Uid);
+        // todo: process next shape
+        shape := shapeFile.FindNext;
+      end;
+    finally
+      shapeFile.Free;
+    end;
+  end;
+
+  procedure ProcessFileOnExt(const aFileExt, aPath: string);
+  var
+    shapeFile: TGIS_LayerSHP;
+    shape: TGIS_Shape;
+    //partI: Integer;
+    //pointI: Integer;
+    //p: TGIS_Point3D;
+    //id: Int64;
+    geoJSON: string;
+  begin
+    if aFileExt='.txt' then
+    begin
+
+    end
+    else if aFileExt='.zip' then
+    begin
+      // todo: unzip and process indiviual files
+    end
+    //else if aFileExt='.dbf' then
+    //begin
+    //end
+    else if aFileExt='.shp' then
+    begin
+      shapeFile := TGIS_LayerSHP.Create;
+      try
+        // load shape file
+        shapeFile.Name := 'uploaded shape file';
+        shapeFile.Path := aPath;
+        shapeFile.Open;
+        // todo: implement
+        shape := shapeFile.FindFirst(GisWholeWorld);
+        //objJSON := '';
+        while Assigned(shape) do
+        begin
+          if Assigned(shape) then
+          begin
+            geoJSON := TGIS_Utils.GisExportMultiPointToJSON(shape);
+            //id := shape.Uid;
+            //projection := (layer.scenario.project as TNWBLiveFeedProject).sourceProjection;
+            (*
+            for partI := 0 to shape.GetNumParts-1 do
+            begin
+              for pointI := 0 to shape.GetPartSize(partI)-1 do
+              begin
+                p := shape.GetPoint3D(partI, pointI);
+                //p := projection.ToGeocs3D(p);
+
+                // p.X, p.Y, p.Z
+
+                //partG.AddPoint(p.X, p.Y, p.Z);
+              end;
+            end;
+            *)
+          end;
+
+          shape := shapeFile.FindNext;
+        end;
+      finally
+        shapeFile.Free;
+      end;
+    end
+  end;
+
+var
+  tableName: string;
+  fileExt: string;
+begin
+  // todo: implement
+  tableName := ChangeFileExt(aFileInfo.fileName, '');
+  fileExt := ExtractFileExt(aFileInfo.fileName).ToLower;
+
+
+end;
+
 function TEcodistrictProject.handleTilerStatus(aTiler: TTiler): string;
 begin
   // handle status request
   Result := 'project '+projectName+' ('+projectID+')';
+end;
+
+procedure TEcodistrictProject.handleTypedClientMessage(aClient: TClient; const aMessageType: string; var aJSONObject: TJSONObject);
+var
+  payload: TJSONObject;
+//  jsonPair: TJSONPair;
+  dictScenariosID: string;
+  scenario: TScenario;
+//  jsonMeasures: TJSONArray;
+//  jsonMeasure: TJSONValue;
+//  measureId: string;
+//  categories: string;
+//  jsonObjectIDs: TJSONArray;
+//  jsonObjectID: TJSONValue;
+//  sql: string;
+//  objectIDs: string;
+//  projectSchema: string;
+//  scenarioSchema: string;
+//  mh: TDIMeasureHistory;
+//  jsonMeasureCategories: TJSONArray;
+//  jsonCategory: TJSONValue;
+//  measure: TJSONObject;
+//  jsonApplyObjectsProperties: TJSONObject;
+//  jsonSelectedCategories: TJSONArray;
+//  tableName: string;
+//  jsonProperties: TJSONArray;
+//  jsonProperty: TJSONValue;
+//  properties: string;
+//  op: TDIObjectProperty;
+//  propName: string;
+//  jsonValue: TJSONValue;
+//  keyFieldName: string;
+//  propFieldName: string;
+//  propValue: string;
+begin
+  if aJSONObject.TryGetValue<TJSONObject>('payload', payload) then
+  begin
+    (*
+    if aJSONObject.TryGetValue<TJSONArray>('applyMeasures', jsonMeasures) then
+    begin
+      Log.WriteLn('applyMeasures..');
+      for jsonMeasure in jsonMeasures do
+      begin
+        measureId := (jsonMeasure as TJSONObject).GetValue<string>('measure.id');
+        measure := (jsonMeasure as TJSONObject).GetValue<TJSONObject>('measure');
+        // todo: should always be 1 category (for now)
+        jsonObjectIDs := (jsonMeasure as TJSONObject).GetValue<TJSONArray>('selectedObjects');
+        objectIDs := '';
+        for jsonObjectID in jsonObjectIDs do
+        begin
+          if objectIDs<>''
+          then objectIDs := objectIDs+',';
+          objectIDs := objectIDs+jsonObjectID.ToJSON;
+        end;
+        jsonMeasureCategories :=(jsonMeasure as TJSONObject).GetValue<TJSONArray>('selectCategories');
+        categories := '';
+        for jsonCategory in jsonMeasureCategories do
+        begin
+          if categories<>''
+          then categories := categories+',';
+          categories := categories+jsonCategory.ToJSON;
+        end;
+        projectSchema := EcoDistrictSchemaId(projectID);
+        if Assigned(aScenario) and (aScenario.ID<>projectID)
+        then scenarioSchema := EcoDistrictSchemaId(projectID, aScenario.ID)
+        else scenarioSchema := projectSchema;
+        // todo: switch to DIMeasures in project
+        sql := FDReadJSON(
+          fDBConnection as TFDConnection,
+          'SELECT query '+
+          'FROM '+projectSchema+'.di_measures '+
+          'WHERE cat||id='''+measureId+'''').Replace('{case_id}', scenarioSchema).Replace('{ids}', objectIDs.Replace('"', ''''));
+        if sql<>'' then
+        begin
+          // todo: check for sql injection -> fix
+          (fDBConnection as TFDConnection).ExecSQL(sql);
+          Log.WriteLn('Applied measure '+measureId+' ('+categories+'): '+sql);
+          // add measure to history
+          mh.id := TGUID.NewGuid;
+          mh.measure := measure.ToJSON;
+          mh.object_ids := objectIDs;
+          mh.timeutc := Now; // todo: convert to utc?
+          mh.variants := scenarioSchema;
+          mh.categories := categories;
+          AddDIMeasureHistory(mh);
+        end
+        else Log.WriteLn('Could not build SQL to apply measure '+measureId+' ('+categories+'): '+objectIDs);
+      end;
+    end
+    // todo: renamed scenarioRefresh to new format: code still to be changed!
+    else
+    *)
+    if aMessageType='scenarioRefresh' then
+    begin
+      // determine id used for dictionary
+      if payload.TryGetValue<string>('scenario', dictScenariosID) then
+      begin
+       if (dictScenariosID='') or (dictScenariosID='null') or (dictScenariosID='None') or (dictScenariosID=ProjectID)
+       then dictScenariosID := EcodistrictBaseScenario;
+        if scenarios.TryGetValue(dictScenariosID, scenario) then
+        begin
+          scenario.ReadBasicData;
+          Log.WriteLn('refreshed scenario '+dictScenariosID);
+        end
+        else Log.WriteLn('scenario '+dictScenariosID+' not found to refresh', llWarning);
+      end;
+    end;
+    (*
+    else if aJSONObject.TryGetValue<TJSONObject>('applyObjectsProperties', jsonApplyObjectsProperties) then
+    begin
+      Log.WriteLn('Apply object properties');
+      jsonSelectedCategories := jsonApplyObjectsProperties.GetValue<TJSONArray>('selectedCategories');
+      if jsonSelectedCategories.Count=1 then
+      begin
+        tableName := jsonSelectedCategories.Items[0].Value;
+
+        jsonProperties := jsonApplyObjectsProperties.GetValue<TJSONArray>('properties');
+        properties := '';
+        for jsonProperty in jsonProperties do
+        begin
+          propName := jsonProperty.GetValue<string>('name');
+
+          jsonValue := jsonProperty.GetValue<TJSONValue>('value');
+          if not (jsonValue is TJSONNull) then
+          begin
+            if (jsonValue is TJSONNumber)
+            then propValue := (jsonValue as TJSONNumber).AsDouble.ToString(dotFormat)
+            else propValue := ''''+SafeSQLValue(jsonValue.Value, False)+'''';
+          end
+          else propValue := 'null';
+
+          propFieldName := '';
+          for op in DIObjectProperties do
+          begin
+            if (op.tableName=tableName) and (op.propertyName=propName) then
+            begin
+              propFieldName := op.fieldName;
+              keyFieldName := op.keyFieldName;
+              break;
+            end;
+          end;
+          if propFieldName<>'' then
+          begin
+            if properties<>''
+            then properties := properties+',';
+            properties := properties+SafeSQLValue(propFieldName, True)+'='+propValue;
+          end;
+        end;
+
+        // todo: split in batches to avoid to many object ID's in SQL " WHERE .. IN (..)"
+
+        jsonObjectIDs := jsonApplyObjectsProperties.GetValue<TJSONArray>('selectedObjects');
+        objectIDs := '';
+        for jsonObjectID in jsonObjectIDs do
+        begin
+          if objectIDs<>''
+          then objectIDs := objectIDs+',';
+          objectIDs := objectIDs+SafeSQLValue(jsonObjectID.ToJSON, True);
+        end;
+
+        projectSchema := EcoDistrictSchemaId(projectID);
+        if Assigned(aScenario) and (aScenario.ID<>projectID)
+        then scenarioSchema := EcoDistrictSchemaId(projectID, aScenario.ID)
+        else scenarioSchema := projectSchema;
+
+        sql := 'UPDATE '+scenarioSchema+'.'+tableName+' SET '+properties+' WHERE '+keyFieldName+' IN ('+objectIDs.Replace('"', '''')+')';
+
+        Log.WriteLn(sql);
+
+
+        // todo: execute sql
+
+
+      end
+      else Log.WriteLn('Apply object properties: selectedCategories.Count='+jsonSelectedCategories.Count.ToString+' (<>1)', llWarning);
+    end
+    else
+    begin
+      if Assigned(aScenario)
+      then Log.WriteLn('Unhandled client event for scenario '+aScenario.elementID+': '+aJSONObject.ToJSON, llWarning)
+      else Log.WriteLn('Unhandled client event for base scenario: '+aJSONObject.ToJSON, llWarning);
+    end;
+    *)
+  end;
+  inherited;
 end;
 
 function TEcodistrictProject.PingDatabase(const aCaller: string): Boolean;
@@ -1808,7 +2368,7 @@ var
   projectSchema: string;
 begin
   // todo: implement
-  projectSchema := EcoDistrictSchemaId(projectId);
+  projectSchema := ProjectSchemaName;// EcoDistrictSchemaId(projectId);
   fDIMeasures.Free;
   fDIMeasures := TDictionary<string, TDIMeasure>.Create;
   query := TFDQuery.Create(nil);
@@ -1851,7 +2411,7 @@ var
   mh: TDIMeasureHistory;
   projectSchema: string;
 begin
-  projectSchema := EcoDistrictSchemaId(projectId);
+  projectSchema := ProjectSchemaName; // EcoDistrictSchemaId(projectId);
   fDIMeasuresHistory.Free;
   fDIMeasuresHistory := TObjectDictionary<TGUID, TDIMeasureHistory>.Create;
   query := TFDQuery.Create(nil);
@@ -1893,7 +2453,7 @@ var
   op: TDIObjectProperty;
   projectSchema: string;
 begin
-  projectSchema := EcoDistrictSchemaId(projectId);
+  projectSchema := ProjectSchemaName; // EcoDistrictSchemaId(projectId);
   fDIObjectProperties.Free;
   fDIObjectProperties := TObjectList<TDIObjectProperty>.Create;
   query := TFDQuery.Create(nil);
@@ -1943,7 +2503,7 @@ var
   DIQuery: TDIQuery;
   projectSchema: string;
 begin
-  projectSchema := EcoDistrictSchemaId(projectId);
+  projectSchema := ProjectSchemaName; // EcoDistrictSchemaId(projectId);
   fDIQueries.Free;
   fDIQueries := TDictionary<string, TDIQuery>.Create;
   query := TFDQuery.Create(nil);
@@ -2001,7 +2561,7 @@ var
   DMQuery: TDMQuery;
   projectSchema: string;
 begin
-  projectSchema := EcoDistrictSchemaId(projectId);
+  projectSchema := ProjectSchemaName; // EcoDistrictSchemaId(projectId);
   fDMQueries.Free;
   fDMQueries := TDictionary<string, TDMQuery>.Create;
   query := TFDQuery.Create(nil);
@@ -2080,7 +2640,7 @@ var
 begin
   PingDatabase('TEcodistrictProject.ReadSchemaNames');
 
-  projectSchema := EcoDistrictSchemaId(fProjectID);
+  projectSchema := ProjectSchemaName; // EcoDistrictSchemaId(fProjectID);
 
   setLength(Result, 0);
   query := TFDQuery.Create(nil);
@@ -2107,6 +2667,11 @@ begin
   finally
     query.Free;
   end;
+end;
+
+function TEcodistrictProject.ProjectSchemaName: string;
+begin
+  Result := EcoDistrictSchemaId(projectID);
 end;
 
 procedure TEcodistrictProject.UpdateKPIList(aKPIList: TObjectList<TEcodistrictKPI>);
@@ -2841,7 +3406,6 @@ begin
                                       try
 
                                         while not query.Eof do
-
                                         begin
                                           propertiesObject := TJSONObject.Create;
                                           geometryObject := nil;
@@ -3109,8 +3673,6 @@ begin
                   end
                   else
                   begin
-//                    (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''' + EcoDistrictSchemaId(_caseId, _variantId) + '''');
-//                    try
                     try
                       schema := EcoDistrictSchemaId(_caseId, _variantId);
                       jsonArray:=TJSONArray.Create; // will be owned by jsonResponse
@@ -3154,9 +3716,6 @@ begin
                         _status := 'failed - exception '+E.Message;
                       end;
                     end;
-//                    finally
-//                      (fDBConnection as TFDConnection).ExecSQL('SET SCHEMA ''public''');
-//                    end;
                   end;
                 end
                 else _status := 'failed - no kpiId found in request';
@@ -3279,11 +3838,6 @@ begin
   finally
     TMonitor.Exit(result.scenarios);
   end;
-end;
-
-procedure TEcodistrictModule.HandleModuleCaseDelete(const aCaseId: string);
-begin
-  // todo: implement
 end;
 
 procedure TEcodistrictModule.HandleModuleEvent(aEventEntry: TEventEntry; const aString: string);
@@ -3524,6 +4078,9 @@ begin
   // todo: implement
 end;
 
-
+procedure TEcodistrictModule.HandleModuleCaseDelete(const aCaseId: string);
+begin
+  // todo: implement
+end;
 
 end.

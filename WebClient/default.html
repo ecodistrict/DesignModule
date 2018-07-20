@@ -46,6 +46,7 @@
     <link rel="stylesheet" href="Content/layermanager.css" />
     <link rel="stylesheet" href="Content/ScenarioControlsManager.css" />
     <link rel="stylesheet" href="Content/controlsControl.css" />
+    <link rel="stylesheet" href="Content/ControlPropertiesDialog.css" />
 
     <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
@@ -144,6 +145,7 @@
     <script src="Scripts/ScenarioControlsManager.js"></script>
     <script src="Scripts/ControlsControl.js"></script>
     <script src="Scripts/files.js"></script>
+    <script src="Scripts/ControlPropertiesDialog.js"></script>
     <script src="Scripts/temperatureControlView.js"></script>
     <script src="Scripts/temperatureControlModel.js"></script>
     <script src="Scripts/windTemperatureView.js"></script>
@@ -182,7 +184,7 @@
             //session = "sesmi${9F180B74-FE6A-4D66-9736-F6C9C59E87DD}$fietsuser"; //sensor box
             //session = '9AADAB9F472D4E1EAA1DE7CE202780AB'; // response production
             //session = '5904DD8ACDD54E15A3A8AA8EA55C0C64'; // response test
-            //session = '5904DD8ACDD54E15A3A8AA8EA55C0C64';
+            //session = '17C9E2AE2A6341AD92EA00E9D3BDC2BB'; //  response production DynamicPlumes
             //session = '15B0B9AD002343459B36471524BC0FDD'; // karlsruhe
             //session = 'OmniTransConnectorA642109';
             //session = 'EarlyWarning'; //  early warning (Jan Duyzer)
@@ -256,9 +258,8 @@
         // details
         var detailsControl = L.control.details(DataManager.detailsInfo);
         map.addControl(detailsControl);
-
-
-
+        
+        
         //history
         var historyControl = L.control.history(baseLayers); // todo (NK): why pass baseLayers as options?
         map.addControl(historyControl);

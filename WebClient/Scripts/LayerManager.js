@@ -1,11 +1,49 @@
-﻿// todo: refactor data.lng to data.lon as in the rest of the publisher, latlng.lng is from leaflet and stays the same
+﻿/*
+                                                         <---       LayerManager       --->
+
+    LayerManager<---------------------------|
+         |                                  |
+         | (1 to many)                      |
+         |                                  |
+         ˅                                  |
+    DetailsLayer                            |
+         |                                  |
+         |---(1 to 1)-->Active Layer--------|
+         |                                  |
+         |---(1 to 1)-->Reference Layer-----|
+         |                                  |
+         |---(1 to 1)-->Difference Layer----|
+
+
+    The details layer is only for management, it redirects to the correct sublayer (for example if you want to get a preview it'll return the preview of the active layer)
+
+    The active, reference and difference layers can be of different types, but all the types should inherit from the BaseLayer class.
+
+    At the moment the different types of layers are:
+
+    1. TileLayer:                       Uses the normal tile system of leaflet to display tiles
+    2. Object-/Marker-/SimpleLayer:     These layers display objects on the map. Object only supports circles and marker only supports markers.
+                                            SimpleLayer is more closely connected to leaflet and can display all kinds of objects and markers.
+                                            For new projects it's advised to use SimpleLayer if you want to have an object layer.
+    3. GeoJSONLayer:                    Layer that uses Leaflet GeoJSON functionality to display a GeoJSON layer.
+    4. SwitchLayer:                     Special type of layer that can hold multiple sublayers.
+                                            Depending on the zoomlevel of the map the sublayer that needs to be displayed is chosen.
+                                            SwitchLayer can also be used as a wrapper to be able to show different layer types within the same layer
+                                            (Dynamically switch between tile and marker etc).
+    5. EmptyLayer:                      Layer that doesn't show anything. Mainly used in combination with the SwitchLayer.
+                                        For example can be used as a dummy layer for the lower zoom levels to only show a layer at certain higher zoomlevels.
+    
+*/
+
+
+// todo: refactor data.lng to data.lon as in the rest of the publisher, latlng.lng is from leaflet and stays the same
 var LayerManager = {
-    _layers: {},
-    _layersonid: {},
-    _baselayers: {},
-    _subscribedLayers: {},
-    _visibleLayers: [],
-    _previousVisible: [],
+    _layers: {}, // stores detailslayers on name
+    _layersonid: {}, // stores detailslayers on id
+    _baselayers: {}, // stores all baselayers (a detailslayer can consist of multiple baselayers) in the constructor of a baselayer it will add itself to the baselayers
+    _subscribedLayers: {}, // keeps track of all the subsribed layers
+    _visibleLayers: [], // keeps track of all visible layers in order that they where made visible. This order determines which layer can show it's legend (first layer with a legend) and crd (only shown if the last clicked layer has a crd)
+    _previousVisible: [], //used to restore the layers that where visible when client switches scenario
     _length: 0,
     ActiveCount: 0,
 

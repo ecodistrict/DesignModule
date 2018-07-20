@@ -17,7 +17,8 @@ var clickOptions = {
     none: "none",
     xAxis: "xAxis",
     yAxis: "yAxis",
-    both: "both"
+    both: "both",
+    labels: "labels"
 }
 
 var GraphManager = {
@@ -172,7 +173,7 @@ var GraphManager = {
     SetPreviews: function (container) {
         var counter = 0;
         for (var i = 0; i < GraphManager.graphs.length; i++) {
-            if (GraphManager.graphs[i].enabled) {
+            if (GraphManager.graphs[i].enabled && !GraphManager.graphs[i].standalone) {
                 counter++;
                 GraphManager.graphs[i].graph.GetPreview(container);
             }
@@ -352,7 +353,17 @@ var GraphManager = {
         }
     },
 
-    ShowGraphs: function (dataArray) {
+    //generates a chart and shows it
+    MakeAndShowChart: function (payload) {
+        var graphObject = payload;
+        graphObject.standalone = true; //flags that the chart is not a details chart
+        this.MakeGraph(graphObject);
+        graphObject.destroyOnClose = true; //TODO: use this as flag and destroy any chart that gets closed with that flag!
+        this.ShowGraphs([graphObject.id]);
+    },
+
+    //command to make one of the excisting graphs visible
+    ShowGraphs: function (dataArray) { 
         for (var i = 0; i < dataArray.length; i++) {
             var graph = GraphManager._getGraph(dataArray[i]);
             if (graph != null && !graph.graph.visible)
@@ -490,10 +501,15 @@ var GraphManager = {
         }
 
         if (graphDiv != null) {
-            GraphManager.hiddenGraphs.push(graphDiv);
-            graphDiv.style.visibility = "hidden";
-            graphDiv.style.left = "-10000px"; //todo: look for more elegant fix!
-            graphDiv.style.top = "-10000px";
+            if (graphDiv.graph.graphObject.destroyOnClose) {
+                graphDiv.parentNode.removeChild(graphDiv);
+            }
+            else {
+                GraphManager.hiddenGraphs.push(graphDiv);
+                graphDiv.style.visibility = "hidden";
+                graphDiv.style.left = "-10000px"; //todo: look for more elegant fix!
+                graphDiv.style.top = "-10000px";
+            }
             GraphManager.RepositionGraphs();
         }
     },

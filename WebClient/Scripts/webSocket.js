@@ -83,6 +83,17 @@ var wsLookup = {
     showchart: function (payload) {
         GraphManager.ShowGraphs(payload);
     },
+    showelement: function (payload) {
+        for (var i = 0; i < payload.length; i++)
+        {
+            switch (payload[i].type)
+            {
+                case 'chart':
+                    GraphManager.MakeAndShowChart(payload[i].element)
+                    break;
+            }
+        }
+    },
     selectedObjects: function (payload) {
         // add selected objects to layer, ut first adjust selected categories
         measuresControl.setSelectCategories(payload.selectCategories);
@@ -306,6 +317,7 @@ var wsLookup = {
         */
         //so recursive function that builds the HTML code
         //using ul and li tags
+        new ControlPropertiesDialog(payload);
     }
 };
 
@@ -325,7 +337,7 @@ function wsConnect() {
         }
         catch (err)
         {
-            console.log("Error parsing json! Message: ")
+            console.log("Error parsing json! Message: ");
             console.log(evt.data);
             throw err;
         }
@@ -342,7 +354,7 @@ function wsConnect() {
                 // { type: "type", payload: xx }
                 if (DebugLogging) {
                     console.log('received message, type: ' + message.type);
-                    console.log(message);
+                    console.log(JSON.parse(JSON.stringify(message)));
                 }
                 if (typeof wsLookup[message.type] !== "undefined") //only access functions that are defined!
                     wsLookup[message.type](message.payload);

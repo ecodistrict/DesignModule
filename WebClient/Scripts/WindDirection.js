@@ -37,7 +37,6 @@ L.Control.Arrow = L.Control.extend({
         collapsed: false,
         position: 'topleft',
         autoZIndex: true,
-        hideSingleBase: false,
         height: 150,
         width: 150,
         maxSpeed: 40 //in m/s

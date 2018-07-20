@@ -2,8 +2,7 @@
     options: {
         collapsed: true,
         position: 'bottomright',
-        autoZIndex: true,
-        hideSingleBase: false
+        autoZIndex: true
     },
 
     initialize: function (options) {

@@ -96,7 +96,8 @@ type
   end;
 
   TSesmiScenario = class(TScenario)
-  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
+  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView;
+    aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double);
   destructor Destroy; override;
   private
     //fLinkLayers: TDictionary<Integer, TSesmiLinkLayer>;
@@ -157,7 +158,7 @@ type
     procedure checkForEmptyScenarios(aTimer: TTimer; aTime: THighResTicks);
   public
     function addClient(const aClientID: string): TClient; override;
-    function CreateSesmiScenario(const aScenarioID: string): TSesmiScenario;
+    function CreateSesmiScenario(const aScenarioID: string; aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double): TSesmiScenario;
   public
     property ExpertScenarioGUID: TGUID read fExpertScenarioGUID;
   end;
@@ -334,11 +335,13 @@ end;
 { TSesmiScenario }
 
 constructor TSesmiScenario.Create(aProject: TProject; const aID, aName,
-  aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
+  aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView;
+  aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double);
 begin
-  if TRegEx.IsMatch(aID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$')
-  then fGUID := TGUID.Create(aID)
-  else fGUID := TGUID.Empty;
+  //if TRegEx.IsMatch(aID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$')
+  //then fGUID := TGUID.Create(aID)
+  //else fGUID := TGUID.Empty;
+  fGUID := aGUID;
   //fLive := True;
   fQueryCounter := 0;
   fQuerySubscribed := False;
@@ -355,12 +358,23 @@ begin
   fShowDataSelectionTimer := aProject.Timers.CreateInactiveTimer;
   fFirstTimeSliderUpdate := True;
   fFiltered := False;
-  inherited;
+  inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView);
   fPubEvent := aProject.Connection.eventEntry('mobilesensordata').publish;
   fLiveEvent := aProject.Connection.eventEntry('mobilesensordata').subscribe;
   fLiveEventHandler := handleLiveEvent;
   fLiveEvent.OnEvent.Add(fLiveEventHandler);
-  InquireDB('', Double.NaN, Double.NaN);
+  {
+  ltst := GetSetting('LowerTimeStamp', '');
+  if ltst<>''
+  then lts := StrToDateTime(ltst)
+  else lts := Double.NaN;
+  utst := GetSetting('UpperTimeStamp', '');
+  if utst<>''
+  then uts := StrToDateTime(utst)
+  else uts := Double.NaN;
+  InquireDB('', lts, uts);
+  }
+  InquireDB('', aLowerTimeStamp, aUpperTimeStamp);
 end;
 
 destructor TSesmiScenario.Destroy;
@@ -751,8 +765,11 @@ begin
   fQueryEvent := project.Connection.eventEntry(returnString, False).subscribe;
   fQueryEvent.OnEvent.Add(fQueryEventHandler);
   fQuerySubscribed := True;
-  if (fProject is TSesmiProject) and (fGUID = (fProject as TSesmiProject).ExpertScenarioGUID) then
-    buffer := TByteBuffer.bb_tag_guid(icehObjectID, fGUID.Empty) //expert scenario, send empty guid to access all data
+  if (fProject is TSesmiProject) and (fGUID = (fProject as TSesmiProject).ExpertScenarioGUID) and not aLowerTimeStamp.IsNan then
+  begin
+    buffer := TByteBuffer.bb_tag_guid(icehObjectID, fGUID.Empty); //expert scenario, send empty guid to access all data
+    Log.WriteLn('Inquire expert scenario');
+  end
   else if fGUID <> TGUID.Empty then //check if's not the empty guid
     buffer := TByteBuffer.bb_tag_guid(icehObjectID, fGUID)
   else //constant non-empty Guid, prevents people using the empty guid to access all data
@@ -1021,11 +1038,13 @@ begin
     CheckForEmptyScenarios,
     DateTimeDelta2HRT({$IFDEF DEBUG}dtOneMinute/4{$ELSE}dtOneHour/4{$ENDIF}), // first
     DateTimeDelta2HRT({$IFDEF DEBUG}dtOneMinute/4{$ELSE}dtOneHour/4{$ENDIF})); // repeat
+  Log.WriteLn('Expert scenario: '+ExpertScenarioGUID.ToString);
 end;
 
-function TSesmiProject.CreateSesmiScenario(const aScenarioID: string): TSesmiScenario;
+function TSesmiProject.CreateSesmiScenario(const aScenarioID: string; aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double): TSesmiScenario;
 begin
-  Result := TSesmiScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView);
+  Result := TSesmiScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView,
+    aGUID, aLowerTimeStamp, aUpperTimeStamp);
 end;
 
 function TSesmiProject.handleTilerStatus(aTiler: TTiler): string;
@@ -1065,16 +1084,36 @@ var
   scenarioID: string;
   userID: string;
   scenario: TScenario;
+  userdef: string;
+  lts: Double;
+  uts: Double;
+  userdef_split: TArray<string>;
+  guid: TGUID;
 begin
   userID := aJSONObject.GetValue<string>('userid');
   scenarioID := aJSONObject.GetValue<string>('scenario'); //todo: check if scenarioID is valid GUID?
   if not TRegEx.IsMatch(scenarioID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$') then
     exit;
+  guid := TGUID.Create(scenarioID);
+  lts := Double.NaN;
+  uts := Double.NaN;
+  userdef := StandardIni.ReadString('users', userID, '');
+  if userdef<>'' then
+  begin
+    userdef_split := userdef.Split(['|']);
+    if length(userdef_split)>=2 then
+    begin
+      lts := StrToDateTime(userdef_split[0]);
+      uts := StrToDateTime(userdef_split[1]);
+      scenarioID := scenarioID+userID;
+      Log.WriteLn('EXPERT scenario: '+scenarioID+' '+lts.ToString+' <= ts <= '+uts.ToString, llWarning);
+    end;
+  end;
   TMonitor.Enter(fProject.scenarios);
   try
     if not fProject.scenarios.TryGetValue(scenarioID, scenario) then
     begin
-      scenario := (fProject as TSesmiProject).CreateSesmiScenario(scenarioID);
+      scenario := (fProject as TSesmiProject).CreateSesmiScenario(scenarioID, guid, lts, uts);
       fProject.scenarios.Add(scenario.ID, scenario);
     end;
   finally

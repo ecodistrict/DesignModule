@@ -2,8 +2,7 @@
     options: {
         collapsed: true,
         position: 'topright',
-        autoZIndex: true,
-        hideSingleBase: false
+        autoZIndex: true
     },
 
     initialize: function (domains, options) {

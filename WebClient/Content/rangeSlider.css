@@ -58,8 +58,7 @@
     border-radius: 5px;
     border: 2px solid rgba(0, 0, 0, 0.2);
     animation-duration: 10s;
-    width: 56px;
-    
+    width: 56px; /* not using auto as work-a-round for firefox bug */
     height: 200px;
     padding: 5px 10px 5px 10px;
 }
@@ -80,4 +79,5 @@
     display: inline;
     text-align: center;
     height: 100%;
+    pointer-events: none;
 }

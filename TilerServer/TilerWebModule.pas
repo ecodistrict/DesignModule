@@ -4827,7 +4827,7 @@ begin
     // handle request on model
     value := model.PointValue(layerID, timeStamp, lat, lon);
     Response.ContentType := 'application/json';
-    Response.Content := '{ "value": '+value.ToString(dotFormat)+' }';
+    Response.Content := '{ "value": '+DoubleToJSON(value)+' }';
     Handled := True;
   except
     on E: Exception do

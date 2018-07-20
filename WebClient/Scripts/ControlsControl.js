@@ -2,8 +2,7 @@
     options: {
         collapsed: true,
         position: 'topleft',
-        autoZIndex: true,
-        hideSingleBase: false
+        autoZIndex: true
     },
 
     initialize: function (options) {
@@ -57,8 +56,7 @@ L.Control.OverviewControl = L.Control.extend({
     options: {
         collapsed: true,
         position: 'topleft',
-        autoZIndex: true,
-        hideSingleBase: false
+        autoZIndex: true
     },
 
     initialize: function (options) {

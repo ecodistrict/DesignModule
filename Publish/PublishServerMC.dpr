@@ -123,12 +123,12 @@ var
   sourceESPG: Integer;
   i: Integer;
   dbConnection: TOraSession;
+  connectionError: Boolean;
 begin
   try
     // todo: reset sessionmodel imb4 connection
-    sessionModel.Connection.connected := false;
-    sessionModel.Connection.connected := true;
-    if sessionModel.Connection.connected then
+    connectionError := False;
+    if sessionModel.Connection.Reset() then
     begin
       // add parameters with default values
       // DataSourceParameterName and FederationParameterName parameters should be set to
@@ -141,7 +141,7 @@ begin
       begin
         WriteLn('      ', aParameters[p].Name, '(', Ord(aParameters[p].ValueType) ,') = ', aParameters[p].Value);
       end;
-
+      sourceESPG := -1;
       //projectName := GetSetting(ProjectNameSwitch,
       if aParameters.ParameterExists(DataSourceParameterName) then
       begin
@@ -149,12 +149,16 @@ begin
         dbConnection := TOraSession.Create(nil);
         try
           dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
-          dbConnection.Open;
-          projectID := getUSProjectID(dbConnection, '');
-          if projectID=''
-          then projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
-          sourceESPG := getUSSourceESPG(dbConnection, -1);
-          projectTypes := getUSProjectTypes(dbConnection);
+          try
+            dbConnection.Open;
+            projectID := getUSProjectID(dbConnection, '');
+            if projectID=''
+            then projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
+            sourceESPG := getUSSourceESPG(dbConnection, -1);
+            projectTypes := getUSProjectTypes(dbConnection);
+          except
+            connectionError := True;
+          end;
         finally
           dbConnection.Free;
         end;
@@ -175,33 +179,40 @@ begin
         projectName := GetSetting(ProjectNameSwitch, 'test project'); //aParameters.ParameterByName[FederationParameterName].ValueAsString
         sourceESPG := GetSetting(SourceEPSGIntSwitch, -1);
       end;
-      aParameters.Add(TModelParameter.Create(TilerNameSwitch, GetSetting(TilerNameSwitch, DefaultTilerName)));
-      aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
-      aParameters.Add(TModelParameter.Create(ProjectNameSwitch, projectName));
-      aParameters.Add(TModelParameter.Create(SourceEPSGIntSwitch, sourceESPG));
-      aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, GetSetting(PreLoadScenariosSwitch, True)));
-      if Length(projectTypes) > 0 then
+      if not connectionError then
       begin
-        if GetSettingExists(ProjectTypeSwitch) then
+        aParameters.Add(TModelParameter.Create(TilerNameSwitch, GetSetting(TilerNameSwitch, DefaultTilerName)));
+        aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
+        aParameters.Add(TModelParameter.Create(ProjectNameSwitch, projectName));
+        aParameters.Add(TModelParameter.Create(SourceEPSGIntSwitch, sourceESPG));
+        aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, GetSetting(PreLoadScenariosSwitch, True)));
+        if Length(projectTypes) > 0 then
         begin
-          projectType := GetSetting(ProjectTypeSwitch, '');
-          found := False;
-          for i := 0 to Length(projectTypes) - 1 do
+          if GetSettingExists(ProjectTypeSwitch) then
           begin
-            if projectType.ToUpper = projectTypes[i].ToUpper then
+            projectType := GetSetting(ProjectTypeSwitch, '');
+            found := False;
+            for i := 0 to Length(projectTypes) - 1 do
             begin
-              aParameters.Add(TModelParameter.Create(ProjectTypeSwitch, projectType, projectTypes));
-              found := True;
-              break;
+              if projectType.ToUpper = projectTypes[i].ToUpper then
+              begin
+                aParameters.Add(TModelParameter.Create(ProjectTypeSwitch, projectType, projectTypes));
+                found := True;
+                break;
+              end;
             end;
-          end;
-          if not found then
+            if not found then
+              aParameters.Add(TModelParameter.Create(ProjectTypeSwitch, projectTypes[0], projectTypes));
+          end
+          else
+          begin
             aParameters.Add(TModelParameter.Create(ProjectTypeSwitch, projectTypes[0], projectTypes));
-        end
-        else
-        begin
-          aParameters.Add(TModelParameter.Create(ProjectTypeSwitch, projectTypes[0], projectTypes));
+          end;
         end;
+      end
+      else
+      begin
+        aParameters.Add(TModelParameter.Create('## RequestError', '## Connection Error'));
       end;
     end
     else Log.WriteLn('IMB4 connection could not be established', llError);

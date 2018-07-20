@@ -3,7 +3,6 @@ L.Control.Measures = L.Control.extend({
         collapsed: true,
         position: 'topleft',
         autoZIndex: true,
-        hideSingleBase: false,
         selectCategories: []
     },
 
