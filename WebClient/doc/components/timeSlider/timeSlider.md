@@ -83,7 +83,7 @@ Options object that should be passed to *Controller's* constructor.
 
 | Method | Description |
 |---|---|
-| createTimeSlider(&lt;[TimeSliderDisplayMode](#TimeSliderDisplayMode)&gt; mode, [options](#createTimeSliderOptions)) | Shows time slider related views taking the *mode* and *options* into account. *mode* determine weather *time slider* should be collapsed or expanded. *options* is an arbitrary argument and can be used to specify features, e.g. enable/disable brush feature. See [option](#createTimeSliderOptions) section.  |
+| createTimeSlider(&lt;[TimeSliderDisplayMode](#TimeSliderDisplayMode)&gt; mode, [options](#createTimeSliderOptions)) | Shows time slider related views taking the *mode* and *options* into account. *mode* determine whether *time slider* should be collapsed or expanded. *options* is an arbitrary argument and can be used to specify features, e.g. enable/disable brush feature. See [option](#createTimeSliderOptions) section.  |
 | removeTimeSlider() | Hides all time slider related views: time slider, toggle button and settings window.  |
 | processServerMessage([messagePayload](#serverMessagePayload)) | Processes json-formatted server messages specific to time slider. *Controller* decides how to handle a message, in some cases *Controller* just changes the model in other cases *Controller* manipulates several *views*. See [server message payload](#serverMessagePayload) section. |
 
@@ -96,7 +96,7 @@ Message payload is an object where each property name represents an action to be
 | setEvents | Array &lt;[Event](#event)&gt; | Sets events array to be shown on the time slider. If there were already events shown then they will be replaced with these new ones. |
 | addEvents | Array &lt;[Event](#event)&gt; | Extends current time slider events array with additional events. All events will be shown on the time slider. |
 | setCurrentTime | string  | Sets the current time. The value of this property is a string in following [time format](#timeFormat). Current time will be immediately displayed in the time slider and time slider's scale will be centered at this time. The zoom level of the time slider will remain. |
-| setBrush | [Brush](#brush) | Selects a time range. If brush feature is enabled then corresponding time range will be displayed on the time slider as [d3-brush](https://github.com/d3/d3-brush) object. *Brush* can either be `{ }` or a [Brush](#brush) object. `{ }` means that there is no brush. |
+| setBrush | [Brush](#brush) | Selects a time range. If brush feature is enabled then corresponding time range will be displayed on the time slider as [d3-brush](https://github.com/d3/d3-brush) object. |
 | setZoomLevel | number | Sets a zoom level for the time slider. The zoom level will affect the scale, brush and events representation, they will be zoomed accordingly. As for *scale*, zoom level is applied to initial scale which is `[currentTime - 24h, currentTime + 24h]`. Zoom level of `2` will result in displaying a scale `[currentTime - 12h, currentTime + 12h]` while zoom level `0.5` will display a scale `[currentTime - 48h, currentTime + 48h]`. Note that *brush* and *events* representations will be scaled accordingly. |
 
 ### Client message <a name="clientMessage"></a>
@@ -116,7 +116,7 @@ Payload is an object which can contain one of the following properties.
 |---|---|---|
 | active | boolean | Indicates whether *time slider* is shown. `true` when shown, `false` when hidden. This message is sent whenever time slider visibility changes, e.g. when time slider is collapsed, expanded or removed.|
 | selectedTime | string | Currently selected time as a string of the following [time format](#timeFormat). This message is sent each time the current time changes. |
-| brush | [Brush](#brush) | Current time range selection. *Brush* can either be an empty object `{ }` or a [Brush](#brush) object. `{ }` means that there is no brush. This message is sent each time the current brush changes. |
+| brush | [Brush](#brush) | Current time range selection. This message is sent each time the current brush changes. |
 | selectedEvent | [Event](#event) | Selected event is sent with this message whenever user selects an event by clicking on it. |
 | zoomLevel | number | Current zoom level of the time slider. The initial zoom level is `1` and it corresponds to a time range `[currentTime - 24h, currentTime + 24h]`. Zoom level of `2` corresponds to `[currentTime - 12h, currentTime + 12h]` while zoom level `0.5` corresponds to `[currentTime - 48h, currentTime + 48h]`. This message is sent each time the current zoom level changes, e.g. when user does a wheel scrolling on time slider. |
 
@@ -152,12 +152,12 @@ Object specifying features set. If a feature is not mentioned in this object the
 | color | string | Event color in CSS-compatible format. This color will be used to fill the event rectangle when showing it on the time scale. |
 | tooltip | string | Tooltip text that will be shown when hovering the event rectangle. |
 | level | number | Event level in a range `[0..)` Level represents row where this event will be displayed. If Level is not provided then 0 is the default value. **Note** that this feature is not yet supported. |
+| tag | any | A variable provided by a server and expected to be received back by the server when client reports the event selection. Server can put any kind of data into this property. **Note** that this property should not be used by the web client but should only be forwarded back to the server. |
 
 #### Brush <a name="brush"></a>
 | Property | Type | Description |
 |---|---|---|
-| start | string | Brush start time as a string of the following [time format](#timeFormat). |
-| end | string | Brush end time as a string of the following [time format](#timeFormat). |
+| extent | Array&lt;string&gt; or object| If brush is set then *extent* should contain an array of two strings where the first is a brush start and the second is a brush end. The strings represents time of the following [time format](#timeFormat). If brush is not set or removed then *extent* should be an empty object `{}`. |
 
 #### Time format <a name="timeFormat"></a>
 The following time format is supported both for server-client communication and for displaying the time in the time slider.

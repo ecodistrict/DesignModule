@@ -83,7 +83,8 @@ var TimeSliderController = L.Class.extend({
                 end: timeParser(e.end),
                 color: e.color,
                 tooltip: e.tooltip,
-                level: e.level || 0
+                level: e.level || 0,
+                tag: e.tag
             };
         }
 
@@ -101,10 +102,13 @@ var TimeSliderController = L.Class.extend({
         }
 
         if (messagePayload.setBrush) {
-            if (messagePayload.setBrush.start && messagePayload.setBrush.end) {
+            if (messagePayload.setBrush.extent 
+                && Array.isArray(messagePayload.setBrush.extent)
+                && messagePayload.setBrush.extent.length === 2) {
+
                 this.model.brush = {
-                    start: timeParser(messagePayload.setBrush.start),
-                    end: timeParser(messagePayload.setBrush.end)
+                    start: timeParser(messagePayload.setBrush.extent[0]),
+                    end: timeParser(messagePayload.setBrush.extent[1])
                 };
             } else {
                 this.model.brush = null;
@@ -185,7 +189,8 @@ var TimeSliderController = L.Class.extend({
             end: this.timeFormat(data.event.end),
             color: data.event.color,
             tooltip: data.event.tooltip,
-            level: data.event.level
+            level: data.event.level,
+            tag: data.event.tag
         };
 
         wsSend({ 
