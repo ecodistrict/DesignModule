@@ -27,12 +27,14 @@
     <link rel="stylesheet" href="Content/windDirection.css" />
     <link rel="stylesheet" href="Content/files.css" />
     <link rel="stylesheet" href="Content/Graphs/TableGraphs.css" />
+    <link rel="stylesheet" href="Content/temperatureControlView.css" />
+    <link rel="stylesheet" href="Content/windTemperatureView.css" />
 
     <link rel="stylesheet" href="Content/map.css" />
     <link rel="stylesheet" href="Content/graphmanager.css" />
     <link rel="stylesheet" href="Content/syncmanager.css" />
     <link rel="stylesheet" href="Content/ModelControl.css" />
-    
+
     <link rel="stylesheet" href="Content/default.css" />
     <link rel="stylesheet" href="Content/control.css" />
     <link rel="stylesheet" href="Content/dialog.css" />
@@ -142,6 +144,9 @@
     <script src="Scripts/ScenarioControlsManager.js"></script>
     <script src="Scripts/ControlsControl.js"></script>
     <script src="Scripts/files.js"></script>
+    <script src="Scripts/temperatureControlView.js"></script>
+    <script src="Scripts/temperatureControlModel.js"></script>
+    <script src="Scripts/windTemperatureView.js"></script>
     <!-- charts -->
     <script src="Scripts/graphManager.js"></script>
     <script src="Scripts/Graphs/bullet.js"></script>
@@ -193,6 +198,7 @@
             //session = 'TestRKEvaluate'; //Ralph test database evaluate
             //session = 'HenkTest';
             //session = 'D937BA6603B64147BDA2C8CFED9D973F'; //app-usmodel01 AMS
+            session = 'test'; //app-usmodel01 AMS
         }
         var clientType = getParameterByName('clientType', '');
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
@@ -265,7 +271,6 @@
         map.removeControl(presenterViewerControl);
         DataManager.presenterViewerControl = presenterViewerControl;
 
-
         // top-left
 
         //controls
@@ -283,6 +288,14 @@
 
         DataManager.wind = L.control.arrow();//L.control.wind({});
         //map.addControl(DataManager.wind);
+
+        //temperature control
+        //DataManager.temperature = L.control.temp('jello');
+        //map.addControl(DataManager.temperature);
+
+        //windTemperature view
+        DataManager.temperature = L.control.windTemperature();
+        map.addControl(DataManager.temperature);
 
         //timeRangeSlider
         //DataManager.timeRangeSlider = new L.Control.TimeRangeSlider();
@@ -305,7 +318,7 @@
         DataManager.modelControl = L.control.ModelControl();
         map.addControl(DataManager.modelControl);
         map.removeControl(DataManager.modelControl);
-        
+
         // current-reference-difference control
         var crd = L.control.crd({ parent: currefdiff });
         map.addControl(crd);

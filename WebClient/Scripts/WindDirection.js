@@ -46,6 +46,7 @@ L.Control.Arrow = L.Control.extend({
     /// leaflet constructor
     initialize: function (options) {
         L.setOptions(this, options);
+        this.parentContainer = options.element;
     },
 
     onAdd: function (map) {
@@ -62,7 +63,7 @@ L.Control.Arrow = L.Control.extend({
 
     _initLayout: function () {
         // main div
-        this._container = L.DomUtil.create('div', 'leaflet-control-windDirection');
+        this._container = this.parentContainer || L.DomUtil.create('div', 'leaflet-control-windDirection');
         // add drag support to main div
         this._draggable = new L.Draggable(this._container);
         this._draggable.ref = this;
@@ -253,6 +254,6 @@ L.Control.Arrow = L.Control.extend({
 });
 
 // add arrow constructor for arrow control
-L.control.arrow = function () {
-    return new L.Control.Arrow();
+L.control.arrow = function (parentElement) {
+    return new L.Control.Arrow({ element: parentElement });
 };

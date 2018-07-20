@@ -1,29 +1,43 @@
 .leaflet-control-windDirection {
-  background-color: rgba(255, 255, 255, 0.8);
-  border-radius: 5px;
-  border: 2px solid rgba(0, 0, 0, 0.2);
-  animation-duration: 10s;
-  /* compensation for topleft control */
-  margin-right: 10px;
-  margin-bottom: 10px;
+    display: inline-block;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    animation-duration: 10s;
+    /* compensation for topleft control */
+    /*margin-right: 10px;*/
+    margin-bottom: 10px;
 }
-.leaflet-control-windDirection-animation {  animation-name: sensorFade }
+
+.leaflet-control-windDirection-animation {
+    animation-name: sensorFade
+}
 /* Chrome, Safari, Opera */
 @-webkit-keyframes sensorFade {
-  from {  background-color: lightgreen }
-  to {  background-color: white }
+    from {
+        background-color: lightgreen
+    }
+
+    to {
+        background-color: white
+    }
 }
 /* Standard syntax */
 @keyframes sensorFade {
-  from {  background-color: lightgreen }
-  to {  background-color: white }
+    from {
+        background-color: lightgreen
+    }
+
+    to {
+        background-color: white
+    }
 }
 
 .windArrowLive {
-  -webkit-transition: 1s ease-in-out;
-   -moz-transition: 1s ease-in-out;
-   -o-transition: 1s ease-in-out;
-   transition: 1s ease-in-out;
+    -webkit-transition: 1s ease-in-out;
+    -moz-transition: 1s ease-in-out;
+    -o-transition: 1s ease-in-out;
+    transition: 1s ease-in-out;
 }
 
 .windDirectionDiv {
@@ -31,9 +45,9 @@
     position: relative;
     background-image: url('images/wind_points.png');
     background-repeat: no-repeat;
-    background-position-x:50%;
-    background-position-y:50%;
-    background-size:95%;
+    background-position-x: 50%;
+    background-position-y: 50%;
+    background-size: 95%;
 }
 
 .north, .east, .south, .west {
@@ -62,11 +76,11 @@
 }
 
 .arrowImage {
-  position: absolute;
-  width:70%;
-  height:70%;
-  left:15%;
-  top:15%;
+    position: absolute;
+    width: 70%;
+    height: 70%;
+    left: 15%;
+    top: 15%;
 }
 
 .windDirectionText {

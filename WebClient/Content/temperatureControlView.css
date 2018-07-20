@@ -1,0 +1,44 @@
+.d3-control-temperatureControl {
+    vertical-align: top;
+    display: inline-block;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    animation-duration: 10s;
+    /* compensation for topleft control */
+    margin-right: 10px;
+    margin-bottom: 10px;
+    float: none;
+    margin-left: 0px !important;
+    pointer-events: none;
+}
+
+    .d3-control-temperatureControl .dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: #f1f1f1;
+        min-width: 30px;
+        overflow: auto;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        z-index: 1;
+        pointer-events: auto;
+    }
+
+        .d3-control-temperatureControl .dropdown-content a {
+            color: black;
+            padding: 5px 5px;
+            text-decoration: none;
+            display: block;
+        }
+
+    .d3-control-temperatureControl .thermometerStructure {
+        stroke: #999999;
+    }
+
+    .d3-control-temperatureControl .innerDesign {
+        fill: #ffffff;
+    }
+
+    .d3-control-temperatureControl .mercuryControl {
+        pointer-events: auto;
+    }

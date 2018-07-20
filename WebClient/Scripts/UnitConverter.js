@@ -492,6 +492,13 @@ UnitConverter.ConvNum.prototype = {
         return this.converter.ConvertSItoUnit(this.unit, this.value);
     },
 
+    SetValue: function (aValue, aUnit) {
+        if (aUnit != null && !UnitConverter.Converters[aQnt].CanConvert(aUnit))
+            throw "Can't build ConvNum with unknown unit";
+        aUnit = typeof aUnit === "undefined" ? this.converter.si : aUnit;
+        this.value = this.converter.ConvertUnitToSI(aUnit, aValue);
+    },
+
     SetUnit: function (aUnit) {
         if (!this.converter.CanConvert(aUnit))
             throw "Can't set unit to unknown unit!";
