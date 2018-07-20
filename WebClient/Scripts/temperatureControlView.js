@@ -34,7 +34,7 @@ L.Control.Temp = L.Control.extend({
         //this._draggable.ref = this;
 
         //this._draggable.enable();
-        
+
         this._temperatureDiv = L.DomUtil.create('div', "temperatureDiv");
         this._container.appendChild(this._temperatureDiv);
 
@@ -59,7 +59,7 @@ L.Control.Temp = L.Control.extend({
         this.tubeRectY = (height / 8);
         this.tubeHeight = ((3.1 * height) / 4) - this.tubeRectY;
         this.tubeRectX = this.xPosForBaseComponents - (this.tubeWidth / 2);
-        
+
         this.tubeBulbPixelOverlap = 3; //the spherical bulb overlaps the capillary tube by defined pixels
 
         //mercury vals
@@ -92,6 +92,13 @@ L.Control.Temp = L.Control.extend({
             .domain([this.minKelvin, this.maxKelvin])
             .range([this.tubeHeight - this.tubeBulbPixelOverlap, 0]);
 
+        /*
+        //D3 V4 code for the scale
+        this.universalScale = d3.scaleLinear()
+            .domain([this.minKelvin, this.maxKelvin])
+            .range([this.tubeHeight - this.tubeBulbPixelOverlap, 0]);
+        */
+
         //selected unit variable - default set to C
         this.selectedUnit = TemperatureUnit.C;
 
@@ -112,7 +119,7 @@ L.Control.Temp = L.Control.extend({
         this.editTemperatureFlag = false;
 
         //-----------------Creating and adding components------------------------
-        
+
         this.temperatureDiv = d3.select(this._temperatureDiv).style("width", width + "px").style("height", height + "px");
 
         //div for unit and its dropDown
@@ -130,7 +137,7 @@ L.Control.Temp = L.Control.extend({
         this.temperatureUnitLabel.on('click', function () {
             this.unitsDropdown.style("display", "block");
         }.bind(this));
-        
+
         this.unitsDropDownDiv();
         this.temperatureTextbox();
 
@@ -144,7 +151,7 @@ L.Control.Temp = L.Control.extend({
         this.defs = this.svg.append("defs");
         this.mercuryBulbGradientInitialization("mercuryGradient_red", this.mercuryColor_red);
         this.mercuryBulbGradientInitialization("mercuryGradient_blue", this.mercuryColor_blue);
-        
+
         this.thermometerDesign();
         this.mercuryDesign();
         this.axisInitialization();
@@ -156,13 +163,6 @@ L.Control.Temp = L.Control.extend({
     _handleContextMenu: function (e) {
         e.preventDefault();
         e.cancelBubble = true;
-
-        // return to live state
-        //this.arrow.src = "Content/images/arrow_wind.png";
-        //wsSend({
-        //    type: 'windData',
-        //    payload: { live: true }
-        //});
     },
 
     modelValueChanged: function modelValueChanged(data) {
@@ -189,6 +189,17 @@ L.Control.Temp = L.Control.extend({
             .outerTickSize(0)
             .ticks(8)
             .orient("left");
+
+        /*
+         //D3 V4 code for the axis
+         axis = d3.axisLeft()
+            .scale(this.universalScale);
+
+        axis.tickSizeInner(5)
+            .tickSizeOuter(0)
+            .ticks(8);
+         */
+
         return axis;
     },
 
@@ -212,15 +223,13 @@ L.Control.Temp = L.Control.extend({
     changeMercuryColor: function (event) {
         switch (event.which) {
             case 1:
-                this.mercury.attr("fill", this.mercuryColor_blue)
-                    .attr("stroke", this.mercuryColor_blue);
+                this.mercury.attr("fill", this.mercuryColor_blue);
                 this.mercuryBulb.style("fill", "url(#mercuryGradient_blue)")
                     .style("stroke", this.mercuryColor_blue);
                 this.editTemperatureFlag = true;
                 break;
             case 3:
-                this.mercury.attr("fill", this.mercuryColor_red)
-                    .attr("stroke", this.mercuryColor_red);
+                this.mercury.attr("fill", this.mercuryColor_red);
                 this.mercuryBulb.style("fill", "url(#mercuryGradient_red)")
                     .style("stroke", this.mercuryColor_red);
                 this.editTemperatureFlag = false;
@@ -365,19 +374,14 @@ L.Control.Temp = L.Control.extend({
             .attr("width", this.tubeWidth - 1)
             .attr("height", this.tubeHeight)
             //on-click event used to regulate the mercury level
-            .on('click', function () {
+            .on('click', function (event) {
+                event = event || window.event;
+                this.changeMercuryColor(event);
+
                 if (this.editTemperatureFlag) {
                     this.mouseClickY = d3.event.offsetY;
                     this.temperatureModel.value = this.getTemperatureValue();
                 }
-            }.bind(this))
-            .on('mousedown', function (event) {
-                //this._draggable.disable();
-                event = event || window.event;
-                this.changeMercuryColor(event);
-            }.bind(this))
-            .on('mouseup', function () {
-                //this._draggable.enable();
             }.bind(this));
 
         //filling in the mercury color inside the spherical bulb
@@ -391,6 +395,11 @@ L.Control.Temp = L.Control.extend({
     },
 
     mercuryDragHandler: function () {
+        /*
+        //D3 V4 code for the first line of the drag handler
+        var dragHandler = d3.drag().subject(this.subjectPos)
+        */
+
         var dragHandler = d3.behavior.drag()
             .on("drag", function () {
                 //this._draggable.disable();
@@ -415,6 +424,11 @@ L.Control.Temp = L.Control.extend({
             }.bind(this));
         return dragHandler;
     },
+
+    /*
+    //D3 V4 function for the drag handler
+    subjectPos: function (d) { return { x: 0, y: d3.event.y } },
+    */
 
     mercuryDesign: function () {
         var dragHandler = this.mercuryDragHandler();
@@ -485,5 +499,5 @@ L.Control.Temp = L.Control.extend({
 
 // add temperature constructor for temperature control
 L.control.temp = function (parentElement) {
-    return new L.Control.Temp({ element: parentElement});
+    return new L.Control.Temp({ element: parentElement });
 };
