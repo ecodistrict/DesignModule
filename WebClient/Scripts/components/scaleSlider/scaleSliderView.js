@@ -421,7 +421,7 @@ var ScaleSliderView = L.Control.extend({
             d3.event.preventDefault();
             d3.event.stopImmediatePropagation();
 
-            var forwardedEvent = new d3.event.constructor(d3.event.type, d3.event);
+            var forwardedEvent = Event.clone(d3.event);
 
             var underlay = this.innerSpace.select(target).node();
             underlay.dispatchEvent(forwardedEvent);
