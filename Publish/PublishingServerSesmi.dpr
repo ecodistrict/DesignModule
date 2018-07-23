@@ -71,7 +71,7 @@ begin
 
           // Sesmi module
           project := TSesmiProject.Create(
-            sessionModel, imbConnection, 'Sesmi', 'Fietsproject',
+            sessionModel, imbConnection, 'Sesmi'{$IFDEF DEBUG}+'Test'{$ENDIF}, 'Fietsproject',
             tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             False, GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
             //TMapView.Create(52.0915, 5.12013, 13),

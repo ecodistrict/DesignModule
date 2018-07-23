@@ -252,13 +252,13 @@ L.Control.Files = L.Control.extend({
                             for (var t in messageFileEntry.fileTypes) {
                                 var found2 = false;
                                 for (var t2 in fileItem2.fileTypes) {
-                                    if (t == t2) {
-                                        found = true;
+                                    if (messageFileEntry.fileTypes[t] == fileItem2.fileTypes[t2]) {
+                                        found2 = true;
                                         break;
                                     }
                                 }
                                 if (!found2) {
-                                    fileItem2.fileTypes.push(t);
+                                    fileItem2.fileTypes.push(messageFileEntry.fileTypes[t]);
                                 }
                             }
                         }

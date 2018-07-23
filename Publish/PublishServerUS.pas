@@ -2236,20 +2236,18 @@ begin
       query.SQL.Text := fQuery; //.Replace('SELECT ', 'SELECT t1.OBJECT_ID,');
       query.Open;
       query.First;
-        while not query.Eof do
-        begin
-          try
-          begin
-            oid := AnsiString(query.Fields[0].AsInteger.ToString);
-            objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
-            if (objects.Count mod 10000) = 0 then
-              Log.Progress('Busy reading objects: ' + objects.Count.ToString + ' for ' + fScenario.ID + '-' + name);
-            query.Next;
-          end
-          except
-            Log.WriteLn('Error reading object ' + elementID + ' in layer ' + name, llError, 1);
-          end;
+      while Assigned(objects) and not query.Eof do
+      begin
+        try
+          oid := AnsiString(query.Fields[0].AsInteger.ToString);
+          objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
+          if (objects.Count mod 10000) = 0 then
+            Log.Progress('Busy reading objects: ' + objects.Count.ToString + ' for ' + fScenario.ID + '-' + name);
+          query.Next;
+        except
+          Log.WriteLn('Error reading object ' + elementID + ' in layer ' + name, llError, 1);
         end;
+      end;
     finally
       query.Free;
     end;
