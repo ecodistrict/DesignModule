@@ -57,3 +57,26 @@ function deselectObjects(e) {
 }
 
 var layerControl = L.control.layers(baseLayers, overlayLayers).addTo(map);
+
+// send map view (center and zoom level to backend
+
+map._sendMapView = function () {
+    wsSend({
+        type: 'mapView',
+        payload: {
+            latlng: map.getCenter(),
+            zoom: map.getZoom()
+        }
+    });
+    map._lastMapViewSend = Date.now();
+}
+
+map.on('move', function (e) {
+    if (typeof map._lastMapViewSend === 'undefined' || Date.now() - map._lastMapViewSend >= 300)
+        map._sendMapView();
+});
+
+map.on('moveend', function (e) {
+    map._sendMapView();
+});
+
