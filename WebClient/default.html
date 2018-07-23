@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="Content/files.css" />
     <link rel="stylesheet" href="Content/Graphs/TableGraphs.css" />
     <link rel="stylesheet" href="Content/temperatureControlView.css" />
-    <link rel="stylesheet" href="Content/windTemperatureView.css" />
+    <link rel="stylesheet" href="Content/weatherControlView.css" />
 
     <link rel="stylesheet" href="Content/map.css" />
     <link rel="stylesheet" href="Content/graphmanager.css" />
@@ -148,7 +148,7 @@
     <script src="Scripts/ControlPropertiesDialog.js"></script>
     <script src="Scripts/temperatureControlView.js"></script>
     <script src="Scripts/temperatureControlModel.js"></script>
-    <script src="Scripts/windTemperatureView.js"></script>
+    <script src="Scripts/weatherControlView.js"></script>
     <!-- charts -->
     <script src="Scripts/graphManager.js"></script>
     <script src="Scripts/Graphs/bullet.js"></script>
@@ -289,11 +289,7 @@
 
         DataManager.wind = L.control.arrow();//L.control.wind({});
         //map.addControl(DataManager.wind);
-
-        //temperature control
-        //DataManager.temperature = L.control.temp('jello');
-        //map.addControl(DataManager.temperature);
-
+        
         //windTemperature view
         DataManager.temperature = L.control.windTemperature();
         map.addControl(DataManager.temperature);

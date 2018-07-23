@@ -23,7 +23,7 @@ L.Control.windTemperatureView = L.Control.extend({
     },
 
     _initLayout: function () {
-        this._container = L.DomUtil.create('div', 'd3-control-windTemperatureView');
+        this._container = L.DomUtil.create('div', 'control-weatherCotrolView');
 
         //Code for making the div draggable
         // add drag support to main div
@@ -32,13 +32,13 @@ L.Control.windTemperatureView = L.Control.extend({
 
         this._draggable.enable();
 
-        this.windView = L.DomUtil.create('div', "leaflet-control-windDirection");
+        this.windView = L.DomUtil.create('div', "leafletcontrol-windDirection");
 
         var windControl = L.control.arrow(this.windView);
         map.addControl(windControl);
         this._container.appendChild(windControl.getContainer());
 
-        this.temperatureView = L.DomUtil.create('div', "d3-control-temperatureControl");
+        this.temperatureView = L.DomUtil.create('div', "d3control-temperatureControl");
 
         var temperatureControl = L.control.temp(this.temperatureView);
         map.addControl(temperatureControl);
@@ -48,7 +48,15 @@ L.Control.windTemperatureView = L.Control.extend({
         //disabling propagation
         L.DomEvent.disableClickPropagation(this._container);
         L.DomEvent.disableScrollPropagation(this._container);
+
+        this._container.addEventListener('contextmenu', this._handleContextMenu);
     },
+
+    _handleContextMenu: function (e) {
+        e.preventDefault();
+        e.cancelBubble = true;
+    },
+
 });
 
 // add temperature constructor for temperature control

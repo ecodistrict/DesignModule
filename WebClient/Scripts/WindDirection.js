@@ -63,6 +63,8 @@ L.Control.Arrow = L.Control.extend({
     _initLayout: function () {
         // main div
         this._container = this.parentContainer || L.DomUtil.create('div', 'leaflet-control-windDirection');
+        var parentContainer = this.parentContainer;
+
         // add drag support to main div
         this._draggable = new L.Draggable(this._container);
         this._draggable.ref = this;
@@ -95,11 +97,13 @@ L.Control.Arrow = L.Control.extend({
                 }
             }
             else {
-                // we are dragging the main div (control as a whole)
-                this._originalupdatePosition(e);
+                if (!parentContainer)
+                    // we are dragging the main div (control as a whole)
+                    this._originalupdatePosition(e);
             }
         };
         this._draggable.enable();
+
         this._draggable.addEventListener('down', this._dragdown);
         this._draggable._onUp = (function (e) {
             if (e._simulated || !this._enabled) { return; }
@@ -138,7 +142,7 @@ L.Control.Arrow = L.Control.extend({
     _handleContextMenu: function (e) {
         e.preventDefault();
         e.cancelBubble = true;
-        
+
         // return to live state
         this.arrow.src = "Content/images/arrow_wind.png";
         wsSend({
