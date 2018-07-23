@@ -59,7 +59,7 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <DCC_Define>NONET;$(DCC_Define)</DCC_Define>
-        <DCC_UnitSearchPath>imb;logger;odac;avl;delaunay;oracleTools;us;..\TilerServer;world;imb3;publisher-core;TatukGIS_11\$(Platform);TatukGIS_11\License;TatukGIS_11\Resources;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>imb;logger;odac;avl;delaunay;oracleTools;us;..\TilerServer;world;imb3;publisher-core;TatukGIS_11\$(Platform);TatukGIS_11\License;TatukGIS_11\Resources;abbrevia;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
         <VerInfo_Locale>1043</VerInfo_Locale>
         <SanitizedProjectName>PublishServerSvc</SanitizedProjectName>
@@ -91,6 +91,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
+        <DCC_UnitSearchPath>abbrevia\Win64;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
