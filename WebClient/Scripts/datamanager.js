@@ -1,5 +1,5 @@
 ﻿DataManager = {
-    temperature: null,
+    weather: null,
     wind: null,
     session: null,
     queryDialogData: null, // used in queryDialog.js

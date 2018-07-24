@@ -200,7 +200,7 @@
             //session = 'TestRKEvaluate'; //Ralph test database evaluate
             //session = 'HenkTest';
             //session = 'D937BA6603B64147BDA2C8CFED9D973F'; //app-usmodel01 AMS
-            //session = 'test'; //app-usmodel01 AMS
+            session = 'test'; //app-usmodel01 AMS
         }
         var clientType = getParameterByName('clientType', '');
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
@@ -291,8 +291,8 @@
         //map.addControl(DataManager.wind);
         
         //windTemperature view
-        DataManager.temperature = L.control.windTemperature();
-        map.addControl(DataManager.temperature);
+        DataManager.weather = L.control.weather();
+        map.addControl(DataManager.weather);
 
         //timeRangeSlider
         //DataManager.timeRangeSlider = new L.Control.TimeRangeSlider();

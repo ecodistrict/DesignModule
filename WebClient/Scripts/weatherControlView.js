@@ -1,5 +1,5 @@
 ﻿
-L.Control.windTemperatureView = L.Control.extend({
+L.Control.weatherView = L.Control.extend({
     options: {
         collapsed: false,
         position: 'topleft',
@@ -32,24 +32,33 @@ L.Control.windTemperatureView = L.Control.extend({
 
         this._draggable.enable();
 
+        //TODO: drag for the control-weatherCotrolView div does not work with the windDirection control. Users have to click and drag around the temperatureControl div to drag the weatherControl
         this.windView = L.DomUtil.create('div', "leafletcontrol-windDirection");
 
-        var windControl = L.control.arrow(this.windView);
-        map.addControl(windControl);
-        this._container.appendChild(windControl.getContainer());
+        this.windControl = L.control.arrow(this.windView);
+        map.addControl(this.windControl);
+        this._container.appendChild(this.windControl.getContainer());
 
         this.temperatureView = L.DomUtil.create('div', "d3control-temperatureControl");
 
-        var temperatureControl = L.control.temp(this.temperatureView);
-        map.addControl(temperatureControl);
-        this._container.appendChild(temperatureControl.getContainer());
+        this.temperatureControl = L.control.temp(this.temperatureView);
+        map.addControl(this.temperatureControl);
+        this._container.appendChild(this.temperatureControl.getContainer());
 
 
         //disabling propagation
         L.DomEvent.disableClickPropagation(this._container);
         L.DomEvent.disableScrollPropagation(this._container);
 
-        this._container.addEventListener('contextmenu', this._handleContextMenu);
+        //this._container.addEventListener('contextmenu', this._handleContextMenu);
+
+        this._container.addEventListener('contextmenu', function (event) {
+            event = event || window.event;
+            this.temperatureControl.changeMercuryColorLive(event);
+            this.windControl.windArrowLive();
+            event.preventDefault();
+            event.cancelBubble = true;
+        }.bind(this));
     },
 
     _handleContextMenu: function (e) {
@@ -60,6 +69,6 @@ L.Control.windTemperatureView = L.Control.extend({
 });
 
 // add temperature constructor for temperature control
-L.control.windTemperature = function () {
-    return new L.Control.windTemperatureView();
+L.control.weather = function () {
+    return new L.Control.weatherView();
 };

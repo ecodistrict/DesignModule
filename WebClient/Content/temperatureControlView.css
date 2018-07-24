@@ -24,12 +24,12 @@
     pointer-events: auto;
 }
 
-    .temperatureDiv .dropdown-content a {
-        color: black;
-        padding: 5px 5px;
-        text-decoration: none;
-        display: block;
-    }
+.temperatureDiv .dropdown-content a {
+    color: black;
+    padding: 5px 5px;
+    text-decoration: none;
+    display: block;
+}
 
 .temperatureDiv .thermometerStructure {
     stroke: #999999;

@@ -78,13 +78,13 @@ L.Control.Arrow = L.Control.extend({
                     switch (this.action) {
                         // setting speed
                         case 1:
-                            this.ref.currentData.speed = this.s;
-                            this.ref.rotate(this.ref.currentData.direction, this.ref.currentData.speed);
+                            //this.ref.currentData.speed = this.s;
+                            //this.ref.rotate(this.ref.currentData.direction, this.ref.currentData.speed);
                             break;
                         // setting wind direction
                         case 2:
-                            this.ref.currentData.direction = this.r;
-                            this.ref.rotate(this.ref.currentData.direction, this.ref.currentData.speed);
+                            //this.ref.currentData.direction = this.r;
+                            //this.ref.rotate(this.ref.currentData.direction, this.ref.currentData.speed);
                             break;
                     }
                     // work-a-round: ensure dragend is fired!
@@ -113,8 +113,9 @@ L.Control.Arrow = L.Control.extend({
 
         L.DomEvent.disableClickPropagation(this._container);
         L.DomEvent.disableScrollPropagation(this._container);
-        // use context menu event to return to "live" state
-        this._container.addEventListener('contextmenu', this._handleContextMenu.bind(this));
+        if (!parentContainer)
+            // use context menu event to return to "live" state
+            this._container.addEventListener('contextmenu', this._handleContextMenu.bind(this));
 
         this.text = this._container.appendChild(L.DomUtil.create('span', "windDirectionText"));
         this.text.innerHTML = "<BR>unknown<BR>";
@@ -143,6 +144,10 @@ L.Control.Arrow = L.Control.extend({
         e.preventDefault();
         e.cancelBubble = true;
 
+        this.windArrowLive();
+    },
+
+    windArrowLive: function () {
         // return to live state
         this.arrow.src = "Content/images/arrow_wind.png";
         wsSend({

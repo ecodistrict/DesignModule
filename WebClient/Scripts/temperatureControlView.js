@@ -4,8 +4,8 @@ L.Control.Temp = L.Control.extend({
         collapsed: false,
         position: 'topleft',
         autoZIndex: true,
-        height: 150,
-        width: 150,
+        height: 160,
+        width: 90,
     },
 
     /// leaflet constructor
@@ -35,22 +35,19 @@ L.Control.Temp = L.Control.extend({
         L.DomEvent.disableClickPropagation(this._container);
         L.DomEvent.disableScrollPropagation(this._container);
 
-        // use context menu event to return to "live" state
-        this._container.addEventListener('contextmenu', this._handleContextMenu.bind(this));
-
         //--------------------Variable declarations------------------------
         //svg image vars
-        var width = 90;
-        var height = 160;
+        this.width = this.options.width;
+        this.height = this.options.height;
         this.borderWidth = 1;
 
         //general x-coordinate var
-        this.xPosForBaseComponents = (width / 2.5);
+        this.xPosForBaseComponents = (this.width / 2.5);
 
         //capillary tube vars
         this.tubeWidth = 12;
-        this.tubeRectY = (height / 8);
-        this.tubeHeight = ((3.1 * height) / 4) - this.tubeRectY;
+        this.tubeRectY = (this.height / 8);
+        this.tubeHeight = ((3.1 * this.height) / 4) - this.tubeRectY;
         this.tubeRectX = this.xPosForBaseComponents - (this.tubeWidth / 2);
 
         this.tubeBulbPixelOverlap = 3; //the spherical bulb overlaps the capillary tube by defined pixels
@@ -66,19 +63,15 @@ L.Control.Temp = L.Control.extend({
 
         this.TemperatureUnits = this.minTemperature.converter.units;
 
-        //kelvin min and max values
-        this.minKelvin = this.minTemperature.GetDisplayValue();
-        this.maxKelvin = this.maxTemperature.GetDisplayValue();
-
         //Universal Scale
         this.universalScale = d3.scale.linear()
-            .domain([this.minKelvin, this.maxKelvin])
+            .domain([this.minTemperature.GetDisplayValue(), this.maxTemperature.GetDisplayValue()])
             .range([this.tubeHeight - this.tubeBulbPixelOverlap, 0]);
 
         /*
         //Todo: D3 V4 code for the scale
         this.universalScale = d3.scaleLinear()
-            .domain([this.minKelvin, this.maxKelvin])
+            .domain([this.minTemperature.GetDisplayValue(), this.maxTemperature.GetDisplayValue()])
             .range([this.tubeHeight - this.tubeBulbPixelOverlap, 0]);
         */
 
@@ -103,15 +96,39 @@ L.Control.Temp = L.Control.extend({
 
         //-----------------Creating and adding components------------------------
 
-        this.temperatureDiv = d3.select(this._temperatureDiv).style("width", width + "px").style("height", height + "px");
+        this.temperatureDiv = d3.select(this._temperatureDiv).style("width", this.width + "px").style("height", this.height + "px");
 
+        this.unitControlParentDivInitialization();
+        this.unitLabelInitializaion();
+        this.unitsDropDownDivInitialization();
+
+        this.temperatureTextboxInitialization();
+
+        this.svgImageInitialization();
+
+        //definition of the mercury circle color gradient component
+        this.defs = this.svg.append("defs");
+        this.mercuryBulbGradientInitialization("mercuryGradient_red", this.mercuryColor_red);
+        this.mercuryBulbGradientInitialization("mercuryGradient_blue", this.mercuryColor_blue);
+
+        this.createThermometerStructure();
+        this.createMercuryBar();
+        this.axisInitialization();
+
+        //setting the default startup value for the temperature control
+        this.temperatureModel.value = this.temperatureModel.value;
+    },
+
+    unitControlParentDivInitialization: function () {
         //div for unit and its dropDown
         this.unitsControlDiv = this.temperatureDiv.append("div")
             .style("position", "absolute")
             .style("top", (this.tubeRectY) + "px")
             .style("left", (this.xPosForBaseComponents + (this.tubeWidth * 1.5)) + "px");
+    },
 
-        //Label displaying the temprature unit
+    unitLabelInitializaion: function () {
+        //Label displaying the temperature unit
         this.temperatureUnitLabel = this.unitsControlDiv.append('label')
             .attr("class", "mercuryControl")
             .html(this.selectedUnit)
@@ -120,128 +137,14 @@ L.Control.Temp = L.Control.extend({
         this.temperatureUnitLabel.on('click', function () {
             this.unitsDropdown.style("display", "block");
         }.bind(this));
-
-        this.unitsDropDownDiv();
-        this.temperatureTextbox();
-
-        //svg image declaration
-        this.svg = this.temperatureDiv
-            .append("svg")
-            .attr("width", width)
-            .attr("height", height);
-
-        //definition of the mercury circle color gradient component
-        this.defs = this.svg.append("defs");
-        this.mercuryBulbGradientInitialization("mercuryGradient_red", this.mercuryColor_red);
-        this.mercuryBulbGradientInitialization("mercuryGradient_blue", this.mercuryColor_blue);
-
-        this.thermometerDesign();
-        this.mercuryDesign();
-        this.axisInitialization();
-
-        //setting the default startup value for the temperature control
-        this.temperatureModel.value = this.temperatureModel.value;
-
     },
 
-    _handleContextMenu: function (e) {
-        //event = event || window.event;
-        //this.changeMercuryColorLive(event);
-        e.preventDefault();
-        e.cancelBubble = true;
-    },
-
-    modelValueChanged: function modelValueChanged(data) {
-        //update mercury level
-        this.mercuryLevelSetter();
-        //update temperature in the value box
-        this.temperatureValueSetter();
-    },
-
-    displayAxis: function displayAxis() {
-        // D3 axis object for the temperature scale
-        var axis;
-
-        this.minTemperature.SetUnit(this.selectedUnit);
-        this.maxTemperature.SetUnit(this.selectedUnit);
-
-        this.universalScale.domain([parseFloat(this.minTemperature.GetDisplayValue().toFixed(2)), parseFloat(this.maxTemperature.GetDisplayValue().toFixed(2))]);
-
-        axis = d3.svg.axis()
-            .scale(this.universalScale);
-
-        axis.innerTickSize(5)
-            .outerTickSize(0)
-            .ticks(8)
-            .orient("left");
-
-        /*
-         //Todo: D3 V4 code for the axis
-         axis = d3.axisLeft()
-            .scale(this.universalScale);
-
-        axis.tickSizeInner(5)
-            .tickSizeOuter(0)
-            .ticks(8);
-         */
-
-        return axis;
-    },
-
-    mercuryLevelSetter: function () {
-        var mercuryY = this.universalScale(this.temperatureModel.value) + this.tubeRectY;
-        var mercuryHeight = this.tubeRectY + this.tubeHeight - mercuryY + this.tubeBulbPixelOverlap;
-        this.mercury.attr("y", mercuryY)
-            .attr("height", mercuryHeight);
-    },
-
-    temperatureValueSetter: function () {
-        var temperaturePixel = this.temperatureModel.value;
-        this.temperatureValueInput.property('value', temperaturePixel);
-    },
-
-    getTemperatureValue: function () {
-        var mouseClickTemperatureValue = parseFloat(this.universalScale.invert(this.mouseClickY - this.tubeRectY).toFixed(2));
-        return mouseClickTemperatureValue;
-    },
-
-    changeMercuryColorEdit: function (event) {
-        if (event.which == 1) {
-            this.mercury.attr("fill", this.mercuryColor_blue);
-            this.mercuryBulb.style("fill", "url(#mercuryGradient_blue)")
-                .style("stroke", this.mercuryColor_blue);
-            this.editTemperatureFlag = true;
-            this.temperatureValueInput.property("disabled", !this.editTemperatureFlag);
-        }
-    },
-
-    changeMercuryColorLive: function (event) {
-        if (event.which == 3) {
-            this.mercury.attr("fill", this.mercuryColor_red);
-            this.mercuryBulb.style("fill", "url(#mercuryGradient_red)")
-                .style("stroke", this.mercuryColor_red);
-            this.editTemperatureFlag = false;
-            this.temperatureValueInput.property("disabled", !this.editTemperatureFlag);
-        }
-    },
-
-    setUnitDropDown: function (selUnit) {
-        this.selectedUnit = selUnit;
-        this.temperatureUnitLabel.html(this.selectedUnit);
-        this.unitsDropdown.style("display", "none");
-        var axis = this.displayAxis();
-
-        this.svg.selectAll("g.temperatureAxis")
-            .call(axis);
-        this.temperatureModel.temperatureUnit = this.selectedUnit;
-    },
-
-    unitsDropDownDiv: function () {
+    unitsDropDownDivInitialization: function () {
         var createUnitCallback = function (unit) {
             return function () {
                 this.setUnitDropDown(unit)
             }.bind(this);
-        }.bind(this);        
+        }.bind(this);
 
         this.unitsDropdown = this.unitsControlDiv.append("div")
             .attr("id", "tempDropDown")
@@ -257,13 +160,27 @@ L.Control.Temp = L.Control.extend({
         }
     },
 
-    temperatureTextbox: function () {
+    setUnitDropDown: function (selUnit) {
+        this.selectedUnit = selUnit;
+        this.temperatureUnitLabel.html(this.selectedUnit);
+        this.unitsDropdown.style("display", "none");
+        var axis = this.displayAxis();
+
+        this.svg.selectAll("g.temperatureAxis")
+            .call(axis);
+        this.temperatureModel.temperatureUnit = this.selectedUnit;
+    },
+
+    temperatureTextboxInitialization: function () {
         this.temperatureValueInput = this.temperatureDiv.append('input')
             .attr('type', 'text')
             .attr("class", "mercuryControl")
             .attr('id', 'temperatureValue')
             .attr('value', '0.0')
-            .style("position", "absolute").style("top", (this.tubeRectY + (2 * this.tubeHeight) / 3) + "px").style("left", (this.xPosForBaseComponents + this.tubeWidth) + "px").style("width", "34px");
+            .style("position", "absolute")
+            .style("top", (this.tubeRectY + (2 * this.tubeHeight) / 3) + "px")
+            .style("left", (this.xPosForBaseComponents + this.tubeWidth) + "px")
+            .style("width", "34px");
 
         //setting default state
         this.temperatureValueInput.property("disabled", !this.editTemperatureFlag);
@@ -291,6 +208,14 @@ L.Control.Temp = L.Control.extend({
         }.bind(this));
     },
 
+    svgImageInitialization: function () {
+        //svg image declaration
+        this.svg = this.temperatureDiv
+            .append("svg")
+            .attr("width", this.width)
+            .attr("height", this.height);
+    },
+
     mercuryBulbGradientInitialization: function (gradientID, mercuryColor) {
         var mercuryBulbBGradient = this.defs.append("radialGradient")
             .attr("id", gradientID);
@@ -304,7 +229,7 @@ L.Control.Temp = L.Control.extend({
             .attr("stop-color", mercuryColor);
     },
 
-    thermometerDesign: function () {
+    createThermometerStructure: function () {
         //spherical bulb vars
         var bulbR = 14;
         var bulbCx = this.xPosForBaseComponents;
@@ -359,7 +284,6 @@ L.Control.Temp = L.Control.extend({
             .on('click', function (event) {
                 event = event || window.event;
                 this.changeMercuryColorEdit(event);
-                //this.changeMercuryColorLive(event);
                 if (this.editTemperatureFlag) {
                     this.mouseClickY = d3.event.offsetY;
                     this.temperatureModel.value = this.getTemperatureValue();
@@ -379,6 +303,41 @@ L.Control.Temp = L.Control.extend({
             .style("fill", "url(#mercuryGradient_red)")
             .style("stroke", this.mercuryColor_red)
             .style("stroke-width", this.borderWidth + "px");
+    },
+
+    createMercuryBar: function () {
+        var dragHandler = this.mercuryDragHandler();
+
+        //mercury rect vars
+        var mercuryRectX = this.tubeRectX + 3;
+        var mercuryRectY = this.tubeRectY;
+        var mercuryRectWidth = this.tubeWidth - 7;
+        var mercuryRectHeight = this.tubeHeight + this.tubeBulbPixelOverlap;
+
+        //red rect inside the thermometer capillary tube rectangle to act as the mercury
+        this.mercury = this.svg.append("rect")
+            .attr("class", "mercuryControl")
+            .attr("id", "dragMercuryRect")
+            .attr("x", mercuryRectX)
+            .attr("y", mercuryRectY)
+            .attr("width", mercuryRectWidth)
+            .attr("height", mercuryRectHeight)
+            .attr("fill", this.mercuryColor_red)
+            .call(dragHandler);
+
+        //on-click event used to regulate the mercury level
+        this.mercury.on('click', function (event) {
+            event = event || window.event;
+            this.changeMercuryColorEdit(event);
+            if (this.editTemperatureFlag) {
+                this.mouseClickY = d3.event.offsetY;
+                this.temperatureModel.value = this.getTemperatureValue();
+            }
+        }.bind(this))
+            .on('contextmenu', function (event) {
+                event = event || window.event;
+                this.changeMercuryColorLive(event);
+            }.bind(this));
     },
 
     mercuryDragHandler: function () {
@@ -417,42 +376,6 @@ L.Control.Temp = L.Control.extend({
     subjectPos: function (d) { return { x: 0, y: d3.event.y } },
     */
 
-    mercuryDesign: function () {
-        var dragHandler = this.mercuryDragHandler();
-
-        //mercury rect vars
-        var mercuryRectX = this.tubeRectX + 3;
-        var mercuryRectY = this.tubeRectY;
-        var mercuryRectWidth = this.tubeWidth - 7;
-        var mercuryRectHeight = this.tubeHeight + this.tubeBulbPixelOverlap;
-
-        //red rect inside the thermometer capillary tube rectangle to act as the mercury
-        this.mercury = this.svg.append("rect")
-            .attr("class", "mercuryControl")
-            .attr("id", "dragMercuryRect")
-            .attr("x", mercuryRectX)
-            .attr("y", mercuryRectY)
-            .attr("width", mercuryRectWidth)
-            .attr("height", mercuryRectHeight)
-            .attr("fill", this.mercuryColor_red)
-            .call(dragHandler);
-
-        //on-click event used to regulate the mercury level
-        this.mercury.on('click', function (event) {
-            event = event || window.event;
-            this.changeMercuryColorEdit(event);
-            //this.changeMercuryColorLive(event);
-            if (this.editTemperatureFlag) {
-                this.mouseClickY = d3.event.offsetY;
-                this.temperatureModel.value = this.getTemperatureValue();
-            }
-        }.bind(this))
-            .on('contextmenu', function (event) {
-                event = event || window.event;
-                this.changeMercuryColorLive(event);
-            }.bind(this));
-    },
-
     axisInitialization: function () {
         //Defining the axis and along with it setting up the universal scale with the selectedUnit
         var axis = this.displayAxis();
@@ -469,6 +392,80 @@ L.Control.Temp = L.Control.extend({
         svgAxis.select("path")
             .style("stroke", "none")
             .style("fill", "none");
+    },
+
+    displayAxis: function displayAxis() {
+        // D3 axis object for the temperature scale
+        var axis;
+
+        this.minTemperature.SetUnit(this.selectedUnit);
+        this.maxTemperature.SetUnit(this.selectedUnit);
+
+        this.universalScale.domain([parseFloat(this.minTemperature.GetDisplayValue().toFixed(2)), parseFloat(this.maxTemperature.GetDisplayValue().toFixed(2))]);
+
+        axis = d3.svg.axis()
+            .scale(this.universalScale);
+
+        axis.innerTickSize(5)
+            .outerTickSize(0)
+            .ticks(8)
+            .orient("left");
+
+        /*
+         //Todo: D3 V4 code for the axis
+         axis = d3.axisLeft()
+            .scale(this.universalScale);
+
+        axis.tickSizeInner(5)
+            .tickSizeOuter(0)
+            .ticks(8);
+         */
+
+        return axis;
+    },
+
+    modelValueChanged: function modelValueChanged(data) {
+        //update mercury level
+        this.mercuryLevelSetter();
+        //update temperature in the value box
+        this.temperatureValueSetter();
+    },
+
+    mercuryLevelSetter: function () {
+        var mercuryY = this.universalScale(this.temperatureModel.value) + this.tubeRectY;
+        var mercuryHeight = this.tubeRectY + this.tubeHeight - mercuryY + this.tubeBulbPixelOverlap;
+        this.mercury.attr("y", mercuryY)
+            .attr("height", mercuryHeight);
+    },
+
+    temperatureValueSetter: function () {
+        var temperaturePixel = this.temperatureModel.value;
+        this.temperatureValueInput.property('value', temperaturePixel);
+    },
+
+    getTemperatureValue: function () {
+        var mouseClickTemperatureValue = parseFloat(this.universalScale.invert(this.mouseClickY - this.tubeRectY).toFixed(2));
+        return mouseClickTemperatureValue;
+    },
+
+    changeMercuryColorEdit: function (event) {
+        if (event.which == 1) {
+            this.mercury.attr("fill", this.mercuryColor_blue);
+            this.mercuryBulb.style("fill", "url(#mercuryGradient_blue)")
+                .style("stroke", this.mercuryColor_blue);
+            this.editTemperatureFlag = true;
+            this.temperatureValueInput.property("disabled", !this.editTemperatureFlag);
+        }
+    },
+
+    changeMercuryColorLive: function (event) {
+        if (event.which == 3) {
+            this.mercury.attr("fill", this.mercuryColor_red);
+            this.mercuryBulb.style("fill", "url(#mercuryGradient_red)")
+                .style("stroke", this.mercuryColor_red);
+            this.editTemperatureFlag = false;
+            this.temperatureValueInput.property("disabled", !this.editTemperatureFlag);
+        }
     },
 });
 
