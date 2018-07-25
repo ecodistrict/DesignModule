@@ -13,7 +13,7 @@ var TimeSliderView = L.Control.extend({
         this.timeFormat = opts.timeFormat || d3.timeFormat('%Y-%m-%d %H:%M');
         this.features = L.extend({
             brush: true
-        }, opts.features || {});
+        }, opts.features);
 
         this.render();
     },   
@@ -21,7 +21,7 @@ var TimeSliderView = L.Control.extend({
     render: function () {
         if (this.scaleView) return; // already rendered
 
-        this.timesliderViewport = L.DomUtil.create('div', 'timeslider-viewport');        
+        this.timesliderViewport = L.DomUtil.create('div', 'timeslider-viewport');
         this.scaleView = new ScaleSliderView({
             element: this.timesliderViewport,
             model: this.model,

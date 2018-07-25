@@ -19,13 +19,13 @@ var ScaleSliderView = L.Control.extend({
         this.model = opts.model;
         this.features = L.extend({
             brush: true
-        }, opts.features || {});
+        }, opts.features);
 
         this.modelValueDecorator = opts.modelValueDecorator || function (value) { return '' + value; };
         this.modelValueScaleCreator = opts.modelValueScaleCreator || function () { return d3.scaleLinear(); };
 
-        this.padding = L.extend({ left: 0, top: 0, right: 0, bottom: 0 }, opts.padding || {});
-        this.xAxisMargin = L.extend({ top: 10, left: 15, right: 15, bottom: 0 }, opts.xAxisMargin || {});
+        this.padding = L.extend({ left: 0, top: 0, right: 0, bottom: 0 }, opts.padding);
+        this.xAxisMargin = L.extend({ top: 10, left: 15, right: 15, bottom: 0 }, opts.xAxisMargin);
 
         this.render();
     },

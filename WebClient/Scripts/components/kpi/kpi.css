@@ -1,0 +1,17 @@
+.kpi-viewport {
+    display: inline-block;
+    overflow: hidden;
+}
+
+.kpi-viewport .kpi .title {
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.kpi-viewport .kpi .subtitle {
+    fill: #999;
+}
+
+.kpi-viewport .kpi:hover .title {
+    fill: rgba(173, 216, 230, 1);
+}
