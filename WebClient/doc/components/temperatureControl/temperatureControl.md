@@ -2,7 +2,7 @@
 
 Control that can be used to either view the live temperature condition or set a temperature value to see its effects.
 
-![Control structure design](images/temperatureControl.png) 
+![Control structure design](images/temperatureControl.PNG) 
 
 ## Features
 
@@ -27,8 +27,8 @@ This component consists of a Model-View design.
 ## View states
 
 <table class="temperatureViewStates">
-<tr><td><img src="images/temperatureControl.png" alt="Live state"/></td>
-    <td><img src="images/temperatureControl_edit.png" alt="Edit state"/></td></tr>
+<tr><td><img src="images/temperatureControl.PNG" alt="Live state"/></td>
+    <td><img src="images/temperatureControl_edit.PNG" alt="Edit state"/></td></tr>
 <tr align="center"><td>Live State</td><td>Edit State</td></tr>
 </table>
 
