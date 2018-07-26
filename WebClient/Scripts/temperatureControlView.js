@@ -26,14 +26,6 @@ L.Control.Temp = L.Control.extend({
     },
 
     _initLayout: function () {
-        this._container = this.parentContainer;
-
-        this._temperatureDiv = L.DomUtil.create('div', "temperatureDiv");
-        this._container.appendChild(this._temperatureDiv);
-
-        //disabling propagation
-        L.DomEvent.disableClickPropagation(this._container);
-        L.DomEvent.disableScrollPropagation(this._container);
 
         //--------------------Variable declarations------------------------
         //svg image vars
@@ -95,12 +87,19 @@ L.Control.Temp = L.Control.extend({
         this.editTemperatureFlag = false;
 
         //-----------------Creating and adding components------------------------
+        
+        this._container = this.parentContainer;
+
+        this._temperatureDiv = L.DomUtil.create('div', "temperatureDiv");
+        this._container.appendChild(this._temperatureDiv);
+
+        //disabling propagation
+        L.DomEvent.disableClickPropagation(this._container);
+        L.DomEvent.disableScrollPropagation(this._container);
 
         this.temperatureDiv = d3.select(this._temperatureDiv).style("width", this.width + "px").style("height", this.height + "px");
 
         this.unitControlParentDivInitialization();
-        this.unitLabelInitializaion();
-        this.unitsDropDownDivInitialization();
 
         this.temperatureTextboxInitialization();
 
@@ -125,6 +124,9 @@ L.Control.Temp = L.Control.extend({
             .style("position", "absolute")
             .style("top", (this.tubeRectY) + "px")
             .style("left", (this.xPosForBaseComponents + (this.tubeWidth * 1.5)) + "px");
+
+        this.unitLabelInitializaion();
+        this.unitsDropDownDivInitialization();
     },
 
     unitLabelInitializaion: function () {

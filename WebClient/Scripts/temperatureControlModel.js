@@ -33,9 +33,6 @@
                 this.fire('value', { value: this.value });
             }
         });
-
-
     }
-
 });
 L.extend(TemperatureModel.prototype, L.Evented.prototype);

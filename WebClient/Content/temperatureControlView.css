@@ -42,3 +42,11 @@
 .temperatureDiv .mercuryControl {
     pointer-events: auto;
 }
+
+.temperatureDiv .mercuryColorRed {
+    fill: #E50000;
+}
+
+.temperatureDiv .mercuryColorBlue {
+    fill: #30669F;
+}
