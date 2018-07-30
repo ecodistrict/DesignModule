@@ -101,7 +101,7 @@ type
     objectType: string;
     geometryType: string;
     _published: Integer;
-    selectProperties: string;
+    //selectProperties: string;
     // indirect
     legendAVL: string;
     odbList: TODBList;
