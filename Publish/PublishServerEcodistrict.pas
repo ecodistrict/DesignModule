@@ -50,6 +50,22 @@ const
   DisabledKPIsSection = 'DisabledKPIs';
 
 type
+  TFileInfoRecord = class
+  constructor Create(const aFieldName: string; aFieldType: TFieldType; aIsIndexField, aIsGeometryField: Boolean);
+  public
+    fieldName: string;
+    fieldType: TFieldType;
+    isIndexField: Boolean;
+    isGeometryField: Boolean;
+    sqlFieldValue: string;
+  protected
+    function getTypeName: string;
+  public
+    property TypeName: string read getTypeName;
+  public
+    class function GISFieldType2DBFieldType(aGISFieldType: TGIS_FieldType): TFieldType;
+  end;
+
   // eco-district
   TEcodistrictLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
@@ -514,6 +530,119 @@ begin
     then Log.WriteLn('escaped SQL value '+aValue+' -> '+Result, llWarning);
   end;
 end;
+
+function PGFieldTypeName2Type(const aFieldTypeName: string): TFieldType;
+// aFieldTypeName should be in lower case
+begin
+  if aFieldTypeName='text'
+  then Result := ftString
+  else if aFieldTypeName='integer'
+  then Result := ftInteger
+  else if aFieldTypeName='double precision'
+  then Result := ftFloat
+  else if aFieldTypeName='boolean'
+  then Result := ftBoolean
+  //
+  else if aFieldTypeName='uuid'
+  then Result := ftGuid
+  else if aFieldTypeName='money'
+  then Result := ftCurrency
+  else if aFieldTypeName='timestamp without time zone'
+  then Result := ftTimeStamp
+  else if aFieldTypeName='user-defined'
+  then Result := ftObject
+  else Result := ftUnknown;
+  // 'public.geometry'
+end;
+
+function PGFieldType2TypeName(aFieldType: TFieldType; aIsGeometryFieldType: Boolean): string;
+begin
+  if aIsGeometryFieldType then
+  begin
+    Result := 'public.geometry';
+  end
+  else
+  begin
+    case aFieldType of
+      ftWideMemo,
+      ftString,
+      ftWideString:  Result := 'text';
+      ftInteger:     Result := 'integer';
+      ftLargeint:    Result := 'integer';
+      ftFloat,
+      ftExtended,
+      ftSingle:      Result := 'double precision';
+      ftBoolean:     Result := 'boolean';
+      //
+      ftGuid:        Result := 'uuid';
+      ftCurrency:    Result := 'money';
+      ftTimeStamp:   Result := 'timestamp without time zone';
+      //ftObject:      Result := 'public.geometry';
+    else
+                     Result := 'public.geometry';
+    end;
+  end;
+end;
+
+
+{ TFileInfoRecord }
+
+constructor TFileInfoRecord.Create(const aFieldName: string; aFieldType: TFieldType; aIsIndexField, aIsGeometryField: Boolean);
+begin
+  fieldName := aFieldName;
+  fieldType := aFieldType;
+  isIndexField := aIsIndexField;
+  isGeometryField := aIsGeometryField;
+  sqlFieldValue := '';
+end;
+
+function TFileInfoRecord.getTypeName: string;
+begin
+  if isGeometryField then
+  begin
+                     Result := 'public.geometry';
+  end
+  else
+  begin
+    case fieldType of
+      ftWideMemo,
+      ftString,
+      ftWideString:  Result := 'text';
+      ftInteger:     Result := 'integer';
+      ftLargeint:    Result := 'integer';
+      ftFloat,
+      ftExtended,
+      ftSingle:      Result := 'double precision';
+      ftBoolean:     Result := 'boolean';
+      //
+      ftGuid:        Result := 'uuid';
+      ftCurrency:    Result := 'money';
+      ftTimeStamp:   Result := 'timestamp without time zone';
+      //ftObject:      Result := 'public.geometry';
+    else
+                     Result := 'public.geometry';
+    end;
+  end;
+end;
+
+class function TFileInfoRecord.GISFieldType2DBFieldType(aGISFieldType:TGIS_FieldType): TFieldType;
+begin
+  case aGISFieldType of
+    TGIS_FieldType.String:
+      Result := ftString;
+    TGIS_FieldType.Number:
+      Result := ftInteger;
+    TGIS_FieldType.Float:
+      Result := ftFloat;
+    TGIS_FieldType.Boolean:
+      Result := ftBoolean;
+    TGIS_FieldType.Date:
+      Result := ftDateTime;
+  else
+    Result := ftUnknown;
+  end;
+end;
+
 
 { TEcodistrictLayer }
 
@@ -2145,108 +2274,6 @@ begin
   end;
 end;
 
-type
-  TFileInfoRecord = class
-  constructor Create(const aFieldName: string; aFieldType: TFieldType; aIsIndexField, aIsGeometryField: Boolean);
-  public
-    fieldName: string;
-    fieldType: TFieldType;
-    isIndexField: Boolean;
-    isGeometryField: Boolean;
-    sqlFieldValue: string;
-  public
-    class function PGFieldType2TypeName(aFieldType: TFieldType): string;
-    class function PGFieldTypeName2Type(const aFieldTypeName: string): TFieldType;
-    class function GISFieldType2DBFieldType(aGISFieldType: TGIS_FieldType): TFieldType;
-  end;
-
-constructor TFileInfoRecord.Create(const aFieldName: string; aFieldType: TFieldType; aIsIndexField, aIsGeometryField: Boolean);
-begin
-  fieldName := aFieldName;
-  fieldType := aFieldType;
-  isIndexField := aIsIndexField;
-  isGeometryField := aIsGeometryField;
-  sqlFieldValue := '';
-end;
-
-class function TFileInfoRecord.PGFieldType2TypeName(aFieldType: TFieldType): string;
-begin
-  case aFieldType of
-    ftWideMemo,
-    ftString,
-    ftWideString:  Result := 'text';
-    ftInteger:     Result := 'integer';
-    ftLargeint:    Result := 'integer';
-    ftFloat,
-    ftExtended,
-    ftSingle:      Result := 'double precision';
-    ftBoolean:     Result := 'boolean';
-    //
-    ftGuid:        Result := 'uuid';
-    ftCurrency:    Result := 'money';
-    ftTimeStamp:   Result := 'timestamp without time zone';
-    //ftObject:      Result := 'public.geometry';
-  else
-                   Result := 'public.geometry';
-  end;
-end;
-
-class function TFileInfoRecord.PGFieldTypeName2Type(const aFieldTypeName: string): TFieldType;
-// aFieldTypeName should be in lower case
-begin
-  if aFieldTypeName='text'
-  then Result := ftString
-  else if aFieldTypeName='integer'
-  then Result := ftInteger
-  else if aFieldTypeName='double precision'
-  then Result := ftFloat
-  else if aFieldTypeName='boolean'
-  then Result := ftBoolean
-  //
-  else if aFieldTypeName='uuid'
-  then Result := ftGuid
-  else if aFieldTypeName='money'
-  then Result := ftCurrency
-  else if aFieldTypeName='timestamp without time zone'
-  then Result := ftTimeStamp
-  else if aFieldTypeName='user-defined'
-  then Result := ftObject
-  else Result := ftUnknown;
-  // 'public.geometry'
-end;
-
-class function TFileInfoRecord.GISFieldType2DBFieldType(aGISFieldType:TGIS_FieldType): TFieldType;
-begin
-  case aGISFieldType of
-    TGIS_FieldType.String:
-      Result := ftString;
-    TGIS_FieldType.Number:
-      Result := ftInteger;
-    TGIS_FieldType.Float:
-      Result := ftFloat;
-    TGIS_FieldType.Boolean:
-      Result := ftBoolean;
-    TGIS_FieldType.Date:
-      Result := ftDateTime;
-  else
-    Result := ftUnknown;
-  end;
-end;
-{
-function FindFieldInfoOnFieldName(aFieldDefs: TObjectList<TFileInfoRecord>; aFieldName: string): TFileInfoRecord;
-var
-  fi: TFileInfoRecord;
-begin
-  aFieldName := aFieldName.ToLower;
-  for fi in aFieldDefs do
-  begin
-    if fi.fieldName.ToLower=aFieldName
-    then exit(fi);
-  end;
-  Result := nil;
-end;
-}
-
 procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo: TClientFileUploadInfo);
 
   function TableExists(const aSchemaName, aTableName: string): Boolean;
@@ -2281,7 +2308,7 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
       query.Open();
       while not query.Eof do
       begin
-        aExistingFieldDefs.AddOrSetValue(query.Fields[0].AsString.ToLower, TFileInfoRecord.PGFieldTypeName2Type(query.Fields[1].AsString.ToLower));
+        aExistingFieldDefs.AddOrSetValue(query.Fields[0].AsString.ToLower, PGFieldTypeName2Type(query.Fields[1].AsString.ToLower));
         query.Next;
       end;
     finally
@@ -2315,7 +2342,7 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
           begin
             // already exists -> check
             if aFieldDefs[f].fieldType<>existingFieldType
-            then Log.WriteLn('Upload of '+aTableName+': column type for '+aFieldDefs[f].fieldName+' deviates ('+TFileInfoRecord.PGFieldType2TypeName(aFieldDefs[f].fieldType)+' <> '+TFileInfoRecord.PGFieldType2TypeName(existingFieldType)+')', llWarning);
+            then Log.WriteLn('Upload of '+aTableName+': column type for '+aFieldDefs[f].fieldName+' deviates ('+aFieldDefs[f].getTypeName+' <> '+PGFieldType2TypeName(existingFieldType, false)+')', llWarning);
           end
           else
           begin
@@ -2323,9 +2350,9 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
             if added
             then sql := sql+',';
             sql := sql+
-              'ADD COLUMN '+aFieldDefs[f].fieldName+' '+TFileInfoRecord.PGFieldType2TypeName(aFieldDefs[f].fieldType);
+              'ADD COLUMN '+aFieldDefs[f].fieldName+' '+aFieldDefs[f].getTypeName;
             added := True;
-            Log.WriteLn('Upload of '+aTableName+' to existing data: adding column '+aFieldDefs[f].fieldName+': '+TFileInfoRecord.PGFieldType2TypeName(aFieldDefs[f].fieldType));
+            Log.WriteLn('Upload of '+aTableName+' to existing data: adding column '+aFieldDefs[f].fieldName+': '+aFieldDefs[f].getTypeName);
           end;
         end;
         if added then
@@ -2343,12 +2370,12 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
       // table create statement and id field
       sql :=
         'CREATE TABLE '+aSchemaName+'.'+aTableName+' ('+
-          aFieldDefs[aIDFieldIndex].fieldName+' '+TFileInfoRecord.PGFieldType2TypeName(aFieldDefs[aIDFieldIndex].fieldType)+' NOT NULL';
+          aFieldDefs[aIDFieldIndex].fieldName+' '+aFieldDefs[aIDFieldIndex].getTypeName+' NOT NULL';
       // add all other fields
       for f := 0 to aFieldDefs.Count-1 do
       begin
         if f<>aIDFieldIndex
-        then sql := sql+','+aFieldDefs[f].fieldName+' '+TFileInfoRecord.PGFieldType2TypeName(aFieldDefs[f].fieldType);
+        then sql := sql+','+aFieldDefs[f].fieldName+' '+aFieldDefs[f].getTypeName;
       end;
       // add constraint
       sql := sql+
@@ -2382,7 +2409,7 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
       // for sets parse all fields except index
       if not aFieldDefs[f].isIndexField then
       begin
-        if f>0
+        if sets<>''
         then sets := sets+',';
         sets := sets+aFieldDefs[f].fieldName+'='+aFieldDefs[f].sqlFieldValue;
       end;
@@ -2391,8 +2418,8 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
       'INSERT INTO '+aSchemaName+'.'+aTableName+' ('+names+') '+
       'VALUES ('+values+') '+
       'ON CONFLICT ('+aFieldDefs[aKeyFieldIndex].fieldName+') '+
-      'DO UPDATE SET '+sets+
-      'WHERE '+aFieldDefs[aKeyFieldIndex].fieldName+'='+aFieldDefs[aKeyFieldIndex].sqlFieldValue;
+      'DO UPDATE SET '+sets; //+
+      //'WHERE '+aFieldDefs[aKeyFieldIndex].fieldName+'='+aFieldDefs[aKeyFieldIndex].sqlFieldValue;
     (fDBConnection as TFDConnection).ExecSQL(sql);
   end;
 
@@ -2440,9 +2467,9 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
               if (lp[0].ToLower='id') or ((idfni<0) and lp[0].ToLower.EndsWith('_id')) then
               begin
                 idfni := f;
-                fieldDefs.Add(TFileInfoRecord.Create(lp[0], TFileInfoRecord.PGFieldTypeName2Type(lp[1].ToLower), True, lp[1].ToLower='geometry'));
+                fieldDefs.Add(TFileInfoRecord.Create(lp[0], PGFieldTypeName2Type(lp[1].ToLower), True, lp[1].ToLower='geometry'));
               end
-              else fieldDefs.Add(TFileInfoRecord.Create(lp[0], TFileInfoRecord.PGFieldTypeName2Type(lp[1].ToLower), False, lp[1].ToLower='geometry'));
+              else fieldDefs.Add(TFileInfoRecord.Create(lp[0], PGFieldTypeName2Type(lp[1].ToLower), False, lp[1].ToLower='geometry'));
             end
             else
             begin
@@ -2453,7 +2480,7 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
               end
               else
               begin
-                fieldDefs.Add(TFileInfoRecord.Create(lp[0], TFileInfoRecord.PGFieldTypeName2Type(lp[1].ToLower), False, False));
+                fieldDefs.Add(TFileInfoRecord.Create(lp[0], PGFieldTypeName2Type(lp[1].ToLower), False, False));
                 Log.WriteLn('Upload text: '+aTableName+', invalid field def: '+line[f], llError);
               end;
             end;
