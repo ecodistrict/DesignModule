@@ -1,0 +1,35 @@
+.timeslider {
+    z-index: 999;
+    position: fixed;
+    left: 70px;
+    right: 70px;
+    bottom: 0;
+    height: 48px;
+    background-color: whitesmoke;
+    border-color: gray;
+    border-width: thin;
+    border-top-style: solid;
+    border-left-style: solid;
+    border-right-style: solid;
+    border-radius: 4px 4px 0 0;
+    opacity: 0.7;
+    cursor: col-resize;
+}
+
+.timeslider .timeslider-viewport {
+    display: inline-block;
+    margin: 0;
+    border: 0;
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    height: 100%;
+}
+
+.timeslider .timeslider-close {
+    position: absolute;
+    right: 6px;
+    top: 1px;
+    cursor: pointer;
+}
+.timeslider .timeslider-close:hover {  font-weight: bold }

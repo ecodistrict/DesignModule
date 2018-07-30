@@ -124,17 +124,9 @@
     },
 
     resetkpi: function (aKPI) {
-        for (var kpiName in this._kpis) {
-            if (kpiName == aKPI.name) {
-                this._kpis[aKPI.name] = aKPI;
-                // rebuild details elements
-                this._update();
-                return;
-            }
-        }
-        // todo: kpi not found.. add?
+        this._kpis[aKPI.name] = aKPI;
+        this._update();
     },
-
 
     updatePreview: function (aElementID, preview) {
         if (this.layers) {
@@ -240,7 +232,12 @@
 
         var kpiCount = 0;
         for (var kpiid in this._kpis) {
-            addKPI(this.kpis, this._kpis[kpiid], this.options.kpiWidth, this.options.kpiHeight);
+            var kpi = new KpiView({
+                element: this.kpis,
+                width: this.options.kpiWidth,
+                height: this.options.kpiHeight,
+                data: this._kpis[kpiid]
+            });
             kpiCount++;
         }
 

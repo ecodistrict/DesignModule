@@ -1,0 +1,44 @@
+.scale-slider-viewport {
+    overflow: hidden;
+}
+
+.scale-slider-viewport .underlay-container .underlay {
+    cursor: col-resize;
+}
+
+.scale-slider-viewport .events-container {
+    cursor: crosshair;
+    stroke-width: 1;
+    stroke: black;
+}
+
+.scale-slider-viewport .pointer {
+    stroke-width: 2;
+    stroke: black;
+}
+
+.scale-slider-viewport .value-label {
+    text-anchor: start;
+    pointer-events: auto;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.scale-slider-viewport .brush .selection {
+    fill: steelblue;
+    stroke: white;
+}
+
+.scale-slider-viewport .event {
+    height: 4px;
+}
+.scale-slider-viewport .event,
+.scale-slider-viewport .event-level-0  {
+    y: 2px;
+}
+.scale-slider-viewport .event-level-1 {
+    y: 8px;
+}
+.scale-slider-viewport .event-level-2 {
+    y: 14px;
+}

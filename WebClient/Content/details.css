@@ -95,31 +95,11 @@
 .leaflet-oldie .leaflet-control-details {
   border: 1px solid #999;
 }
-/* elements in details */
-.bullet {
-  font: 8px sans-serif;
-  pointer-events: all;
+
+.detailskpis .tick {
+  display: none
 }
-.bullet .marker {
-  stroke: #000;
-  stroke-width: 2px;
-}
-.bullet .tick line {
-  stroke: #666;
-  stroke-width: .5px;
-}
-.bullet .range.s0 {  fill: #eee }
-.bullet .range.s1 {  fill: #ddd }
-.bullet .range.s2 {  fill: #ccc }
-.bullet .measure.s0 {  fill: lightsteelblue }
-.bullet .measure.s1 {  fill: steelblue }
-.bullet .title {
-  font-size: 10px;
-  font-weight: bold;
-}
-.bullet .subtitle {  fill: #999 }
-.detailskpis .tick {  display: none }
-.bullet:hover .title {  fill: rgba(173, 216, 230, 1) }
+
 /* charts input details */
 .chartDiv {
   border-radius: 3px;

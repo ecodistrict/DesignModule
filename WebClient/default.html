@@ -17,13 +17,11 @@
     <link rel="stylesheet" href="Content/domains.css" />
     <link rel="stylesheet" href="Content/currefdiff.css" />
     <link rel="stylesheet" href="Content/details.css" />
-    <link rel="stylesheet" href="Content/kpis.css" />
     <link rel="stylesheet" href="Content/history.css" />
     <link rel="stylesheet" href="Content/projectdescription.css" />
     <link rel="stylesheet" href="Content/connectionstatus.css" />
     <link rel="stylesheet" href="Content/userMessages.css" />
     <link rel="stylesheet" href="Content/select.css" />
-    <link rel="stylesheet" href="Content/timeslider.css" />
     <link rel="stylesheet" href="Content/windDirection.css" />
     <link rel="stylesheet" href="Content/files.css" />
     <link rel="stylesheet" href="Content/Graphs/TableGraphs.css" />
@@ -45,6 +43,14 @@
     <link rel="stylesheet" href="Content/ScenarioControlsManager.css" />
     <link rel="stylesheet" href="Content/controlsControl.css" />
     <link rel="stylesheet" href="Content/ControlPropertiesDialog.css" />
+    <link rel="stylesheet" href="Content/common.css" />
+    <link rel="stylesheet" href="Content/d3Override.css" />
+    <link rel="stylesheet" href="Scripts/components/scaleSlider/scaleSlider.css" />
+    <link rel="stylesheet" href="Scripts/components/timeSlider/timeSlider.css" />
+    <link rel="stylesheet" href="Scripts/components/timeSlider/timeSliderToggle.css" />
+    <link rel="stylesheet" href="Scripts/components/timeSlider/timeSliderSettings.css" />
+    <link rel="stylesheet" href="Scripts/components/kpi/bullet.css" />
+    <link rel="stylesheet" href="Scripts/components/kpi/kpi.css" />
 
     <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
@@ -86,7 +92,7 @@
     <!-- current-reference-difference selector -->
     <div id="currefdiff" class="currefdiff leaflet-container" title="Show the current version of the layer, reference version or difference between those"></div>
     <!-- time related elements-->
-    <div id="timeslider" class="timeslider leaflet-container"></div>
+    <div id="timeslider" class="timeslider leaflet-container hidden"></div>
 
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
     <!-- load scripts -->
@@ -110,6 +116,8 @@
     <!--<script src="bower_components/datalist-polyfill/datalist-polyfill.js"></script>-->
     <!-- other libs -->
     <script src="Scripts/Libs/FileSaver.js"></script>
+    <!-- polyfills -->
+    <script src="Scripts/polyfill.js"></script>
     <!-- modal dialogs -->
     <script src="Scripts/Libs/nouislider.js"></script>
     <script src="Scripts/modaldialog.js"></script>
@@ -117,6 +125,20 @@
     <script src="Scripts/formdialog.js"></script>
     <!--<script src="Scripts/warningDialog.js"></script>-->
     <!-- our code -->
+    <!-- components -->
+    <!-- component ScaleSlider -->
+    <script src="Scripts/components/scaleSlider/scaleSliderModel.js"></script>
+    <script src="Scripts/components/scaleSlider/scaleSliderView.js"></script>
+    <!-- component TimeSlider -->
+    <script src="Scripts/components/timeSlider/timeSliderUtils.js"></script>
+    <script src="Scripts/components/timeSlider/timeSliderToggleView.js"></script>
+    <script src="Scripts/components/timeSlider/timeSliderView.js"></script>
+    <script src="Scripts/components/timeSlider/timeSliderSettingsView.js"></script>
+    <script src="Scripts/components/timeSlider/timeSliderController.js"></script>
+    <!-- component Kpi -->
+    <script src="Scripts/components/kpi/bullet.js"></script>
+    <script src="Scripts/components/kpi/kpiView.js"></script>
+    <!-- other source code -->
     <script src="Scripts/datamanager.js"></script>
     <script src="Scripts/userMessages.js"></script>
     <script src="Scripts/select.js"></script>
@@ -125,12 +147,10 @@
     <script src="Scripts/legend.js"></script>
     <script src="Scripts/domains.js"></script>
     <script src="Scripts/currefdiff.js"></script>
-    <script src="Scripts/kpis.js"></script>
     <script src="Scripts/layers.js"></script>
     <script src="Scripts/details.js"></script>
     <script src="Scripts/history.js"></script>
     <script src="Scripts/projectdescription.js"></script>
-    <script src="Scripts/timeslider.js"></script>
     <script src="Scripts/timeRangeSlider.js"></script>
     <script src="Scripts/rangeSlider.js"></script>
     <script src="Scripts/windDirection.js"></script>
@@ -146,7 +166,6 @@
     <script src="Scripts/ControlPropertiesDialog.js"></script>
     <!-- charts -->
     <script src="Scripts/graphManager.js"></script>
-    <script src="Scripts/Graphs/bullet.js"></script>
     <script src="Scripts/Graphs/lineGraphs.js"></script>
     <script src="Scripts/Graphs/spiderChart.js"></script>
     <script src="Scripts/Graphs/BarChart.js"></script>
@@ -236,7 +255,8 @@
         map.addControl(domainsControl);
 
         DataManager.detailsInfo = {
-            elementWidth: 140,
+            elementWidth: 400,
+            kpiWidth: 350, kpiHeight: 40,
             chartWidth: 134, chartHeight: 100,
             layerWidth: 134, layerHeight: 140,
             padding: 2,
@@ -295,12 +315,12 @@
 
         // bottom-right (reverse order)
 
-        // todo: scaling factor of domain (0.5 = 1.25 years (1 jan 2015 till now)/0.5 = 2.5 years; 500 = 2 years*365 day*24 hours*4 kwarters/35 visible max
-        var timesliderControl = L.control.timeslider(timeslider);
-        map.addControl(timesliderControl);
-        timesliderControl._collapse();
-        InfoTextControl['leaflet-control-timeslider'] = { active: false };
-        map.removeControl(timesliderControl);
+        var timeSliderController = new TimeSliderController({
+            map: map
+        });
+
+        /*var timesliderControl = L.control.timeslider(timeslider);
+        map.addControl(timesliderControl);*/
 
 
         DataManager.modelControl = L.control.ModelControl();
