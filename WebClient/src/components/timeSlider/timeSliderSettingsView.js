@@ -13,6 +13,8 @@ var TimeSliderSettingsView = L.Control.extend({
         this.model = opts.model;
         this.timeFormat = opts.timeFormat || d3.timeFormat('%Y-%m-%d %H:%M');
 
+        this._bindEventHandlers();
+
         this.initLayout();
     },
 
@@ -31,8 +33,8 @@ var TimeSliderSettingsView = L.Control.extend({
     initLayout: function () {
          // main div
         this._div = L.DomUtil.create('div', 'settings');
-        this._div.addEventListener('mousedown', this._startmove.bind(this));
-        this._div.addEventListener('touchstart', this._startmove.bind(this));
+        this._div.addEventListener('mousedown', this._startmove);
+        this._div.addEventListener('touchstart', this._startmove);
         L.DomEvent.disableClickPropagation(this._div);
         L.DomUtil.addClass(this._div, 'leaflet-control');        
     },
@@ -55,6 +57,12 @@ var TimeSliderSettingsView = L.Control.extend({
         this.fire('close');
     },
 
+    _bindEventHandlers: function () {        
+        this._startmove = this._startmove.bind(this);
+        this._endmove = this._endmove.bind(this);
+        this._moveit = this._moveit.bind(this);
+    },
+
     _moveit: function (e) {
         if (e.type === 'touchmove') {
             if (this.settings) {
@@ -72,30 +80,30 @@ var TimeSliderSettingsView = L.Control.extend({
     },
 
     _startmove: function (e) {
-        settings = e.target;
-        while (settings && !settings.classList.contains('settings'))
-            settings = settings.parentNode;
-        if (settings) {
-            window.addEventListener('mouseup', L.control.timeslidersettings._endmove, true);
-            window.addEventListener('touchend', L.control.timeslidersettings._endmove, true);
-            window.addEventListener('mousemove', L.control.timeslidersettings._moveit, true);
-            window.addEventListener('touchmove', L.control.timeslidersettings._moveit, true);
+        this.settings = e.target;
+        while (this.settings && !this.settings.classList.contains('settings'))
+            this.settings = this.settings.parentNode;
+        if (this.settings) {
+            window.addEventListener('mouseup', this._endmove, true);
+            window.addEventListener('touchend', this._endmove, true);
+            window.addEventListener('mousemove',this._moveit, true);
+            window.addEventListener('touchmove', this._moveit, true);
     
             if (typeof e.clientX === 'undefined') {
-                settings._mdx = settings.offsetLeft - e.changedTouches[0].clientX;
-                settings._mdy = settings.offsetTop - e.changedTouches[0].clientY;
+                this.settings._mdx = this.settings.offsetLeft - e.changedTouches[0].clientX;
+                this.settings._mdy = settings.offsetTop - e.changedTouches[0].clientY;
             } else {
-                settings._mdx = settings.offsetLeft - e.clientX;
-                settings._mdy = settings.offsetTop - e.clientY;
+                this.settings._mdx = this.settings.offsetLeft - e.clientX;
+                this.settings._mdy = this.settings.offsetTop - e.clientY;
             }
         }
     },
 
     _endmove: function (e) {
-        window.removeEventListener('mouseup', this._endmove.bind(this), true);
-        window.removeEventListener('touchend', this._endmove.bind(this), true);
-        window.removeEventListener('mousemove', this._moveit.bind(this), true);
-        window.removeEventListener('touchmove', this._moveit.bind(this), true);
+        window.removeEventListener('mouseup', this._endmove, true);
+        window.removeEventListener('touchend', this._endmove, true);
+        window.removeEventListener('mousemove', this._moveit, true);
+        window.removeEventListener('touchmove', this._moveit, true);
     
         this.settings = null;
     },
