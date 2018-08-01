@@ -45,6 +45,7 @@
     <link rel="stylesheet" href="Content/ControlPropertiesDialog.css" />
     <link rel="stylesheet" href="Content/common.css" />
     <link rel="stylesheet" href="Content/d3Override.css" />
+    <link rel="stylesheet" href="Scripts/core/window/window.css" />
     <link rel="stylesheet" href="Scripts/components/scaleSlider/scaleSlider.css" />
     <link rel="stylesheet" href="Scripts/components/timeSlider/timeSlider.css" />
     <link rel="stylesheet" href="Scripts/components/timeSlider/timeSliderToggle.css" />
@@ -95,6 +96,9 @@
     <div id="timeslider" class="timeslider leaflet-container hidden"></div>
 
     <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
+
+    <div id="windows-area"></div>
+    
     <!-- load scripts -->
     <script>
         //DebugLogging = true;
@@ -125,6 +129,10 @@
     <script src="Scripts/formdialog.js"></script>
     <!--<script src="Scripts/warningDialog.js"></script>-->
     <!-- our code -->
+    <!-- core -->
+    <!-- core component Window -->
+    <script src="Scripts/core/window/windowView.js"></script>
+    <script src="Scripts/core/window/windowManager.js"></script>
     <!-- components -->
     <!-- component ScaleSlider -->
     <script src="Scripts/components/scaleSlider/scaleSliderModel.js"></script>
@@ -245,7 +253,9 @@
             document.body.removeAttribute("id");
         }
 
-
+        var windowManager = new WindowManager({
+            element: document.querySelector('#windows-area')
+        });
 
         // top-right
 

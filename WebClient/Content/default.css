@@ -187,3 +187,13 @@ a.leaflet-control-info-toggle {
   width : 16px;
   height : 16px;
 }
+
+#windows-area {
+  position: fixed;
+  height: 100%;
+  top: 0;
+  left: 30px;
+  right: 30px;
+  pointer-events: none;
+  z-index: 999;
+}
