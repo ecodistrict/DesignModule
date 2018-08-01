@@ -48,22 +48,22 @@ To return back to the live state, the user can right-click anywhere inside the c
 
 | Property | Type | Description |
 |---|---|---|
-| value | float | The temperature value. |
+| value | number | The initial temperature value. It represents a temperature value in K. |
 | temperatureUnit | String | The temperature unit to be displayed. Initial value - '°C'. Possible values - 'K', '°C', '°F', '°R'. |
 
 #### Properties
 
 | Property | Type | Description |
 |---|---|---|
-| value | float | Represents the current value of the model. When a new value is assigned, a value event is emitted. |
+| value | number | Represents the current value of the model. When a new value is assigned, a value event is emitted. Since the value represents a temperature in K, depending upon the selected temperatureUnit, the value is converted and returned for displaying. |
 | temperatureUnit | String | Represents the current temperature unit to be displayed. When a new value is assigned, a temperatureUnit event is emitted. |
 
 #### Events
 
 | Property | Type | Description |
 |---|---|---|
-| value | {value: &lt;float&gt;} | Event emitted when the value property is changed. |
-| temperatureUnit | {value: &lt;String&gt;} | Event emitted when the temperatureUnit property is changed. |
+| value | {value: &lt;number&gt;} | Event emitted when the value property is changed. |
+| temperatureUnit | {value: &lt;String&gt;} | Event emitted when the temperatureUnit property is changed. A value event is also triggered. |
 
 ### Temperature Control View
 

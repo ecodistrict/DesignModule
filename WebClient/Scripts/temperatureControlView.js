@@ -90,14 +90,14 @@ L.Control.Temp = L.Control.extend({
         
         this._container = this.parentContainer;
 
-        this._temperatureDiv = L.DomUtil.create('div', "temperatureDiv");
-        this._container.appendChild(this._temperatureDiv);
+        this._thermometer = L.DomUtil.create('div', "thermometer");
+        this._container.appendChild(this._thermometer);
 
         //disabling propagation
         L.DomEvent.disableClickPropagation(this._container);
         L.DomEvent.disableScrollPropagation(this._container);
 
-        this.temperatureDiv = d3.select(this._temperatureDiv).style("width", this.width + "px").style("height", this.height + "px");
+        this.thermometer = d3.select(this._thermometer).style("width", this.width + "px").style("height", this.height + "px");
 
         this.unitControlParentDivInitialization();
 
@@ -115,12 +115,12 @@ L.Control.Temp = L.Control.extend({
         this.axisInitialization();
 
         //setting the default startup value for the temperature control
-        this.temperatureModel.value = this.temperatureModel.value;
+        this.modelValueChanged(this.temperatureModel.value);
     },
 
     unitControlParentDivInitialization: function () {
         //div for unit and its dropDown
-        this.unitsControlDiv = this.temperatureDiv.append("div")
+        this.unitsControlDiv = this.thermometer.append("div")
             .style("position", "absolute")
             .style("top", (this.tubeRectY) + "px")
             .style("left", (this.xPosForBaseComponents + (this.tubeWidth * 1.5)) + "px");
@@ -174,7 +174,7 @@ L.Control.Temp = L.Control.extend({
     },
 
     temperatureTextboxInitialization: function () {
-        this.temperatureValueInput = this.temperatureDiv.append('input')
+        this.temperatureValueInput = this.thermometer.append('input')
             .attr('type', 'text')
             .attr("class", "mercuryControl")
             .attr('id', 'temperatureValue')
@@ -192,7 +192,7 @@ L.Control.Temp = L.Control.extend({
             var inputTemperatureVal = document.getElementById("temperatureValue").value;
 
             //regular expression for checking the user input
-            var inputRegex = /^-?\d+\.?\d{1,2}$/;
+            var inputRegex = /^-?\d+(\.?\d{1,2}){0,1}$/;// ^ represents starting | $ represents ending | -? matches 0 or 1 occurance of - | \d+ matches 1 or more occurances of digits | \.? matches 0 or 1 occurance of . | \d{1,2} matches 1 to 2 occurances of digits | (\.?\d{1,2}){0,1} matches 0 to 1 occurances of (\.?\d{1,2})
             var isValid = (inputTemperatureVal.match(inputRegex) !== null);
 
             if (isValid) {
@@ -212,7 +212,7 @@ L.Control.Temp = L.Control.extend({
 
     svgImageInitialization: function () {
         //svg image declaration
-        this.svg = this.temperatureDiv
+        this.svg = this.thermometer
             .append("svg")
             .attr("width", this.width)
             .attr("height", this.height);
@@ -299,11 +299,12 @@ L.Control.Temp = L.Control.extend({
 
         //filling in the mercury color inside the spherical bulb
         this.mercuryBulb = this.svg.append("circle")
+            .attr("class", "mercuryBulbLive")
             .attr("cx", bulbCx)
             .attr("cy", bulbCy)
             .attr("r", bulbR - 5)
             .style("fill", "url(#mercuryGradient_red)")
-            .style("stroke", this.mercuryColor_red)
+            //.style("stroke", this.mercuryColor_red)
             .style("stroke-width", this.borderWidth + "px");
     },
 
@@ -318,13 +319,13 @@ L.Control.Temp = L.Control.extend({
 
         //red rect inside the thermometer capillary tube rectangle to act as the mercury
         this.mercury = this.svg.append("rect")
-            .attr("class", "mercuryControl")
+            .attr("class", "mercuryControl mercuryBarLive")
             .attr("id", "dragMercuryRect")
             .attr("x", mercuryRectX)
             .attr("y", mercuryRectY)
             .attr("width", mercuryRectWidth)
             .attr("height", mercuryRectHeight)
-            .attr("fill", this.mercuryColor_red)
+            //.attr("fill", this.mercuryColor_red)
             .call(dragHandler);
 
         //on-click event used to regulate the mercury level
@@ -452,9 +453,10 @@ L.Control.Temp = L.Control.extend({
 
     changeMercuryColorEdit: function (event) {
         if (event.which == 1) {
-            this.mercury.attr("fill", this.mercuryColor_blue);
-            this.mercuryBulb.style("fill", "url(#mercuryGradient_blue)")
-                .style("stroke", this.mercuryColor_blue);
+            this.changeCssClass(this.mercury, "mercuryBarLive", "mercuryBarEdit");
+            this.mercuryBulb.style("fill", "url(#mercuryGradient_blue)");
+            this.changeCssClass(this.mercuryBulb, "mercuryBulbLive", "mercuryBulbEdit");
+
             this.editTemperatureFlag = true;
             this.temperatureValueInput.property("disabled", !this.editTemperatureFlag);
         }
@@ -462,13 +464,20 @@ L.Control.Temp = L.Control.extend({
 
     changeMercuryColorLive: function (event) {
         if (event.which == 3) {
-            this.mercury.attr("fill", this.mercuryColor_red);
-            this.mercuryBulb.style("fill", "url(#mercuryGradient_red)")
-                .style("stroke", this.mercuryColor_red);
+            this.changeCssClass(this.mercury, "mercuryBarEdit", "mercuryBarLive");
+            this.mercuryBulb.style("fill", "url(#mercuryGradient_red)");
+            this.changeCssClass(this.mercuryBulb, "mercuryBulbEdit", "mercuryBulbLive");
+
             this.editTemperatureFlag = false;
             this.temperatureValueInput.property("disabled", !this.editTemperatureFlag);
         }
     },
+
+    changeCssClass: function (element, oldClass, newClass ) {
+        if (element.classed(oldClass))
+            element.classed(oldClass, false);
+        element.classed(newClass, true);
+    }
 });
 
 // add temperature constructor for temperature control

@@ -13,7 +13,7 @@
     pointer-events: none;
 }
 
-.temperatureDiv .dropdown-content {
+.thermometer .dropdown-content {
     display: none;
     position: absolute;
     background-color: #f1f1f1;
@@ -24,29 +24,37 @@
     pointer-events: auto;
 }
 
-.temperatureDiv .dropdown-content a {
+.thermometer .dropdown-content a {
     color: black;
     padding: 5px 5px;
     text-decoration: none;
     display: block;
 }
 
-.temperatureDiv .thermometerStructure {
+.thermometer .thermometerStructure {
     stroke: #999999;
 }
 
-.temperatureDiv .innerDesign {
+.thermometer .innerDesign {
     fill: #ffffff;
 }
 
-.temperatureDiv .mercuryControl {
+.thermometer .mercuryControl {
     pointer-events: auto;
 }
 
-.temperatureDiv .mercuryColorRed {
+.thermometer .mercuryBarLive {
     fill: #E50000;
 }
 
-.temperatureDiv .mercuryColorBlue {
+.thermometer .mercuryBarEdit {
     fill: #30669F;
+}
+
+.thermometer .mercuryBulbLive {
+    stroke: #E50000;
+}
+
+.thermometer .mercuryBulbEdit {
+    stroke: #30669F;
 }
