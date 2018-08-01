@@ -45,6 +45,7 @@ L.Control.Arrow = L.Control.extend({
     /// leaflet constructor
     initialize: function (options) {
         L.setOptions(this, options);
+        this.parentContainer = options.element;
     },
 
     onAdd: function (map) {
@@ -61,7 +62,9 @@ L.Control.Arrow = L.Control.extend({
 
     _initLayout: function () {
         // main div
-        this._container = L.DomUtil.create('div', 'leaflet-control-windDirection');
+        this._container = this.parentContainer || L.DomUtil.create('div', 'leaflet-control-windDirection');
+        var parentContainer = this.parentContainer;
+
         // add drag support to main div
         this._draggable = new L.Draggable(this._container);
         this._draggable.ref = this;
@@ -75,13 +78,13 @@ L.Control.Arrow = L.Control.extend({
                     switch (this.action) {
                         // setting speed
                         case 1:
-                            this.ref.currentData.speed = this.s;
-                            this.ref.rotate(this.ref.currentData.direction, this.ref.currentData.speed);
+                            //this.ref.currentData.speed = this.s;
+                            //this.ref.rotate(this.ref.currentData.direction, this.ref.currentData.speed);
                             break;
                         // setting wind direction
                         case 2:
-                            this.ref.currentData.direction = this.r;
-                            this.ref.rotate(this.ref.currentData.direction, this.ref.currentData.speed);
+                            //this.ref.currentData.direction = this.r;
+                            //this.ref.rotate(this.ref.currentData.direction, this.ref.currentData.speed);
                             break;
                     }
                     // work-a-round: ensure dragend is fired!
@@ -94,11 +97,13 @@ L.Control.Arrow = L.Control.extend({
                 }
             }
             else {
-                // we are dragging the main div (control as a whole)
-                this._originalupdatePosition(e);
+                if (!parentContainer)
+                    // we are dragging the main div (control as a whole)
+                    this._originalupdatePosition(e);
             }
         };
         this._draggable.enable();
+
         this._draggable.addEventListener('down', this._dragdown);
         this._draggable._onUp = (function (e) {
             if (e._simulated || !this._enabled) { return; }
@@ -108,8 +113,9 @@ L.Control.Arrow = L.Control.extend({
 
         L.DomEvent.disableClickPropagation(this._container);
         L.DomEvent.disableScrollPropagation(this._container);
-        // use context menu event to return to "live" state
-        this._container.addEventListener('contextmenu', this._handleContextMenu.bind(this));
+        if (!parentContainer)
+            // use context menu event to return to "live" state
+            this._container.addEventListener('contextmenu', this._handleContextMenu.bind(this));
 
         this.text = this._container.appendChild(L.DomUtil.create('span', "windDirectionText"));
         this.text.innerHTML = "<BR>unknown<BR>";
@@ -137,7 +143,11 @@ L.Control.Arrow = L.Control.extend({
     _handleContextMenu: function (e) {
         e.preventDefault();
         e.cancelBubble = true;
-        
+
+        this.windArrowLive();
+    },
+
+    windArrowLive: function () {
         // return to live state
         this.arrow.src = "Content/images/arrow_wind.png";
         wsSend({
@@ -252,6 +262,6 @@ L.Control.Arrow = L.Control.extend({
 });
 
 // add arrow constructor for arrow control
-L.control.arrow = function () {
-    return new L.Control.Arrow();
+L.control.arrow = function (parentElement) {
+    return new L.Control.Arrow({ element: parentElement });
 };
