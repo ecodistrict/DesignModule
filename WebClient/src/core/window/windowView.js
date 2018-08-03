@@ -2,7 +2,7 @@
  * WindowView base window class.
  */
 
-var WindowView = L.Class.extend({
+var WindowView = L.Evented.extend({
 
     initialize: function (opts) {
         var options = opts || {};
@@ -79,6 +79,10 @@ var WindowView = L.Class.extend({
         } else {
             this.remove();
         }
+    },
+
+    isOpen: function () {
+        return !!this._rootElement;
     },
 
     onAdd: function (windowManager) {
@@ -376,4 +380,3 @@ var WindowView = L.Class.extend({
     }
 
 });
-L.extend(WindowView.prototype, L.Evented.prototype);

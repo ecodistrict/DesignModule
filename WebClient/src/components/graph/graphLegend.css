@@ -1,0 +1,30 @@
+svg.graph-legend-viewport {
+    width: auto;
+    height: auto;
+}
+
+.graph-legend-entry {
+    cursor: pointer;
+    opacity: 1;
+    white-space: nowrap;
+}
+.graph-legend-entry:hover {
+    opacity: 0.5;
+}
+
+.graph-legend-entry-marker {
+    display: inline-block;
+    vertical-align: middle;
+    width: 15px;
+    height: 15px;
+    margin-right: 3px;
+    border-width: 2px;
+    border-style: solid;
+}
+
+.graph-legend-entry-text {
+    vertical-align: middle;
+    display: inline-block;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 12px;
+}

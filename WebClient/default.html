@@ -52,6 +52,8 @@
     <link rel="stylesheet" href="src/components/timeSlider/timeSliderSettings.css" />
     <link rel="stylesheet" href="src/components/kpi/bullet.css" />
     <link rel="stylesheet" href="src/components/kpi/kpi.css" />
+    <link rel="stylesheet" href="src/components/graph/graph.css" />
+    <link rel="stylesheet" href="src/components/graph/graphLegend.css" />
 
     <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
@@ -145,6 +147,19 @@
     <!-- component Kpi -->
     <script src="src/components/kpi/bullet.js"></script>
     <script src="src/components/kpi/kpiView.js"></script>
+    <!-- component Graph -->
+    <script src="src/components/graph/graphModel.js"></script>
+    <script src="src/components/graph/graphViewModel.js"></script>
+    <script src="src/components/graph/graphLegendViewModel.js"></script>
+    <script src="src/components/graph/graphView.js"></script>
+    <script src="src/components/graph/graphLegendView.js"></script>
+    <script src="src/components/graph/graphViewController.js"></script>
+    <script src="src/components/graph/barGraphView.js"></script>
+    <script src="src/components/graph/barGraphViewController.js"></script>
+    <script src="src/components/graph/graphViewControllerFactory.js"></script>
+    <script src="src/components/graph/graphsModel.js"></script>
+    <script src="src/components/graph/graphService.js"></script>
+    <script src="src/components/graph/graphViewManager.js"></script>
     <!-- other source code -->
     <script src="Scripts/datamanager.js"></script>
     <script src="Scripts/userMessages.js"></script>
@@ -277,6 +292,20 @@
             DataManager.detailsInfo.chartWidth = 20;
             DataManager.detailsInfo.chartHeight = 20;
         }
+
+        // graphs
+        var graphService = new GraphService();        
+        var graphViewManager = new GraphViewManager({
+            windowManager: windowManager,
+            graphViewOptions: {
+                minWidth: 150,
+                minHeight: 100,
+                maxWidth: 150,
+                maxHeight: 100,
+                width: 300,
+                height: 200
+            }
+        });
 
         // details
         var detailsControl = L.control.details(DataManager.detailsInfo);

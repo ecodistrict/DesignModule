@@ -2,7 +2,7 @@
  * WindowManager controls the placement and appearance of windows within a given DOM element.
  */
 
-var WindowManager = L.Class.extend({
+var WindowManager = L.Evented.extend({
 
     initialize: function (opts) {
         if (!opts) throw new Error('options object was not provided. The object is mandatory.');
@@ -88,4 +88,3 @@ var WindowManager = L.Class.extend({
     }
 
 });
-L.extend(WindowManager.prototype, L.Evented.prototype);

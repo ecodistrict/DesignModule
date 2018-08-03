@@ -1,0 +1,12 @@
+.graph-view {
+    overflow: visible;
+}
+
+.graph-view .graph-legend {
+    position: absolute;
+    margin-left: 3px;
+    padding: 3px;
+    top: 0px;
+    left: 100%;
+    background-color: inherit;
+}

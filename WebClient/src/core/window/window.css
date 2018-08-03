@@ -19,16 +19,7 @@
     right: 0px;
     top: 0px;
     pointer-events: none;
-}
-
-.window-view .window-viewport {
-    display: block;
-    position: absolute;    
-    overflow: hidden;
-    left: 0px;
-    right: 0px;
-    top: 31px;
-    bottom: 0px;
+    cursor: default;
 }
 
 .window-view .window-titlebar .window-title {
@@ -41,6 +32,7 @@
     pointer-events: auto;
     text-align: center;
     box-sizing: border-box;
+    cursor: inherit;
 }
 
 .window-view .window-titlebar .window-close {
@@ -69,6 +61,16 @@
 }
 .window-view .window-titlebar .window-close:after {
     transform: rotate(-45deg);
+}
+
+.window-view .window-viewport {
+    display: block;
+    position: absolute;    
+    overflow: hidden;
+    left: 0px;
+    right: 0px;
+    top: 31px;
+    bottom: 0px;
 }
 
 .window-view .window-resize {
