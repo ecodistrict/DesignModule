@@ -13,7 +13,7 @@ var TimeSliderDisplayMode = {
     EXPAND: 2    
 };
 
-var TimeSliderController = L.Class.extend({
+var TimeSliderController = L.Evented.extend({
 
     initialize: function (opts) {
         this.map = opts.map;
@@ -206,4 +206,3 @@ var TimeSliderController = L.Class.extend({
         });
     }
 });
-L.extend(TimeSliderController.prototype, L.Evented.prototype);

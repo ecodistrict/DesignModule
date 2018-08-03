@@ -6,7 +6,7 @@
  * The model provides a subscription mechanism for tracking its state.
  */
 
-var ScaleSliderModel = L.Class.extend({
+var ScaleSliderModel = L.Evented.extend({
 
     initialize: function (opts) {
         opts = opts || {};
@@ -46,4 +46,3 @@ var ScaleSliderModel = L.Class.extend({
     }
 
 });
-L.extend(ScaleSliderModel.prototype, L.Evented.prototype);
