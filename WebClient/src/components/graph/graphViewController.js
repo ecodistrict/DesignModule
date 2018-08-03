@@ -20,18 +20,22 @@ var GraphViewController = L.Evented.extend({
 
         this.windowManager = opts.windowManager;
 
-        this.originalGraphModel = opts.graphModel;
-        this.originalGraphModel.on('title', this._updateGraphViewModelTitle, this);
-        this.originalGraphModel.on('series', this._updateGraphViewModelLegend, this);        
+        this.graphModel = opts.graphModel;
+        this.graphModel.on('title', this._updateGraphViewModelTitle, this);
+        this.graphModel.on('series', this._updateGraphViewModelLegend, this);
+        this.graphModel.on('axes', this._updateGraphViewModelAxes, this);
+        this.graphModel.on('categories', this._updateGraphViewModelCategories, this);
 
         this.graphLegendViewModel = new GraphLegendViewModel({
-            entries: this._constructLegendFromSeries(this.originalGraphModel.series)
+            entries: this._constructLegendFromSeries(this.graphModel.series)
         });
         this.graphLegendViewModel.on('entries', this._updateGraphViewModelSeries, this);
 
         this.graphViewModel = new GraphViewModel({
-            title: this.originalGraphModel.title,
-            series: this._filterSeriesByLegend(this.originalGraphModel.series, this.graphLegendViewModel.entries)
+            title: this.graphModel.title,
+            series: this._filterSeriesByLegend(this.graphModel.series, this.graphLegendViewModel.entries),
+            axes: this.graphModel.axes,
+            categories: this.graphModel.categories
         });        
 
         this.graphView = this.createGraphView();
@@ -50,11 +54,13 @@ var GraphViewController = L.Evented.extend({
     },
 
     remove: function () {
-        if (!this.originalGraphModel) return;
+        if (!this.graphModel) return;
         
-        this.originalGraphModel.off('title', this._updateGraphViewModelTitle, this);
-        this.originalGraphModel.off('series', this._updateGraphViewModelLegend, this);
-        this.originalGraphModel = null;
+        this.graphModel.off('title', this._updateGraphViewModelTitle, this);
+        this.graphModel.off('series', this._updateGraphViewModelLegend, this);
+        this.graphModel.off('axes', this._updateGraphViewModelAxes, this);
+        this.graphModel.off('categories', this._updateGraphViewModelCategories, this);
+        this.graphModel = null;
 
         this.graphLegendViewModel.off('entries', this._updateGraphViewModelSeries, this);
         this.graphLegendViewModel = null;
@@ -73,14 +79,14 @@ var GraphViewController = L.Evented.extend({
         // can be overriden in child class
         
         return new GraphView(L.extend({
-            graphModel: this.graphViewModel,
+            graphViewModel: this.graphViewModel,
             graphLegendModel: this.graphLegendViewModel,            
         }, this._viewOptions));
     },
 
     _notifyViewClosed: function (eventData) {
         this.fire('viewClosed', {
-            grpahViewController: this,
+            graphViewController: this,
             view: eventData.windowView
         });
     },
@@ -88,7 +94,7 @@ var GraphViewController = L.Evented.extend({
     _toggleLegendEntry: function (eventData) {
         var legendEntry = eventData.entry;
         if (legendEntry.enabled && this.graphLegendViewModel.enabledEntriesCount() === 1) return;
-        
+
         this.graphLegendViewModel.toggleEntry(legendEntry);
     },
 
@@ -105,16 +111,24 @@ var GraphViewController = L.Evented.extend({
     },
 
     _updateGraphViewModelTitle: function () {
-        this.graphViewModel.title = this.originalGraphModel.title;
+        this.graphViewModel.title = this.graphModel.title;
     },
 
     _updateGraphViewModelSeries: function () {
-        this.graphViewModel.series = this._filterSeriesByLegend(this.originalGraphModel.series, this.graphLegendViewModel.entries);
+        this.graphViewModel.series = this._filterSeriesByLegend(this.graphModel.series, this.graphLegendViewModel.entries);
     },
 
     _updateGraphViewModelLegend: function () {
-        var legendEntries = this._constructLegendFromSeries(this.originalGraphModel.series);
+        var legendEntries = this._constructLegendFromSeries(this.graphModel.series);
         this.graphLegendViewModel.merge(legendEntries);
+    },
+
+    _updateGraphViewModelAxes: function () {
+        this.graphViewModel.axes = this.graphModel.axes;
+    },
+
+    _updateGraphViewModelCategories: function () {
+        this.graphViewModel.categories = this.graphModel.categories;
     },
 
     _constructLegendFromSeries: function (series) {

@@ -18,43 +18,43 @@ var GraphViewManager = L.Evented.extend({
     showGraph: function (graphModel) {
         if (this._graphViewControllers[graphModel.id]) return;
         
-        var grpahViewController = this._graphViewControllerFactory
+        var graphViewController = this._graphViewControllerFactory
             .create(graphModel, windowManager, this._options.graphViewOptions);
 
-        this._addGraphViewController(grpahViewController);
+        this._addGraphViewController(graphViewController);
         this._notifyGraphShown(graphModel);
     },
 
     hideGraph: function (graphModel) {
-        var grpahViewController = this._graphViewControllers[graphModel.id];
-        if (!grpahViewController) return;
+        var graphViewController = this._graphViewControllers[graphModel.id];
+        if (!graphViewController) return;
 
-        grpahViewController.closeView();
+        graphViewController.closeView();
     },
 
     isGraphShown: function (graphModel) {
-        var grpahViewController = this._graphViewControllers[graphModel.id];
-        if (!grpahViewController) return false;
+        var graphViewController = this._graphViewControllers[graphModel.id];
+        if (!graphViewController) return false;
         
-        return grpahViewController.isViewOpen();
+        return graphViewController.isViewOpen();
     },
 
-    _addGraphViewController: function (grpahViewController) {
-        var id = grpahViewController.originalGraphModel.id;
-        this._graphViewControllers[id] = grpahViewController;
-        grpahViewController.on('viewClosed', this._onGraphViewClosed, this);
+    _addGraphViewController: function (graphViewController) {
+        var id = graphViewController.graphModel.id;
+        this._graphViewControllers[id] = graphViewController;
+        graphViewController.on('viewClosed', this._onGraphViewClosed, this);
     },
 
-    _removeGraphViewController: function (grpahViewController) {
-        delete this._graphViewControllers[grpahViewController.originalGraphModel.id];
-        grpahViewController.off('viewClosed', this._onGraphViewClosed, this);
-        grpahViewController.remove();
+    _removeGraphViewController: function (graphViewController) {
+        delete this._graphViewControllers[graphViewController.graphModel.id];
+        graphViewController.off('viewClosed', this._onGraphViewClosed, this);
+        graphViewController.remove();
     },
 
     _onGraphViewClosed: function (eventData) {
-        var grpahViewController = eventData.grpahViewController;
-        this._notifyGraphHidden(grpahViewController.originalGraphModel);
-        this._removeGraphViewController(grpahViewController);
+        var graphViewController = eventData.graphViewController;
+        this._notifyGraphHidden(graphViewController.graphModel);
+        this._removeGraphViewController(graphViewController);
     },
 
     _notifyGraphShown: function (graphModel) {

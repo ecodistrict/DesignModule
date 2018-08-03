@@ -7,9 +7,9 @@
 var GraphViewModel = L.Evented.extend({
 
     initialize: function (opts) {
-        opts = opts || {};
+        var options = opts || {};
 
-        var title = opts.title;
+        var title = options.title;
         Object.defineProperty(this, "title", {
             get: function () { return title; },
             set: function (newTitle) {
@@ -18,7 +18,25 @@ var GraphViewModel = L.Evented.extend({
             }
         });
 
-        var series = opts.series;
+        var axes = options.axes || [];
+        Object.defineProperty(this, "axes", {
+            get: function () { return axes; },
+            set: function (newAxes) {
+                axes = newAxes;
+                this.fire('axes', { axes: axes });
+            }
+        });
+
+        var categories = options.categories || [];
+        Object.defineProperty(this, "categories", {
+            get: function () { return categories; },
+            set: function (newCategories) {
+                categories = newCategories;
+                this.fire('categories', { categories: categories });
+            }
+        });
+
+        var series = options.series;
         Object.defineProperty(this, "series", {
             get: function () { return series; },
             set: function (newSeries) {

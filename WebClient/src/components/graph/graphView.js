@@ -6,10 +6,10 @@
 var GraphView = WindowView.extend({
     
     initialize: function (opts) {
-        if (!opts.graphModel) throw new Error('graphModel is not provided');
+        if (!opts.graphViewModel) throw new Error('graphViewModel is not provided');
         if (!opts.graphLegendModel) throw new Error('graphLegendModel is not provided');
 
-        this.graphModel = opts.graphModel;
+        this.graphViewModel = opts.graphViewModel;
         this.graphLegendModel = opts.graphLegendModel;
 
         WindowView.prototype.initialize.call(
@@ -17,10 +17,10 @@ var GraphView = WindowView.extend({
             L.extend({ class: 'graph-view' }, opts)
         );
 
-        this.setTitle(this.graphModel.title);
+        this.setTitle(this.graphViewModel.title);
     },
 
-    onRender: function () {
+    onRender: function (viewport) {
         var legendContainer = L.DomUtil.create('div', 'graph-legend hidden', this.element());
         this.legendView = new GraphLegendView({
             element: legendContainer,
