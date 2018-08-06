@@ -6,11 +6,15 @@
  var GraphViewControllerFactory = L.Evented.extend({
 
     initialize: function (opts) {
-        
+        this._viewControllerMap = {
+            category: CategoryGraphViewController
+        };
     },
 
     create: function (graphModel, windowManager, viewOptions) {
-        return new GraphViewController(L.extend({
+        var ViewController = this._viewControllerMap[graphModel.type] || GraphViewController;
+
+        return new ViewController(L.extend({
             graphModel: graphModel,
 	        windowManager: windowManager
         }, viewOptions));
