@@ -27,11 +27,17 @@ var GraphView = WindowView.extend({
             model: this.graphLegendModel
         });
         this.legendView.on('entryClicked', this._notifyEntryClicked, this);
+
+        this.onRenderGraph(viewport);
     },
 
     onRemove: function () {
         this.legendView.off('entryClicked', this._notifyEntryClicked, this);
         this.legendView.remove();
+    },
+
+    onRenderGraph: function (viewport) {
+        // override in child grpah classes
     },
 
     _notifyEntryClicked: function (eventData) {
