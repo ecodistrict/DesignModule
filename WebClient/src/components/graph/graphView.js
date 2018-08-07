@@ -32,11 +32,22 @@ var GraphView = WindowView.extend({
     },
 
     onRemove: function () {
+        this.onRemoveGraph();
+
         this.legendView.off('entryClicked', this._notifyEntryClicked, this);
         this.legendView.remove();
     },
 
+    onAdd: function (windowManager) {
+        WindowView.prototype.onAdd.call(this, windowManager);
+        this.onResize();
+    },
+
     onRenderGraph: function (viewport) {
+        // override in child grpah classes
+    },
+
+    onRemoveGraph: function () {
         // override in child grpah classes
     },
 
