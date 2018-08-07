@@ -42,7 +42,8 @@ L.Control.Temp = L.Control.extend({
         this.tubeHeight = ((3.1 * this.height) / 4) - this.tubeRectY;
         this.tubeRectX = this.xPosForBaseComponents - (this.tubeWidth / 2);
 
-        this.tubeBulbPixelOverlap = 3; //the spherical bulb overlaps the capillary tube by defined pixels
+        //the spherical bulb overlaps the capillary tube by defined pixels
+        this.tubeBulbPixelOverlap = 3; 
 
         //mercury vals
         this.mercuryColor_red = "#E50000";
@@ -144,7 +145,7 @@ L.Control.Temp = L.Control.extend({
     unitsDropDownDivInitialization: function () {
         var createUnitCallback = function (unit) {
             return function () {
-                this.setUnitDropDown(unit)
+                this.setUnitDropDown(unit);
             }.bind(this);
         }.bind(this);
 
