@@ -49,7 +49,7 @@ var GraphLegendView = L.Evented.extend({
 
         var newEntry = entries.enter().append('div')
             .attr('class', 'graph-legend-entry')
-            .on('click', this._notifyEntryClicked.bind(this));
+            .on('click touchend', this._notifyEntryClicked.bind(this));
 
         newEntry.append('div')
             .attr('class', 'graph-legend-entry-marker')

@@ -43,6 +43,7 @@ var WindowView = L.Evented.extend({
         var closeButton = L.DomUtil.create('a', 'window-close', titleBar);
         closeButton.href = '#';
         closeButton.addEventListener('click', this._onCloseBtnClicked);
+        closeButton.addEventListener('touchend', this._onCloseBtnClicked);
 
         this._viewportElement = L.DomUtil.create('div', 'window-viewport', this._rootElement);
 
