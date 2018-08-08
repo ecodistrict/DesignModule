@@ -27,6 +27,7 @@ var CategoryGraphView = GraphView.extend({
         
         this._buildInternalData();
         this._buildSvgViewport();
+        this._buildTooltip();
         this._buildSceneGeometry();
         this._buildScales();
         this._buildXAxis();
@@ -41,6 +42,9 @@ var CategoryGraphView = GraphView.extend({
         if (!this._svg) return;
 
         this.graphViewModel.off('series categories axes', this._onDataChanged, this);
+
+        this._tip.destroy();
+        this._lineTip.destroy();
 
         this._svg.remove();
         this._svg = null;
@@ -91,11 +95,16 @@ var CategoryGraphView = GraphView.extend({
     },
 
     _buildInternalBarsData: function () {
+        function constructBarTooltipHtml(series, point) {
+            return '<div>' + series.title + '</div><div>' + point.y + '</div>';
+        }
+
         var createBarData = function (series, point) {
             return { 
                 seriesId: series.id,
                 color: series.color,
                 axisId: point.axisId,
+                tooltip: constructBarTooltipHtml(series, point),
                 y: function () {
                     var scale = this._scaleByAxisId(point.axisId);
                     return  scale(point.y);
@@ -131,6 +140,10 @@ var CategoryGraphView = GraphView.extend({
     },
 
     _buildInternalLinesData: function () {
+        function constructLineTooltipHtml(series) {
+            return '<div>' + series.title + '</div>';
+        }
+
         var createLinePoint = function (seriesPoint) {
             return {
                 categoryId: seriesPoint.categoryId,
@@ -153,6 +166,7 @@ var CategoryGraphView = GraphView.extend({
                 return {
                     seriesId: series.id,
                     color: series.color,
+                    tooltip: constructLineTooltipHtml(series),
                     data: createLineData(series.data)
                 };
             });
@@ -255,6 +269,35 @@ var CategoryGraphView = GraphView.extend({
             .attr('transform', 'translate(' + x + ', ' + y + ')');
     },
 
+    _buildTooltip: function () {
+        function tooltipText(d) {
+            return (d && d.tooltip) ? d.tooltip : '';
+        }
+
+        // general tooltip
+        this._tip = d3.tip()
+            .attr('class', 'd3-tip category-graph-tip')
+            .style('z-index', 999)
+            .offset(function () {
+                return [-5, 0];
+            })
+            .html(tooltipText);
+
+        // line tooltip
+        this._lineTip = d3.tip()
+            .attr('class', 'd3-tip category-graph-tip')
+            .style('z-index', 999)
+            .offset(function () {
+                var r = this.getBoundingClientRect();
+                var m = (r.left + r.right) / 2;
+                return [d3.event.clientY - r.top - 4, d3.event.clientX - m];
+            })
+            .html(tooltipText);
+
+        this._svg.call(this._tip);
+        this._svg.call(this._lineTip);
+    },
+
     _redraw: function (performAnimation) {
         this._buildSceneGeometry();
         this._buildScales();
@@ -336,7 +379,9 @@ var CategoryGraphView = GraphView.extend({
             .enter().append('rect')
                 .attr('class', 'bar')
                 .style('fill', function (d) { return d.color; })
-                .style('stroke', function (d) { return d.color; });
+                .style('stroke', function (d) { return d.color; })
+                .on('mouseover', this._tip.show)
+                .on('mouseout', this._tip.hide);
 
         var updatedBars = categories.selectAll('.bar')
             .data(function (category) { return category.data; });
@@ -344,7 +389,9 @@ var CategoryGraphView = GraphView.extend({
         updatedBars.enter().append('rect')
             .attr('class', 'bar')
             .style('fill', function (d) { return d.color; })
-            .style('stroke', function (d) { return d.color; });
+            .style('stroke', function (d) { return d.color; })
+            .on('mouseover', this._tip.show)
+            .on('mouseout', this._tip.hide);
 
         updatedBars.exit().remove();
 
@@ -384,6 +431,8 @@ var CategoryGraphView = GraphView.extend({
             .attr('d', baseLine)
             .style('stroke', function (d) { return d.color; })
             .attr('d', function (d) { return baseLine(d.data); })
+            .on('mouseover', this._lineTip.show)
+            .on('mouseout', this._lineTip.hide)
             .transition()
                 .duration(animationDuration)
                 .attr('d', function (d) { return valueLine(d.data); })
