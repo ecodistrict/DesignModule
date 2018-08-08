@@ -88,14 +88,6 @@ var CategoryGraphView = GraphView.extend({
                 domain: this.graphViewModel.axes.yRight.scale || yDomainsDefault.yRight
             };                
         }
-
-        this._axisMap = {};
-        for (var axisName in this.graphViewModel.axes) {
-            if(!Object.prototype.hasOwnProperty.call(this.graphViewModel.axes, axisName)) continue;
-
-            var id = this.graphViewModel.axes[axisName].id;
-            this._axisMap[id] = axisName;
-        }
     },
 
     _buildInternalBarsData: function () {
@@ -404,15 +396,6 @@ var CategoryGraphView = GraphView.extend({
     },
 
     _calculateYDomains: function () {
-        var axisMap = {};
-        if (this.graphViewModel.axes.yLeft) {
-            axisMap[this.graphViewModel.axes.yLeft.id] = 'yLeft';
-        }
-
-        if (this.graphViewModel.axes.yRight) {
-            axisMap[this.graphViewModel.axes.yRight.id] = 'yRight';
-        }
-
         var domains = {
             yLeft: [0, null],
             yRight: [0, null]
@@ -420,7 +403,7 @@ var CategoryGraphView = GraphView.extend({
 
         this.graphViewModel.series.forEach(function (series) {
             series.data.forEach(function (d) {
-                var domain = domains[axisMap[d.axisId]];
+                var domain = domains[d.axisId];
                 if (!domain[1]) domain[1] = d.y;
 
                 domain[0] = Math.min(domain[0], d.y);
@@ -432,9 +415,8 @@ var CategoryGraphView = GraphView.extend({
     },
 
     _scaleByAxisId: function (axisId) {
-        var axisName = this._axisMap[axisId];
-        if (axisName === 'yLeft') return this._applyYLeftScale.bind(this);
-        if (axisName === 'yRight') return this._applyYRightScale.bind(this);
+        if (axisId === 'yLeft') return this._applyYLeftScale.bind(this);
+        if (axisId === 'yRight') return this._applyYRightScale.bind(this);
         
         return;
     },
