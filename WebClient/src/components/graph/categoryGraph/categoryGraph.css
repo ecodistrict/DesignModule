@@ -38,6 +38,16 @@ svg.category-graph .line:hover {
     stroke-width: 4px;
 }
 
+svg.category-graph .line-points-container circle.point {
+    cursor: pointer;
+    r: 4px;
+    transition: r 0.3s;
+}
+
+svg.category-graph .line-points-container circle.point:hover {
+    r: 8px;
+}
+
 svg.category-graph .axis .title {
     pointer-events: none;
     fill: rgb(0, 0, 0);

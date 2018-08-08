@@ -144,9 +144,15 @@ var CategoryGraphView = GraphView.extend({
             return '<div>' + series.title + '</div>';
         }
 
-        var createLinePoint = function (seriesPoint) {
+        function constructLinePointTooltipHtml(series, point) {
+            return '<div>' + series.title + '</div><div>' + point.y + '</div>';
+        }
+
+        var createLinePoint = function (series, seriesPoint) {
             return {
                 categoryId: seriesPoint.categoryId,
+                color: series.color,
+                tooltip: constructLinePointTooltipHtml(series, seriesPoint),
                 y: function () {
                     var scale = this._scaleByAxisId(seriesPoint.axisId);
                     return  scale(seriesPoint.y);
@@ -154,8 +160,10 @@ var CategoryGraphView = GraphView.extend({
             };
         }.bind(this);
 
-        function createLineData (data) {
-            return data.map(createLinePoint);
+        function createLineData (series) {
+            return series.data.map(function (point) {
+                return createLinePoint(series, point);
+            });
         }
 
         var lines = this.graphViewModel.series
@@ -167,7 +175,7 @@ var CategoryGraphView = GraphView.extend({
                     seriesId: series.id,
                     color: series.color,
                     tooltip: constructLineTooltipHtml(series),
-                    data: createLineData(series.data)
+                    data: createLineData(series)
                 };
             });
         
@@ -306,6 +314,7 @@ var CategoryGraphView = GraphView.extend({
         this._updateYRightAxis(performAnimation);
         this._updateBars(performAnimation);
         this._updateLines(performAnimation);
+        this._updateLinePoints(performAnimation);
     },
 
     _updateXAxis: function () {
@@ -441,6 +450,48 @@ var CategoryGraphView = GraphView.extend({
         lines.transition()
             .duration(animationDuration)
             .attr('d', function (d) { return valueLine(d.data); })
+            .style('stroke', function (d) { return d.color; });
+    },
+
+    _updateLinePoints: function (performAnimation) {
+        var animationDuration = performAnimation ? this._animationDuration : 0;
+
+        var x = this._xScale;
+        var g = this._svg.select('g.graph-content-container');
+        var tip = this._tip;
+
+        var newLines = g.selectAll('.line-points-container')
+            .data(this._linesData.lines, function (d) { return d.seriesId; });
+        newLines.enter().append('g')
+            .attr('class', 'line-points-container');
+        newLines.exit().remove();
+
+        var lines = g.selectAll('.line-points-container')
+            .data(this._linesData.lines, function (d) { return d.seriesId; });        
+
+        var points = lines.selectAll('circle.point')
+            .data(function(d) { return d.data; });
+
+        points.enter().append('circle')
+            .attr('class', function(d,i) { return 'point point-' + i; })
+            .attr('cx', 0)
+            .attr('cy', 0)
+            .style('fill', function (d) { return d.color; })
+            .style('stroke', function (d) { return d.color; })
+            .on('mouseover', tip.show)
+            .on('mouseout', tip.hide)
+            .transition()
+                .duration(animationDuration)
+                .attr('cx', function(d) { return x(d.categoryId) + x.bandwidth() / 2; })
+                .attr('cy', function(d) { return d.y(); });
+
+        points.exit().remove();
+        
+        points.transition()
+            .duration(animationDuration)
+            .attr('cx', function(d) { return x(d.categoryId) + x.bandwidth() / 2; })
+            .attr('cy', function(d) { return d.y(); })
+            .style('fill', function (d) { return d.color; })
             .style('stroke', function (d) { return d.color; });
     },
 
