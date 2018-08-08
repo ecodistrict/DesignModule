@@ -3,6 +3,9 @@
  * This is a base class for all child graph view controllers.
  */
 
+/* globals L, GraphView, GraphViewModel, GraphLegendViewModel */ 
+
+/* exported GraphViewController */
 var GraphViewController = L.Evented.extend({
 
     initialize: function (opts) {
@@ -33,7 +36,10 @@ var GraphViewController = L.Evented.extend({
 
         this.graphViewModel = new GraphViewModel({
             title: this.graphModel.title,
-            series: this._filterSeriesByLegend(this.graphModel.series, this.graphLegendViewModel.entries),
+            series: this._filterSeriesByLegend(
+                this.graphModel.series, 
+                this.graphLegendViewModel.entries
+            ),
             axes: this.graphModel.axes,
             categories: this.graphModel.categories
         });        
@@ -115,7 +121,10 @@ var GraphViewController = L.Evented.extend({
     },
 
     _updateGraphViewModelSeries: function () {
-        this.graphViewModel.series = this._filterSeriesByLegend(this.graphModel.series, this.graphLegendViewModel.entries);
+        this.graphViewModel.series = this._filterSeriesByLegend(
+            this.graphModel.series, 
+            this.graphLegendViewModel.entries
+        );
     },
 
     _updateGraphViewModelLegend: function () {

@@ -4,6 +4,9 @@
  * This model will be used by GraphLegendView.
  */
 
+/* globals L */ 
+
+/* exported GraphLegendViewModel */
 var GraphLegendViewModel = L.Evented.extend({
 
     initialize: function (opts) {
@@ -13,7 +16,7 @@ var GraphLegendViewModel = L.Evented.extend({
         var entries = optionEntries.map(function (entry){
             return L.extend({ enabled: true }, entry);
         });
-        Object.defineProperty(this, "entries", {
+        Object.defineProperty(this, 'entries', {
             get: function () { return entries; },
             set: function (newEntries) {
                 entries = newEntries;
@@ -46,7 +49,10 @@ var GraphLegendViewModel = L.Evented.extend({
     merge: function (entries) {
         var localEntries = this.entries;
         var newEntries = entries.map(function (entry) {
-            var localEntry = localEntries.find(function (e) { return e.id === entry.id; }) || { enabled: true };
+            var localEntry = localEntries.find(function (e) { 
+                return e.id === entry.id; 
+            }) || { enabled: true };
+            
             return L.extend(localEntry, entry);
         });
         this.entries = newEntries;

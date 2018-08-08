@@ -4,13 +4,16 @@
  * their visual state.
  */
 
+/* globals L, GraphViewControllerFactory */ 
+
+ /* exported GraphViewManager */
 var GraphViewManager = L.Evented.extend({
 
     initialize: function (opts) {
         if (!opts.windowManager) throw new Error('windowManager is not provided');
         this._options = opts;
 
-        this._windowManager = this._options._windowManager;
+        this._windowManager = this._options.windowManager;
         this._graphViewControllers = {};
         this._graphViewControllerFactory = new GraphViewControllerFactory();
     },
@@ -19,7 +22,7 @@ var GraphViewManager = L.Evented.extend({
         if (this._graphViewControllers[graphModel.id]) return;
         
         var graphViewController = this._graphViewControllerFactory
-            .create(graphModel, windowManager, this._options.graphViewOptions);
+            .create(graphModel, this._windowManager, this._options.graphViewOptions);
 
         this._addGraphViewController(graphViewController);
         this._notifyGraphShown(graphModel);

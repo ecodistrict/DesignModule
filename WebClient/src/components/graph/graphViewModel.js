@@ -4,13 +4,16 @@
  * This model will be used by GraphView.
  */
 
+/* globals L */ 
+
+/* exported GraphViewModel */
 var GraphViewModel = L.Evented.extend({
 
     initialize: function (opts) {
         var options = opts || {};
 
         var title = options.title;
-        Object.defineProperty(this, "title", {
+        Object.defineProperty(this, 'title', {
             get: function () { return title; },
             set: function (newTitle) {
                 title = newTitle;
@@ -19,7 +22,7 @@ var GraphViewModel = L.Evented.extend({
         });
 
         var axes = options.axes || [];
-        Object.defineProperty(this, "axes", {
+        Object.defineProperty(this, 'axes', {
             get: function () { return axes; },
             set: function (newAxes) {
                 axes = newAxes;
@@ -28,7 +31,7 @@ var GraphViewModel = L.Evented.extend({
         });
 
         var categories = options.categories || [];
-        Object.defineProperty(this, "categories", {
+        Object.defineProperty(this, 'categories', {
             get: function () { return categories; },
             set: function (newCategories) {
                 categories = newCategories;
@@ -37,7 +40,7 @@ var GraphViewModel = L.Evented.extend({
         });
 
         var series = options.series;
-        Object.defineProperty(this, "series", {
+        Object.defineProperty(this, 'series', {
             get: function () { return series; },
             set: function (newSeries) {
                 series = newSeries;

@@ -3,9 +3,14 @@
  * depending on a graph.
  */
 
+/* globals L */ 
+/* globals GraphViewController */ 
+/* globals CategoryGraphViewController */ 
+
+/* exported GraphViewControllerFactory */
  var GraphViewControllerFactory = L.Evented.extend({
 
-    initialize: function (opts) {
+    initialize: function () {
         this._viewControllerMap = {
             category: CategoryGraphViewController
         };

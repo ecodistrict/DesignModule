@@ -2,13 +2,16 @@
  * Graphs model. This is a storage of graph models.
  */
 
+/* globals L */ 
+
+/* exported GraphsModel */
 var GraphsModel = L.Evented.extend({
 
     initialize: function (opts) {
         var options = opts || {};
 
         var grpahModels = options.grpahModels || [];
-        Object.defineProperty(this, "grpahModels", {
+        Object.defineProperty(this, 'grpahModels', {
             get: function () { return grpahModels.slice(); }
         });
 
@@ -34,9 +37,7 @@ var GraphsModel = L.Evented.extend({
     },
 
     add: function (graphModel) {
-        var models = Array.isArray(graphModel)
-            ? graphModel
-            : [graphModel];
+        var models = Array.isArray(graphModel) ? graphModel : [graphModel];
         this.addGraphModels(models);
     }
 

@@ -12,8 +12,8 @@ svg.category-graph .axis--x .tick line {
 }
 
 svg.category-graph .axis--x .tick text {
-    text-anchor: start;
-    transform: rotate(45deg);
+    text-anchor: middle;
+    pointer-events: none;
 }
 
 svg.category-graph .bar-category .bar {
@@ -36,4 +36,15 @@ svg.category-graph .line {
 svg.category-graph .line:hover {
     cursor: pointer;
     stroke-width: 4px;
+}
+
+svg.category-graph .axis .title {
+    pointer-events: none;
+    fill: rgb(0, 0, 0);
+    font-size: 1.3em;
+    text-anchor: middle;
+}
+
+svg.category-graph .axis--y .title {
+    transform: rotate(-90deg);
 }

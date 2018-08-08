@@ -2,6 +2,9 @@
  * Category graph view controller.
  */
 
+/* globals L, GraphViewController, CategoryGraphView  */ 
+
+/* exported CategoryGraphViewController */
 var CategoryGraphViewController = GraphViewController.extend({
 
     createGraphView: function () {

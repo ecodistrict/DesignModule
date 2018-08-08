@@ -3,6 +3,9 @@
  * the graphs. It provides the legend functionality.
  */
 
+/* globals L, WindowView, GraphLegendView */ 
+
+/* exported GraphView */
 var GraphView = WindowView.extend({
     
     initialize: function (opts) {
@@ -43,7 +46,7 @@ var GraphView = WindowView.extend({
         this.onResize();
     },
 
-    onRenderGraph: function (viewport) {
+    onRenderGraph: function (/* jshint unused:false */ viewport) {
         // override in child grpah classes
     },
 
