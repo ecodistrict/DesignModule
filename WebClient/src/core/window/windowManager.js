@@ -2,6 +2,9 @@
  * WindowManager controls the placement and appearance of windows within a given DOM element.
  */
 
+/* globals L */ 
+
+/* exported WindowManager */
 var WindowManager = L.Evented.extend({
 
     initialize: function (opts) {
@@ -11,9 +14,8 @@ var WindowManager = L.Evented.extend({
         this._windowContainer = opts.element;
 
         this._windowStack = [];
-        this._initialZIndex = this._windowContainer.style.zIndex 
-            ? parseInt(this._windowContainer.style.zIndex, 10) 
-            : 999;
+        this._initialZIndex = this._windowContainer.style.zIndex ? 
+            parseInt(this._windowContainer.style.zIndex, 10) : 999;
 
         this._nextPosition = {
             x: 0,
