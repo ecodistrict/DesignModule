@@ -12,13 +12,15 @@ A list of all JSHint options - [Link](http://jshint.com/docs/options/)
 
 ## Setup Steps
 
-* Make a `.jshintrc` file inside the `..\DesignModule\WebClient\` folder (follow the following steps).
-    * Launch "Notepad"
-    * Click **File** and then **Save**. The **Save As** dialog box is displayed.
-    * Select the destination and enter the file name as - `.jshintrc`
-    * Set the **Save as file:** option to "All Files (\*.\*)" and click on the **Save** button.
-* Copy the configuration provided by airbnb for es5 - [Link](https://github.com/airbnb/javascript/blob/master/linters/.jshintrc)
-* Inside the configuration file, change the value for the `strict` tag to **false**.
+* `.jshintrc` file setup (this file is also available for direct use inside the WebClient folder):
+    * Make a `.jshintrc` file inside the `..\DesignModule\WebClient\` folder (follow the following steps).
+        * Launch "Notepad"
+        * Click **File** and then **Save**. The **Save As** dialog box is displayed.
+        * Select the destination and enter the file name as - `.jshintrc`
+        * Set the **Save as file:** option to "All Files (\*.\*)" and click on the **Save** button.
+    * Copy the configuration provided by airbnb for es5 - [Link](https://github.com/airbnb/javascript/blob/master/linters/.jshintrc)
+    * Inside the configuration file, change the value for the `strict` tag to **false** and the `maxlen` tag to **128**.
+
 * Install Node.js and update the **Environment Variables**
     * Add the following values to the **Path** variable:
          - %AppData%\Roaming\npm
