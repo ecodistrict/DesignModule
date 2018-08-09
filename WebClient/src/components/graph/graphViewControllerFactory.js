@@ -16,12 +16,13 @@
         };
     },
 
-    create: function (graphModel, windowManager, viewOptions) {
+    create: function (graphModel, windowManager, graphViewOptions) {
         var ViewController = this._viewControllerMap[graphModel.type] || GraphViewController;
 
-        return new ViewController(L.extend({
+        return new ViewController({
             graphModel: graphModel,
-	        windowManager: windowManager
-        }, viewOptions));
+            windowManager: windowManager,
+            graphViewOptions: graphViewOptions
+        });
     }
 });

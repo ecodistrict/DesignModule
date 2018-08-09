@@ -11,7 +11,7 @@ var CategoryGraphViewController = GraphViewController.extend({
         return new CategoryGraphView(L.extend({
             graphViewModel: this.graphViewModel,
             graphLegendModel: this.graphLegendViewModel,            
-        }, this._viewOptions));
+        }, this._graphViewOptions));
     }
     
 });

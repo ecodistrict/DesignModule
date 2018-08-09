@@ -12,14 +12,14 @@ var GraphViewController = L.Evented.extend({
         if (!opts.graphModel) throw new Error('graphModel is not provided');
         if (!opts.windowManager) throw new Error('windowManager is not provided');
 
-        this._viewOptions = L.extend({
+        this._graphViewOptions = L.extend({
             minWidth: 150,
             minHeight: 100,
             maxWidth: 800,
             maxHeight: 600,
             width: 300,
             height: 200
-        }, opts.viewOptions);
+        }, opts.graphViewOptions);
 
         this.windowManager = opts.windowManager;
 
@@ -87,7 +87,7 @@ var GraphViewController = L.Evented.extend({
         return new GraphView(L.extend({
             graphViewModel: this.graphViewModel,
             graphLegendModel: this.graphLegendViewModel,            
-        }, this._viewOptions));
+        }, this._graphViewOptions));
     },
 
     _notifyViewClosed: function (eventData) {
