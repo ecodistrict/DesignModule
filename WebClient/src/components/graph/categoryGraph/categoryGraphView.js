@@ -8,7 +8,7 @@
 /* exported CategoryGraphView */
 var CategoryGraphView = GraphView.extend({
     
-    initialize: function (opts) {
+    onInitializeGraph: function (opts) {
         this._padding = {
             left: 55,
             right: 55,
@@ -16,8 +16,6 @@ var CategoryGraphView = GraphView.extend({
             bottom: 60
         };
         this._animationDuration = 300;
-
-        GraphView.prototype.initialize.call(this, opts);
     },
 
     onRenderGraph: function () {
@@ -48,6 +46,11 @@ var CategoryGraphView = GraphView.extend({
 
         this._svg.remove();
         this._svg = null;
+    },
+
+    onAddGraph: function () {
+        var performAnimation = true;
+        this._redraw(performAnimation);
     },
 
     onResize: function () {        

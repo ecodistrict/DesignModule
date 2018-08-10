@@ -15,6 +15,8 @@ var GraphView = WindowView.extend({
         this.graphViewModel = opts.graphViewModel;
         this.graphLegendModel = opts.graphLegendModel;
 
+        this.onInitializeGraph(opts);
+
         WindowView.prototype.initialize.call(
             this, 
             L.extend({ class: 'graph-view' }, opts)
@@ -43,7 +45,11 @@ var GraphView = WindowView.extend({
 
     onAdd: function (windowManager) {
         WindowView.prototype.onAdd.call(this, windowManager);
-        this.onResize();
+        this.onAddGraph(windowManager);
+    },
+
+    onInitializeGraph: function (/* jshint unused:false */ opts) {
+        // override in child grpah classes
     },
 
     onRenderGraph: function (/* jshint unused:false */ viewport) {
@@ -51,6 +57,10 @@ var GraphView = WindowView.extend({
     },
 
     onRemoveGraph: function () {
+        // override in child grpah classes
+    },
+
+    onAddGraph: function (/* jshint unused:false */ windowManager) {
         // override in child grpah classes
     },
 
