@@ -13,7 +13,12 @@ svg.category-graph .axis--x .tick line {
 
 svg.category-graph .axis--x .tick text {
     text-anchor: middle;
-    pointer-events: none;
+    cursor: pointer;
+}
+
+svg.category-graph .axis--x .tick text.rotate {
+    text-anchor: start;
+    transform: rotate(45deg);
 }
 
 svg.category-graph .bar-category .bar {
@@ -21,7 +26,8 @@ svg.category-graph .bar-category .bar {
     transition: stroke-width 0.3s;
 }
 
-svg.category-graph .bar-category .bar:hover {
+svg.category-graph .bar-category .bar:hover,
+svg.category-graph .bar-category .bar.touchstart {
     cursor: pointer;
     stroke-width: 4px;
 }
@@ -33,7 +39,8 @@ svg.category-graph .line {
     transition: stroke-width 0.3s;
 }
 
-svg.category-graph .line:hover {
+svg.category-graph .line:hover,
+svg.category-graph .line.touchstart {
     cursor: pointer;
     stroke-width: 4px;
 }
@@ -44,7 +51,8 @@ svg.category-graph .line-points-container circle.point {
     transition: r 0.3s;
 }
 
-svg.category-graph .line-points-container circle.point:hover {
+svg.category-graph .line-points-container circle.point:hover, 
+svg.category-graph .line-points-container circle.point.touchstart {
     r: 8px;
 }
 

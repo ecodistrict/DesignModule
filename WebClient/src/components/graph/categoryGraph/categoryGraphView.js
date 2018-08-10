@@ -3,7 +3,7 @@
  * Category graph is a graph where x axis is a categories axis.
  */
 
-/* globals d3, L, GraphView  */ 
+/* globals d3, L, GraphView, D3Utils  */ 
 
 /* exported CategoryGraphView */
 var CategoryGraphView = GraphView.extend({
@@ -13,7 +13,7 @@ var CategoryGraphView = GraphView.extend({
             left: 60,
             right: 60,
             top: 10,
-            bottom: 60
+            bottom: 10
         };
         this._animationDuration = 300;
     },
@@ -76,6 +76,7 @@ var CategoryGraphView = GraphView.extend({
                 title: this.graphViewModel.axes.xBottom.title,
                 domain: this.graphViewModel.categories.map(function (category) {
                     return L.extend({
+                        tooltip: category.title,
                         valueOf: function () { return this.id; }
                     }, category);
                 })
@@ -208,12 +209,48 @@ var CategoryGraphView = GraphView.extend({
             if (value < 0) return 0;
             return value;
         }
+
+        var sceneWidth = fixValue(svgWidth - this._padding.left - this._padding.right);        
+        var categoryWidth = sceneWidth * 0.8 / (this.graphViewModel.categories.length || 1);
+        var horizontalWidth = this._calculateTickTextWidth('2018-08-10');
         
+        if (horizontalWidth > categoryWidth) {            
+            var categoryTitleWidths = this.graphViewModel.categories.map(function (category) {
+                return this._calculateTickTextWidth(category.title);
+            }.bind(this));
+            var maxCategoryTitleWidth = Math.max.apply(null, categoryTitleWidths);
+            var baseTickTextWidth = this._calculateTickTextWidth('2018-08-10 16:02');
+
+            var skewlWidth = Math.min(maxCategoryTitleWidth, baseTickTextWidth) + 2;
+
+            var tickTextHeight = skewlWidth / Math.sqrt(2) + 5;
+
+            this._xAxisTickTextState = {
+                rotated: true,
+                width: skewlWidth,
+                height: tickTextHeight
+            };
+        } else {
+            this._xAxisTickTextState = {
+                rotated: false,
+                width: categoryWidth,
+                height: 20
+            };
+        }
+        
+        var height = fixValue(
+            svgHeight - 
+            this._padding.top - 
+            this._padding.bottom - 
+            this._xAxisTickTextState.height -
+            30
+        );
+
         this._sceneGeometry = {
             left: fixValue(this._padding.left),
             top: fixValue(this._padding.top),
-            width: fixValue(svgWidth - this._padding.left - this._padding.right),
-            height: fixValue(svgHeight - this._padding.top - this._padding.bottom),
+            width: sceneWidth,
+            height: height
         };
     },
 
@@ -240,8 +277,7 @@ var CategoryGraphView = GraphView.extend({
     },
 
     _buildXAxis: function () {
-        this._xAxis = d3.axisBottom(this._xScale)
-            .tickFormat(function (category) { return category.title; });
+        this._xAxis = d3.axisBottom(this._xScale);
         
         this._svg.append('g')
             .attr('class', 'axis axis--x')
@@ -326,12 +362,26 @@ var CategoryGraphView = GraphView.extend({
         var x = this._sceneGeometry.left;
         var y = this._sceneGeometry.top + this._sceneGeometry.height;
 
+        var truncate = D3Utils.truncateTextByWidth(this._xAxisTickTextState.width);
+
         this._svg.select('g.axis--x')
             .attr('transform', 'translate(' + x + ', ' + y + ')')
             .call(this._xAxis.scale(this._xScale));
 
+        this._svg.select('g.axis--x').selectAll('.tick text')
+            .classed('rotate', this._xAxisTickTextState.rotated)
+            .on('mouseover', this._tip.show)
+            .on('touchstart', this._tip.show)
+            .on('mouseout', this._tip.hide)
+            .on('touchend', this._tip.hide)
+            .text(function (d) {
+                return truncate.call(this, d.title);
+            });
+
+        var labelX = this._sceneGeometry.width / 2;
+        var labely = this._xAxisTickTextState.height + 20;
         this._svg.select('g.axis--x .title')
-            .attr('transform', 'translate(' + (this._sceneGeometry.width / 2) + ', ' + 40 + ')' )
+            .attr('transform', 'translate(' + labelX + ', ' + labely + ')' )
             .text(this._axesData.xBottom.title);
     },
 
@@ -389,6 +439,16 @@ var CategoryGraphView = GraphView.extend({
         var height = this._sceneGeometry.height;
         var x = this._xScale;
 
+        var setEventHandlers = function(selection) {
+            return selection
+                .on('mouseover', this._tip.show)
+                .on('touchstart.tip', this._tip.show)
+                .on('touchstart.anm', this._markTouchstart(true))
+                .on('mouseout', this._tip.hide)
+                .on('touchend.tip', this._tip.hide)
+                .on('touchend.anm', this._markTouchstart(false));
+        }.bind(this);
+
         var g = this._svg.select('g.graph-content-container');
 
         var categories = g.selectAll('.bar-category')
@@ -410,8 +470,8 @@ var CategoryGraphView = GraphView.extend({
                 .attr('class', 'bar')
                 .style('fill', function (d) { return d.color; })
                 .style('stroke', function (d) { return d.color; })
-                .on('mouseover', this._tip.show)
-                .on('mouseout', this._tip.hide);
+                .call(setEventHandlers);
+                
 
         var updatedBars = categories.selectAll('.bar')
             .data(function (category) { return category.data; });
@@ -420,8 +480,7 @@ var CategoryGraphView = GraphView.extend({
             .attr('class', 'bar')
             .style('fill', function (d) { return d.color; })
             .style('stroke', function (d) { return d.color; })
-            .on('mouseover', this._tip.show)
-            .on('mouseout', this._tip.hide);
+            .call(setEventHandlers);
 
         updatedBars.exit().remove();
 
@@ -449,6 +508,12 @@ var CategoryGraphView = GraphView.extend({
             .x(function(d) { return x(d.categoryId) + x.bandwidth() / 2; })
             .y(function(d) { return d.y(); });
 
+        var setEventHandlers = function(selection) {
+            return selection
+                .on('mouseover', this._lineTip.show)
+                .on('mouseout', this._lineTip.hide);
+        }.bind(this);
+
         var g = this._svg.select('g.graph-content-container');
 
         var lines = g.selectAll('.line')
@@ -461,8 +526,7 @@ var CategoryGraphView = GraphView.extend({
             .attr('d', baseLine)
             .style('stroke', function (d) { return d.color; })
             .attr('d', function (d) { return baseLine(d.data); })
-            .on('mouseover', this._lineTip.show)
-            .on('mouseout', this._lineTip.hide)
+            .call(setEventHandlers)
             .transition()
                 .duration(animationDuration)
                 .attr('d', function (d) { return valueLine(d.data); })
@@ -477,9 +541,18 @@ var CategoryGraphView = GraphView.extend({
     _updateLinePoints: function (performAnimation) {
         var animationDuration = performAnimation ? this._animationDuration : 0;
 
+        var setEventHandlers = function(selection) {
+            return selection
+                .on('mouseover', this._tip.show)
+                .on('touchstart.tip', this._tip.show)
+                .on('touchstart.anm', this._markTouchstart(true))
+                .on('mouseout', this._tip.hide)
+                .on('touchend.tip', this._tip.hide)
+                .on('touchend.anm', this._markTouchstart(false));
+        }.bind(this);
+
         var x = this._xScale;
         var g = this._svg.select('g.graph-content-container');
-        var tip = this._tip;
 
         var newLines = g.selectAll('.line-points-container')
             .data(this._linesData.lines, function (d) { return d.seriesId; });
@@ -499,8 +572,7 @@ var CategoryGraphView = GraphView.extend({
             .attr('cy', 0)
             .style('fill', function (d) { return d.color; })
             .style('stroke', function (d) { return d.color; })
-            .on('mouseover', tip.show)
-            .on('mouseout', tip.hide)
+            .call(setEventHandlers)
             .transition()
                 .duration(animationDuration)
                 .attr('cx', function(d) { return x(d.categoryId) + x.bandwidth() / 2; })
@@ -557,6 +629,28 @@ var CategoryGraphView = GraphView.extend({
         return function (tickData) {
             return format(tickData) + units;
         };
-    }
+    },
 
+    _calculateTickTextWidth: function (text) {
+        var xAxisTmp = this._svg.append('g')
+            .attr('class', 'axis axis--x  hidden');
+        var xAxisTickTextTmp = xAxisTmp.append('g')
+            .attr('class', '.tick')
+            .append('text');
+        var textWidth = D3Utils.calculateTextWidth.call(
+            xAxisTickTextTmp.node(), 
+            text
+        );
+
+        xAxisTmp.remove();
+
+        return textWidth;
+    },
+
+    _markTouchstart: function (enableMark) {
+        return function () {
+            return d3.select(this).classed('touchstart', enableMark);
+        };
+    }
+    
 }); 
