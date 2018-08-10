@@ -8,10 +8,10 @@
 /* exported CategoryGraphView */
 var CategoryGraphView = GraphView.extend({
     
-    onInitializeGraph: function (opts) {
+    onInitializeGraph: function () {
         this._padding = {
-            left: 55,
-            right: 55,
+            left: 60,
+            right: 60,
             top: 10,
             bottom: 60
         };
@@ -82,25 +82,34 @@ var CategoryGraphView = GraphView.extend({
             }
         };
 
+        function createAxisData(axis) {
+            var ticksCount = typeof axis.ticks === 'number' ? axis.ticks : 5;
+            var tickValues = Array.isArray(axis.ticks) ? axis.ticks : null;
+
+            return {
+                title: axis.title,
+                domain: axis.scale || yDomainsDefault.yLeft,
+                units: axis.units || '',
+                formatSpecifier: axis.formatSpecifier || '',
+                ticksCount: ticksCount,
+                tickValues: tickValues
+            };
+        }
+
         if (this.graphViewModel.axes.yLeft) {
-            this._axesData.yLeft = {
-                title: this.graphViewModel.axes.yLeft.title,
-                domain: this.graphViewModel.axes.yLeft.scale || yDomainsDefault.yLeft
-            };                
+            this._axesData.yLeft = createAxisData(this.graphViewModel.axes.yLeft);
         }
 
         if (this.graphViewModel.axes.yRight) {
-            this._axesData.yRight = {
-                title: this.graphViewModel.axes.yRight.title,
-                domain: this.graphViewModel.axes.yRight.scale || yDomainsDefault.yRight
-            };                
+            this._axesData.yRight = createAxisData(this.graphViewModel.axes.yRight);
         }
     },
 
     _buildInternalBarsData: function () {
-        function constructBarTooltipHtml(series, point) {
-            return '<div>' + series.title + '</div><div>' + point.y + '</div>';
-        }
+        var constructBarTooltipHtml = function(series, point) {
+            return '<div>' + series.title + '</div><div>' +
+                this._axisValueFormat(this._axesData[point.axisId])(point.y) + '</div>';
+        }.bind(this);
 
         var createBarData = function (series, point) {
             return { 
@@ -147,9 +156,10 @@ var CategoryGraphView = GraphView.extend({
             return '<div>' + series.title + '</div>';
         }
 
-        function constructLinePointTooltipHtml(series, point) {
-            return '<div>' + series.title + '</div><div>' + point.y + '</div>';
-        }
+        var constructLinePointTooltipHtml = function(series, point) {
+            return '<div>' + series.title + '</div><div>' +
+                this._axisValueFormat(this._axesData[point.axisId])(point.y) + '</div>';
+        }.bind(this);
 
         var createLinePoint = function (series, seriesPoint) {
             return {
@@ -214,12 +224,14 @@ var CategoryGraphView = GraphView.extend({
         this._xScale = d3.scaleBand().rangeRound([0, width]).padding([0.2]);
         this._xScale.domain(this._axesData.xBottom.domain);
 
+        this._yLeftScale = null;
         if (this._axesData.yLeft) {
             this._yLeftScale = d3.scaleLinear()
                 .range([height, 0])
                 .domain(this._axesData.yLeft.domain);
         }
 
+        this._yRightScale = null;
         if (this._axesData.yRight) {
             this._yRightScale = d3.scaleLinear()
                 .range([height, 0])
@@ -242,13 +254,8 @@ var CategoryGraphView = GraphView.extend({
     },
 
     _buildYLeftAxis: function () {
-        if (!this._yLeftScale) return;
-
-        this._yLeftAxis = d3.axisLeft(this._yLeftScale);
-        
         this._svg.append('g')
-            .attr('class', 'axis axis--y axis--y-left')
-            .call(this._yLeftAxis);
+            .attr('class', 'axis axis--y axis--y-left');
 
         this._svg.select('g.axis--y-left').append('text')
             .attr('class', 'title');
@@ -256,14 +263,9 @@ var CategoryGraphView = GraphView.extend({
         this._updateYLeftAxis();
     },
 
-    _buildYRightAxis: function () {
-        if (!this._yRightScale) return;
-
-        this._yRightAxis = d3.axisRight(this._yRightScale);
-        
+    _buildYRightAxis: function () {        
         this._svg.append('g')
-            .attr('class', 'axis axis--y axis--y-right')
-            .call(this._yRightAxis);
+            .attr('class', 'axis axis--y axis--y-right');
 
         this._svg.select('g.axis--y-right').append('text')
             .attr('class', 'title');
@@ -334,34 +336,50 @@ var CategoryGraphView = GraphView.extend({
     },
 
     _updateYLeftAxis: function () {
-        if (!this._yLeftAxis) return;
+        if (!this._axesData.yLeft) {
+            return this._svg.select('g.axis--y-left').selectAll('*').remove();
+        }
 
         var x = this._sceneGeometry.left;
         var y = this._sceneGeometry.top;
 
+        var axis = d3.axisLeft(this._yLeftScale)
+            .tickFormat(this._axisValueFormat(this._axesData.yLeft))
+            .ticks(this._axesData.yLeft.ticksCount)
+            .tickValues(this._axesData.yLeft.tickValues)
+            .scale(this._yLeftScale);
+
         this._svg.select('g.axis--y-left')
             .attr('transform', 'translate(' + x + ', ' + y + ')')
-            .call(this._yLeftAxis.scale(this._yLeftScale));
+            .call(axis);
 
         this._svg.select('g.axis--y-left .title')
             .attr('x', - this._sceneGeometry.height / 2)
-            .attr('y', -35)
+            .attr('y', '-3em')
             .text(this._axesData.yLeft.title);
     },
 
     _updateYRightAxis: function () {
-        if (!this._yRightAxis) return;
+        if (!this._axesData.yRight) {
+            return this._svg.select('g.axis--y-right').selectAll('*').remove();
+        }
 
         var x = this._sceneGeometry.left + this._sceneGeometry.width;
         var y = this._sceneGeometry.top;
 
+        var axis = d3.axisRight(this._yRightScale)
+            .tickFormat(this._axisValueFormat(this._axesData.yRight))
+            .ticks(this._axesData.yRight.ticksCount)
+            .tickValues(this._axesData.yRight.tickValues)
+            .scale(this._yRightScale);
+
         this._svg.select('g.axis--y-right')
             .attr('transform', 'translate(' + x + ', ' + y + ')')
-            .call(this._yRightAxis.scale(this._yRightScale));
+            .call(axis);
 
         this._svg.select('g.axis--y-right .title')
             .attr('x', - this._sceneGeometry.height / 2)
-            .attr('y', 45)
+            .attr('y', '4em')
             .text(this._axesData.yRight.title);
     },
 
@@ -531,5 +549,14 @@ var CategoryGraphView = GraphView.extend({
     _applyYRightScale: function (value) {
         return this._yRightScale(value);
     },
+
+    _axisValueFormat: function (axis) {
+        var format = d3.format(axis.formatSpecifier || '');
+        var units = axis.units || '';
+
+        return function (tickData) {
+            return format(tickData) + units;
+        };
+    }
 
 }); 
