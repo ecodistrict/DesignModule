@@ -18,7 +18,7 @@ var DomUtil = {
     },
 
     truncateTextByWidth: function (node, text, width) {
-        var textWidht = DomUtil.calculateTextSize(node, text);
+        var textWidht = DomUtil.calculateTextSize(node, text).width;
         if (textWidht <= width) return text;            
 
         var ending = '...';
