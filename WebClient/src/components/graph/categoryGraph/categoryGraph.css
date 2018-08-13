@@ -18,7 +18,7 @@ svg.category-graph .axis--x .tick text {
 
 svg.category-graph .axis--x .tick text.rotate {
     text-anchor: start;
-    transform: rotate(45deg);
+    transform: rotate(45deg) translate(5px, 0px);
 }
 
 svg.category-graph .bar-category .bar {
