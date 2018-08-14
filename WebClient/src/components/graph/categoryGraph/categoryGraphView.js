@@ -399,7 +399,7 @@ var CategoryGraphView = GraphView.extend({
         var xAxisTmp = this._svg.append('g')
             .attr('class', 'axis axis--x  hidden');
         var xAxisTickTextTmp = xAxisTmp.append('g')
-            .attr('class', '.tick')
+            .attr('class', 'tick')
             .append('text');
         var textSize = DomUtil.calculateTextSize(
             xAxisTickTextTmp.node(), 
