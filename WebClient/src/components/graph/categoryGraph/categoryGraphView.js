@@ -3,12 +3,15 @@
  * Category graph is a graph where x axis is a categories axis.
  */
 
-/* globals d3, L, GraphView, DomUtil  */ 
+/* globals d3, GraphView, DomUtil  */ 
 
 /* exported CategoryGraphView */
 var CategoryGraphView = GraphView.extend({
     
-    onInitializeGraph: function () {
+    onInitializeGraph: function (opts) {
+        if (!opts.categoryGraphViewModel) throw new Error('categoryGraphViewModel is not provided');
+        this.categoryGraphViewModel = opts.categoryGraphViewModel;
+
         this._padding = {
             left: 60,
             right: 60,
@@ -21,9 +24,8 @@ var CategoryGraphView = GraphView.extend({
     onRenderGraph: function () {
         if (this._svg) return;
 
-        this.graphViewModel.on('series categories axes', this._onDataChanged, this);
+        this.categoryGraphViewModel.on('modelReset', this._onDataChanged, this);
         
-        this._buildInternalData();
         this._buildSvgViewport();
         this._buildTooltip();
         this._buildXAxisTickGeometry();
@@ -40,7 +42,7 @@ var CategoryGraphView = GraphView.extend({
     onRemoveGraph: function () {
         if (!this._svg) return;
 
-        this.graphViewModel.off('series categories axes', this._onDataChanged, this);
+        this.categoryGraphViewModel.off('modelReset', this._onDataChanged, this);
 
         this._tip.destroy();
         this._lineTip.destroy();
@@ -60,141 +62,7 @@ var CategoryGraphView = GraphView.extend({
 
     _onDataChanged: function () {
         var performAnimation = true;
-        this._buildInternalData();
         this._redraw(performAnimation);
-    },
-
-    _buildInternalData: function () {
-        this._buildInternalAxesData();
-        this._buildInternalBarsData();
-        this._buildInternalLinesData();
-    },
-
-    _buildInternalAxesData: function () {
-        var yDomainsDefault = this._calculateYDomains();
-        this._axesData = {
-            xBottom: {
-                title: this.graphViewModel.axes.xBottom.title,
-                domain: this.graphViewModel.categories.map(function (category) {
-                    return L.extend({
-                        tooltip: category.title,
-                        valueOf: function () { return this.id; }
-                    }, category);
-                })
-            }
-        };
-
-        function createAxisData(axis) {
-            var ticksCount = typeof axis.ticks === 'number' ? axis.ticks : 5;
-            var tickValues = Array.isArray(axis.ticks) ? axis.ticks : null;
-
-            return {
-                title: axis.title,
-                domain: axis.scale || yDomainsDefault.yLeft,
-                units: axis.units || '',
-                formatSpecifier: axis.formatSpecifier || '',
-                ticksCount: ticksCount,
-                tickValues: tickValues
-            };
-        }
-
-        if (this.graphViewModel.axes.yLeft) {
-            this._axesData.yLeft = createAxisData(this.graphViewModel.axes.yLeft);
-        }
-
-        if (this.graphViewModel.axes.yRight) {
-            this._axesData.yRight = createAxisData(this.graphViewModel.axes.yRight);
-        }
-    },
-
-    _buildInternalBarsData: function () {
-        var constructBarTooltipHtml = function(series, point) {
-            return '<div>' + series.title + '</div><div>' +
-                this._axisValueFormat(this._axesData[point.axisId])(point.y) + '</div>';
-        }.bind(this);
-
-        var createBarData = function (series, point) {
-            return { 
-                seriesId: series.id,
-                color: series.color,
-                axisId: point.axisId,
-                tooltip: constructBarTooltipHtml(series, point),
-                y: function () {
-                    var scale = this._scaleByAxisId(point.axisId);
-                    return  scale(point.y);
-                }.bind(this)
-            };
-        }.bind(this);
-
-        var categoriesMap = this.graphViewModel.categories.reduce(
-            function (result, category) {
-                result[category.id] = { data: [] };
-                return result;
-            },
-            {}
-        );
-
-        this.graphViewModel.series.forEach(function (series) {
-            if (series.type !== 'bar') return;
-
-            series.data.forEach(function (point) {
-                var bar = createBarData(series, point);
-                categoriesMap[point.categoryId].data.push(bar);
-            });
-        });
-
-        this._barsData = {
-            categories: this.graphViewModel.categories.map(function (category) {
-                return {
-                    categoryId: category.id,
-                    data: categoriesMap[category.id].data
-                };
-            })
-        };
-    },
-
-    _buildInternalLinesData: function () {
-        function constructLineTooltipHtml(series) {
-            return '<div>' + series.title + '</div>';
-        }
-
-        var constructLinePointTooltipHtml = function(series, point) {
-            return '<div>' + series.title + '</div><div>' +
-                this._axisValueFormat(this._axesData[point.axisId])(point.y) + '</div>';
-        }.bind(this);
-
-        var createLinePoint = function (series, seriesPoint) {
-            return {
-                categoryId: seriesPoint.categoryId,
-                color: series.color,
-                tooltip: constructLinePointTooltipHtml(series, seriesPoint),
-                y: function () {
-                    var scale = this._scaleByAxisId(seriesPoint.axisId);
-                    return  scale(seriesPoint.y);
-                }.bind(this)
-            };
-        }.bind(this);
-
-        function createLineData (series) {
-            return series.data.map(function (point) {
-                return createLinePoint(series, point);
-            });
-        }
-
-        var lines = this.graphViewModel.series
-            .filter(function (series) { 
-                return series.type === 'line'; 
-            })
-            .map(function (series) {
-                return {
-                    seriesId: series.id,
-                    color: series.color,
-                    tooltip: constructLineTooltipHtml(series),
-                    data: createLineData(series)
-                };
-            });
-        
-        this._linesData = { lines: lines };
     },
 
     _buildSvgViewport: function () {        
@@ -212,7 +80,7 @@ var CategoryGraphView = GraphView.extend({
         var sceneWidth = fixValue(svgWidth - this._padding.left - this._padding.right);
         var tickBottomMargin = 5;
         
-        var categoryWidth = sceneWidth * 0.8 / (this.graphViewModel.categories.length || 1);
+        var categoryWidth = sceneWidth * 0.8 / (this.categoryGraphViewModel.categories.length || 1);
         var horizontalTextSize = this._calculateTickTextSize('2018-08-10');
         var horizontalWidth = horizontalTextSize.width;
 
@@ -221,7 +89,7 @@ var CategoryGraphView = GraphView.extend({
         var areaHeight = horizontalTextSize.height + tickBottomMargin;
         
         if (rotated) {
-            var maxCategoryTitleWidth = this.graphViewModel.categories.reduce(
+            var maxCategoryTitleWidth = this.categoryGraphViewModel.categories.reduce(
                 function (maxWidth, category) {
                     return Math.max(maxWidth, this._calculateTickTextSize(category.title).width);
                 }.bind(this), 0
@@ -268,22 +136,23 @@ var CategoryGraphView = GraphView.extend({
     _buildScales: function () {
         var width = this._sceneGeometry.width;
         var height = this._sceneGeometry.height;
+        var axes = this.categoryGraphViewModel.axes;
 
         this._xScale = d3.scaleBand().rangeRound([0, width]).padding([0.2]);
-        this._xScale.domain(this._axesData.xBottom.domain);
+        this._xScale.domain(axes.xBottom.domain);
 
         this._yLeftScale = null;
-        if (this._axesData.yLeft) {
+        if (axes.yLeft) {
             this._yLeftScale = d3.scaleLinear()
                 .range([height, 0])
-                .domain(this._axesData.yLeft.domain);
+                .domain(axes.yLeft.domain);
         }
 
         this._yRightScale = null;
-        if (this._axesData.yRight) {
+        if (axes.yRight) {
             this._yRightScale = d3.scaleLinear()
                 .range([height, 0])
-                .domain(this._axesData.yRight.domain);
+                .domain(axes.yRight.domain);
         }
     },
 
@@ -330,8 +199,25 @@ var CategoryGraphView = GraphView.extend({
     },
 
     _buildTooltip: function () {
-        function tooltipText(d) {
-            return (d && d.tooltip) ? d.tooltip : '';
+
+        var valueFormat = function (axisId, value) {
+            var format = this._axisValueFormat(this.categoryGraphViewModel.axes[axisId]);
+            return format(value);
+        }.bind(this);
+        
+
+        function tooltipHtml(d) {
+            if (!d) return '';
+            if (d.tooltip) return d.tooltip;
+
+            var tooltip = '';
+            if (d.seriesTitle) {
+                tooltip += '<div class="title">' + d.seriesTitle + '</div>';
+            }
+            if (d.y !== undefined) {
+                tooltip += '<div class="value">' + valueFormat(d.axisId, d.y) + '</div>';
+            }            
+            return tooltip;
         }
 
         // general tooltip
@@ -341,7 +227,7 @@ var CategoryGraphView = GraphView.extend({
             .offset(function () {
                 return [-5, 0];
             })
-            .html(tooltipText);
+            .html(tooltipHtml);
 
         // line tooltip
         this._lineTip = d3.tip()
@@ -352,7 +238,7 @@ var CategoryGraphView = GraphView.extend({
                 var m = (r.left + r.right) / 2;
                 return [d3.event.clientY - r.top - 4, d3.event.clientX - m];
             })
-            .html(tooltipText);
+            .html(tooltipHtml);
 
         this._svg.call(this._tip);
         this._svg.call(this._lineTip);
@@ -374,6 +260,7 @@ var CategoryGraphView = GraphView.extend({
         var x = this._sceneGeometry.left;
         var y = this._sceneGeometry.top + this._sceneGeometry.height;
         var maxTextWidth = this._xAxisTickGeometry.textWidth;
+        var axes = this.categoryGraphViewModel.axes;
 
         this._svg.select('g.axis--x')
             .attr('transform', 'translate(' + x + ', ' + y + ')')
@@ -393,11 +280,13 @@ var CategoryGraphView = GraphView.extend({
         var labelY = this._xAxisTickGeometry.areaHeight + 20;
         this._svg.select('g.axis--x .title')
             .attr('transform', 'translate(' + labelX + ', ' + labelY + ')' )
-            .text(this._axesData.xBottom.title);
+            .text(axes.xBottom.title);
     },
 
     _updateYLeftAxis: function () {
-        if (!this._axesData.yLeft) {
+        var axes = this.categoryGraphViewModel.axes;
+
+        if (!axes.yLeft) {
             return this._svg.select('g.axis--y-left').selectAll('*').remove();
         }
 
@@ -405,9 +294,9 @@ var CategoryGraphView = GraphView.extend({
         var y = this._sceneGeometry.top;
 
         var axis = d3.axisLeft(this._yLeftScale)
-            .tickFormat(this._axisValueFormat(this._axesData.yLeft))
-            .ticks(this._axesData.yLeft.ticksCount)
-            .tickValues(this._axesData.yLeft.tickValues)
+            .tickFormat(this._axisValueFormat(axes.yLeft))
+            .ticks(axes.yLeft.ticksCount)
+            .tickValues(axes.yLeft.tickValues)
             .scale(this._yLeftScale);
 
         this._svg.select('g.axis--y-left')
@@ -417,11 +306,13 @@ var CategoryGraphView = GraphView.extend({
         this._svg.select('g.axis--y-left .title')
             .attr('x', - this._sceneGeometry.height / 2)
             .attr('y', '-3em')
-            .text(this._axesData.yLeft.title);
+            .text(axes.yLeft.title);
     },
 
     _updateYRightAxis: function () {
-        if (!this._axesData.yRight) {
+        var axes = this.categoryGraphViewModel.axes;
+
+        if (!axes.yRight) {
             return this._svg.select('g.axis--y-right').selectAll('*').remove();
         }
 
@@ -429,9 +320,9 @@ var CategoryGraphView = GraphView.extend({
         var y = this._sceneGeometry.top;
 
         var axis = d3.axisRight(this._yRightScale)
-            .tickFormat(this._axisValueFormat(this._axesData.yRight))
-            .ticks(this._axesData.yRight.ticksCount)
-            .tickValues(this._axesData.yRight.tickValues)
+            .tickFormat(this._axisValueFormat(axes.yRight))
+            .ticks(axes.yRight.ticksCount)
+            .tickValues(axes.yRight.tickValues)
             .scale(this._yRightScale);
 
         this._svg.select('g.axis--y-right')
@@ -441,14 +332,19 @@ var CategoryGraphView = GraphView.extend({
         this._svg.select('g.axis--y-right .title')
             .attr('x', - this._sceneGeometry.height / 2)
             .attr('y', '4em')
-            .text(this._axesData.yRight.title);
+            .text(axes.yRight.title);
     },
 
     _updateBars: function (performAnimation) {
         var animationDuration = performAnimation ? this._animationDuration : 0;
 
+        var bars = this.categoryGraphViewModel.bars;
         var height = this._sceneGeometry.height;
         var x = this._xScale;
+        var y = function (axisId, value) {
+            var scale = this._scaleByAxisId(axisId);
+            return scale(value);
+        }.bind(this);
 
         var setEventHandlers = function(selection) {
             return selection
@@ -463,7 +359,7 @@ var CategoryGraphView = GraphView.extend({
         var g = this._svg.select('g.graph-content-container');
 
         var categories = g.selectAll('.bar-category')
-            .data(this._barsData.categories);
+            .data(bars.categories);
 
         categories.exit().remove();
 
@@ -476,7 +372,7 @@ var CategoryGraphView = GraphView.extend({
             }.bind(this));
 
         newCategory.selectAll('.bar')
-            .data(function (category) { return category.data; })
+            .data(function (category) { return category.bars; })
             .enter().append('rect')
                 .attr('class', 'bar')
                 .style('fill', function (d) { return d.color; })
@@ -485,7 +381,7 @@ var CategoryGraphView = GraphView.extend({
                 
 
         var updatedBars = categories.selectAll('.bar')
-            .data(function (category) { return category.data; });
+            .data(function (category) { return category.bars; });
 
         updatedBars.enter().append('rect')
             .attr('class', 'bar')
@@ -501,15 +397,20 @@ var CategoryGraphView = GraphView.extend({
             .style('fill', function (d) { return d.color; })
             .style('stroke', function (d) { return d.color; })
             .attr('x', function (d, i, data) { return i * (x.bandwidth() / data.length + 2);  })
-            .attr('y', function (d) { return d.y(); })
+            .attr('y', function (d) { return y(d.axisId, d.y); })
             .attr('width',  function (d, i, data) {  return x.bandwidth() / data.length; })
-            .attr('height', function (d) { return height - d.y(); });
+            .attr('height', function (d) { return height - y(d.axisId, d.y); });
     },
 
     _updateLines: function(performAnimation) {
         var animationDuration = performAnimation ? this._animationDuration : 0;
 
+        var lines = this.categoryGraphViewModel.lines;
         var x = this._xScale;
+        var y = function (axisId, value) {
+            var scale = this._scaleByAxisId(axisId);
+            return scale(value);
+        }.bind(this);
 
         var baseLine = d3.line()
             .x(0)
@@ -517,7 +418,7 @@ var CategoryGraphView = GraphView.extend({
 
         var valueLine = d3.line()
             .x(function(d) { return x(d.categoryId) + x.bandwidth() / 2; })
-            .y(function(d) { return d.y(); });
+            .y(function(d) { return y(d.axisId, d.y); });
 
         var setEventHandlers = function(selection) {
             return selection
@@ -527,12 +428,12 @@ var CategoryGraphView = GraphView.extend({
 
         var g = this._svg.select('g.graph-content-container');
 
-        var lines = g.selectAll('.line')
-            .data(this._linesData.lines, function (d) { return d.seriesId; });
+        var linePaths = g.selectAll('.line')
+            .data(lines, function (d) { return d.seriesId; });
 
-        lines.exit().remove();
+        linePaths.exit().remove();
 
-        lines.enter().append('path')
+        linePaths.enter().append('path')
             .attr('class', 'line')
             .attr('d', baseLine)
             .style('stroke', function (d) { return d.color; })
@@ -543,7 +444,7 @@ var CategoryGraphView = GraphView.extend({
                 .attr('d', function (d) { return valueLine(d.data); })
                 .style('stroke', function (d) { return d.color; });
 
-        lines.transition()
+        linePaths.transition()
             .duration(animationDuration)
             .attr('d', function (d) { return valueLine(d.data); })
             .style('stroke', function (d) { return d.color; });
@@ -551,6 +452,12 @@ var CategoryGraphView = GraphView.extend({
 
     _updateLinePoints: function (performAnimation) {
         var animationDuration = performAnimation ? this._animationDuration : 0;
+
+        var lines = this.categoryGraphViewModel.lines;
+        var y = function (axisId, value) {
+            var scale = this._scaleByAxisId(axisId);
+            return scale(value);
+        }.bind(this);
 
         var setEventHandlers = function(selection) {
             return selection
@@ -565,16 +472,16 @@ var CategoryGraphView = GraphView.extend({
         var x = this._xScale;
         var g = this._svg.select('g.graph-content-container');
 
-        var newLines = g.selectAll('.line-points-container')
-            .data(this._linesData.lines, function (d) { return d.seriesId; });
-        newLines.enter().append('g')
+        var newLinePaths = g.selectAll('.line-points-container')
+            .data(lines, function (d) { return d.seriesId; });
+        newLinePaths.enter().append('g')
             .attr('class', 'line-points-container');
-        newLines.exit().remove();
+        newLinePaths.exit().remove();
 
-        var lines = g.selectAll('.line-points-container')
-            .data(this._linesData.lines, function (d) { return d.seriesId; });        
+        var lineContainers = g.selectAll('.line-points-container')
+            .data(lines, function (d) { return d.seriesId; });        
 
-        var points = lines.selectAll('circle.point')
+        var points = lineContainers.selectAll('circle.point')
             .data(function(d) { return d.data; });
 
         points.enter().append('circle')
@@ -587,35 +494,16 @@ var CategoryGraphView = GraphView.extend({
             .transition()
                 .duration(animationDuration)
                 .attr('cx', function(d) { return x(d.categoryId) + x.bandwidth() / 2; })
-                .attr('cy', function(d) { return d.y(); });
+                .attr('cy', function(d) { return y(d.axisId, d.y); });
 
         points.exit().remove();
         
         points.transition()
             .duration(animationDuration)
             .attr('cx', function(d) { return x(d.categoryId) + x.bandwidth() / 2; })
-            .attr('cy', function(d) { return d.y(); })
+            .attr('cy', function(d) { return y(d.axisId, d.y); })
             .style('fill', function (d) { return d.color; })
             .style('stroke', function (d) { return d.color; });
-    },
-
-    _calculateYDomains: function () {
-        var domains = {
-            yLeft: [0, null],
-            yRight: [0, null]
-        };
-
-        this.graphViewModel.series.forEach(function (series) {
-            series.data.forEach(function (d) {
-                var domain = domains[d.axisId];
-                if (!domain[1]) domain[1] = d.y;
-
-                domain[0] = Math.min(domain[0], d.y);
-                domain[1] = Math.max(domain[1], d.y);
-            });
-        });
-
-        return domains;    
     },
 
     _scaleByAxisId: function (axisId) {

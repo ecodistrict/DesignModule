@@ -42,7 +42,9 @@ var GraphViewController = L.Evented.extend({
             ),
             axes: this.graphModel.axes,
             categories: this.graphModel.categories
-        });        
+        });
+
+        this.onInitialize();
 
         this.graphView = this.createGraphView();
         this.graphView.on('entryClicked', this._toggleLegendEntry, this);
@@ -61,6 +63,8 @@ var GraphViewController = L.Evented.extend({
 
     remove: function () {
         if (!this.graphModel) return;
+
+        this.onRemove();
         
         this.graphModel.off('title', this._updateGraphViewModelTitle, this);
         this.graphModel.off('series', this._updateGraphViewModelLegend, this);
@@ -81,6 +85,14 @@ var GraphViewController = L.Evented.extend({
         this.windowManager = null;
     },
 
+    onInitialize: function () {
+        // can be overriden in child class
+    },
+
+    onRemove: function () {
+        // can be overriden in child class
+    },
+
     createGraphView: function () {
         // can be overriden in child class
         
@@ -88,6 +100,21 @@ var GraphViewController = L.Evented.extend({
             graphViewModel: this.graphViewModel,
             graphLegendModel: this.graphLegendViewModel,            
         }, this._graphViewOptions));
+    },
+
+    processAxes: function (axes) {
+        // can be overriden in child class
+        return axes;
+    },
+
+    processCategories: function (categories) {
+        // can be overriden in child class
+        return categories;
+    },
+
+    processSeries: function (series) {
+        // can be overriden in child class
+        return series;
     },
 
     _notifyViewClosed: function (eventData) {
@@ -121,10 +148,12 @@ var GraphViewController = L.Evented.extend({
     },
 
     _updateGraphViewModelSeries: function () {
-        this.graphViewModel.series = this._filterSeriesByLegend(
+        var filteredSeries = this._filterSeriesByLegend(
             this.graphModel.series, 
             this.graphLegendViewModel.entries
         );
+
+        this.graphViewModel.series = this.processSeries(filteredSeries);
     },
 
     _updateGraphViewModelLegend: function () {
@@ -133,11 +162,11 @@ var GraphViewController = L.Evented.extend({
     },
 
     _updateGraphViewModelAxes: function () {
-        this.graphViewModel.axes = this.graphModel.axes;
+        this.graphViewModel.axes = this.processAxes(this.graphModel.axes);
     },
 
     _updateGraphViewModelCategories: function () {
-        this.graphViewModel.categories = this.graphModel.categories;
+        this.graphViewModel.categories = this.processCategories(this.graphModel.categories);
     },
 
     _constructLegendFromSeries: function (series) {

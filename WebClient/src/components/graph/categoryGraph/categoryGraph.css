@@ -80,6 +80,6 @@ svg.category-graph .axis--y .title {
     transition: opacity 0.7s;
 }
 
-.category-graph-tip div:first-child {
+.category-graph-tip div.title {
     font-weight: bold;
 }
