@@ -88,7 +88,7 @@ var CategoryGraphView = GraphView.extend({
         var horizontalWidth = horizontalTextSize.width;
 
         var rotated = horizontalWidth > categoryWidth;
-        var textWidth = horizontalWidth;
+        var textWidth = categoryWidth;
         var areaHeight = horizontalTextSize.height + tickBottomMargin;
         
         if (rotated) {
