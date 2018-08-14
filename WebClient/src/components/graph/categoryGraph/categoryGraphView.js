@@ -277,7 +277,7 @@ var CategoryGraphView = GraphView.extend({
             });
 
         var labelX = this._sceneGeometry.width / 2;
-        var labelY = this._xAxisTickGeometry.areaHeight + 20;
+        var labelY = this._xAxisTickGeometry.areaHeight + 24;
         this._svg.select('g.axis--x .title')
             .attr('transform', 'translate(' + labelX + ', ' + labelY + ')' )
             .text(axes.xBottom.title);
