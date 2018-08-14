@@ -3,7 +3,9 @@
  * Category graph is a graph where x axis is a categories axis.
  */
 
-/* globals d3, GraphView, DomUtil  */ 
+/* globals d3, GraphView, DomUtil */ 
+/* globals categoryGraphLines */ 
+/* globals categoryGraphLinesPoints */ 
 
 /* exported CategoryGraphView */
 var CategoryGraphView = GraphView.extend({
@@ -406,104 +408,32 @@ var CategoryGraphView = GraphView.extend({
         var animationDuration = performAnimation ? this._animationDuration : 0;
 
         var lines = this.categoryGraphViewModel.lines;
-        var x = this._xScale;
-        var y = function (axisId, value) {
-            var scale = this._scaleByAxisId(axisId);
-            return scale(value);
-        }.bind(this);
 
-        var baseLine = d3.line()
-            .x(0)
-            .y(0);
-
-        var valueLine = d3.line()
-            .x(function(d) { return x(d.categoryId) + x.bandwidth() / 2; })
-            .y(function(d) { return y(d.axisId, d.y); });
-
-        var setEventHandlers = function(selection) {
-            return selection
-                .on('mouseover', this._lineTip.show)
-                .on('mouseout', this._lineTip.hide);
-        }.bind(this);
+        var drawCategoryGraphLines = categoryGraphLines(lines)
+            .xBottomScale(this._xScale)
+            .yLeftScale(this._yLeftScale)
+            .yRightScale(this._yRightScale)
+            .tip(this._lineTip)
+            .duration(animationDuration);
 
         var g = this._svg.select('g.graph-content-container');
-
-        var linePaths = g.selectAll('.line')
-            .data(lines, function (d) { return d.seriesId; });
-
-        linePaths.exit().remove();
-
-        linePaths.enter().append('path')
-            .attr('class', 'line')
-            .attr('d', baseLine)
-            .style('stroke', function (d) { return d.color; })
-            .attr('d', function (d) { return baseLine(d.data); })
-            .call(setEventHandlers)
-            .transition()
-                .duration(animationDuration)
-                .attr('d', function (d) { return valueLine(d.data); })
-                .style('stroke', function (d) { return d.color; });
-
-        linePaths.transition()
-            .duration(animationDuration)
-            .attr('d', function (d) { return valueLine(d.data); })
-            .style('stroke', function (d) { return d.color; });
+        g.call(drawCategoryGraphLines);
     },
 
     _updateLinePoints: function (performAnimation) {
         var animationDuration = performAnimation ? this._animationDuration : 0;
 
-        var lines = this.categoryGraphViewModel.lines;
-        var y = function (axisId, value) {
-            var scale = this._scaleByAxisId(axisId);
-            return scale(value);
-        }.bind(this);
+        var lines = this.categoryGraphViewModel.lines;        
 
-        var setEventHandlers = function(selection) {
-            return selection
-                .on('mouseover', this._tip.show)
-                .on('touchstart.tip', this._tip.show)
-                .on('touchstart.anm', this._markTouchstart(true))
-                .on('mouseout', this._tip.hide)
-                .on('touchend.tip', this._tip.hide)
-                .on('touchend.anm', this._markTouchstart(false));
-        }.bind(this);
+        var drawCategoryGraphLinesPoints = categoryGraphLinesPoints(lines)
+            .xBottomScale(this._xScale)
+            .yLeftScale(this._yLeftScale)
+            .yRightScale(this._yRightScale)
+            .tip(this._lineTip)
+            .duration(animationDuration);
 
-        var x = this._xScale;
         var g = this._svg.select('g.graph-content-container');
-
-        var newLinePaths = g.selectAll('.line-points-container')
-            .data(lines, function (d) { return d.seriesId; });
-        newLinePaths.enter().append('g')
-            .attr('class', 'line-points-container');
-        newLinePaths.exit().remove();
-
-        var lineContainers = g.selectAll('.line-points-container')
-            .data(lines, function (d) { return d.seriesId; });        
-
-        var points = lineContainers.selectAll('circle.point')
-            .data(function(d) { return d.data; });
-
-        points.enter().append('circle')
-            .attr('class', function(d,i) { return 'point point-' + i; })
-            .attr('cx', 0)
-            .attr('cy', 0)
-            .style('fill', function (d) { return d.color; })
-            .style('stroke', function (d) { return d.color; })
-            .call(setEventHandlers)
-            .transition()
-                .duration(animationDuration)
-                .attr('cx', function(d) { return x(d.categoryId) + x.bandwidth() / 2; })
-                .attr('cy', function(d) { return y(d.axisId, d.y); });
-
-        points.exit().remove();
-        
-        points.transition()
-            .duration(animationDuration)
-            .attr('cx', function(d) { return x(d.categoryId) + x.bandwidth() / 2; })
-            .attr('cy', function(d) { return y(d.axisId, d.y); })
-            .style('fill', function (d) { return d.color; })
-            .style('stroke', function (d) { return d.color; });
+        g.call(drawCategoryGraphLinesPoints);
     },
 
     _scaleByAxisId: function (axisId) {
