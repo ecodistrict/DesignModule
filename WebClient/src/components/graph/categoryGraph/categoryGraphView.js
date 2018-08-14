@@ -6,6 +6,7 @@
 /* globals d3, GraphView, DomUtil */ 
 /* globals categoryGraphLines */ 
 /* globals categoryGraphLinesPoints */ 
+/* globals categoryGraphBars */ 
 
 /* exported CategoryGraphView */
 var CategoryGraphView = GraphView.extend({
@@ -341,67 +342,16 @@ var CategoryGraphView = GraphView.extend({
         var animationDuration = performAnimation ? this._animationDuration : 0;
 
         var bars = this.categoryGraphViewModel.bars;
-        var height = this._sceneGeometry.height;
-        var x = this._xScale;
-        var y = function (axisId, value) {
-            var scale = this._scaleByAxisId(axisId);
-            return scale(value);
-        }.bind(this);
 
-        var setEventHandlers = function(selection) {
-            return selection
-                .on('mouseover', this._tip.show)
-                .on('touchstart.tip', this._tip.show)
-                .on('touchstart.anm', this._markTouchstart(true))
-                .on('mouseout', this._tip.hide)
-                .on('touchend.tip', this._tip.hide)
-                .on('touchend.anm', this._markTouchstart(false));
-        }.bind(this);
+        var drawCategoryGraphBars = categoryGraphBars(bars)
+            .xBottomScale(this._xScale)
+            .yLeftScale(this._yLeftScale)
+            .yRightScale(this._yRightScale)
+            .tip(this._tip)
+            .duration(animationDuration);
 
         var g = this._svg.select('g.graph-content-container');
-
-        var categories = g.selectAll('.bar-category')
-            .data(bars.categories);
-
-        categories.exit().remove();
-
-        var newCategory = categories.enter().append('g')
-            .attr('class', 'bar-category');
-
-        categories.merge(newCategory)
-            .attr('transform', function (category) { 
-                return 'translate(' + x(category.categoryId) + ', 0)'; 
-            }.bind(this));
-
-        newCategory.selectAll('.bar')
-            .data(function (category) { return category.bars; })
-            .enter().append('rect')
-                .attr('class', 'bar')
-                .style('fill', function (d) { return d.color; })
-                .style('stroke', function (d) { return d.color; })
-                .call(setEventHandlers);
-                
-
-        var updatedBars = categories.selectAll('.bar')
-            .data(function (category) { return category.bars; });
-
-        updatedBars.enter().append('rect')
-            .attr('class', 'bar')
-            .style('fill', function (d) { return d.color; })
-            .style('stroke', function (d) { return d.color; })
-            .call(setEventHandlers);
-
-        updatedBars.exit().remove();
-
-        categories.selectAll('.bar').merge(updatedBars)
-            .transition()
-            .duration(animationDuration)
-            .style('fill', function (d) { return d.color; })
-            .style('stroke', function (d) { return d.color; })
-            .attr('x', function (d, i, data) { return i * (x.bandwidth() / data.length + 2);  })
-            .attr('y', function (d) { return y(d.axisId, d.y); })
-            .attr('width',  function (d, i, data) {  return x.bandwidth() / data.length; })
-            .attr('height', function (d) { return height - y(d.axisId, d.y); });
+        g.call(drawCategoryGraphBars);
     },
 
     _updateLines: function(performAnimation) {
@@ -429,26 +379,11 @@ var CategoryGraphView = GraphView.extend({
             .xBottomScale(this._xScale)
             .yLeftScale(this._yLeftScale)
             .yRightScale(this._yRightScale)
-            .tip(this._lineTip)
+            .tip(this._tip)
             .duration(animationDuration);
 
         var g = this._svg.select('g.graph-content-container');
         g.call(drawCategoryGraphLinesPoints);
-    },
-
-    _scaleByAxisId: function (axisId) {
-        if (axisId === 'yLeft') return this._applyYLeftScale.bind(this);
-        if (axisId === 'yRight') return this._applyYRightScale.bind(this);
-        
-        return;
-    },
-
-    _applyYLeftScale: function (value) {
-        return this._yLeftScale(value);
-    },
-
-    _applyYRightScale: function (value) {
-        return this._yRightScale(value);
     },
 
     _axisValueFormat: function (axis) {
@@ -474,12 +409,6 @@ var CategoryGraphView = GraphView.extend({
         xAxisTmp.remove();
 
         return textSize;
-    },
-
-    _markTouchstart: function (enableMark) {
-        return function () {
-            return d3.select(this).classed('touchstart', enableMark);
-        };
     }
     
 }); 
