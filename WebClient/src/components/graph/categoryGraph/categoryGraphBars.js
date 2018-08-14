@@ -119,9 +119,9 @@ var categoryGraphBars = function(bars) {
             .style('fill', function (d) { return d.color; })
             .style('stroke', function (d) { return d.color; })
             .attr('x', function (d, i, data) { return i * (x.bandwidth() / data.length + 2);  })
-            .attr('y', function (d) { return y(d.axisId, d.y); })
+            .attr('y', function (d) { return Math.min(y(d.axisId, d.y), y(d.axisId, 0)); })
             .attr('width',  function (d, i, data) {  return x.bandwidth() / data.length; })
-            .attr('height', function (d) { return y(d.axisId, 0) - y(d.axisId, d.y); });
+            .attr('height', function (d) { return Math.abs(y(d.axisId, 0) - y(d.axisId, d.y)); });
     }
 
     drawBars.xBottomScale = xBottomScale;
