@@ -31,7 +31,7 @@ Version is defined by the overall graph JSON protocol version. Within a major ve
 |---|---|---|
 | yLeft | [Axis](#v_1_0_axis) | `y` axis shown on the left side of the graph. Note that at least one of the `y` axes should be specified. |
 | yRight | [Axis](#v_1_0_axis) | `y` axis shown on the right side of the graph. Note that at least one of the `y` axes should be specified. |
-| xBottom | [Axis](#v_1_0_axis) | `x` axis shown in the bottom of the graph. This axis will display `categories`. Note that this field is limited comparing to other axes and has only one significant property `title`. Other [Axis](#v1_0_axis) properties will have no affect on the `xBottom` axis. Graph `categories` will be used as a source for the ticks of the `xBottom` axis. |
+| xBottom | [Axis](#v_1_0_axis) | `x` axis shown on the bottom of the graph. This axis will display `categories`. Note that this field is limited comparing to other axes and has only one significant property `title`. Other [Axis](#v1_0_axis) properties will have no affect on the `xBottom` axis. Graph `categories` will be used as a source for the ticks of the `xBottom` axis. |
 | xTop | [Axis](#v_1_0_axis) | **Not supported**. |
 
 **Note** that each axis property name is axis id that is referenced from within data points.
@@ -184,6 +184,10 @@ Version is defined by the overall graph JSON protocol version. Within a major ve
 ```
 
 #### Entire category graph example
+
+The graph data below will result in the following representation
+
+![Category graph example](./images/categoryGraphExample.png)
 
 ```json
 {
@@ -404,7 +408,3 @@ Version is defined by the overall graph JSON protocol version. Within a major ve
     ]
 }
 ```
-
-This graph data will result in the following representation
-
-![Category graph example](./images/categoryGraphExample.png)
