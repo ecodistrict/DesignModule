@@ -49,19 +49,19 @@ var GraphView = WindowView.extend({
     },
 
     onInitializeGraph: function (/* jshint unused:false */ opts) {
-        // override in child grpah classes
+        // override in child graph classes
     },
 
     onRenderGraph: function (/* jshint unused:false */ viewport) {
-        // override in child grpah classes
+        // override in child graph classes
     },
 
     onRemoveGraph: function () {
-        // override in child grpah classes
+        // override in child graph classes
     },
 
     onAddGraph: function (/* jshint unused:false */ windowManager) {
-        // override in child grpah classes
+        // override in child graph classes
     },
 
     _notifyEntryClicked: function (eventData) {
