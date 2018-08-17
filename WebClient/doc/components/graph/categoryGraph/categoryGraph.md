@@ -1,6 +1,6 @@
 # CategoryGraph
 
-Category graph is graph that has a discrete `x` axis with categories on it.
+Category graph is a graph that has a discrete `x` axis with categories on it.
 
 ![Category graph example](images/categoryGraphExample.png)
 
