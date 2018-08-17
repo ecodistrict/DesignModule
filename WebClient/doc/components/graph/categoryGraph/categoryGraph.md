@@ -14,7 +14,7 @@ Each bar is a data point in a single series. Single series can contain an arbitr
 
 * Lines
 
-Each line is defined by a single series where data points are line point.
+Each line is defined by a single series where data points are line points.
 
 ![Category graph lines example](images/categoryGraphLinesExample.png)
 
