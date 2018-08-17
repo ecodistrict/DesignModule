@@ -10,7 +10,6 @@ var CategoryGraphViewController = GraphViewController.extend({
     onInitialize: function () {
         this.categoryGraphViewModel = new CategoryGraphViewModel({
             axes: this._buildAxes(),
-            categories: this._buildCategories(),
             lines: this._buildLines(),
             bars: this._buildBars()
         });
@@ -33,7 +32,6 @@ var CategoryGraphViewController = GraphViewController.extend({
     _onDataChanged: function () {
         this.categoryGraphViewModel.set({
             axes: this._buildAxes(),
-            categories: this._buildCategories(),
             lines: this._buildLines(),
             bars: this._buildBars()
         });
@@ -82,10 +80,6 @@ var CategoryGraphViewController = GraphViewController.extend({
         }
 
         return newAxes;
-    },
-
-    _buildCategories: function () {
-        return this.graphViewModel.categories;
     },
 
     _buildLines: function () {        

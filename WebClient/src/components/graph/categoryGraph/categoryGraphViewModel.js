@@ -21,15 +21,6 @@ var CategoryGraphViewModel = L.Evented.extend({
             }
         });
 
-        var categories = options.categories || [];
-        Object.defineProperty(this, 'categories', {
-            get: function () { return categories; },
-            set: function (newCategories) {
-                categories = newCategories;
-                this.fire('categories', { categories: categories });
-            }
-        });
-
         var lines = options.lines || [];
         Object.defineProperty(this, 'lines', {
             get: function () { return lines; },

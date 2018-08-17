@@ -250,7 +250,6 @@ When constructing a model an options object can be passed to constructor.
 | Property | Type | Description |
 |---|---|---|
 | axes | [Axes](#axes) | Axes definition object. *xBottom* is a mandatory field while *yLeft* and *yRight* are optional but at least one of them should be provided. |
-| categories | Array&lt;[Category](#category)&gt; | List of available categories. |
 | lines | Array &lt;[Line](#line)&gt; | List of lines. |
 | bars | [Bars](#bars) | Object containing bars to be displayed. |
 
@@ -259,7 +258,6 @@ When constructing a model an options object can be passed to constructor.
 | Property | Type | Description |
 |---|---|---|
 | axes | [Axes](#axes) | Axes definition object. *xBottom* is a mandatory field while *yLeft* and *yRight* are optional but at least one of them should be provided. |
-| categories | Array&lt;[Category](#category)&gt; | List of available categories. |
 | lines | Array &lt;[Line](#line)&gt; | List of lines. |
 | bars | [Bars](#bars) | Object containing bars to be displayed. |
 
@@ -274,7 +272,6 @@ When constructing a model an options object can be passed to constructor.
 | Property | Type | Description |
 |---|---|---|
 | axes | { axes: [Axes](#axes) } | Event axes. Triggered whenever *axes* property of the model changes. This can happen when *axes* is changed with assign operator or when *set(opts)* method is called. |
-| categories | { categories: Array&lt;[Category](#category)&gt; } | Event categories. Triggered whenever *categories* property of the model changes. This can happen when *categories* is changed with assign operator or when *set(opts)* method is called. |
 | lines | { lines: Array &lt;[Line](#line)&gt; } | Event lines. Triggered whenever *lines* property of the model changes. This can happen when *lines* is changed with assign operator or when *set(opts)* method is called. |
 | bars | { bars: [Bars](#bars) } | Event bars. Triggered whenever *bars* property of the model changes. This can happen when *bars* is changed with assign operator or when *set(opts)* method is called. |
 
@@ -295,7 +292,7 @@ When constructing a model an options object can be passed to constructor.
 | formatSpecifier | string | Ticks format. Refer [d3-format](https://github.com/d3/d3-format#locale_format).  |
 | ticksCount | number | Number of desired ticks on the axis. |
 | tickValues | Array&lt;number&gt; | Ticks to be displayed on the axis. If this is specified then exactly these ticks will be shown and there will be no auto generated ticks for this axis. This means that this property discards *ticksCount* property when set. |
-| domain | Array&lt;number&gt; or Array&lt;[Category](#category)&gt; | Axis domain. `y` axes uses numeric domain while `x` axis uses category doamin. For *xBottom* axis the *category* objects will contain an additional *tooltip* property that is a tooltip message text to be shown when category is hovered. |
+| domain | Array&lt;number&gt; or Array&lt;[Category](#category)&gt; | Axis domain. `y` axes uses numeric domain while `x` axis uses category doamin. |
 
 #### Category <a name="category"></a>
 
@@ -303,6 +300,7 @@ When constructing a model an options object can be passed to constructor.
 |---|---|---|
 | id | string | Category id. A unique value that indicates the category within a given graph. |
 | title | string | Category title. This property is used to display a tick text on `x` axis. |
+| tooltip | string | Tooltip message text to be shown when category is hovered. |
 
 #### Line <a name="line"></a>
 

@@ -82,8 +82,9 @@ var CategoryGraphView = GraphView.extend({
         var svgWidth = this._svg.node().getBoundingClientRect().width;
         var sceneWidth = fixValue(svgWidth - this._padding.left - this._padding.right);
         var tickBottomMargin = 5;
+        var categories = this.categoryGraphViewModel.axes.xBottom.domain;
         
-        var categoryWidth = sceneWidth * 0.8 / (this.categoryGraphViewModel.categories.length || 1);
+        var categoryWidth = sceneWidth * 0.8 / (categories.length || 1);
         var horizontalTextSize = this._calculateTickTextSize('2018-08-10');
         var horizontalWidth = horizontalTextSize.width;
 
@@ -92,7 +93,7 @@ var CategoryGraphView = GraphView.extend({
         var areaHeight = horizontalTextSize.height + tickBottomMargin;
         
         if (rotated) {
-            var maxCategoryTitleWidth = this.categoryGraphViewModel.categories.reduce(
+            var maxCategoryTitleWidth = categories.reduce(
                 function (maxWidth, category) {
                     return Math.max(maxWidth, this._calculateTickTextSize(category.title).width);
                 }.bind(this), 0
