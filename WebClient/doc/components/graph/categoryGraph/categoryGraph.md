@@ -14,12 +14,10 @@ Each bar is a data point in a single series. Single series can contain an arbitr
 
 * Lines
 
-Each line is defined by a single series where data points are line points.
+Each line is defined by a single series where data points are line point.
 
 ![Category graph lines example](images/categoryGraphLinesExample.png)
 
-
-#### Usage example <a name="categoryGraphViewModelUsage"></a>
 
 * [Data format](#dataFormat)
 * [Features](#features)
@@ -81,7 +79,7 @@ In the Graph data structure bars are grouped within series while when drawing ba
 
 ### CategoryGraphViewModel <a name="categoryGraphViewModel"></a>
 
-*[CategoryGraphViewModel](#graphViewController) (Model)* holds the data needed to draw the bars and lines without any additional data processing from the *View*. Instead of *series* this model has *lines* and *bars* properties that hold corresponding data optimized for passing these objects directly into **d3** functions without additional preparation.
+*[CategoryGraphViewModel](#categoryGraphViewModelApi) (Model)* holds the data needed to draw the bars and lines without any additional data processing from the *View*. Instead of *series* this model has *lines* and *bars* properties that hold corresponding data optimized for passing these objects directly into **d3** functions without additional preparation.
 
 ## API reference <a name="apiReference"></a>
 
@@ -246,7 +244,9 @@ model.set({
 ```
 
 #### Options <a name="categoryGraphViewModelOpts"></a>
+
 When constructing a model an options object can be passed to constructor.
+
 | Property | Type | Description |
 |---|---|---|
 | axes | [Axes](#axes) | Axes definition object. *xBottom* is a mandatory field while *yLeft* and *yRight* are optional but at least one of them should be provided. |
@@ -324,7 +324,7 @@ When constructing a model an options object can be passed to constructor.
 | axisId | string | Id of the axis to which the `y` value is bind. This property is used to determine `top` position of the point when displayed on the viewport. *axisId* is also used to decorate the `y` value with units when displayed within a tooltip when point is hovered. |
 | y | number | `y` value of the point. The value is converted to a `top` coordinate on the viewport using the *axisId*. |
 
-#### Bars <a name="bar"></a>
+#### Bars <a name="bars"></a>
 
 | Property | Type | Description |
 |---|---|---|
