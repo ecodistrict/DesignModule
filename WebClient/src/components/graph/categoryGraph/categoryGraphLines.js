@@ -85,7 +85,6 @@ var categoryGraphLines = function(lines) {
 
         linePaths.enter().append('path')
             .attr('class', 'line')
-            .attr('d', baseLine)
             .style('stroke', function (d) { return d.color; })
             .attr('d', function (d) { return baseLine(d.data); })
             .call(setEventHandlers)
