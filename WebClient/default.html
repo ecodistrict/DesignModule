@@ -277,30 +277,68 @@
             description: sessionDescription,
             referenceScenario: null
         };
-        // Mobile
-        if (window.innerWidth < 500) {
+
+        var layoutOptions;
+        var graphViewOptions;        
+        if (window.innerWidth < 500) { // Mobile
             document.body.setAttribute("id", "phone");
+
+            layoutOptions = {
+                padding: {
+                    left: 15,
+                    right: 15,
+                    top: 5,
+                    botton: 40
+                },
+                cellSpacing: 5,
+                topRowCellCount: 0,
+                leftColumnCellCount: 2,
+                rightColumnCellCount: 0,
+                maxCellWidth: window.innerWidth - 50,
+                maxCellHeight: window.innerHeight / 3,
+                minCellWidth: 150,
+                minCellHeight: 80
+            };
+
+            graphViewOptions = {
+                minWidth: 200,
+                minHeight: 150,
+                maxWidth: 900,
+                maxHeight: 600,
+                width: 250,
+                height: 200
+            };
         } else {
             document.body.removeAttribute("id");
+
+            layoutOptions = {
+                padding: {
+                    left: 15,
+                    right: 15,
+                    top: 5,
+                    botton: 40
+                },
+                cellSpacing: 5,
+                topRowCellCount: 2,
+                leftColumnCellCount: 4,
+                rightColumnCellCount: 4,
+                maxCellWidth: null,
+                maxCellHeight: null,
+                minCellWidth: 150,
+                minCellHeight: 80
+            };
+
+            graphViewOptions = {
+                minWidth: 300,
+                minHeight: 200,
+                maxWidth: 900,
+                maxHeight: 600,
+                width: 350,
+                height: 250
+            };
         }
 
-        var layout = new PerimeterLayout({
-            padding: {
-                left: 15,
-                right: 15,
-                top: 5,
-                botton: 40
-            },
-            cellSpacing: 5,
-            topRowCellCount: 2,
-            leftColumnCellCount: 4,
-            rightColumnCellCount: 4,
-            maxCellWidth: null,
-            maxCellHeight: null,
-            minCellWidth: 150,
-            minCellHeight: 80
-        });
-
+        var layout = new PerimeterLayout(layoutOptions);
         var windowManager = new WindowManager({
             element: document.querySelector('#windows-area'),
             layout: layout
@@ -332,14 +370,7 @@
         var graphService = new GraphService();        
         var graphViewManager = new GraphViewManager({
             windowManager: windowManager,
-            graphViewOptions: {
-                minWidth: 300,
-                minHeight: 200,
-                maxWidth: 900,
-                maxHeight: 600,
-                width: 350,
-                height: 250
-            }
+            graphViewOptions: graphViewOptions
         });
 
         // details

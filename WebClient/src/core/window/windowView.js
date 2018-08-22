@@ -57,7 +57,9 @@ var WindowView = L.Evented.extend({
         buttonsContainer.appendChild(this._dockButton.element());
 
         var closeButton = L.DomUtil.create('span', 'fas fa-times window-close', titleBar);
+        closeButton.addEventListener('mousedown', function (e) { e.stopPropagation(); });
         closeButton.addEventListener('click', this._onCloseBtnClicked);
+        closeButton.addEventListener('touchstart', function (e) { e.stopPropagation(); });
         closeButton.addEventListener('touchend', this._onCloseBtnClicked);
         buttonsContainer.appendChild(closeButton);
 
@@ -78,6 +80,15 @@ var WindowView = L.Evented.extend({
         if (!this._rootElement) return; // already removed
 
         this.onRemove();
+
+        document.removeEventListener('mousemove', this._onResizeMousemove);
+        document.removeEventListener('mouseup', this._onResizeMouseup);
+        document.removeEventListener('touchmove', this._onResizeTouchmove);
+        document.removeEventListener('touchend', this._onResizeTouchend);
+        document.removeEventListener('mousemove', this._onMoveMousemove);
+        document.removeEventListener('mouseup', this._onMoveMouseup);
+        document.removeEventListener('touchmove', this._onMoveTouchmove);
+        document.removeEventListener('touchend', this._onMoveTouchend);
 
         var parent = this._rootElement.parentNode;
         if (parent) {
@@ -301,6 +312,7 @@ var WindowView = L.Evented.extend({
 
     _onCloseBtnClicked: function (e) {
         e.preventDefault();
+        e.stopPropagation();
 
         this.close();
     },
