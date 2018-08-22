@@ -24,8 +24,8 @@ var DockButtonView = L.Evented.extend({
         this._rootElement = L.DomUtil.create('span', 'dock-btn', this._parent);
         this._rootElement.addEventListener('click', this._onClick.bind(this));
         this._rootElement.addEventListener('touchend', this._onClick.bind(this));
-        this._rootElement.addEventListener('mousedown', function (e) { e.stopPropagation(); });
-        this._rootElement.addEventListener('touchstart', function (e) { e.stopPropagation(); });
+        this._rootElement.addEventListener('mousedown', this._onPress.bind(this));
+        this._rootElement.addEventListener('touchstart', this._onPress.bind(this));
     },
 
     remove: function () {
@@ -78,12 +78,21 @@ var DockButtonView = L.Evented.extend({
         }
     },
 
+    _onPress: function (e) {
+        e.stopPropagation();
+        this._notifyFocus();
+    },
+
     _notifyDockClicked: function () {
         this.fire('dockClicked', { button: this });
     },
 
     _notifyUndockClicked: function () {
         this.fire('undockClicked', { button: this });
-    }
+    },
+
+    _notifyFocus: function () {
+        this.fire('focus', { button: this });
+    },
 
 });

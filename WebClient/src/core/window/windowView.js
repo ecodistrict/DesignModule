@@ -54,6 +54,7 @@ var WindowView = L.Evented.extend({
         this._dockButton = new DockButtonView({ dockButtonViewModel: this._dockState });
         this._dockButton.on('dockClicked', this._onDockClicked, this);
         this._dockButton.on('undockClicked', this._onUndockClicked, this);
+        this._dockButton.on('focus', this._notifyFocus, this);
         buttonsContainer.appendChild(this._dockButton.element());
 
         var closeButton = L.DomUtil.create('span', 'fas fa-times window-close', titleBar);
