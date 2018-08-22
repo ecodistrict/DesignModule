@@ -10,6 +10,14 @@
     background-color: rgba(255, 255, 255, 0.95);
 }
 
+.window-view.docked {
+    -webkit-transition: transform 200ms cubic-bezier(0.220, 0, 0.745, 1); /* older webkit */
+    -webkit-transition: transform 200ms cubic-bezier(0.220, -0.495, 0.745, 1.530); 
+    -moz-transition: transform 200ms cubic-bezier(0.220, -0.495, 0.745, 1.530); 
+    -o-transition: transform 200ms cubic-bezier(0.220, -0.495, 0.745, 1.530); 
+    transition: transform 200ms cubic-bezier(0.220, -0.495, 0.745, 1.530); /* custom */
+}
+
 .window-view .window-titlebar {
     display: block;
     position: absolute;

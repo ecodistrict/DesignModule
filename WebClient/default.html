@@ -45,6 +45,8 @@
     <link rel="stylesheet" href="Content/ControlPropertiesDialog.css" />
     <link rel="stylesheet" href="Content/common.css" />
     <link rel="stylesheet" href="Content/d3Override.css" />
+    <link rel="stylesheet" href="src/core/widgets/dockButton/dockButton.css" />
+    <link rel="stylesheet" href="src/core/window/windowManager.css" />
     <link rel="stylesheet" href="src/core/window/window.css" />
     <link rel="stylesheet" href="src/components/scaleSlider/scaleSlider.css" />
     <link rel="stylesheet" href="src/components/timeSlider/timeSlider.css" />
@@ -134,7 +136,11 @@
     <!-- utils -->
     <script src="src/utils/DomUtil.js"></script>
     <!-- core -->
+    <!-- core widget DockButton -->
+    <script src="src/core/widgets/dockButton/dockButtonViewModel.js"></script>
+    <script src="src/core/widgets/dockButton/dockButtonView.js"></script>
     <!-- core component Window -->
+    <script src="src/core/window/perimeterLayout.js"></script>
     <script src="src/core/window/windowView.js"></script>
     <script src="src/core/window/windowManager.js"></script>
     <!-- components -->
@@ -275,8 +281,26 @@
             document.body.removeAttribute("id");
         }
 
+        var layout = new PerimeterLayout({
+            padding: {
+                left: 15,
+                right: 15,
+                top: 5,
+                botton: 40
+            },
+            cellSpacing: 5,
+            topRowCellCount: 2,
+            leftColumnCellCount: 4,
+            rightColumnCellCount: 4,
+            maxCellWidth: null,
+            maxCellHeight: null,
+            minCellWidth: 150,
+            minCellHeight: 80
+        });
+
         var windowManager = new WindowManager({
-            element: document.querySelector('#windows-area')
+            element: document.querySelector('#windows-area'),
+            layout: layout
         });
 
         // top-right
