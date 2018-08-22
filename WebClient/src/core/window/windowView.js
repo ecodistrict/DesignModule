@@ -2,7 +2,7 @@
  * WindowView base window class.
  */
 
-/* globals L, DockButtonViewModel */ 
+/* globals L, DockButtonViewModel, DockButtonView */ 
 
 /* exported WindowView */
 var WindowView = L.Evented.extend({
@@ -47,11 +47,19 @@ var WindowView = L.Evented.extend({
         this._rootElement.style.height = '' + this._height + 'px';
         
         var titleBar = L.DomUtil.create('div', 'window-titlebar', this._rootElement);
-        this._title = L.DomUtil.create('span', 'window-title', titleBar);        
-        var closeButton = L.DomUtil.create('a', 'window-close', titleBar);
-        closeButton.href = '#';
+        this._title = L.DomUtil.create('span', 'window-title', titleBar);
+
+        var buttonsContainer = L.DomUtil.create('div', 'window-buttons-container', titleBar);
+
+        this._dockButton = new DockButtonView({ dockButtonViewModel: this._dockState });
+        this._dockButton.on('dockClicked', this._onDockClicked, this);
+        this._dockButton.on('undockClicked', this._onUndockClicked, this);
+        buttonsContainer.appendChild(this._dockButton.element());
+
+        var closeButton = L.DomUtil.create('span', 'fas fa-times window-close', titleBar);
         closeButton.addEventListener('click', this._onCloseBtnClicked);
         closeButton.addEventListener('touchend', this._onCloseBtnClicked);
+        buttonsContainer.appendChild(closeButton);
 
         this._viewportElement = L.DomUtil.create('div', 'window-viewport', this._rootElement);
 
@@ -183,10 +191,13 @@ var WindowView = L.Evented.extend({
     // Layout Item methods
 
     fillSpace: function (spaceGeometry) {
-        this._width = spaceGeometry.width;
-        this._height = spaceGeometry.height;
-
         this.move(spaceGeometry.x, spaceGeometry.y);
+        this._rootElement.style.width = '' + spaceGeometry.width + 'px';
+        this._rootElement.style.height = '' + spaceGeometry.height + 'px';
+        this.onResize();
+    },
+
+    restoreSize: function () {
         this._rootElement.style.width = '' + this._width + 'px';
         this._rootElement.style.height = '' + this._height + 'px';
         this.onResize();
@@ -238,9 +249,9 @@ var WindowView = L.Evented.extend({
         var docked = this.docked();
 
         if (dockingAvailable || docked) {
-            // show
+            this._dockButton.show();
         } else {
-            // hide
+            this._dockButton.hide();
         }
     },
 

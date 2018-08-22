@@ -49,11 +49,12 @@ var WindowManager = L.Evented.extend({
         window.on('moveFinish', this._onWindowMoveFinish, this);
         window.on('resizeStart', this._onWindowResizeStart, this);
 
-        this._windowContainer.appendChild(window.element());
         this._addWindowToStack(window);
+        var docked = this.dockWindow(window);
+        this._windowContainer.appendChild(window.element());
         window.onAdd(this);
 
-        if (!this.dockWindow(window)) {
+        if (!docked) {
             this._incrementNextPostion();
             window.move(this._nextPosition.x, this._nextPosition.y);
         }
@@ -80,6 +81,10 @@ var WindowManager = L.Evented.extend({
 
     undockWindow: function (window) {
         if (!window.docked()) return;
+
+        var windowRect = window.getBoundingRect();
+        window.move(windowRect.x + 10, windowRect.y + 10);
+        window.restoreSize();
 
         this._layout.remove(window);
         window.setDockState(false);

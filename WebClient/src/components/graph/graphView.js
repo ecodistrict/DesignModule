@@ -9,6 +9,7 @@
 var GraphView = WindowView.extend({
     
     initialize: function (opts) {
+        if (!opts) throw new Error('No arguments are provided to the View');
         if (!opts.graphViewModel) throw new Error('graphViewModel is not provided');
         if (!opts.graphLegendModel) throw new Error('graphLegendModel is not provided');
 

@@ -1,0 +1,4 @@
+.dock-btn {
+    cursor: pointer;
+    pointer-events: auto;
+}
