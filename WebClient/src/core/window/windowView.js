@@ -2,7 +2,7 @@
  * WindowView base window class.
  */
 
-/* globals L, DockButtonViewModel, DockButtonView */ 
+/* globals L, DockButtonViewModel, DockButtonView, CloseButtonView */ 
 
 /* exported WindowView */
 var WindowView = L.Evented.extend({
@@ -57,12 +57,10 @@ var WindowView = L.Evented.extend({
         this._dockButton.on('focus', this._notifyFocus, this);
         buttonsContainer.appendChild(this._dockButton.element());
 
-        var closeButton = L.DomUtil.create('span', 'fas fa-times window-close', titleBar);
-        closeButton.addEventListener('mousedown', function (e) { e.stopPropagation(); });
-        closeButton.addEventListener('click', this._onCloseBtnClicked);
-        closeButton.addEventListener('touchstart', function (e) { e.stopPropagation(); });
-        closeButton.addEventListener('touchend', this._onCloseBtnClicked);
-        buttonsContainer.appendChild(closeButton);
+        this._closeButton = new CloseButtonView();
+        this._closeButton.on('closeClicked', this._onCloseBtnClicked, this);
+        this._closeButton.on('focus', this._notifyFocus, this);
+        buttonsContainer.appendChild(this._closeButton.element());
 
         this._viewportElement = L.DomUtil.create('div', 'window-viewport', this._rootElement);
 
@@ -311,10 +309,7 @@ var WindowView = L.Evented.extend({
         this._onMoveTouchend = this._onMoveTouchend.bind(this);
     },
 
-    _onCloseBtnClicked: function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-
+    _onCloseBtnClicked: function () {
         this.close();
     },
 

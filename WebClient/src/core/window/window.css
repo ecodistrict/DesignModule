@@ -46,7 +46,6 @@
 }
 
 .window-view .window-titlebar .dock-btn {
-    display: inline-block;
     font-size: 15px;
     margin-right: 15px;
 }
@@ -54,14 +53,10 @@
     opacity: 0.3;
 }
 
-.window-view .window-titlebar .window-close {
-    display: inline-block;
+.window-view .window-titlebar .close-btn {
     font-size: 20px;
-    opacity: 1;
-    pointer-events: auto;
-    cursor: pointer;
 }
-.window-view .window-titlebar .window-close:hover {
+.window-view .window-titlebar .close-btn:hover {
     opacity: 0.3;
 }
 
