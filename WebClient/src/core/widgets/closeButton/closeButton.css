@@ -1,0 +1,4 @@
+.close-btn {
+    cursor: pointer;
+    pointer-events: auto;
+}
