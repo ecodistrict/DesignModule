@@ -138,12 +138,12 @@ L.Control.Files = L.Control.extend({
         for (var ft in item.fileTypes) {
             var filetype = document.createElement('div');
             filetype.className = 'files-filetype';
-            var sp = document.createElement('span');
-            sp.fileName = item.fileName;
-            sp.fileType = item.fileTypes[ft];
-            sp.innerHTML = sp.fileType;
-            L.DomEvent.on(sp, 'click', this._downloadFile, this);
-            filetype.appendChild(sp);
+            var sp2 = document.createElement('span');
+            sp2.fileName = item.fileName;
+            sp2.fileType = item.fileTypes[ft];
+            sp2.innerHTML = sp2.fileType;
+            L.DomEvent.on(sp2, 'click', this._downloadFile, this);
+            filetype.appendChild(sp2);
             row.appendChild(filetype);
         }
         // add row to table div
@@ -184,7 +184,7 @@ L.Control.Files = L.Control.extend({
                 var len = bytes.byteLength;
                 for (var i = 0; i < len; i++) {
                     // check if previous block can be send
-                    if (i > 0 && i % fileBlockSize == 0) {
+                    if (i > 0 && i % fileBlockSize === 0) {
                         // send last block
                         message.payload.fileContents = window.btoa(binary);
                         wsSend(message);
@@ -196,7 +196,7 @@ L.Control.Files = L.Control.extend({
                     }
                     binary += String.fromCharCode(bytes[i]);
                 }
-                if (binary != "") {
+                if (binary !== "") {
                     // send last blob
                     message.payload.fileContents = window.btoa(binary);
                     wsSend(message);
@@ -243,7 +243,7 @@ L.Control.Files = L.Control.extend({
                 var messageFileEntry = message.add[a];
                 var found = false;
                 for (var ai = 0; ai < this._filesItems.length; ai++) {
-                    if (this._filesItems[ai].fileName == messageFileEntry.fileName) {
+                    if (this._filesItems[ai].fileName === messageFileEntry.fileName) {
                         found = true;
                         // merge file types
                         var fileItem2 = this._filesItems[ai];
@@ -252,7 +252,7 @@ L.Control.Files = L.Control.extend({
                             for (var t in messageFileEntry.fileTypes) {
                                 var found2 = false;
                                 for (var t2 in fileItem2.fileTypes) {
-                                    if (messageFileEntry.fileTypes[t] == fileItem2.fileTypes[t2]) {
+                                    if (messageFileEntry.fileTypes[t] === fileItem2.fileTypes[t2]) {
                                         found2 = true;
                                         break;
                                     }
@@ -280,7 +280,7 @@ L.Control.Files = L.Control.extend({
             for (var r = 0; r < message.remove.length; r++) {
                 var rname = message.remove[r];
                 for (var ri = 0; ri < this._filesItems.length; ri++) {
-                    if (this._filesItems[ri].fileName == rname) {
+                    if (this._filesItems[ri].fileName === rname) {
                         this._filesItems.splice(ri, 1);
                         break;
                     }
