@@ -27,13 +27,20 @@ var GraphView = WindowView.extend({
     },
 
     onRender: function (viewport) {
-        var legendContainer = L.DomUtil.create('div', 'graph-legend hidden', this.element());
+        this._legendContainer = L.DomUtil.create(
+            'div', 
+            'graph-legend right hidden', 
+            this.element()
+        );
         this.legendView = new GraphLegendView({
-            element: legendContainer,
+            element: this._legendContainer,
             model: this.graphLegendModel
         });
         this.legendView.on('focus', this._notifyFocus, this);
         this.legendView.on('entryClicked', this._notifyEntryClicked, this);
+
+        this.on('moved', this._adjustLegendLocation, this);
+        this.on('resized', this._adjustLegendLocation, this);
 
         this.onRenderGraph(viewport);
     },
@@ -68,6 +75,41 @@ var GraphView = WindowView.extend({
 
     _notifyEntryClicked: function (eventData) {
         this.fire('entryClicked', eventData);
+    },
+
+    _moveLegentToRight: function () {
+        L.DomUtil.removeClass(this._legendContainer, 'left');
+        L.DomUtil.addClass(this._legendContainer, 'right');
+    },
+
+    _moveLegentToLeft: function () {
+        L.DomUtil.removeClass(this._legendContainer, 'right');
+        L.DomUtil.addClass(this._legendContainer, 'left');
+    },
+
+    _adjustLegendLocation: function () {
+        var graphViewRect = this.element().getBoundingClientRect();
+        var legendRect = this._legendContainer.getBoundingClientRect();
+        
+        var rightsideSpace = window.innerWidth - graphViewRect.right;
+        var leftsideSpace = graphViewRect.left;
+        var legendOnRight = graphViewRect.right < legendRect.left;
+        var legendMargin = legendOnRight ? 
+            legendRect.left - graphViewRect.right : graphViewRect.left - legendRect.right;
+
+        if (legendOnRight) {
+            if ((legendRect.right > window.innerWidth) &&
+                (leftsideSpace > rightsideSpace)) {
+                
+                this._moveLegentToLeft();
+            }
+        } else {
+            if ((graphViewRect.right + legendRect.width + legendMargin  <= window.innerWidth) ||
+                (rightsideSpace > leftsideSpace)) {
+
+                this._moveLegentToRight();
+            }
+        }
     }
 
 }); 

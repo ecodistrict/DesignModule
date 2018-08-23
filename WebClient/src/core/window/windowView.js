@@ -45,6 +45,9 @@ var WindowView = L.Evented.extend({
         this._rootElement = L.DomUtil.create('div', 'window-view ' + this._windowClass);
         this._rootElement.style.width = '' + this._width + 'px';
         this._rootElement.style.height = '' + this._height + 'px';
+        // transition is aplied to window geometry and position
+        this._rootElement.addEventListener('transitionend', this._notifyMoved.bind(this));
+        this._rootElement.addEventListener('transitionend', this._notifyResized.bind(this));
         
         var titleBar = L.DomUtil.create('div', 'window-titlebar', this._rootElement);
         this._title = L.DomUtil.create('span', 'window-title', titleBar);
@@ -140,6 +143,8 @@ var WindowView = L.Evented.extend({
 
     move: function (left, top) {
         this._rootElement.style.transform = 'translate(' + left + 'px, ' + top +  'px)';
+        this.onMove();
+        this._notifyMoved();
     },
 
     resize: function (width, height) {
@@ -165,6 +170,7 @@ var WindowView = L.Evented.extend({
         this._rootElement.style.height = '' + this._height + 'px';
         
         this.onResize();
+        this._notifyResized();
     },
 
     show: function () {
@@ -180,6 +186,10 @@ var WindowView = L.Evented.extend({
     },
 
     onRemove: function () {
+        // override in child classes
+    },
+
+    onMove: function () {
         // override in child classes
     },
 
@@ -204,13 +214,21 @@ var WindowView = L.Evented.extend({
         this.move(spaceGeometry.x, spaceGeometry.y);
         this._rootElement.style.width = '' + spaceGeometry.width + 'px';
         this._rootElement.style.height = '' + spaceGeometry.height + 'px';
+
+        this.onMove();
         this.onResize();
+        this._notifyMoved();
+        this._notifyResized();
     },
 
     restoreSize: function () {
         this._rootElement.style.width = '' + this._width + 'px';
         this._rootElement.style.height = '' + this._height + 'px';
+        
+        this.onMove();
         this.onResize();
+        this._notifyMoved();
+        this._notifyResized();
     },
 
     getBoundingRect: function () {
@@ -253,6 +271,14 @@ var WindowView = L.Evented.extend({
 
     _notifyDockState: function (docked) {
         this.fire('resizeFinish', { windowView: this, docked:docked });
+    },
+
+    _notifyMoved: function () {
+        this.fire('moved', { windowView: this });
+    },
+
+    _notifyResized: function () {
+        this.fire('resized', { windowView: this });
     },
 
     _processDockingAvailability: function (dockingAvailable) {

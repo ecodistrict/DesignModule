@@ -5,9 +5,18 @@
 .graph-view .graph-legend {
     position: absolute;
     margin-left: 3px;
+    margin-right: 3px;
     padding: 3px;
-    top: 0px;
-    left: 100%;
     background-color: inherit;
     box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3);
+}
+
+.graph-view .graph-legend.right {
+    top: 0px;
+    left: 100%;
+}
+
+.graph-view .graph-legend.left {
+    bottom: 0px;
+    right: 100%;
 }
