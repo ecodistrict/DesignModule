@@ -15,7 +15,8 @@ var PerimeterLayout = L.Evented.extend({
                 top: 5,
                 botton: 5
             },
-            cellSpacing: 5,
+            verticalCellSpacing: 5,
+            horizontalCellSpacing: 5,
             topRowCellCount: 2,
             leftColumnCellCount: 4,
             rightColumnCellCount: 4,
@@ -144,7 +145,9 @@ var PerimeterLayout = L.Evented.extend({
         var cellWidth = this._calculateCellWidht();
         var cellHeight = this._calculateCellHeight();
 
-        var cellSpacing = this._options.cellSpacing;
+        var verticalCellSpacing = this._options.verticalCellSpacing;
+        var horizontalCellSpacing = this._options.horizontalCellSpacing;
+
         var padding = this._options.padding;
 
         var leftColumn = this._cells.filter(function (cell) { return cell.location === 'left'; });
@@ -154,7 +157,7 @@ var PerimeterLayout = L.Evented.extend({
         leftColumn.forEach(function (cell, i) {
             cell.geometry = {
                 x: padding.left,
-                y: padding.top + (cellHeight + cellSpacing) * i,
+                y: padding.top + (cellHeight + verticalCellSpacing) * i,
                 width: cellWidth,
                 height: cellHeight
             };
@@ -167,7 +170,7 @@ var PerimeterLayout = L.Evented.extend({
         rightColumn.forEach(function (cell, i) {
             cell.geometry = {
                 x: layoutWidth - padding.right - cellWidth,
-                y: padding.top + (cellHeight + cellSpacing) * i,
+                y: padding.top + (cellHeight + verticalCellSpacing) * i,
                 width: cellWidth,
                 height: cellHeight
             };
@@ -179,7 +182,7 @@ var PerimeterLayout = L.Evented.extend({
 
         topRow.forEach(function (cell, i) {
             cell.geometry = {
-                x: padding.left + (cellWidth + cellSpacing) * (i + 1),
+                x: padding.left + (cellWidth + horizontalCellSpacing) * (i + 1),
                 y: padding.top,
                 width: cellWidth,
                 height: cellHeight
@@ -200,11 +203,11 @@ var PerimeterLayout = L.Evented.extend({
             (leftColumn.length > 0 ? 1 : 0) + 
             (rightColumn.length > 0 ? 1 : 0);
 
-        var cellSpacing = this._options.cellSpacing;
+        var horizontalCellSpacing = this._options.horizontalCellSpacing;
         var padding = this._options.padding;
 
         var horizontalOffsetSpace = padding.left + padding.right + 
-            (horizontalCellCount - 1) * cellSpacing;
+            (horizontalCellCount - 1) * horizontalCellSpacing;
         var cellWidth = (this._size.width - horizontalOffsetSpace) / horizontalCellCount;
         
         if (this._options.maxCellWidth) {
@@ -222,11 +225,11 @@ var PerimeterLayout = L.Evented.extend({
         var rightColumn = this._cells.filter(function (cell) { return cell.location === 'right'; });
 
         var maxVerticalCellCount = Math.max(leftColumn.length, rightColumn.length);
-        var cellSpacing = this._options.cellSpacing;
+        var verticalCellSpacing = this._options.verticalCellSpacing;
         var padding = this._options.padding;
 
         var verticalOffsetSpace = padding.top + padding.botton + 
-            (maxVerticalCellCount - 1) * cellSpacing;
+            (maxVerticalCellCount - 1) * verticalCellSpacing;
         var cellHeight = (this._size.height - verticalOffsetSpace) / maxVerticalCellCount;
         
         if (this._options.maxCellHeight) {
