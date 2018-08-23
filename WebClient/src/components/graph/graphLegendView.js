@@ -20,6 +20,8 @@ var GraphLegendView = L.Evented.extend({
     render: function () {        
         L.DomEvent.disableClickPropagation(this.element);
 
+        d3.select(this.element).on('click touchend', this._notifyFocus.bind(this));
+
         this._redraw();
         this._adjustVisibility();
 
@@ -28,6 +30,8 @@ var GraphLegendView = L.Evented.extend({
     },
 
     remove: function () {
+        d3.select(this.element).on('click touchend', null);
+
         this.model.off('entries', this._redraw, this);
         this.model.off('entries', this._adjustVisibility, this);
 
@@ -56,6 +60,7 @@ var GraphLegendView = L.Evented.extend({
 
         var newEntry = entries.enter().append('div')
             .attr('class', 'graph-legend-entry')
+            .on('click touchend', this._notifyFocus.bind(this))
             .on('click touchend', this._notifyEntryClicked.bind(this));
 
         newEntry.append('div')
@@ -85,6 +90,10 @@ var GraphLegendView = L.Evented.extend({
 
     _notifyEntryClicked: function (entry) {
         this.fire('entryClicked', { entry: entry });
+    },
+    
+    _notifyFocus: function () {
+        this.fire('focus', { view: this });
     }
 
 });

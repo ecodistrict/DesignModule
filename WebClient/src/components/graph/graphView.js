@@ -32,6 +32,7 @@ var GraphView = WindowView.extend({
             element: legendContainer,
             model: this.graphLegendModel
         });
+        this.legendView.on('focus', this._notifyFocus, this);
         this.legendView.on('entryClicked', this._notifyEntryClicked, this);
 
         this.onRenderGraph(viewport);
