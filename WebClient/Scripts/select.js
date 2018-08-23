@@ -36,27 +36,29 @@ function showSelectedObjectsProperties(container, data) {
 function buildAttributesEditDialog(container, data, applyHandler, title) {
     // optional title
     if (typeof title !== "undefined") {
-        var title = container.appendChild(document.createElement('h2'));
-        title.innerText = title;
+        var titleElement = container.appendChild(document.createElement('h2'));
+        titleElement.innerText = title;
         container.appendChild(document.createElement('hr'));
     }
 
     // properties/attributes table
     propertiesTables = {};
     objProps = data.selectedObjectsProperties;
-    objProps.properties.sort(function (a, b) { return a.ordering - b.ordering; });
+    if (typeof objProps !== "undefined") {
+        objProps.properties.sort(function (a, b) { return a.ordering - b.ordering; });
 
-    tableContainer = container.appendChild(document.createElement('div'));
-    tableContainer.id = "attributesContainer";
-    buildAttributesTable(tableContainer, objProps);
-    // attribute names are used as rows
+        tableContainer = container.appendChild(document.createElement('div'));
+        tableContainer.id = "attributesContainer";
+        buildAttributesTable(tableContainer, objProps);
+        // attribute names are used as rows
 
-    container.appendChild(document.createElement("hr"));
-
+        container.appendChild(document.createElement("hr"));
+    }
     var buttonContainer = container.appendChild(document.createElement("div"));
     buttonContainer.className = 'modalDialogDevideButtons';
     modelDialogAddButton(buttonContainer, "Cancel", modalDialogClose);
-    modelDialogAddButton(buttonContainer, "Apply", applyHandler);
+        modelDialogAddButton(buttonContainer, "Apply", applyHandler);
+
 }
 
 function buildAttributesTable(container, properties) {

@@ -158,6 +158,7 @@
         wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
         // determine parameters and config
         var wsBaseURL = wsp + '://vps17642.public.cloudvps.com';
+        //var wsBaseURL = wsp + '://vps54128.public.cloudvps.com';
         var session = getParameterByName('session', '');
         if (session == '') {
             //session = '6B84B11553BC4AA6B2B6A0759F6EB278'; // us_demo
@@ -195,6 +196,12 @@
             //session = 'TestRKEvaluate'; //Ralph test database evaluate
             //session = 'HenkTest';
             //session = 'D937BA6603B64147BDA2C8CFED9D973F'; //app-usmodel01 AMS
+            //session = 'testhans'; // test publisher
+            //session = '1234$undefined$1234';
+            //session = 'kiel2018';
+            //session = 'kielDesign';
+            //session = 'weesperstraat';
+            //session = 'ExpoSenseTest${080c64ad-af1e-43aa-afac-9d96a276d839}$fietsuser';
         }
         var clientType = getParameterByName('clientType', '');
         var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');

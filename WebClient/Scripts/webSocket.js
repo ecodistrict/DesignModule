@@ -11,8 +11,9 @@ var wsLookup = {
         // first domains after login
         domainsControl.resetDomains(payload);
         // remove all basic overlay layers from layers control (and with that from map)
-        for (var id in layerControl._layers) {
-            var lcl = layerControl._layers[id];
+        // removing so iterate from end to start
+        for (var i = layerControl._layers.length - 1; i >= 0; i--) {
+            var lcl = layerControl._layers[i];
             if (lcl.overlay) {
                 layerControl.removeLayer(lcl.layer);
             }
@@ -34,8 +35,9 @@ var wsLookup = {
         crd.reset(false, false, false);
         domainsControl.updateDomains(payload);
         // replace all basic overlay layers from layers control (and with that from map)
-        for (var id in layerControl._layers) {
-            var lcl = layerControl._layers[id];
+        // removing so iterate from end to start
+        for (var i = layerControl._layers.length - 1; i >= 0; i--) {
+            var lcl = layerControl._layers[i];
             if (lcl.overlay) {
                 layerControl.removeLayer(lcl.layer);
             }
