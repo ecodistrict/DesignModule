@@ -272,6 +272,8 @@ var CategoryGraphView = GraphView.extend({
 
         this._svg.select('g.axis--x').selectAll('.tick text')
             .classed('rotate', this._xAxisTickGeometry.rotated)
+            .attr('transform', this._xAxisTickGeometry.rotated ? 
+                'rotate(45)' : '')
             .on('mouseover', this._tip.show)
             .on('touchstart', this._tip.show)
             .on('mouseout', this._tip.hide)
