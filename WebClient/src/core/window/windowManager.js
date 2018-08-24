@@ -62,8 +62,11 @@ var WindowManager = L.Evented.extend({
 
     removeWindow: function (window) {
         window.off('focus', this._onWindowFocus, this);
+        window.off('moving', this._onWindowMoving, this);
+        window.off('moveFinish', this._onWindowMoveFinish, this);
+        window.off('resizeStart', this._onWindowResizeStart, this);
         this._removeWindowFromStack(window);
-        this.undockWindow(window);
+        this._layout.remove(window);
         window.remove();        
     },
 

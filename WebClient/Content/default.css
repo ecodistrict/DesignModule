@@ -190,10 +190,10 @@ a.leaflet-control-info-toggle {
 
 #windows-area {
   position: fixed;
-  height: 100%;
-  top: 0;
-  left: 30px;
-  right: 30px;
+  top: 45px;
+  left: 55px;
+  right: 55px;
+  bottom: 50px;
   pointer-events: none;
   z-index: 999;
 }
