@@ -55,8 +55,8 @@ var WindowManager = L.Evented.extend({
         window.onAdd(this);
 
         if (!docked) {
-            this._incrementNextPostion();
             window.move(this._nextPosition.x, this._nextPosition.y);
+            this._incrementNextPostion();
         }
     },
 
@@ -82,12 +82,12 @@ var WindowManager = L.Evented.extend({
     undockWindow: function (window) {
         if (!window.docked()) return;
 
-        var windowRect = window.getBoundingRect();
-        window.move(windowRect.x + 10, windowRect.y + 10);
-        window.restoreSize();
+        function onWindowGeometryRestored() {
+            window.setDockState(false);
+        }
 
         this._layout.remove(window);
-        window.setDockState(false);
+        window.restoreGeometry(onWindowGeometryRestored);        
     },
 
     _createDockHighlightArea: function () {
@@ -181,12 +181,6 @@ var WindowManager = L.Evented.extend({
         var window = data.windowView;
         if (!window.docked()) return;
 
-        this._hideDockHighlightArea();
-
-        var currentSpace = this._layout.getLayoutItemSpace(window);
-        var newSpace = this._layout.findNearestSpace(window);
-        var newSpaceWindow = this._layout.getLayoutItem(newSpace);
-
         var dockToSpace = function (window, space) {
             if (!window) return false;
 
@@ -199,6 +193,15 @@ var WindowManager = L.Evented.extend({
             return true;
         }.bind(this);
 
+        this._hideDockHighlightArea();
+
+        var currentSpace = this._layout.getLayoutItemSpace(window);
+        var newSpace = this._layout.findNearestSpace(window);
+        if (!newSpace) {
+            return dockToSpace(window, currentSpace);
+        }
+
+        var newSpaceWindow = this._layout.getLayoutItem(newSpace);
         if (window === newSpaceWindow) {            
             return dockToSpace(window, currentSpace);
         }
@@ -210,7 +213,14 @@ var WindowManager = L.Evented.extend({
 
     _onWindowResizeStart: function (data) {
         var window = data.windowView;
-        this.undockWindow(window);
+        if (!window.docked()) return;
+
+        this._layout.remove(window);
+        window.setDockState(false);
+
+        var windowRect = window.getBoundingRect();
+        window.move(windowRect.x, windowRect.y);
+        window.resize(windowRect.width, windowRect.height);
     },
     
     _onResize: function () {

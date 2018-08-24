@@ -2,7 +2,7 @@
  * WindowView base window class.
  */
 
-/* globals L, DockButtonViewModel, DockButtonView, CloseButtonView */ 
+/* globals L, DomUtil, DockButtonViewModel, DockButtonView, CloseButtonView */ 
 
 /* exported WindowView */
 var WindowView = L.Evented.extend({
@@ -15,6 +15,10 @@ var WindowView = L.Evented.extend({
         this._maxWidth = options.maxWidth || null;
         this._maxHeight = options.maxHeight || null;
 
+        this._left = null;
+        this._top = null;
+        this._currentLeft = 0;
+        this._currentTop = 0;
         this._width = options.width || this._minWidth;
         this._height = options.height || this._minHeight;
         this._windowClass = options.class || '';
@@ -45,9 +49,7 @@ var WindowView = L.Evented.extend({
         this._rootElement = L.DomUtil.create('div', 'window-view ' + this._windowClass);
         this._rootElement.style.width = '' + this._width + 'px';
         this._rootElement.style.height = '' + this._height + 'px';
-        // transition is aplied to window geometry and position
-        this._rootElement.addEventListener('transitionend', this._notifyMoved.bind(this));
-        this._rootElement.addEventListener('transitionend', this._notifyResized.bind(this));
+        this._rootElement.addEventListener('transitionend', this._onTransitionEnd.bind(this));
         
         var titleBar = L.DomUtil.create('div', 'window-titlebar', this._rootElement);
         this._title = L.DomUtil.create('span', 'window-title', titleBar);
@@ -142,35 +144,73 @@ var WindowView = L.Evented.extend({
     },
 
     move: function (left, top) {
+        // Don't persist new position while window is docked.
+        if (!this.docked()) {
+            this._left = left;
+            this._top = top;
+        }
+
+        this._currentLeft = left;
+        this._currentTop = top;        
+
         this._rootElement.style.transform = 'translate(' + left + 'px, ' + top +  'px)';
         this.onMove();
         this._notifyMoved();
     },
 
     resize: function (width, height) {
-        if (this._width === width && this._height === height) return;
-
         var newWidth = width;
         var newHeight = height;
-
-        if (this._maxWidth) {
-            newWidth = Math.min(newWidth, this._maxWidth);
-        }
-        newWidth = Math.max(newWidth, this._minWidth);
-
-        if (this._maxHeight) {
-            newHeight = Math.min(newHeight, this._maxHeight);
-        }
-        newHeight = Math.max(newHeight, this._minHeight);
         
-        this._width = newWidth;
-        this._height = newHeight;
+        // Don't persist new size while window is docked.
+        // Also ignore window size limitations when docked.
+        if (!this.docked()) {
+            if (this._maxWidth) {
+                newWidth = Math.min(newWidth, this._maxWidth);
+            }
+            newWidth = Math.max(newWidth, this._minWidth);
+    
+            if (this._maxHeight) {
+                newHeight = Math.min(newHeight, this._maxHeight);
+            }
+            newHeight = Math.max(newHeight, this._minHeight);
 
-        this._rootElement.style.width = '' + this._width + 'px';
-        this._rootElement.style.height = '' + this._height + 'px';
+            this._width = newWidth;
+            this._height = newHeight;
+        }        
+
+        this._rootElement.style.width = '' + newWidth + 'px';
+        this._rootElement.style.height = '' + newHeight + 'px';
         
         this.onResize();
         this._notifyResized();
+    },
+
+    fillSpace: function (spaceGeometry) {
+        this.move(spaceGeometry.x, spaceGeometry.y);
+        this.resize(spaceGeometry.width, spaceGeometry.height);
+    },
+
+    restoreGeometry: function (doneCallback) {
+        if (this._left === null) {
+            this._left = this._currentLeft;
+        }
+        if (this._top === null) {
+            this._top = this._currentTop;
+        }
+
+        var positionChanged = this._left !== this._currentLeft || this._top !== this._currentTop;
+
+        this.move(this._left, this._top);
+        this.resize(this._width, this._height);
+
+        if (doneCallback) {
+            if (this.docked() && positionChanged) {
+                DomUtil.singleShotEventListener(this._rootElement, 'transitionend', doneCallback);
+            } else {
+                doneCallback();
+            }
+        }
     },
 
     show: function () {
@@ -208,31 +248,15 @@ var WindowView = L.Evented.extend({
         return this._dockState.docked;
     },
 
-    // Layout Item methods
-
-    fillSpace: function (spaceGeometry) {
-        this.move(spaceGeometry.x, spaceGeometry.y);
-        this._rootElement.style.width = '' + spaceGeometry.width + 'px';
-        this._rootElement.style.height = '' + spaceGeometry.height + 'px';
-
-        this.onMove();
-        this.onResize();
-        this._notifyMoved();
-        this._notifyResized();
-    },
-
-    restoreSize: function () {
-        this._rootElement.style.width = '' + this._width + 'px';
-        this._rootElement.style.height = '' + this._height + 'px';
-        
-        this.onMove();
-        this.onResize();
-        this._notifyMoved();
-        this._notifyResized();
-    },
-
     getBoundingRect: function () {
-        return this._rootElement.getBoundingClientRect();
+        var windowRect = this._rootElement.getBoundingClientRect();
+        
+        return {
+            x: this._currentLeft,
+            y: this._currentTop,
+            width: windowRect.width,
+            height: windowRect.height
+        };
     },
 
     // private methods
@@ -274,11 +298,11 @@ var WindowView = L.Evented.extend({
     },
 
     _notifyMoved: function () {
-        this.fire('moved', { windowView: this });
+        this._fireAsync('moved', { windowView: this });
     },
 
     _notifyResized: function () {
-        this.fire('resized', { windowView: this });
+        this._fireAsync('resized', { windowView: this });
     },
 
     _processDockingAvailability: function (dockingAvailable) {
@@ -355,6 +379,16 @@ var WindowView = L.Evented.extend({
         this._processDockingAvailability(data.dockingAvailabilityStatus);
     },
 
+    _onTransitionEnd: function (e) {
+        if (e.propertyName !== 'transform' ||
+            e.target !== this._rootElement) {
+            return;
+        }
+        
+        this.onMove();
+        this._notifyMoved();
+    },
+
     _onResizeMousedown: function (e) {
         e.preventDefault();
         e.stopPropagation();
@@ -416,11 +450,13 @@ var WindowView = L.Evented.extend({
     },
 
     _onStartResize: function (point) {
+        var windowRect = this.getBoundingRect();
+
         this._resizeState = {
             startPoint: point,
             startSize: {
-                width: this._width,
-                height: this._height
+                width: windowRect.width,
+                height: windowRect.height
             }
         };
 
@@ -544,6 +580,12 @@ var WindowView = L.Evented.extend({
         this._moveState = null;
         this._restoreDockStyle();
         this._notifyMoveFinish();
+    },
+
+    _fireAsync: function (eventType, data, propagate) {
+        setTimeout(function () {
+            this.fire(eventType, data, !!propagate);
+        }.bind(this), 0);
     }
 
 });
