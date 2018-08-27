@@ -10,10 +10,10 @@ var PerimeterLayout = L.Evented.extend({
     initialize: function (opts) {
         this._options = L.extend({
             padding: {
-                left: 5,
-                right: 5,
-                top: 5,
-                botton: 5
+                left: 0,
+                right: 0,
+                top: 0,
+                botton: 0
             },
             verticalCellSpacing: 5,
             horizontalCellSpacing: 5,
@@ -67,6 +67,7 @@ var PerimeterLayout = L.Evented.extend({
     },
 
     getLayoutItem: function (space) {
+        if (!space) return null;
         if (space.index < 0 || space.index >= this._cells.length) return null;
 
         return this._cells[space.index].layoutItem;
@@ -116,27 +117,23 @@ var PerimeterLayout = L.Evented.extend({
     _buildCells: function () {        
         this._cells = [];
 
-        var i;
-        for (i = 0; i < this._options.leftColumnCellCount; ++i) {
+        var addCell = function(location) {
             this._cells.push({ 
                 layoutItem: null, 
                 index: this._cells.length,
-                location: 'left'
+                location: location
             });
+        }.bind(this);
+
+        var i;
+        for (i = 0; i < this._options.leftColumnCellCount; ++i) {
+            addCell('left');
         }
         for (i = 0; i < this._options.rightColumnCellCount; ++i) {
-            this._cells.push({
-                layoutItem: null, 
-                index: this._cells.length,
-                location: 'right'
-            });
+            addCell('right');
         }
         for (i = 0; i < this._options.topRowCellCount; ++i) {
-            this._cells.push({
-                layoutItem: null, 
-                index: this._cells.length,
-                location: 'top'
-            });
+            addCell('top');
         }
     },
 

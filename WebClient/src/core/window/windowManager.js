@@ -31,6 +31,8 @@ var WindowManager = L.Evented.extend({
         this._windowStack = [];
         this._initialZIndex = this._windowContainer.style.zIndex ? 
             parseInt(this._windowContainer.style.zIndex, 10) : 999;
+        this._windowIdCounter = 0;
+        this._windowMetaInfoMap = {};
 
         this._nextPosition = {
             x: 0,
@@ -44,12 +46,16 @@ var WindowManager = L.Evented.extend({
     },
 
     addWindow: function (window) {
+        if (!window) throw this._createNoWindowError();
+
         window.on('focus', this._onWindowFocus, this);
         window.on('moving', this._onWindowMoving, this);
         window.on('moveFinish', this._onWindowMoveFinish, this);
         window.on('resizeStart', this._onWindowResizeStart, this);
 
         this._addWindowToStack(window);
+        window.windowId= ++this._windowIdCounter;
+        this._windowMetaInfoMap[window.windowId] = {};
         var docked = this.dockWindow(window);
         this._windowContainer.appendChild(window.element());
         window.onAdd(this);
@@ -61,36 +67,29 @@ var WindowManager = L.Evented.extend({
     },
 
     removeWindow: function (window) {
+        if (!window) throw this._createNoWindowError();
+
         window.off('focus', this._onWindowFocus, this);
         window.off('moving', this._onWindowMoving, this);
         window.off('moveFinish', this._onWindowMoveFinish, this);
         window.off('resizeStart', this._onWindowResizeStart, this);
+        
+        delete this._windowMetaInfoMap[window.windowId];
         this._removeWindowFromStack(window);
         this._layout.remove(window);
         window.remove();        
     },
 
     dockWindow: function (window) {
-        if (window.docked()) return true;        
+        if (!window) throw this._createNoWindowError();
         
-        window.setDockState(true);
-        if (!this._layout.insert(window)) {
-            window.setDockState(false);
-            return false;
-        }
-        
-        return true;        
+        return this._dockWindowImpl(window);
     },
 
     undockWindow: function (window) {
-        if (!window.docked()) return;
+        if (!window) throw this._createNoWindowError();
 
-        function onWindowGeometryRestored() {
-            window.setDockState(false);
-        }
-
-        this._layout.remove(window);
-        window.restoreGeometry(onWindowGeometryRestored);        
+        this._undockWindowImpl(window);
     },
 
     _createDockHighlightArea: function () {
@@ -186,11 +185,9 @@ var WindowManager = L.Evented.extend({
 
         var dockToSpace = function (window, space) {
             if (!window) return false;
-
-            this._layout.remove(window);
-            if (!this._layout.insert(window, space)) {
+            if (!this._dockWindowImpl(window, space)) {
                 console.warn('Failed to insert a window to a found space.', window, space);
-                this.undockWindow(window);
+                this._undockWindowImpl(window);
                 return false;
             }
             return true;
@@ -229,6 +226,44 @@ var WindowManager = L.Evented.extend({
     _onResize: function () {
         var rect = this._windowContainer.getBoundingClientRect();
         this._layout.resize(rect);
+    },
+
+    _dockWindowImpl: function (window, space) {
+        if (!window) return false;
+
+        var windowMetaInfo = this._windowMetaInfoMap[window.windowId];
+        var newSpace = space;
+        var previousSpace = windowMetaInfo.dockSpace;
+        var windowOnPreviousSpace = this._layout.getLayoutItem(previousSpace);
+        if (!newSpace && 
+            previousSpace && 
+            (!windowOnPreviousSpace || windowOnPreviousSpace === window)) {
+
+            newSpace = previousSpace;
+        }
+        
+        this._layout.remove(window);
+        window.setDockState(true);
+        if (!this._layout.insert(window, newSpace)) {
+            window.setDockState(false);
+            return false;
+        }
+
+        var dockSpace = newSpace || this._layout.getLayoutItemSpace(window);        
+        windowMetaInfo.dockSpace = dockSpace;
+        
+        return true;        
+    },
+
+    _undockWindowImpl: function (window) {
+        if (!window) return;
+
+        function onWindowGeometryRestored() {
+            window.setDockState(false);
+        }
+
+        this._layout.remove(window);
+        window.restoreGeometry(onWindowGeometryRestored);        
     }
 
 });

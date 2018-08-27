@@ -38,6 +38,12 @@ var WindowView = L.Evented.extend({
         });
         this._dockAvailable = false;
 
+        var windowId = 0;
+        Object.defineProperty(this, 'windowId', {
+            get: function () { return windowId; },
+            set: function (neWwindowId) { windowId = neWwindowId; }
+        });
+
         this._bindEventHandlers();
 
         this.render();
@@ -238,7 +244,7 @@ var WindowView = L.Evented.extend({
     },
 
     setDockState: function (docked) {
-        // this method should be called only be the owner of this window
+        // this method should be called only by the owner of this window
         this._dockState.docked = docked;
         this._restoreDockStyle();
         this._notifyDockState(this._dockState.docked);
