@@ -15,7 +15,7 @@ Layout is an abstraction that has custom implementations. This document describe
 
 ### Layout <a name="layout"></a>
 
-Should extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class or its derivatives therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
+Should extend the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class or its derivatives therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
 
 #### Methods <a name="methods"></a>
 The following methods should be implemented to satisfy Layout interface.

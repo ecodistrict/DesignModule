@@ -46,7 +46,7 @@ Options object that should be passed to *WindowView* constructor.
 | setTitle(string titleText) | void | Sets a title text for the window. |
 | move(number left, number top) | void | Moves the window to a specified position. Position is relative to the surface that holds the window. `moved` [event](#events) is emitted. |
 | resize(number width, number height) | void | Resize the window to a specified size. If window is not docked then dimensional limitations are taken into account otherwise limitations are ignored. `resized` [event](#events) is emmited. |
-| restoreGeometry(function doneCallback) | void | Restores position and size that window had before been docked. |
+| restoreGeometry(function doneCallback) | void | Restores position and size that window had before been docked. *doneCallback* will be called when geometry is restored, this can happen asynchronously because of transform animation. |
 | docked() | boolean | Returns `true` if window is docked otherwise returns `false`. |
 | fillSpace([SpaceGeometry](../layout/layout.md#spaceGeometry) spaceGeometry) | void | [LayoutItem](../layout/layout.md#layoutItem) interface method. Changes window position and size according to *spaceGeometry*. Position is relative to the surface that holds the window. If window is not docked then dimensional limitations are taken into account otherwise limitations are ignored. `moved` and `resized` [events](#events) are emitted. |
 | getBoundingRect() | [SpaceGeometry](../layout/layout.md#spaceGeometry) | [LayoutItem](../layout/layout.md#layoutItem) interface method. Returns window position and size. Position is relative to the surface that holds the window. |
