@@ -13,7 +13,7 @@ var PerimeterLayout = L.Evented.extend({
                 left: 0,
                 right: 0,
                 top: 0,
-                botton: 0
+                bottom: 0
             },
             verticalCellSpacing: 5,
             horizontalCellSpacing: 5,
