@@ -3,20 +3,23 @@
  * This is a base class for all child graph view controllers.
  */
 
+/* globals L, GraphView, GraphViewModel, GraphLegendViewModel */ 
+
+/* exported GraphViewController */
 var GraphViewController = L.Evented.extend({
 
     initialize: function (opts) {
         if (!opts.graphModel) throw new Error('graphModel is not provided');
         if (!opts.windowManager) throw new Error('windowManager is not provided');
 
-        this._viewOptions = L.extend({
+        this._graphViewOptions = L.extend({
             minWidth: 150,
             minHeight: 100,
             maxWidth: 800,
             maxHeight: 600,
             width: 300,
             height: 200
-        }, opts.viewOptions);
+        }, opts.graphViewOptions);
 
         this.windowManager = opts.windowManager;
 
@@ -33,10 +36,15 @@ var GraphViewController = L.Evented.extend({
 
         this.graphViewModel = new GraphViewModel({
             title: this.graphModel.title,
-            series: this._filterSeriesByLegend(this.graphModel.series, this.graphLegendViewModel.entries),
+            series: this._filterSeriesByLegend(
+                this.graphModel.series, 
+                this.graphLegendViewModel.entries
+            ),
             axes: this.graphModel.axes,
             categories: this.graphModel.categories
-        });        
+        });
+
+        this.onInitialize();
 
         this.graphView = this.createGraphView();
         this.graphView.on('entryClicked', this._toggleLegendEntry, this);
@@ -55,6 +63,8 @@ var GraphViewController = L.Evented.extend({
 
     remove: function () {
         if (!this.graphModel) return;
+
+        this.onRemove();
         
         this.graphModel.off('title', this._updateGraphViewModelTitle, this);
         this.graphModel.off('series', this._updateGraphViewModelLegend, this);
@@ -75,13 +85,36 @@ var GraphViewController = L.Evented.extend({
         this.windowManager = null;
     },
 
+    onInitialize: function () {
+        // can be overriden in child class
+    },
+
+    onRemove: function () {
+        // can be overriden in child class
+    },
+
     createGraphView: function () {
         // can be overriden in child class
         
         return new GraphView(L.extend({
             graphViewModel: this.graphViewModel,
             graphLegendModel: this.graphLegendViewModel,            
-        }, this._viewOptions));
+        }, this._graphViewOptions));
+    },
+
+    processAxes: function (axes) {
+        // can be overriden in child class
+        return axes;
+    },
+
+    processCategories: function (categories) {
+        // can be overriden in child class
+        return categories;
+    },
+
+    processSeries: function (series) {
+        // can be overriden in child class
+        return series;
     },
 
     _notifyViewClosed: function (eventData) {
@@ -115,7 +148,12 @@ var GraphViewController = L.Evented.extend({
     },
 
     _updateGraphViewModelSeries: function () {
-        this.graphViewModel.series = this._filterSeriesByLegend(this.graphModel.series, this.graphLegendViewModel.entries);
+        var filteredSeries = this._filterSeriesByLegend(
+            this.graphModel.series, 
+            this.graphLegendViewModel.entries
+        );
+
+        this.graphViewModel.series = this.processSeries(filteredSeries);
     },
 
     _updateGraphViewModelLegend: function () {
@@ -124,11 +162,11 @@ var GraphViewController = L.Evented.extend({
     },
 
     _updateGraphViewModelAxes: function () {
-        this.graphViewModel.axes = this.graphModel.axes;
+        this.graphViewModel.axes = this.processAxes(this.graphModel.axes);
     },
 
     _updateGraphViewModelCategories: function () {
-        this.graphViewModel.categories = this.graphModel.categories;
+        this.graphViewModel.categories = this.processCategories(this.graphModel.categories);
     },
 
     _constructLegendFromSeries: function (series) {

@@ -4,12 +4,15 @@
  * maintaining them in sync with the server.
  */
 
+/* globals L, GraphsModel */ 
+
+/* exported GraphService */
 var GraphService = L.Evented.extend({
 
-    initialize: function (opts) {
+    initialize: function () {
         this._graphsModel = new GraphsModel();
         
-        Object.defineProperty(this, "graphsModel", {
+        Object.defineProperty(this, 'graphsModel', {
             get: function () { return this._graphsModel; }
         });
     }

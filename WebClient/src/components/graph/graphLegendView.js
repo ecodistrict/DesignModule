@@ -2,6 +2,9 @@
  * GraphLegendView represents a legend attached to a graph.
  */
 
+/* globals L, d3 */ 
+
+/* exported GraphLegendView */
 var GraphLegendView = L.Evented.extend({
 
     initialize: function (opts) {
@@ -41,7 +44,11 @@ var GraphLegendView = L.Evented.extend({
         L.DomUtil.addClass(this.element, 'hidden');        
     },
 
-    _redraw: function () {
+    _redraw: function () {        
+        function entryMarkerColor(d) { 
+            return d.enabled ? d.color : 'rgba(0, 0, 0, 0)';
+        }
+
         var entries = d3.select(this.element).selectAll('div.graph-legend-entry')
             .data(this.model.entries);
 
@@ -49,7 +56,7 @@ var GraphLegendView = L.Evented.extend({
 
         var newEntry = entries.enter().append('div')
             .attr('class', 'graph-legend-entry')
-            .on('click', this._notifyEntryClicked.bind(this));
+            .on('click touchend', this._notifyEntryClicked.bind(this));
 
         newEntry.append('div')
             .attr('class', 'graph-legend-entry-marker')
@@ -66,10 +73,6 @@ var GraphLegendView = L.Evented.extend({
 
         entries.merge(newEntry).select('.graph-legend-entry-text')
             .text(function (d) { return d.title; });
-
-        function entryMarkerColor(d) { 
-            return d.enabled ? d.color : 'rgba(0, 0, 0, 0)';
-        }
     },
 
     _adjustVisibility: function () {

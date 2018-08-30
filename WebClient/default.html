@@ -54,6 +54,7 @@
     <link rel="stylesheet" href="src/components/kpi/kpi.css" />
     <link rel="stylesheet" href="src/components/graph/graph.css" />
     <link rel="stylesheet" href="src/components/graph/graphLegend.css" />
+    <link rel="stylesheet" href="src/components/graph/categoryGraph/categoryGraph.css" />
 
     <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
@@ -130,6 +131,8 @@
     <script src="Scripts/formdialog.js"></script>
     <!--<script src="Scripts/warningDialog.js"></script>-->
     <!-- our code -->
+    <!-- utils -->
+    <script src="src/utils/DomUtil.js"></script>
     <!-- core -->
     <!-- core component Window -->
     <script src="src/core/window/windowView.js"></script>
@@ -154,6 +157,13 @@
     <script src="src/components/graph/graphView.js"></script>
     <script src="src/components/graph/graphLegendView.js"></script>
     <script src="src/components/graph/graphViewController.js"></script>
+    <script src="src/components/graph/categoryGraph/categoryGraphLines.js"></script>
+    <script src="src/components/graph/categoryGraph/categoryGraphLinesPoints.js"></script>
+    <script src="src/components/graph/categoryGraph/categoryGraphBars.js"></script>
+    <script src="src/components/graph/categoryGraph/categoryGraphPreview.js"></script>
+    <script src="src/components/graph/categoryGraph/categoryGraphViewModel.js"></script>
+    <script src="src/components/graph/categoryGraph/categoryGraphView.js"></script>
+    <script src="src/components/graph/categoryGraph/categoryGraphViewController.js"></script>
     <script src="src/components/graph/graphViewControllerFactory.js"></script>
     <script src="src/components/graph/graphsModel.js"></script>
     <script src="src/components/graph/graphService.js"></script>
@@ -296,12 +306,12 @@
         var graphViewManager = new GraphViewManager({
             windowManager: windowManager,
             graphViewOptions: {
-                minWidth: 150,
-                minHeight: 100,
-                maxWidth: 150,
-                maxHeight: 100,
-                width: 300,
-                height: 200
+                minWidth: 300,
+                minHeight: 200,
+                maxWidth: 900,
+                maxHeight: 600,
+                width: 350,
+                height: 250
             }
         });
 

@@ -2,6 +2,9 @@
  * WindowView base window class.
  */
 
+/* globals L */ 
+
+/* exported WindowView */
 var WindowView = L.Evented.extend({
 
     initialize: function (opts) {
@@ -16,12 +19,12 @@ var WindowView = L.Evented.extend({
         this._height = options.height || this._minHeight;
         this._windowClass = options.class || '';
 
-        if (options.resizable == undefined) {
+        if (options.resizable === undefined) {
             options.resizable = true;
         }
         this._resizable = !!options.resizable;
 
-        if (options.movable == undefined) {
+        if (options.movable === undefined) {
             options.movable = true;
         }
         this._movable = !!options.movable;
@@ -43,6 +46,7 @@ var WindowView = L.Evented.extend({
         var closeButton = L.DomUtil.create('a', 'window-close', titleBar);
         closeButton.href = '#';
         closeButton.addEventListener('click', this._onCloseBtnClicked);
+        closeButton.addEventListener('touchend', this._onCloseBtnClicked);
 
         this._viewportElement = L.DomUtil.create('div', 'window-viewport', this._rootElement);
 
@@ -140,7 +144,7 @@ var WindowView = L.Evented.extend({
         L.DomUtil.addClass(this._rootElement, 'hidden');        
     },
 
-    onRender: function (viewport) {
+    onRender: function (/* jshint unused:false */ viewport) {
         // override in child classes
     },
 

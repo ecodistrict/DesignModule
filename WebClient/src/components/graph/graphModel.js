@@ -7,23 +7,26 @@
  * purpose of the model.
  */
 
+/* globals L */ 
+
+/* exported GraphModel */
 var GraphModel = L.Evented.extend({
 
     initialize: function (opts) {
         var options = opts || {};
 
         var id = options.id;
-        Object.defineProperty(this, "id", {
+        Object.defineProperty(this, 'id', {
             get: function () { return id; },
         });
 
         var type = options.type;
-        Object.defineProperty(this, "type", {
+        Object.defineProperty(this, 'type', {
             get: function () { return type; },
         });
 
         var title = options.title || '';
-        Object.defineProperty(this, "title", {
+        Object.defineProperty(this, 'title', {
             get: function () { return title; },
             set: function (newTitle) {
                 title = newTitle;
@@ -32,7 +35,7 @@ var GraphModel = L.Evented.extend({
         });
 
         var axes = options.axes || [];
-        Object.defineProperty(this, "axes", {
+        Object.defineProperty(this, 'axes', {
             get: function () { return axes; },
             set: function (newAxes) {
                 axes = newAxes;
@@ -41,7 +44,7 @@ var GraphModel = L.Evented.extend({
         });
 
         var categories = options.categories || [];
-        Object.defineProperty(this, "categories", {
+        Object.defineProperty(this, 'categories', {
             get: function () { return categories; },
             set: function (newCategories) {
                 categories = newCategories;
@@ -50,7 +53,7 @@ var GraphModel = L.Evented.extend({
         });
 
         var series = options.series || [];
-        Object.defineProperty(this, "series", {
+        Object.defineProperty(this, 'series', {
             get: function () { return series; },
             set: function (newSeries) {
                 series = newSeries;
