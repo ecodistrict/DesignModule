@@ -77,12 +77,12 @@ var GraphView = WindowView.extend({
         this.fire('entryClicked', eventData);
     },
 
-    _moveLegentToRight: function () {
+    _moveLegendToRight: function () {
         L.DomUtil.removeClass(this._legendContainer, 'left');
         L.DomUtil.addClass(this._legendContainer, 'right');
     },
 
-    _moveLegentToLeft: function () {
+    _moveLegendToLeft: function () {
         L.DomUtil.removeClass(this._legendContainer, 'right');
         L.DomUtil.addClass(this._legendContainer, 'left');
     },
@@ -101,13 +101,13 @@ var GraphView = WindowView.extend({
             if ((legendRect.right > window.innerWidth) &&
                 (leftsideSpace > rightsideSpace)) {
                 
-                this._moveLegentToLeft();
+                this._moveLegendToLeft();
             }
         } else {
             if ((graphViewRect.right + legendRect.width + legendMargin  <= window.innerWidth) ||
                 (rightsideSpace > leftsideSpace)) {
 
-                this._moveLegentToRight();
+                this._moveLegendToRight();
             }
         }
     }
