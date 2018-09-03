@@ -5,7 +5,6 @@
 
 /* globals L */ 
 
-/* exported PerimeterLayout */
 var PerimeterLayout = L.Evented.extend({
     initialize: function (opts) {
         this._options = L.extend({
@@ -261,3 +260,5 @@ var PerimeterLayout = L.Evented.extend({
     }
 
 });
+
+export default PerimeterLayout;

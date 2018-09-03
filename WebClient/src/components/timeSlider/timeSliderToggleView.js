@@ -5,6 +5,10 @@
  * the TimeSlider control when clicked.
  */
 
+/* globals L */
+
+import './timeSliderToggle.css';
+
 var TimeSliderToggleView = L.Control.extend({
 
     options: {
@@ -17,7 +21,7 @@ var TimeSliderToggleView = L.Control.extend({
         L.setOptions(this, options);
     },
 
-    onAdd: function (map) {
+    onAdd: function () {
         this.initLayout();
         return this.container;
     },
@@ -54,3 +58,5 @@ var TimeSliderToggleView = L.Control.extend({
     }
 });
 L.extend(TimeSliderToggleView.prototype, L.Evented.prototype);
+
+export default TimeSliderToggleView;

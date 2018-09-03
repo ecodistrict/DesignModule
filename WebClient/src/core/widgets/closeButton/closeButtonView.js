@@ -4,7 +4,8 @@
 
 /* globals L */ 
 
-/* exported CloseButtonView */
+import './closeButton.css';
+
 var CloseButtonView = L.Evented.extend({
 
     initialize: function (opts) {
@@ -69,3 +70,5 @@ var CloseButtonView = L.Evented.extend({
     },
 
 });
+
+export default CloseButtonView;

@@ -4,7 +4,8 @@
 
 /* globals L, d3 */ 
 
-/* exported GraphLegendView */
+import './graphLegend.css';
+
 var GraphLegendView = L.Evented.extend({
 
     initialize: function (opts) {
@@ -97,3 +98,5 @@ var GraphLegendView = L.Evented.extend({
     }
 
 });
+
+export default GraphLegendView;

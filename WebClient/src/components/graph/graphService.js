@@ -4,9 +4,10 @@
  * maintaining them in sync with the server.
  */
 
-/* globals L, GraphsModel */ 
+/* globals L */
 
-/* exported GraphService */
+import GraphsModel from './graphsModel';
+
 var GraphService = L.Evented.extend({
 
     initialize: function () {
@@ -18,3 +19,5 @@ var GraphService = L.Evented.extend({
     }
 
 });
+
+export default GraphService;

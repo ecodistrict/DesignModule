@@ -2,9 +2,12 @@
  * Category graph view controller.
  */
 
-/* globals L, GraphViewController, CategoryGraphView, CategoryGraphViewModel  */ 
+/* globals L */
 
-/* exported CategoryGraphViewController */
+import GraphViewController from '../graphViewController';
+import CategoryGraphView from './categoryGraphView';
+import CategoryGraphViewModel from './categoryGraphViewModel';
+
 var CategoryGraphViewController = GraphViewController.extend({
 
     onInitialize: function () {
@@ -180,3 +183,5 @@ var CategoryGraphViewController = GraphViewController.extend({
     },
     
 });
+
+export default CategoryGraphViewController;

@@ -5,6 +5,9 @@
  * ScaleSliderView visually represents the model state on a scale-based slider.
  */
 
+/* globals L, d3 */
+
+import './scaleSlider.css';
 
 var ScaleSliderView = L.Control.extend({
 
@@ -123,21 +126,21 @@ var ScaleSliderView = L.Control.extend({
     },
 
     _buildInnerSpace: function () {
-        this.innerSpace = this.svgViewport.append("g")
-            .attr("transform", "translate(" + this.innerSpaceGeometry.left + ", " + this.innerSpaceGeometry.top + ")");
+        this.innerSpace = this.svgViewport.append('g')
+            .attr('transform', 'translate(' + this.innerSpaceGeometry.left + ', ' + this.innerSpaceGeometry.top + ')');
     },
 
     _buildInnerSpaceLayoutSkeleton: function () {
-        this.innerSpace.append("g").attr("class", "axis-container");
-        this.innerSpace.append("g").attr("class", "pointer-container");
-        this.innerSpace.append("g").attr("class", "underlay-container");
-        this.innerSpace.append("g").attr("class", "events-container");
-        this.innerSpace.append("g").attr("class", "brush-container");
-        this.innerSpace.append("g").attr("class", "value-label-container");
+        this.innerSpace.append('g').attr('class', 'axis-container');
+        this.innerSpace.append('g').attr('class', 'pointer-container');
+        this.innerSpace.append('g').attr('class', 'underlay-container');
+        this.innerSpace.append('g').attr('class', 'events-container');
+        this.innerSpace.append('g').attr('class', 'brush-container');
+        this.innerSpace.append('g').attr('class', 'value-label-container');
     },
 
     _buildUnderlay: function () {
-        this.innerSpace.select('.underlay-container').append("rect")
+        this.innerSpace.select('.underlay-container').append('rect')
             .attr('class', 'underlay')
             .attr('x', 0)
             .attr('y', 0)
@@ -148,7 +151,7 @@ var ScaleSliderView = L.Control.extend({
 
     _buildZoom: function () {
         this.zoom = d3.zoom()
-            .on("zoom", this._zoomed.bind(this));
+            .on('zoom', this._zoomed.bind(this));
 
         this.innerSpace.select('.underlay-container .underlay')
             .call(this.zoom);
@@ -163,9 +166,9 @@ var ScaleSliderView = L.Control.extend({
     _buildXAxis: function () {
         this.xAxis = d3.axisBottom(this.baseScale);
 
-        this.innerSpace.select('.axis-container').append("g")
-            .attr("class", "axis axis-x")
-            .attr("transform", "translate(0, " + this.xAxisMargin.top + ")");
+        this.innerSpace.select('.axis-container').append('g')
+            .attr('class', 'axis axis-x')
+            .attr('transform', 'translate(0, ' + this.xAxisMargin.top + ')');
     },
 
     _buildBrush: function () {
@@ -177,22 +180,22 @@ var ScaleSliderView = L.Control.extend({
             .extent([[0, brushTopY], [this.innerSpaceGeometry.width, brushTopY + brushHeight]])
             .on('brush', this._brushed.bind(this));        
 
-        var g = this.innerSpace.select('.brush-container').append("g")
-            .attr("class", "brush")
+        var g = this.innerSpace.select('.brush-container').append('g')
+            .attr('class', 'brush')
             .call(this.brush);        
 
-        g.selectAll("rect.overlay").remove();
+        g.selectAll('rect.overlay').remove();
         g.selectAll('.brush rect').on('contextmenu', this._brushMousedownHandler.bind(this));
         g.selectAll('.brush rect').on('wheel', this._forwardEventTo('.underlay'));
     },
 
     _buildPointer: function () {
-        this.innerSpace.select('.pointer-container').append("line")
+        this.innerSpace.select('.pointer-container').append('line')
             .attr('class', 'pointer')
-            .attr("x1", this._pointerX())
-            .attr("y1", this.xAxisMargin.top + 1)
-            .attr("x2", this._pointerX())
-            .attr("y2", this.innerSpaceGeometry.height);
+            .attr('x1', this._pointerX())
+            .attr('y1', this.xAxisMargin.top + 1)
+            .attr('x2', this._pointerX())
+            .attr('y2', this.innerSpaceGeometry.height);
     },
 
     _buildValueLabel: function () {
@@ -217,7 +220,7 @@ var ScaleSliderView = L.Control.extend({
                 var m = (r.left + r.right) / 2;
                 return [-10, d3.event.clientX - m];
             })
-            .html(function (d) { return (d && d.tooltip) ? d.tooltip : ""; });
+            .html(function (d) { return (d && d.tooltip) ? d.tooltip : ''; });
 
         this.svgViewport.call(this.tip);
     },    
@@ -227,7 +230,7 @@ var ScaleSliderView = L.Control.extend({
     },
 
     _resizeUnderlay: function () {
-        this.innerSpace.select(".underlay-container .underlay")
+        this.innerSpace.select('.underlay-container .underlay')
             .attr('width', this.innerSpaceGeometry.width)
             .attr('height', this.innerSpaceGeometry.height);
     },
@@ -307,7 +310,7 @@ var ScaleSliderView = L.Control.extend({
 
     _updateEvents: function () {
         var eventsContainer = this.innerSpace.select('.events-container');
-        var events = eventsContainer.selectAll("rect.event").data(this.model.events);
+        var events = eventsContainer.selectAll('rect.event').data(this.model.events);
         var scale = this._currentScale();
 
         function constructEventLevelClass(level) {
@@ -317,26 +320,26 @@ var ScaleSliderView = L.Control.extend({
         }
 
         events.enter()
-            .append("rect")
-            .attr("class", function (d) { return "event " + constructEventLevelClass(d.level); })
-            .attr("x", function (d) { return scale(d.start); })
-            .attr("width", function (d) {
+            .append('rect')
+            .attr('class', function (d) { return 'event ' + constructEventLevelClass(d.level); })
+            .attr('x', function (d) { return scale(d.start); })
+            .attr('width', function (d) {
                 var width = scale(d.end) - scale(d.start);
                 return width > 0 ? width : 0; 
             })
             .on('mouseover', this.tip.show)
             .on('mouseout', this.tip.hide)
             .on('click', this._modelEventClicked.bind(this))
-            .style("fill", function (d) { return d.color; });
+            .style('fill', function (d) { return d.color; });
         events.transition()
             .duration(0)
-            .attr("class", function (d) { return "event " + constructEventLevelClass(d.level); })
-            .attr("x", function (d) { return scale(d.start); })
-            .attr("width", function (d) {
+            .attr('class', function (d) { return 'event ' + constructEventLevelClass(d.level); })
+            .attr('x', function (d) { return scale(d.start); })
+            .attr('width', function (d) {
                 var width = scale(d.end) - scale(d.start);
                 return width > 0 ? width : 0;
             })
-            .style("fill", function (d) { return d.color; });
+            .style('fill', function (d) { return d.color; });
         events.exit()
             .remove();
     },
@@ -357,7 +360,8 @@ var ScaleSliderView = L.Control.extend({
     },
 
     _brushed: function () {
-        if (!d3.event.sourceEvent || d3.event.sourceEvent.type === 'zoom') return; // if not explicit brush change from UI then ignore.
+        // if not explicit brush change from UI then ignore.
+        if (!d3.event.sourceEvent || d3.event.sourceEvent.type === 'zoom') return;
 
         var currentScale = this._currentScale();
         var selection = d3.event.selection;
@@ -374,7 +378,7 @@ var ScaleSliderView = L.Control.extend({
         }
     },
 
-    _modelValueChanged: function (data) {
+    _modelValueChanged: function () {
         if (d3.event && d3.event.type === 'zoom') {
             this._updateXAxis();
             this._updateValueLabel();
@@ -468,3 +472,5 @@ var ScaleSliderView = L.Control.extend({
 
 });
 L.extend(ScaleSliderView.prototype, L.Evented.prototype);
+
+export default ScaleSliderView;

@@ -4,9 +4,10 @@
  * their visual state.
  */
 
-/* globals L, GraphViewControllerFactory */ 
+/* globals L */
 
- /* exported GraphViewManager */
+import GraphViewControllerFactory from './graphViewControllerFactory';
+
 var GraphViewManager = L.Evented.extend({
 
     initialize: function (opts) {
@@ -69,3 +70,5 @@ var GraphViewManager = L.Evented.extend({
     }
 
 });
+
+export default GraphViewManager;

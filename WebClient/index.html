@@ -1,0 +1,160 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Design module</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- leaflet css -->
+    <link rel="stylesheet" href="Content/Libs/leaflet.css" />
+    <link rel="stylesheet" href="Content/Libs/leaflet.draw.css" />
+    <link rel="stylesheet" href="Content/Libs/leaflet.contextmenu.css" />
+
+    <link rel="stylesheet" href="Content/measures.css" />
+    <link rel="stylesheet" href="Content/info.css" />
+    <link rel="stylesheet" href="Content/legend.css" />
+    <link rel="stylesheet" href="Content/domains.css" />
+    <link rel="stylesheet" href="Content/currefdiff.css" />
+    <link rel="stylesheet" href="Content/details.css" />
+    <link rel="stylesheet" href="Content/history.css" />
+    <link rel="stylesheet" href="Content/projectdescription.css" />
+    <link rel="stylesheet" href="Content/connectionstatus.css" />
+    <link rel="stylesheet" href="Content/userMessages.css" />
+    <link rel="stylesheet" href="Content/select.css" />
+    <link rel="stylesheet" href="Content/windDirection.css" />
+    <link rel="stylesheet" href="Content/files.css" />
+    <link rel="stylesheet" href="Content/Graphs/TableGraphs.css" />
+
+    <link rel="stylesheet" href="Content/map.css" />
+    <link rel="stylesheet" href="Content/graphmanager.css" />
+    <link rel="stylesheet" href="Content/syncmanager.css" />
+    <link rel="stylesheet" href="Content/ModelControl.css" />
+    
+    <link rel="stylesheet" href="Content/default.css" />
+    <link rel="stylesheet" href="Content/control.css" />
+    <link rel="stylesheet" href="Content/dialog.css" />
+    <link rel="stylesheet" href="Content/Libs/nouislider.css" />
+    <link rel="stylesheet" href="Content/Libs/nouislider.pips.css" />
+    <link rel="stylesheet" href="Content/Libs/nouislider.tooltips.css" />
+    <link rel="stylesheet" href="Content/timeRangeSlider.css" />
+    <link rel="stylesheet" href="Content/rangeSlider.css" />
+    <link rel="stylesheet" href="Content/layermanager.css" />
+    <link rel="stylesheet" href="Content/ScenarioControlsManager.css" />
+    <link rel="stylesheet" href="Content/controlsControl.css" />
+    <link rel="stylesheet" href="Content/ControlPropertiesDialog.css" />
+    <link rel="stylesheet" href="Content/common.css" />
+    <link rel="stylesheet" href="Content/d3Override.css" />
+    <link href="lib/fontawesome5/css/fontawesome.min.css" rel="stylesheet">
+    <link href="lib/fontawesome5/css/regular.min.css" rel="stylesheet">
+    <link href="lib/fontawesome5/css/solid.min.css" rel="stylesheet">    
+
+    <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="favicon/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="favicon/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="favicon/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="favicon/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="favicon/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="favicon/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="favicon/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+    <link rel="manifest" href="favicon/manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="favicon/ms-icon-144x144.png">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="shortcut icon" href="favicon/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="favicon/favicon.ico" type="image/x-icon">
+
+</head>
+<body>
+    <!-- main map -->
+    <div id="map"></div>
+    <!-- static modal dialog place holder -->
+    <div id="modalDialog" class="modalDialog"></div>
+    <!-- connection status -->
+    <div id="connectionStatus" class="connection-status connection-status-disconnected"></div>
+    <!-- error messages -->
+    <div id="userMessages" class="userMessages userMessages-hidden"><p id="userMessage">There is a message</p></div>
+
+    <div id="messagesContainer" class="Messages messages-hidden">
+        <span id="introText">Log:</span>
+        <span id="deleteLogItems" onclick="deleteLogItems()">Delete all</span>
+        <div id="messages"></div>
+    </div>
+
+    <!-- current-reference-difference selector -->
+    <div id="currefdiff" class="currefdiff leaflet-container" title="Show the current version of the layer, reference version or difference between those"></div>
+    <!-- time related elements-->
+    <div id="timeslider" class="timeslider leaflet-container hidden"></div>
+
+    <div id="timestamp" class="timestamp leaflet-container timestamp-hidden" title="Shows the last known time the last added layer was based on"></div>
+
+    <div id="windows-area"></div>
+    <!-- load scripts -->
+    <script>
+        //DebugLogging = true;
+        DebugLogging = false;
+        //DebugLogging = (location.hostname === "localhost");
+    </script>
+    <!-- leaflet js -->
+    <script src="lib/leaflet-src.js"></script>
+    <!-- leaflet plugins -->
+    <script src="lib/leaflet.draw-src.js"></script>
+    <script src="lib/leaflet.contextmenu-src.js"></script>
+    <script src="lib/L.Path.Drag-src.js"></script>
+    <!-- leaflet map -->
+    <script src="Scripts/map.js"></script>
+    <!-- D3 -->
+    <script src="lib/d3.js"></script>
+    <script src="bower_components/d3-tip/index.js"></script>
+    <script src="bower_components/chroma-js/chroma.js"></script>
+    <!--<script src="bower_components/datalist-polyfill/datalist-polyfill.js"></script>-->
+    <!-- other libs -->
+    <script src="lib/FileSaver.js"></script>
+    <!-- modal dialogs -->
+    <script src="lib/nouislider.js"></script>
+    <script src="Scripts/modaldialog.js"></script>
+    <script src="Scripts/querydialog.js"></script>
+    <script src="Scripts/formdialog.js"></script>
+    <!--<script src="Scripts/warningDialog.js"></script>-->    
+    <!-- other source code -->
+    <script src="Scripts/datamanager.js"></script>
+    <script src="Scripts/userMessages.js"></script>
+    <script src="Scripts/select.js"></script>
+    <script src="Scripts/measures.js"></script>
+    <script src="Scripts/info.js"></script>
+    <script src="Scripts/legend.js"></script>
+    <script src="Scripts/domains.js"></script>
+    <script src="Scripts/currefdiff.js"></script>
+    <script src="Scripts/layers.js"></script>
+    <script src="Scripts/details.js"></script>
+    <script src="Scripts/history.js"></script>
+    <script src="Scripts/projectdescription.js"></script>
+    <script src="Scripts/timeRangeSlider.js"></script>
+    <script src="Scripts/rangeSlider.js"></script>
+    <script src="Scripts/windDirection.js"></script>
+    <script src="Scripts/webSocket.js"></script>
+    <script src="Scripts/syncManager.js"></script>
+    <script src="Scripts/UnitConverter.js"></script>
+    <script src="Scripts/LayerManager.js"></script>
+    <script src="Scripts/ModelControl.js"></script>
+    <script src="Scripts/contextManager.js"></script>
+    <script src="Scripts/ScenarioControlsManager.js"></script>
+    <script src="Scripts/ControlsControl.js"></script>
+    <script src="Scripts/files.js"></script>
+    <script src="Scripts/ControlPropertiesDialog.js"></script>
+    <!-- charts -->
+    <script src="Scripts/graphManager.js"></script>
+    <script src="Scripts/Graphs/lineGraphs.js"></script>
+    <script src="Scripts/Graphs/spiderChart.js"></script>
+    <script src="Scripts/Graphs/BarChart.js"></script>
+    <script src="Scripts/Graphs/tablegraphs.js"></script>
+    <!-- modules -->
+    <script src="Scripts/modules.js"></script>
+
+</body>
+</html>

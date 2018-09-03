@@ -6,13 +6,15 @@
  * The model provides a subscription mechanism for tracking its state.
  */
 
+ /* globals L */
+
 var ScaleSliderModel = L.Evented.extend({
 
     initialize: function (opts) {
         opts = opts || {};
 
         var value = opts.value;
-        Object.defineProperty(this, "value", {
+        Object.defineProperty(this, 'value', {
             get: function () { return value; },
             set: function (newValue) {
                 value = newValue;
@@ -21,7 +23,7 @@ var ScaleSliderModel = L.Evented.extend({
         });
 
         var brush = opts.brush;
-        Object.defineProperty(this, "brush", {
+        Object.defineProperty(this, 'brush', {
             get: function () { return brush; },
             set: function (newBrush) {
                 brush = newBrush;
@@ -30,7 +32,7 @@ var ScaleSliderModel = L.Evented.extend({
         });
 
         var events = opts.events || [];
-        Object.defineProperty(this, "events", {
+        Object.defineProperty(this, 'events', {
             get: function () { return events.slice(); }
         });
 
@@ -46,3 +48,5 @@ var ScaleSliderModel = L.Evented.extend({
     }
 
 });
+
+export default ScaleSliderModel;

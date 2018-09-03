@@ -6,7 +6,6 @@
 
 /* globals L */ 
 
-/* exported GraphLegendViewModel */
 var GraphLegendViewModel = L.Evented.extend({
 
     initialize: function (opts) {
@@ -65,3 +64,5 @@ var GraphLegendViewModel = L.Evented.extend({
     }
 
 });
+
+export default GraphLegendViewModel;

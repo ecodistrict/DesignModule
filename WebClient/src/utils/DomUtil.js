@@ -2,7 +2,6 @@
  * Utility functions to work with the DOM tree.
  */
 
-/* exported DomUtil */
 var DomUtil = {
 
     calculateTextSize: function (node, text) {
@@ -73,3 +72,5 @@ var DomUtil = {
     }
     
 };
+
+export default DomUtil;

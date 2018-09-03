@@ -4,8 +4,8 @@
 
  /* globals d3 */ 
 
- /* exported categoryGraphLines */
-var categoryGraphLines = function(lines) {
+
+export default function categoryGraphLines(lines) {
     var xBottomDefault = d3.scaleBand().rangeRound([0, null]);
     var yLeftDefault = d3.scaleLinear().range([null, 0]).domain([0, null]);
     var yRightDefault = d3.scaleLinear().range([null, 0]).domain([0, null]);
@@ -106,4 +106,4 @@ var categoryGraphLines = function(lines) {
     drawLines.duration = duration;    
 
     return drawLines;
-};
+}

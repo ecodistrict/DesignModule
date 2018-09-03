@@ -4,7 +4,8 @@
 
 /* globals L */ 
 
-/* exported DockButtonView */
+import './dockButton.css';
+
 var DockButtonView = L.Evented.extend({
 
     initialize: function (opts) {
@@ -96,3 +97,5 @@ var DockButtonView = L.Evented.extend({
     },
 
 });
+
+export default DockButtonView;

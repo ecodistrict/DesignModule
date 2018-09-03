@@ -3,12 +3,16 @@
  * Category graph is a graph where x axis is a categories axis.
  */
 
-/* globals d3, GraphView, DomUtil */ 
-/* globals categoryGraphLines */ 
-/* globals categoryGraphLinesPoints */ 
-/* globals categoryGraphBars */ 
+/* globals d3 */
 
-/* exported CategoryGraphView */
+import './categoryGraph.css';
+
+import GraphView from '../graphView';
+import DomUtil from '../../../utils/DomUtil';
+import categoryGraphLines from './categoryGraphLines';
+import categoryGraphLinesPoints from './categoryGraphLinesPoints';
+import categoryGraphBars from './categoryGraphBars';
+
 var CategoryGraphView = GraphView.extend({
     
     onInitializeGraph: function (opts) {
@@ -414,4 +418,6 @@ var CategoryGraphView = GraphView.extend({
         return textSize;
     }
     
-}); 
+});
+
+export default CategoryGraphView;

@@ -4,7 +4,6 @@
 
 /* globals L */ 
 
-/* exported DockButtonViewModel */
 var DockButtonViewModel = L.Evented.extend({
 
     initialize: function (opts) {
@@ -21,3 +20,5 @@ var DockButtonViewModel = L.Evented.extend({
     }
 
 }); 
+
+export default DockButtonViewModel;

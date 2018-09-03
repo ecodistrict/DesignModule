@@ -2,10 +2,9 @@
  * d3 function to draw category graph lines points.
  */
 
- /* globals d3 */ 
+ /* globals d3 */
 
- /* exported categoryGraphLinesPoints */
-var categoryGraphLinesPoints = function(lines) {
+export default function categoryGraphLinesPoints(lines) {
     var xBottomDefault = d3.scaleBand().rangeRound([0, null]);
     var yLeftDefault = d3.scaleLinear().range([null, 0]).domain([0, null]);
     var yRightDefault = d3.scaleLinear().range([null, 0]).domain([0, null]);
@@ -121,4 +120,4 @@ var categoryGraphLinesPoints = function(lines) {
     drawPoints.duration = duration;    
 
     return drawPoints;
-};
+}

@@ -8,7 +8,15 @@
  * for sending messages back to the server, e.g. when model is changed.
  */
 
-var TimeSliderDisplayMode = {
+/* globals L, d3 */
+/* globals InfoTextControl, wsSend */
+
+import ScaleSliderModel from '../scaleSlider/scaleSliderModel';
+import TimeSliderToggleView from './timeSliderToggleView';
+import TimeSliderView from './timeSliderView';
+import TimeSliderSettingsView from './timeSliderSettingsView';
+
+export var TimeSliderDisplayMode = {
     COLLAPSE: 1,
     EXPAND: 2    
 };
@@ -88,12 +96,13 @@ var TimeSliderController = L.Evented.extend({
             };
         }
 
+        var events;
         if (messagePayload.setEvents) {
-            var events = messagePayload.setEvents.map(convertEvent);
+            events = messagePayload.setEvents.map(convertEvent);
             this.model.setEvents(events);
         }
         else if (messagePayload.addEvents) {
-            var events = messagePayload.addEvents.map(convertEvent);
+            events = messagePayload.addEvents.map(convertEvent);
             this.model.addEvents(events);
         }
 
@@ -102,9 +111,9 @@ var TimeSliderController = L.Evented.extend({
         }
 
         if (messagePayload.setBrush) {
-            if (messagePayload.setBrush.extent 
-                && Array.isArray(messagePayload.setBrush.extent)
-                && messagePayload.setBrush.extent.length === 2) {
+            if (messagePayload.setBrush.extent && 
+                Array.isArray(messagePayload.setBrush.extent) && 
+                messagePayload.setBrush.extent.length === 2) {
 
                 this.model.brush = {
                     start: timeParser(messagePayload.setBrush.extent[0]),
@@ -126,7 +135,7 @@ var TimeSliderController = L.Evented.extend({
         InfoTextControl['leaflet-control-timeslider'] = { description: 'Change the time', active: true };
 
         wsSend({
-            type: "timeslider",
+            type: 'timeslider',
             payload: { active: true }
         });
     },
@@ -138,7 +147,7 @@ var TimeSliderController = L.Evented.extend({
         InfoTextControl['leaflet-control-timeslider'] = { active: false };
 
         wsSend({
-            type: "timeslider",
+            type: 'timeslider',
             payload: { active: false }
         });
     },
@@ -161,7 +170,7 @@ var TimeSliderController = L.Evented.extend({
 
     selectedTimeChanged: function (data) {
         wsSend({
-            type: "timeslider",
+            type: 'timeslider',
             payload: { selectedTime: this.timeFormat(data.value) }
         });
     },
@@ -178,7 +187,7 @@ var TimeSliderController = L.Evented.extend({
         }
             
         wsSend({
-            type: "timeslider",
+            type: 'timeslider',
             payload: { brush: { extent: extent } }
         });
     },
@@ -194,15 +203,17 @@ var TimeSliderController = L.Evented.extend({
         };
 
         wsSend({ 
-            type: "timeslider",
+            type: 'timeslider',
             payload: { selectedEvent: selectedEvent }
         });
     },
 
     zoomLevelChanged: function (data) {
         wsSend({ 
-            type: "timeslider",
+            type: 'timeslider',
             payload: { zoomLevel: data.zoomLevel }
         });
     }
 });
+
+export default TimeSliderController;

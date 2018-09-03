@@ -2,10 +2,9 @@
  * d3 function to draw category graph bars.
  */
 
- /* globals d3 */ 
+ /* globals d3 */
 
- /* exported categoryGraphBars */
-var categoryGraphBars = function(bars) {
+ export default function categoryGraphBars(bars) {
     var xBottomDefault = d3.scaleBand().rangeRound([0, null]);
     var yLeftDefault = d3.scaleLinear().range([null, 0]).domain([0, null]);
     var yRightDefault = d3.scaleLinear().range([null, 0]).domain([0, null]);
@@ -131,4 +130,4 @@ var categoryGraphBars = function(bars) {
     drawBars.duration = duration;    
 
     return drawBars;
-};
+}

@@ -3,12 +3,12 @@
  * depending on a graph.
  */
 
-/* globals L */ 
-/* globals GraphViewController */ 
-/* globals CategoryGraphViewController */ 
+/* globals L */
 
-/* exported GraphViewControllerFactory */
- var GraphViewControllerFactory = L.Evented.extend({
+import GraphViewController from './graphViewController';
+import CategoryGraphViewController from './categoryGraph/categoryGraphViewController';
+
+var GraphViewControllerFactory = L.Evented.extend({
 
     initialize: function () {
         this._viewControllerMap = {
@@ -26,3 +26,5 @@
         });
     }
 });
+
+export default GraphViewControllerFactory;
