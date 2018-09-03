@@ -4,8 +4,6 @@
 
 /* globals L */ 
 
-import './graphModel';
-
 var GraphsModel = L.Evented.extend({
 
     initialize: function (opts) {

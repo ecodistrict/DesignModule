@@ -6,6 +6,7 @@
 
 /* globals L */
 
+import './graphModel';
 import GraphsModel from './graphsModel';
 
 var GraphService = L.Evented.extend({
