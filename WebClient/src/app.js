@@ -176,13 +176,13 @@ map.addControl(detailsControl);
 
 
 //history
-var historyControl = L.control.history(baseLayers); // todo (NK): why pass baseLayers as options?
+window.historyControl = L.control.history(baseLayers); // todo (NK): why pass baseLayers as options?
 map.addControl(historyControl);
 map.removeControl(historyControl);
 DataManager.HistoryControl = historyControl;
 
 //presenter/viewer
-var presenterViewerControl = L.control.PresenterViewer();
+window.presenterViewerControl = L.control.PresenterViewer();
 map.addControl(presenterViewerControl);
 map.removeControl(presenterViewerControl);
 DataManager.presenterViewerControl = presenterViewerControl;
@@ -198,7 +198,7 @@ DataManager.overviewControl = L.control.OverviewControl();
 //map.addControl(overviewControl);
 
 //measures
-var measuresControl = L.control.measures([], historyControl);
+window.measuresControl = L.control.measures([], historyControl);
 map.addControl(measuresControl);
 map.removeControl(measuresControl);
 measuresControl.setSelectCategories([]);
@@ -229,7 +229,7 @@ map.addControl(DataManager.modelControl);
 map.removeControl(DataManager.modelControl);
 
 // current-reference-difference control
-var crd = L.control.crd({ parent: currefdiff });
+window.crd = L.control.crd({ parent: currefdiff });
 map.addControl(crd);
 
 detailsControl.setCRD(crd);
@@ -237,21 +237,21 @@ detailsControl.setCRD(crd);
 // bottom-left (reverse order)
 
 // info
-var infoControl = L.control.info();
+window.infoControl = L.control.info();
 map.addControl(infoControl);
 
 // legend
-var legendControl = L.control.legend;
+window.legendControl = L.control.legend;
 map.addControl(legendControl);
 
 // files
-var filesControl = L.control.files();
+window.filesControl = L.control.files();
 DataManager.filesControl = filesControl;
 
 // other
 
 // project description
-var projectDescription = L.control.projectDescription;
+window.projectDescription = L.control.projectDescription;
 projectDescription.options.description = sessionDescription;
 map.addControl(projectDescription);
 
@@ -282,7 +282,7 @@ testGraph.container.graph.ShowGraph();
 */
 
 // link up connection control
-var connectionStatus = document.getElementById('connectionStatus');
+window.connectionStatus = document.getElementById('connectionStatus');
 connectionStatus.classList.add('connection-status-disconnected');
 connectionStatus.onclick = function (e) {
     if (e.target.classList.contains('connection-status-disconnected'))
