@@ -16,6 +16,12 @@ const
   ServiceNameSwitch = 'ServiceName';
   ServiceDisplayNameSwitch = 'ServiceDisplayName';
 
+const
+  IMB4RemoteHostSwitch = 'IMB4RemoteHost';
+  IMB4RemotePortSwitch = 'IMB4RemotePort';
+  IMB4RemotePrefix = 'IMB4RemotePrefix';
+    DefaultEcodistrictPrefix = 'ecodistrict';
+
 
 type
   TPublishingServerEco = class(TService)
@@ -102,23 +108,91 @@ begin
   Log.WriteLn('Publishing server shutdown');
 end;
 
+{
+var
+  imbConnection: TConnection;
+  sessionModel: TSessionModel;
+  tilerFQDN: string;
+  ecodistrictModule: TEcodistrictModule;
+  mapView: TMapView;
+begin
+  ecodistrictModule := nil; // sentinel
+  FileLogger.SetLogDef(AllLogLevels, [llsTime]);
+  try
+    try
+      // todo: change to tls connection
+
+      imbConnection := TSocketConnection.Create('PublishServerEco', 99,
+        GetSetting(IMB4RemotePrefix, DefaultEcodistrictPrefix),
+        GetSetting(IMB4RemoteHostSwitch, imbDefaultRemoteHost),
+        GetSetting(IMB4RemotePortSwitch, imbDefaultRemoteSocketPort.ToString).ToInteger());
+      try
+        imbConnection.onException := HandleException;
+        imbConnection.onDisconnect := HandleDisconnect;
+        sessionModel := TSessionModel.Create(imbConnection);
+        try
+          tilerFQDN := GetSetting(TilerNameSwitch, DefaultTilerName);
+          Log.WriteLn('Tiler name: '+tilerFQDN);
+          // ecodistrict module, specific for test project 1234 and no actions on ecodistrict events
+          ecodistrictModule := TEcodistrictModule.Create(
+            sessionModel,
+            imbConnection,
+            'User_Name='+GetSetting('EcoDBUserName', '')+';'+
+            'Password='+GetSetting('EcoDBPassword', '')+';'+
+            'Server='+GetSetting('EcoDBServer', '')+';'+
+            'Port='+GetSetting('EcoDBPort', '5432')+';'+
+            'Database='+GetSetting('EcoDBDatabase', 'Warsaw')+';'+
+            'PGAdvanced=sslmode=require',
+            tilerFQDN,
+            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
+            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+            True, True, True); // do not load any other projects or execute ecodistrict commands..
+
+          // default load for testing
+          mapView := TMapView.Create(51.19002, 4.37689, 15); // Kiel (Antwerp)
+          //ecodistrictModule.HandleModuleCase('1234', 'Kiel test case', 'Test case for Ecodistrict publishing server based on Kiel (Antwerp) data..', mapView, nil);
+          ecodistrictModule.HandleModuleCase('5b7fc843820bed04cf284953', 'test case', 'Test case for Ecodistrict publishing server..', mapView, nil);
+
+
+          // main loop
+          WriteLn('Press return to quit');
+          ReadLn;
+
+        finally
+          FinalizeCommandQueue();
+          ecodistrictModule.Free;
+          sessionModel.Free;
+        end;
+      finally
+        imbConnection.Free;
+      end;
+    finally
+      ExitPG;
+    end;
+  except
+    on E: Exception do
+      Log.Writeln(E);
+  end;
+end.
+}
+
 procedure TPublishingServerEco.ServiceStart(Sender: TService; var Started: Boolean);
 begin
   FileLogger.SetLogDef(AllLogLevels, [llsTime]);
   Log.WriteLn('Publishing server prepare start');
   // todo: change to tls connection
-  fIMBConnection := TSocketConnection.Create(Name);
+  fIMBConnection := TSocketConnection.Create(Name, 0,
+    GetSetting(IMB4RemotePrefix, DefaultEcodistrictPrefix),
+    GetSetting(IMB4RemoteHostSwitch, imbDefaultRemoteHost),
+    GetSetting(IMB4RemotePortSwitch, imbDefaultRemoteSocketPort.ToString).ToInteger());
   fIMBConnection.onException := HandleException;
   fIMBConnection.onDisconnect := HandleDisconnect;
   Log.WriteLn('Publishing server started imb4');
   fPublishingModel := TSessionModel.Create(fIMBConnection);
   Log.WriteLn('Publishing server started publishing model');
   fTilerFQDNName := GetSetting(TilerNameSwitch, DefaultTilerName);
+  Log.WriteLn('Tiler name: '+fTilerFQDNName);
   try
-    // nwb live feed
-    //CreateSessionProject(fPublishingModel, 'rotterdam', 'Rotterdam dashboard', ptNWBLiveFeed, fTilerEventName, ''); {todo: NWBLiveFeedProjectName}
-    //Log.WriteLn('Publishing server started rotterdam dashboard project');
-
     // ecodistrict module
     fEcodistrictModule := TEcodistrictModule.Create(
       fPublishingModel,
@@ -133,36 +207,6 @@ begin
       GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(fTilerFQDNName)),
       GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters));
     Log.WriteLn('Publishing server started ecodistrict module');
-    // every project has own listener for clients -> global list not needed anymore
-    {
-    // inquire existing session and rebuild internal sessions..
-    fIMBConnection.subscribe(fIMBConnection.privateEventName, False).OnIntString.Add(
-      procedure(event: TEventEntry; aInt: Integer; const aString: string)
-      var
-        projectEventPrefix: string;
-        p: TProject;
-      begin
-        // find project with client
-        // aString = 'USIdle.Sessions.WS2IMB.1234.uuid:ac1ab9e5-4db9-4f03-ae05-b4558b0f0f8c;id=14'
-        // project.fProjectEvent.eventname = 'USIdle.Sessions.WS2IMB.1234'
-        for p in fPublishingModel.Projects do
-        begin
-          projectEventPrefix := p.ProjectEvent.eventName+'.';
-          if aString.StartsWith(projectEventPrefix) then
-          begin
-            p.AddClient(aString.Split(['&'])[0]);
-            Log.WriteLn('linked existing client: '+aString.Substring(projectEventPrefix.Length));
-            Log.WriteLn('to project: '+p.ProjectName, llNormal, 1);
-            exit;
-          end;
-        end;
-        Log.WriteLn('could not link existing ws2imb client to project: '+aString, llWarning);
-      end);
-
-    // inquire existing sessions
-    fIMBConnection.publish(WS2IMBEventName, False).signalIntString(actionInquire, fIMBConnection.privateEventName);
-    }
-    Log.WriteLn('Publishing server start');
     started := True;
   except
     on E: Exception do
@@ -175,12 +219,17 @@ end;
 
 procedure TPublishingServerEco.ServiceStop(Sender: TService; var Stopped: Boolean);
 begin
+  Log.WriteLn('Publishing server stopping queue');
   FinalizeCommandQueue();
+  Log.WriteLn('Publishing server stopping module');
   FreeAndNil(fEcodistrictModule);
+  Log.WriteLn('Publishing server stopping model');
   FreeAndNil(fPublishingModel);
+  Log.WriteLn('Publishing server stopping connection');
   FreeAndNil(fIMBConnection);
+  Log.WriteLn('Publishing server stopping pg');
   ExitPG;
-  Log.WriteLn('Publishing server stop');
+  Log.WriteLn('Publishing server stopped');
   stopped := True;
 end;
 
