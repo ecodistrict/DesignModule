@@ -637,7 +637,7 @@ type
     fUpdateThread: TThread;
     procedure UpdateQueuehandler();
 
-    function UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
+    function UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObjectWithID): TLayerObjectWithID;
   public
     procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
     procedure handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
@@ -1934,7 +1934,7 @@ begin
   end;
 end;
 
-function TUSLayer.UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObject): TLayerObject;
+function TUSLayer.UpdateObject(aQuery: TOraQuery; const oid: TWDID; aObject: TLayerObjectWithID): TLayerObjectWithID;
 
   function FieldFloatValueOrNaN(aField: TField): Double;
   begin
@@ -2073,7 +2073,7 @@ procedure TUSLayer.UpdateQueuehandler;
   var
    query: TOraQuery;
    wdid: TWDID;
-   o: TLayerObject;
+   o: TLayerObjectWithID;
   begin
     query := TOraQuery.Create(nil);
     try
@@ -2112,7 +2112,7 @@ var
   ChangeString: string;
   i: Integer;
   wdid: TWDID;
-  o: TLayerObject;
+  o: TLayerObjectWithID;
   oraSession: TOraSession;
 begin
   localQueue := TList<TUSUpdateQueueEntry>.Create;
@@ -2474,7 +2474,13 @@ begin
       if mlp.Value._published>0 then
       begin
           nam := mlp.Value.description;
+          if nam=''
+          then nam := FormatLegendDescription(mlp.value.LEGEND_DESC);
+
           dom := mlp.Value.domain;
+          if dom=''
+          then dom := 'general';
+
           if (dom<>'') and (nam<>'') then
           begin
             //todo: check if fix from name to nam worked!?
@@ -3230,7 +3236,7 @@ procedure TUSProject.HandleClientMeasureMessage(aProject: TProject;
 var
   layer: TLayerBase;
   basicLayer: TUSBasicLayer;
-  obj: TLayerObject;
+  obj: TLayerObjectWithID;
   geometry: TWDGeometry;
   applyObject: TJSONObject;
   selectCategories, selectedObjects: TJSONArray;
@@ -5765,7 +5771,7 @@ var
   index, objectID: Integer;
   selectedID: TJSONValue;
   publishEvent: TIMBEventEntry;
-  obj: TLayerObject;
+  obj: TLayerObjectWithID;
   subObj: TSubscribeObject;
 begin
   Result := True;
@@ -7190,7 +7196,7 @@ var
   valid: Boolean;
   layer: TLayerBase;
   basicLayer: TLayer;
-  layerObject: TLayerObject;
+  layerObject: TLayerObjectWithID;
 begin
   query := TOraQuery.Create(nil);
   try

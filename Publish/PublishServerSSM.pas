@@ -79,7 +79,7 @@ const
   SSMDataSource = 'us_simsmartmobility/us_simsmartmobility@app-usdata01.tsn.tno.nl/uspsde';
 
 type
-  TSSMCar = class(TLayerObject)
+  TSSMCar = class(TLayerObjectWithID)
   public
     // timestamps
     newTimestamp: Double;
@@ -671,7 +671,7 @@ var
   numberOfPoints: Integer;
   x, y, z: Double;
   p: Integer;
-  lo: TLayerObject;
+  lo: TLayerObjectWithID;
   isVehicleAdded: Boolean;
   gtuId: AnsiString;
   countAfterEvent: Integer;
@@ -810,7 +810,7 @@ end;
 
 function TSSMCarLayer.HandleClientSubscribe(aClient: TClient): Boolean;
 var
-  iop: TPair<TWDID, TLayerObject>;
+  iop: TPair<TWDID, TLayerObjectWithID>;
   _json: string;
   car: TSSMCar;
 begin
@@ -850,11 +850,11 @@ var
   action: Integer;
   timestamp: Double;
   gtuId: string;
-  lo: TLayerObject;
+  lo: TLayerObjectWithID;
   car: TSSMCar;
   oldSpeed: Double;
   newSpeed: Double;
-  link: TLayerObject;
+  link: TLayerObjectWithID;
   oldLinkId: AnsiString;
   newLinkId: AnsiString;
   redirPayload: ByteBuffers.TByteBuffer;

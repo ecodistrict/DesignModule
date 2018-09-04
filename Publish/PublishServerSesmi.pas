@@ -354,7 +354,7 @@ begin
   fLastLons := TDictionary<TGUID, Double>.Create;
   fSensorsDataSet := TSensorsDataSet.Create;
   fTimeSliderDataTimer := aProject.Timers.CreateInactiveTimer;
-  fTimeSliderDataTimer.DueTimeDelta := DateTimeDelta2HRT(MaxTimeSliderUpdateTime*dtOneSecond);
+  fTimeSliderDataTimer.MaxPostponeDelta := DateTimeDelta2HRT(MaxTimeSliderUpdateTime*dtOneSecond);
   fShowDataSelectionTimer := aProject.Timers.CreateInactiveTimer;
   fFirstTimeSliderUpdate := True;
   fFiltered := False;

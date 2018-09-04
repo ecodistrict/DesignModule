@@ -60,6 +60,18 @@
         <Projects Include="Publish\PublisherTest.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\response\src\PublishingServerEffects.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Publish\PublishServerEco.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Publish\PublishServerEcoDistrictSvc.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Publish\PublishingServerExpoSense.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -239,14 +251,50 @@
     <Target Name="PublisherTest:Make">
         <MSBuild Projects="Publish\PublisherTest.dproj" Targets="Make"/>
     </Target>
+    <Target Name="PublishingServerEffects">
+        <MSBuild Projects="..\response\src\PublishingServerEffects.dproj"/>
+    </Target>
+    <Target Name="PublishingServerEffects:Clean">
+        <MSBuild Projects="..\response\src\PublishingServerEffects.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="PublishingServerEffects:Make">
+        <MSBuild Projects="..\response\src\PublishingServerEffects.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="PublishServerEco">
+        <MSBuild Projects="Publish\PublishServerEco.dproj"/>
+    </Target>
+    <Target Name="PublishServerEco:Clean">
+        <MSBuild Projects="Publish\PublishServerEco.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="PublishServerEco:Make">
+        <MSBuild Projects="Publish\PublishServerEco.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="PublishServerEcoDistrictSvc">
+        <MSBuild Projects="Publish\PublishServerEcoDistrictSvc.dproj"/>
+    </Target>
+    <Target Name="PublishServerEcoDistrictSvc:Clean">
+        <MSBuild Projects="Publish\PublishServerEcoDistrictSvc.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="PublishServerEcoDistrictSvc:Make">
+        <MSBuild Projects="Publish\PublishServerEcoDistrictSvc.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="PublishingServerExpoSense">
+        <MSBuild Projects="Publish\PublishingServerExpoSense.dproj"/>
+    </Target>
+    <Target Name="PublishingServerExpoSense:Clean">
+        <MSBuild Projects="Publish\PublishingServerExpoSense.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="PublishingServerExpoSense:Make">
+        <MSBuild Projects="Publish\PublishingServerExpoSense.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="PublishServerMC;PublishServerCmd;PublishServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;TestEnselSource;EcoRefresh;PublishGetData;PublishSSMCmd;PublishingServerSesmi;TestNDW;DumpNDW;NDWToUS;PublishingServerEarlyWarning;PublishingServerSantos;PublisherTest"/>
+        <CallTarget Targets="PublishServerMC;PublishServerCmd;PublishServerSvc;TilerWebService;EcodistrictDebugger;PublishDebugger;TilerDebugger;EcoRestApi;TestEnselSource;EcoRefresh;PublishGetData;PublishSSMCmd;PublishingServerSesmi;TestNDW;DumpNDW;NDWToUS;PublishingServerEarlyWarning;PublishingServerSantos;PublisherTest;PublishingServerEffects;PublishServerEco;PublishServerEcoDistrictSvc;PublishingServerExpoSense"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="PublishServerMC:Clean;PublishServerCmd:Clean;PublishServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;TestEnselSource:Clean;EcoRefresh:Clean;PublishGetData:Clean;PublishSSMCmd:Clean;PublishingServerSesmi:Clean;TestNDW:Clean;DumpNDW:Clean;NDWToUS:Clean;PublishingServerEarlyWarning:Clean;PublishingServerSantos:Clean;PublisherTest:Clean"/>
+        <CallTarget Targets="PublishServerMC:Clean;PublishServerCmd:Clean;PublishServerSvc:Clean;TilerWebService:Clean;EcodistrictDebugger:Clean;PublishDebugger:Clean;TilerDebugger:Clean;EcoRestApi:Clean;TestEnselSource:Clean;EcoRefresh:Clean;PublishGetData:Clean;PublishSSMCmd:Clean;PublishingServerSesmi:Clean;TestNDW:Clean;DumpNDW:Clean;NDWToUS:Clean;PublishingServerEarlyWarning:Clean;PublishingServerSantos:Clean;PublisherTest:Clean;PublishingServerEffects:Clean;PublishServerEco:Clean;PublishServerEcoDistrictSvc:Clean;PublishingServerExpoSense:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="PublishServerMC:Make;PublishServerCmd:Make;PublishServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;TestEnselSource:Make;EcoRefresh:Make;PublishGetData:Make;PublishSSMCmd:Make;PublishingServerSesmi:Make;TestNDW:Make;DumpNDW:Make;NDWToUS:Make;PublishingServerEarlyWarning:Make;PublishingServerSantos:Make;PublisherTest:Make"/>
+        <CallTarget Targets="PublishServerMC:Make;PublishServerCmd:Make;PublishServerSvc:Make;TilerWebService:Make;EcodistrictDebugger:Make;PublishDebugger:Make;TilerDebugger:Make;EcoRestApi:Make;TestEnselSource:Make;EcoRefresh:Make;PublishGetData:Make;PublishSSMCmd:Make;PublishingServerSesmi:Make;TestNDW:Make;DumpNDW:Make;NDWToUS:Make;PublishingServerEarlyWarning:Make;PublishingServerSantos:Make;PublisherTest:Make;PublishingServerEffects:Make;PublishServerEco:Make;PublishServerEcoDistrictSvc:Make;PublishingServerExpoSense:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
