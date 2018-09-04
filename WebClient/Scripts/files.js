@@ -288,6 +288,11 @@ L.Control.Files = L.Control.extend({
             }
             this._update();
         }
+        else if (typeof message.clear !== "undefined") {
+            // remove all entries from downloadable files
+            this._filesItems.length = 0;
+            this._update();
+        }
         else if (typeof message.fileName !== "undefined") {
             // this is the file the user requested
             if (typeof this._downloads[message.fileName] === "undefined") {
