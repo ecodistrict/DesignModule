@@ -1,0 +1,48 @@
+There are 2 types of legends
+
+Discrete legend: discrete steps or levels with specified colors
+Ramp color legend: ramped gradient between values
+
+color = [<red>, <green>, <blue>, <alpha>] | "#<rr><bb><gg><aa>" | "#<r><b><g><a>" | "#<rr><bb><gg>" | "#<r><b><g>"
+	where red, green, blue are [0..255], alpha is [0.0..1.0] (default=1.0=opaque)
+
+geoColor = { 
+	"fill": <color>(default=[0, 0, 0, 255]),
+	"outline": <color>(default=[0, 0, 0, 0]),
+	"fill2": <color>(default=[0, 0, 0, 0])
+}
+
+legend common: {
+	"type": "discrete"(default)|"ramp",
+	"description": <string>,
+	"entries": []
+}
+
+discreteEntry: {
+	"color": <geoColor>,
+	"minValue": <double>,
+	"maxValue": <double> (default=<minValue>+1), 
+	"description": <string>(default="")
+}
+
+discrete: {
+	"orientationVertical": true(default)|false
+	"noDataColor": <geoColor>(default={fill: [0, 0, 0, 255]})
+	"entries": [<discreteEntry>[,<discreteEntry>]]
+}
+
+rampEntry: {
+	"color": <color>,
+	"value": <double>,
+	"description": <string>(default=<value-as-string>
+}
+
+ramp: {
+	"lowerDataColor": <color>(default=[0, 0, 0, 255]), color used when value is lower then lowest defined range
+	"noDataColor": <color>(default=[0, 0, 0, 255]), color used when value is NaN or null
+	"higherDataColor": <color>(default=[0, 0, 0, 255]), color used when value is higher then lowest defined range
+	"width": <int>(default=300),
+	"logScale": false(default)| true,
+	"tickFontSize": <int>(default=11),
+	"entries": [<rampEntry>[,<rampEntry>]]
+}
