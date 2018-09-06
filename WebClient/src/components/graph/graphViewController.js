@@ -1,7 +1,11 @@
 /**
- * Graph view controller. Manages graph model anf graph view.
+ * Graph view controller. Manages graph model and graph view.
  * This is a base class for all child graph view controllers.
  */
+
+ /* globals L, GraphView, GraphViewModel, GraphLegendViewModel */ 
+
+/* exported GraphViewController */
 
 var GraphViewController = L.Evented.extend({
 

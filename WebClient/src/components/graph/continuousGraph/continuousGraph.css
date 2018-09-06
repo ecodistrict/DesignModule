@@ -1,0 +1,53 @@
+﻿svg.continuous-graph {
+    width: 100%;
+    height: 100%;
+}
+
+svg.continuous-graph .line {
+    stroke-linecap: square;
+    stroke-width: 2px;
+    fill: none;
+    transition: stroke-width 0.3s;
+}
+
+svg.continuous-graph .axis .title {
+    pointer-events: none;
+    fill: rgb(0, 0, 0);
+    font-size: 1.3em;
+    text-anchor: middle;
+}
+
+svg.continuous-graph .axis--y .title {
+    transform: rotate(-90deg);
+}
+
+.continuous-graph-tip div.title {
+    font-weight: bold;
+}
+
+svg.continuous-graph .toolTip circle {
+    fill: #F1F3F3;
+    stroke-width: 2px;
+    pointer-events: none;
+}
+
+svg.continuous-graph .toolTip text {
+    pointer-events: none;
+    color: #000;
+    stroke: #000;
+    stroke-width: 0.2;
+    font: 12px sans-serif;
+}
+
+svg.continuous-graph .toolTip rect {
+    pointer-events: none;
+    /* fill: '#D3D3D3'; */
+    fill: white;
+    /*stroke-width: 0;*/
+}
+
+svg.continuous-graph .toolTip-overlay-container {
+    fill: none;
+    pointer-events: all;
+}
+    

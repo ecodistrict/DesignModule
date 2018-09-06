@@ -21,7 +21,7 @@ var
   scenario: TScenario;
 begin
   try
-    connection := TSocketConnection.Create('PublisherTest', 0, '', 'vps17642.public.cloudvps.com');
+    connection := TSocketConnection.Create('PublisherTestR', 0, '', 'vps17642.public.cloudvps.com');
     try
       sessionModel := TSessionModel.Create(connection);
       try
