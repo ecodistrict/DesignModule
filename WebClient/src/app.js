@@ -2,12 +2,14 @@
  * Application entry point
  */
 
+import './assets/style/main.css';
 import './utils/polyfill';
 import PerimeterLayout from './core/window/perimeterLayout';
 import WindowManager from './core/window/windowManager';
 import TimeSliderController from './components/timeSlider/timeSliderController';
 import GraphService from './components/graph/graphService';
 import GraphViewManager from './components/graph/graphViewManager';
+import DetailsViewController from './components/details/detailsViewController';
 
 var wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
 // determine parameters and config
@@ -168,6 +170,13 @@ window.graphService = new GraphService();
 window.graphViewManager = new GraphViewManager({
     windowManager: windowManager,
     graphViewOptions: graphViewOptions
+});
+
+// details
+window.detailsViewController = new DetailsViewController({
+    map: map,
+    graphService: graphService,
+    graphViewManager: graphViewManager
 });
 
 // details

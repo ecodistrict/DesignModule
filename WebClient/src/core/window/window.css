@@ -73,7 +73,7 @@
 .window-view .window-resize {
     display: block;
     position: absolute;
-    background-image: url(../../../Content/images/resize.png);
+    background-image: url(../../assets/images/resize.png);
     right: 0px;
     bottom: 0px;
     width: 25px;

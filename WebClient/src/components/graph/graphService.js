@@ -7,12 +7,12 @@
 /* globals L */
 
 import './graphModel';
-import GraphsModel from './graphsModel';
+import ModelCollection from '../../core/modelCollection';
 
 var GraphService = L.Evented.extend({
 
     initialize: function () {
-        this._graphsModel = new GraphsModel();
+        this._graphsModel = new ModelCollection();
         
         Object.defineProperty(this, 'graphsModel', {
             get: function () { return this._graphsModel; }

@@ -46,11 +46,11 @@ var TimeSliderToggleView = L.Control.extend({
     },
 
     show: function () {
-        L.DomUtil.removeClass(this.container, 'hidden');        
+        L.DomUtil.removeClass(this.container, 'hidden');
     },
 
     hide: function () {
-        L.DomUtil.addClass(this.container, 'hidden');        
+        L.DomUtil.addClass(this.container, 'hidden');
     },
 
     notifyClicked: function () {
