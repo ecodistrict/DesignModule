@@ -18,9 +18,7 @@ using System.ServiceModel.Dispatcher;
 using System.Web;
 using IMB;
 
-// netsh http add iplisten ipaddress=0.0.0.0:8080
-
-// old netsh http add urlacl url=http://+:8080/sessions user=vps17642\cornelissenja
+// see readme for setup details
 
 // netsh http add urlacl url=http://+:80/sessions user=vps17642\cornelissenja
 // netsh http add urlacl url=https://+:443/sessions user=vps17642\cornelissenja
