@@ -2,7 +2,7 @@
     box-shadow: 0 1px 5px rgba(0,0,0,0.4);
     background: #fff;
     border-radius: 5px;
-    opacity: .9;
+    opacity: .95;
 }
 
 .details-view.collapsed {
@@ -29,11 +29,11 @@
     display: none;
 }
 
-.details-view .details-body .title {
+.details-view .details-body > .title {
     padding: 5px;
 }
 
-.details-view .details-body .title h1 {
+.details-view .details-body > .title h1 {
     font-size: 1.2em;
 }
 

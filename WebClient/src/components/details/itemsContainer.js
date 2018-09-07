@@ -19,7 +19,7 @@ var ItemsContainer = L.Evented.extend({
         this._equalityPredicate = 
             opts.equalityPredicate || function (leftArg, rightArg) { return leftArg === rightArg; };
 
-        this.views = [];
+        this._views = [];
 
         this.listenTo(opts.modelCollection);
     },
@@ -31,8 +31,8 @@ var ItemsContainer = L.Evented.extend({
         }
 
         var removeView = this._removeView.bind(this);
-        this.views.forEach(removeView);
-        this.views = [];
+        this._views.forEach(removeView);
+        this._views = [];
     },
 
     containsModel: function (model) {
@@ -40,7 +40,7 @@ var ItemsContainer = L.Evented.extend({
         function viewWithModel(viewInfo) {
             return isModelEqual(viewInfo.model, model);
         }
-        return !!this.views.find(viewWithModel);
+        return !!this._views.find(viewWithModel);
     },
 
     setModels: function (models) {
@@ -61,11 +61,11 @@ var ItemsContainer = L.Evented.extend({
         }
         
         // remove views with a model missing in the 'models' array.
-        this.views.filter(not(isViewToKeep)).forEach(removeView);
-        this.views = this.views.filter(isViewToKeep);
+        this._views.filter(not(isViewToKeep)).forEach(removeView);
+        this._views = this._views.filter(isViewToKeep);
 
-        this.views.forEach(softRemoveView);
-        this.views = [];
+        this._views.forEach(softRemoveView);
+        this._views = [];
 
         this.addModels(modelsToSet);
     },
@@ -81,7 +81,7 @@ var ItemsContainer = L.Evented.extend({
             .map(createViewInfo)
             .filter(function (viewInfo) { return viewInfo !== null; });
         
-        this.views = this.views.concat(newViews);
+        this._views = this._views.concat(newViews);
 
         newViews.forEach(function (viewInfo) {
             this._element.appendChild(viewInfo.view.element());
@@ -101,8 +101,8 @@ var ItemsContainer = L.Evented.extend({
 
         var removeView = this._removeView.bind(this);
 
-        this.views.filter(isViewToRemove).forEach(removeView);
-        this.views = this.views.filter(not(isViewToRemove));
+        this._views.filter(isViewToRemove).forEach(removeView);
+        this._views = this._views.filter(not(isViewToRemove));
     },
 
     element: function () {
@@ -121,6 +121,22 @@ var ItemsContainer = L.Evented.extend({
             this._onModelCollectionChange({ models: modelCollection.models });
             this._modelCollection.on('change', this._onModelCollectionChange, this);
         }
+    },
+
+    show: function () {
+        L.DomUtil.removeClass(this._element, 'hidden');
+        
+        this._views.forEach(function (viewInfo) {
+            viewInfo.view.show();
+        });
+    },
+
+    hide: function () {
+        L.DomUtil.addClass(this._element, 'hidden');
+        
+        this._views.forEach(function (viewInfo) {
+            viewInfo.view.hide();
+        });
     },
 
     _onModelCollectionChange: function (data) {

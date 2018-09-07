@@ -21,12 +21,14 @@ var DetailsView = L.Control.extend({
         if (!opts.graphItemsModel) throw new Error('graphItemsModel is not provided');
         if (!opts.kpiItemsModel) throw new Error('kpiItemsModel is not provided');
         if (!opts.layersItemsModel) throw new Error('layersItemsModel is not provided');
+        if (!opts.graphPreviewFactory) throw new Error('graphPreviewFactory is not provided');        
 
         this._graphItemsModel = opts.graphItemsModel;
         this._kpiItemsModel = opts.kpiItemsModel;
         this._layersItemsModel = opts.layersItemsModel;
+        this._graphPreviewFactory = opts.graphPreviewFactory;
         this._parent = opts.parent;
-        this._itemSize = L.extend({ width: 220, height: 150}, opts.itemSize);
+        this._itemSize = L.extend({ width: 180, height: 100}, opts.itemSize);
 
         if (this._parent) {
             this.render();
@@ -99,6 +101,7 @@ var DetailsView = L.Control.extend({
         }
 
         L.DomEvent.disableClickPropagation(this._rootElement);
+        L.DomEvent.disableScrollPropagation(this._rootElement);
     },
 
     remove: function () {
@@ -133,19 +136,29 @@ var DetailsView = L.Control.extend({
 
     _collapse: function () {
         L.DomUtil.addClass(this._rootElement, 'collapsed');
+
+        this._graphsContainer.hide();
+        this._kpisContainer.hide();
+        this._layersContainer.hide();
     },
 
     _expand: function () {
         if (!this._canExpand()) return;
 
         L.DomUtil.removeClass(this._rootElement, 'collapsed');
+        
+        this._graphsContainer.show();
+        this._kpisContainer.show();
+        this._layersContainer.show();
     },
 
     _createGraphItemView: function (graphItemModel) {
+        var preview = this._graphPreviewFactory.create(graphItemModel.originalModel);
         var itemView = new DetailsItemView({
             model: graphItemModel,
             width: this._itemSize.width,
-            height: this._itemSize.height
+            height: this._itemSize.height,
+            preview: preview
         });
         itemView.on('clicked', this._onGraphItemClicked, this);
 

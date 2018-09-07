@@ -12,11 +12,13 @@ var DetailsItemView = L.Evented.extend({
     initialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided the constructor');
         if (!opts.model) throw new Error('model is not provided');
+        if (!opts.preview) throw new Error('preview is not provided');        
 
         this._width = opts.width || 150;
         this._height = opts.height || 80;
 
         this._model = opts.model;
+        this._preview = opts.preview;
         this._parent = opts.parent;
 
         this.render();        
@@ -40,6 +42,10 @@ var DetailsItemView = L.Evented.extend({
 
         this._updateSelection();
         this._model.on('selected', this._updateSelection, this);
+
+        var previewViewport = d3.select(this._rootElement).select('.preview-viewport').node();
+
+        this._preview.render(previewViewport);
     },
 
     remove: function () {
@@ -50,6 +56,16 @@ var DetailsItemView = L.Evented.extend({
 
         L.DomUtil.remove(this._rootElement);
         this._rootElement = null;
+    },
+
+    show: function () {
+        L.DomUtil.removeClass(this._rootElement, 'hidden');
+        this._preview.show();
+    },
+
+    hide: function () {
+        L.DomUtil.addClass(this._rootElement, 'hidden');
+        this._preview.hide();
     },
 
     element: function () {
