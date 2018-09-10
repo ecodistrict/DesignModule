@@ -22,6 +22,16 @@ uses
   PublishServerLib,
   PublishServerGIS,
 
+  // US
+  PublishServerOra,
+  PublishServerUS,
+  Ora,
+  MyOraLib,
+
+  CommandQueue,
+
+  imb3NativeClient,
+
   GisCsSystems,
 
   System.Classes,
@@ -83,15 +93,18 @@ const
     MaxTimeSliderUpdateTime = 10; // seconds
 
 
-  DefaultExpoSensoECValueToHeightFactor = 20.0;
+  DefaultExpoSensoECValueToHeightFactor = 1/50;
+
+  chartValueFactor = 1.0e-6;
 
 type
+  {
   TExpoSenseClient = class(TClient)
   constructor Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
   protected
     procedure Login(aJSONObject: TJSONObject); override;
   end;
-
+  }
   TExpoSenseDataPoint = class(TOrderedListTSEntry)
   constructor Create(aTimeStamp: TDateTime; aLat, aLon: Double; aValue, aHeight: Double);
   destructor Destroy; override;
@@ -105,7 +118,7 @@ type
     property height: Double read fHeight;
   end;
 
-  TExpoSenseTrackLayer = class(TLayerBase)
+  TExpoSenseHeightTrackLayer = class(TLayerBase)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
     aValueHeightFactor: Double;
     aDefaultLoad: Boolean=False; aShowInDomains: Boolean=True);
@@ -121,11 +134,30 @@ type
   public
     procedure Update(aStart, aEnd: TDateTime);
     procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aValue: Double; aMode: Integer);
+    procedure Reset();
+    procedure RegisterLayer; override;
+    procedure handleRefreshTrigger(aTimeStamp: TDateTime);
+    function uniqueObjectsTilesLink: string;
+
+    function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
+  end;
+
+  TExponsenseDotTrackLayer = class(TLayerBase)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
+    aDefaultLoad: Boolean=False; aShowInDomains: Boolean=True);
+  destructor Destroy; override;
+  protected
+    fTilerLayer: TTilerLayer;
+    // timers
+    fPreviewRequestTimer: TTimer;
+    fSendRefreshTimer: TTImer;
+    function getJSON: string; override;
+  public
+    procedure Update(aStart, aEnd: TDateTime);
+    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aValue: Double; aMode: Integer);
     procedure reset();
     procedure RegisterLayer; override;
-    //procedure RegisterLayer; override;
-    //procedure RegisterSlice; override;
-    //function SliceType: Integer; override;
     procedure handleRefreshTrigger(aTimeStamp: TDateTime);
     function uniqueObjectsTilesLink: string;
 
@@ -134,11 +166,11 @@ type
   end;
 
   TExpoSenseScenario = class(TScenario)
-  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView;
-    aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double);
+  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView{;
+    aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double});
   destructor Destroy; override;
   private
-    fTrackLayer: TExpoSenseTrackLayer;
+    fTrackLayer: TExpoSenseHeightTrackLayer;
     fLastLats: TDictionary<TGUID, Double>;
     fLastLons: TDictionary<TGUID, Double>;
     //fSensorsDataSet: TSensorsDataSet;
@@ -148,12 +180,13 @@ type
     fTotalChart: TChartLines;
     fFiltered: Boolean;
     fShowDataSelectionTimer: TTimer;
-    fDataPoints: TObjectDictionary<TGUID, TOrderedListTS<TExpoSenseDataPoint>>; //owns
+    fDataPoints: TObjectDictionary<TGUID, TOrderedListTS<TExpoSenseDataPoint>>;
+    fIMB3Connection: TIMBConnection; //owns
     procedure triggerUpdateTimesliderData;
     function jsonTimesliderData(aPalette: TWDPalette; var aExtent: TWDExtent): string;
     //procedure ShowDataSelection(aTrackLayer: TExpoSenseTrackLayer; aMobileChart, aTotalChart: TChartLines; aFrom, aTo: TDateTime);
   protected
-    fGUID: TGUID;
+    //fGUID: TGUID;
     //fQueryCounter: Integer;
     //fQuerySubscribed: Boolean;
     fPubEvent: TEventEntry;
@@ -170,6 +203,7 @@ type
     //procedure addToSensorDataSet(const aSensorid: TGUID; aTimestamp: TDateTime; aFieldInfo: UInt32; aLat, aLon, aValue: Double);
   public
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
     procedure HandleTimeSliderEvent(aClient: TClient; const aType: string; aPayload: TJSONObject);
     procedure HandleScenarioRefresh(aClient: TClient; const aType: string; aPayload: TJSONObject);
     procedure AddPoint(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aValue, aHeight: Double);
@@ -194,10 +228,9 @@ type
     function handleTilerStatus(aTiler: TTiler): string;
     procedure handleNewClient(aClient: TClient); override;
     procedure handleRemoveClient(aClient: TClient); override;
-    procedure checkForEmptyScenarios(aTimer: TTimer; aTime: THighResTicks);
   public
-    function addClient(const aClientID: string): TClient; override;
-    function CreateExpoSenseScenario(const aScenarioID: string; aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double): TExpoSenseScenario;
+    //function addClient(const aClientID: string): TClient; override;
+    function CreateExpoSenseScenario(const aScenarioID: string{; aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double}): TExpoSenseScenario;
   end;
 
 implementation
@@ -331,7 +364,7 @@ end;
 
 { TExpoSenseTrackLayer }
 
-procedure TExpoSenseTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aValue: Double; aMode: Integer);
+procedure TExpoSenseHeightTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aValue: Double; aMode: Integer);
 var
   geometryPoint: TWDGeometryPoint;
 begin
@@ -348,7 +381,7 @@ begin
   end;
 end;
 
-constructor TExpoSenseTrackLayer.Create(aScenario: TScenario;
+constructor TExpoSenseHeightTrackLayer.Create(aScenario: TScenario;
   const aDomain, aID, aName, aDescription: string;
   aValueHeightFactor: Double;
   aDefaultLoad, aShowInDomains: Boolean);
@@ -397,13 +430,13 @@ begin
 end;
 }
 
-destructor TExpoSenseTrackLayer.Destroy;
+destructor TExpoSenseHeightTrackLayer.Destroy;
 begin
   FreeAndNil(fTilerLayer);
   inherited;
 end;
 
-function TExpoSenseTrackLayer.getJSON: string;
+function TExpoSenseHeightTrackLayer.getJSON: string;
 begin
   Result := inherited getJSON;
   if Assigned(fTilerLayer) and (fTilerLayer.URL<>'')
@@ -412,7 +445,7 @@ begin
   jsonAddString(Result, 'type', ltTile);
 end;
 
-function TExpoSenseTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
+function TExpoSenseHeightTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
 begin
   Result := inherited;
   if Assigned(fTilerLayer) and (fTilerLayer.URL <> '') then
@@ -433,12 +466,12 @@ begin
   }
 end;
 
-function TExpoSenseTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
+function TExpoSenseHeightTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
 begin
   Result := inherited;
 end;
 
-procedure TExpoSenseTrackLayer.handleRefreshTrigger(aTimeStamp: TDateTime);
+procedure TExpoSenseHeightTrackLayer.handleRefreshTrigger(aTimeStamp: TDateTime);
 var
   timeStampStr: string;
   tiles: string;
@@ -465,7 +498,7 @@ begin
   end;
 end;
 
-procedure TExpoSenseTrackLayer.RegisterLayer;
+procedure TExpoSenseHeightTrackLayer.RegisterLayer;
 var
   paletteJSON: string;
   paletteJSONObject: TJSONObject;
@@ -554,19 +587,19 @@ begin
   }
 end;
 
-procedure TExpoSenseTrackLayer.reset;
+procedure TExpoSenseHeightTrackLayer.Reset;
 begin
   fTilerLayer.signalSliceAction(tsaClearSlice);
 end;
 
-function TExpoSenseTrackLayer.uniqueObjectsTilesLink: string;
+function TExpoSenseHeightTrackLayer.uniqueObjectsTilesLink: string;
 begin
   if Assigned(fTilerLayer)
   then Result := fTilerLayer.URLTimeStamped
   else Result := '';
 end;
 
-procedure TExpoSenseTrackLayer.Update(aStart, aEnd: TDateTime);
+procedure TExpoSenseHeightTrackLayer.Update(aStart, aEnd: TDateTime);
 begin
   // todo: implement
 end;
@@ -587,6 +620,217 @@ begin
   Result := stGeometryIH;
 end;
 }
+
+{ TExponsenseDotTrackLayer }
+
+procedure TExponsenseDotTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aValue: Double;
+  aMode: Integer);
+var
+  geometryPoint: TWDGeometryPoint;
+begin
+  geometryPoint := TWDGeometryPoint.Create(aLon, aLat, Double.NaN);
+  try
+    fTilerLayer.signalData(
+      TByteBuffer.bb_tag_guid(icehObjectID, aSensorID)+
+      TByteBuffer.bb_tag_rawbytestring(icehTilerGeometryPoint, geometryPoint.Encode)+
+      TByteBuffer.bb_tag_double(icehTilerValue, aMode)+
+      TByteBuffer.bb_tag_double(icehTilerValue2, aValue*Self.fValueHeightFactor)+
+      TByteBuffer.bb_tag_double(icehObjectTS, aTimeStamp));
+  finally
+    geometryPoint.Free;
+  end;
+end;
+
+constructor TExponsenseDotTrackLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad,
+  aShowInDomains: Boolean);
+begin
+  fValueHeightFactor := aValueHeightFactor;
+  inherited Create(
+    aScenario, aDomain, aID, aName, aDescription,
+    aDefaultLoad, 'mobilesensor', aShowInDomains, False, 0.8, '', '');
+  fPreviewRequestTimer := scenario.project.Timers.SetTimer(
+    procedure (aTimer: TTImer; aTime: THighResTicks)
+    begin
+      if Assigned(fTilerLayer) then
+      begin
+        Log.WriteLn('triggered preview timer for '+elementID);
+        fTilerLayer.signalRequestPreview;
+      end
+      else Log.WriteLn('## triggered preview timer for '+elementID+' without having a tiler layer', llError);
+    end);
+  fSendRefreshTimer := scenario.project.Timers.CreateInactiveTimer;
+  fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*3); // todo: parameterize
+  //fLayerUpdateTimer := scenario.project.Timers.CreateInactiveTimer;
+  //fLayerUpdateTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond/aLayerUpdateFrequency);
+  fTilerLayer := nil;
+  RegisterLayer;
+end;
+
+destructor TExponsenseDotTrackLayer.Destroy;
+begin
+  FreeAndNil(fTilerLayer);
+  inherited;
+end;
+
+function TExponsenseDotTrackLayer.getJSON: string;
+begin
+  Result := inherited getJSON;
+  if Assigned(fTilerLayer) and (fTilerLayer.URL<>'')
+  then jsonAddString(Result, 'tiles', fTilerLayer.URLTimeStamped)
+  else jsonAddString(Result, 'tiles', '', True);
+  jsonAddString(Result, 'type', ltTile);
+end;
+
+function TExponsenseDotTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
+begin
+  Result := inherited;
+  if Assigned(fTilerLayer) and (fTilerLayer.URL <> '') then
+    aClient.SendRefresh(elementID, '', fTilerLayer.URLTimeStamped);
+
+  legendJSON := Self.legendJSON;
+  if legendJSON <> '' then
+    aClient.SendLegend(elementID, '', Self.legendJSON);
+end;
+
+function TExponsenseDotTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
+begin
+  Result := inherited;
+end;
+
+procedure TExponsenseDotTrackLayer.handleRefreshTrigger(aTimeStamp: TDateTime);
+var
+  timeStampStr: string;
+  tiles: string;
+begin
+  try
+    if aTimeStamp<>0
+    then timeStampStr := FormatDateTime(publisherDateTimeFormat, aTimeStamp)
+    else timeStampStr := '';
+    tiles := uniqueObjectsTilesLink;
+
+    Log.WriteLn('TLayer.handleRefreshTrigger for '+elementID+' ('+timeStampStr+'): '+tiles);
+
+    // signal refresh to layer client
+    forEachSubscriber<TClient>(
+      procedure(aClient: TClient)
+      begin
+        Log.WriteLn('TLayer.handleRefreshTrigger for '+elementID+', direct subscribed client: '+aClient.clientID, llNormal, 1);
+        aClient.SendRefresh(elementID, timeStampStr, tiles);
+      end);
+    scenario.LayerRefreshed(fTilerLayer.ID, elementID, aTimeStamp, Self);
+  except
+    on E: Exception
+    do Log.WriteLn('Exception in TLayer.handleRefreshTrigger: '+e.Message, llError);
+  end;
+
+end;
+
+procedure TExponsenseDotTrackLayer.RegisterLayer;
+var
+  paletteJSON: string;
+  paletteJSONObject: TJSONObject;
+  modalityPalette: TWDPalette;
+  _legendJSON: string;
+  //start: TDateTime;
+begin
+  paletteJSON :=
+    '{"entries":['+
+      '{"color":{"fill":"#ffff00"}, "minValue":0, "description":"No modality"},'+
+      '{"color":{"fill":"#00ff00"}, "minValue":1, "description":"Walking"},'+
+      '{"color":{"fill":"#0000ff"}, "minValue":2, "description":"Bicycle"},'+
+      '{"color":{"fill":"#ff0000"}, "minValue":3, "description":"Motorized"},'+
+      '{"color":{"fill":"#000000"}, "minValue":4, "description":"Other"}'+
+    ']}';
+  paletteJSONObject := TJSONObject.ParseJSONValue(paletteJSON) as TJSONObject;
+  try
+    if Assigned(paletteJSONObject)
+    then modalityPalette := JSON2PaletteAndLegend(paletteJSONObject, _legendJSON)
+    else modalityPalette := CreateBlueTrackPalette('Modality');
+  finally
+    paletteJSONObject.Free;
+  end;
+  legendJSON := _legendJSON;
+  fTilerLayer.Free;
+  fTilerLayer := TTilerLayer.Create(
+    scenario.project.Connection, elementID, stLocation,
+    // tiler info
+    procedure (aTilerLayer: TTilerLayer)
+    begin
+      aTilerLayer.signalAddSlice();
+      aTilerLayer.signalSliceAction(tsaClearSlice);
+    end,
+    // refresh
+    procedure(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime; aImmediate: Boolean)
+    begin
+      // todo: implement
+      try
+        if aImmediate  then
+        begin
+          fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*ImmediateTilerRefreshTime),
+            procedure(aTimer: TTimer; aTime: THighResTicks)
+            begin
+              handleRefreshTrigger(aTimeStamp);
+            end);
+        end
+        else
+        begin
+          fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*1),
+            procedure(aTimer: TTimer; aTime: THighResTicks)
+            begin
+              handleRefreshTrigger(aTimeStamp);
+            end);
+        end;
+        // refresh preview also
+        fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*30);
+      except
+        on E: Exception
+        do Log.WriteLn('Exception in TLayer.handleTilerRefresh ('+elementID+'): '+E.Message, llError);
+      end;
+    end,
+    // preview
+    procedure (aTilerLayer: TTilerLayer)
+    var
+      pvBASE64: string;
+    begin
+      pvBASE64 := aTilerLayer.previewAsBASE64;
+      // layer clients
+      forEachSubscriber<TClient>(
+        procedure(aClient: TClient)
+        begin
+          aClient.SendPreview(elementID, pvBASE64);
+        end);
+      Log.WriteLn('send normal preview on '+elementID);
+    end,
+    modalityPalette);//, -1, '' .addLayer(elementID, aSliceType, aPalette);
+  // trigger registration
+  fTilerLayer.signalRegisterLayer(scenario.project.tiler, fDescription, False, 250);
+  {
+  Log.WriteLn('Waiting on tiler for layer '+elementID);
+  start := Now;
+  while (fTilerLayer.URL='') and (Now-start<dtOneSecond*15)
+  do Sleep(1000);
+  if fTilerLayer.URL=''
+  then Log.WriteLn('Timeout on layer registration for '+elementID, llWarning);
+  }
+end;
+
+procedure TExponsenseDotTrackLayer.reset;
+begin
+  fTilerLayer.signalSliceAction(tsaClearSlice);
+end;
+
+function TExponsenseDotTrackLayer.uniqueObjectsTilesLink: string;
+begin
+  if Assigned(fTilerLayer)
+  then Result := fTilerLayer.URLTimeStamped
+  else Result := '';
+end;
+
+procedure TExponsenseDotTrackLayer.Update(aStart, aEnd: TDateTime);
+begin
+  // todo: implement
+end;
+
 { TExpoSenseScenario }
 
 procedure TExpoSenseScenario.AddPoint(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aValue, aHeight: Double);
@@ -605,13 +849,13 @@ begin
 end;
 
 constructor TExpoSenseScenario.Create(aProject: TProject; const aID, aName,
-  aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView;
-  aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double);
+  aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView{;
+  aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double});
 begin
   //if TRegEx.IsMatch(aID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$')
   //then fGUID := TGUID.Create(aID)
   //else fGUID := TGUID.Empty;
-  fGUID := aGUID;
+  //fGUID := aGUID;
   //fLive := True;
   //fQueryCounter := 0;
   //fQuerySubscribed := False;
@@ -691,6 +935,18 @@ begin
     fMapView := TMapView.Create(extent.CenterY, extent.CenterX, fMapView.zoom);
     aClient.SendView(fMapView.lat, fMapView.lon, Double.NaN);
   end;
+  //fMobileChart.sub
+  aClient.SubscribeTo(fMobileChart, nil);
+  aClient.SubscribeTo(fTotalChart, nil);
+  //aClient.SubscribeTo(fTrackLayer);
+end;
+
+function TExpoSenseScenario.HandleClientUnsubscribe(aClient: TClient): Boolean;
+begin
+  Result := inherited;
+  aClient.UnsubscribeFrom(fMobileChart);
+  aClient.UnsubscribeFrom(fTotalChart);
+  //aClient.UnsubscribeFrom(fTrackLayer);
 end;
 
 procedure TExpoSenseScenario.handleLiveEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
@@ -1010,17 +1266,17 @@ begin
             if not fFiltered then
             begin
               fTrackLayer.AddValue(sensorid, timeStamp, lastLat, lastLon, value, mode);
-              fMobileChart.AddValue(timeStamp, [value]);
+              fMobileChart.AddValue(timeStamp, [value*chartValueFactor, value*chartValueFactor*1.1]); // todo: measured value
               if fMobileChart.allValues.Count>=2 then
               begin
-                average := (value+fMobileChart.allValues[fMobileChart.allValues.Count-2].y[0])/2.0;
+                average := (value*chartValueFactor+fMobileChart.allValues[fMobileChart.allValues.Count-2].y[0])/2.0;
                 delta := timeStamp-fMobileChart.allValues[fMobileChart.allValues.Count-2].x;
                 _totalValue := average * delta * 24 * 60;
                 if fTotalChart.allValues.Count>0
                 then _totalValue := _totalValue + fTotalChart.allValues[fTotalChart.allValues.Count-1].y[0];
                 fTotalChart.AddValue(timeStamp, [_totalValue])
               end
-              else fTotalChart.AddValue(timeStamp, [value]);
+              else fTotalChart.AddValue(timeStamp, [value*chartValueFactor]);
             end;
 
           end;
@@ -1153,10 +1409,10 @@ begin
       else stepSize := edp.timeStamp-prevTimeStamp; // NOT first step
 
       // check if entry should be closed (added)
-      if loopSensorValueColor<>entryColor then
+      if (loopSensorValueColor<>entryColor) or (stepSize>MaxNoSensorValueTime) then
       begin
         // check for transparancy
-        if (entryColor and $FF000000)<>0 then
+        if ((entryColor and $FF000000)<>0) or (stepSize>MaxNoSensorValueTime) then
         begin
           // calculate end time for entry
           if stepSize>MaxNoSensorValueTime
@@ -1300,23 +1556,96 @@ begin
 end;
 
 procedure TExpoSenseScenario.ReadBasicData;
+var
+  oraSession: TOraSession;
+  USDataSource: string;
+  USScenarioID: Integer;
+  USUserName: string;
+  scenarioID: Integer;
+  tablePrefix: string;
+  federation: string;
+  sourceProjection: TGIS_CSProjectedCoordinateSystem;
+  metaLayer: TDictionary<Integer, TMetaLayerEntry>;
+  imlep: TPair<Integer, TMetaLayerEntry>;
+  layer: TLayerBase;
+  IMB3RemoteHost: string;
+  USTablePrefix: string;
 begin
   fMobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'EC', 'EC', 'Personal EC', False, 'line',
     TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
-    [TChartAxis.Create('concentratie', 'lightBlue', 'Concentration', 'mg/m3')], 'time');
-  // todo: fMobileChart.chartUpdateTime := 10; // seconds
+    [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'),
+      TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')], 'time', 3);
+  fMobileChart.chartUpdateTime := 2;
   AddChart(fMobileChart);
 
   fTotalChart := TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'EC' + 'total', 'EC' + '-total', 'Personal EC' + ' Total', False, 'line',
     TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
-    [TChartAxis.Create('concentratie', 'lightBlue', 'Concentration', 'mg/m3')], 'time');
+    [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')], 'time', 3);
+  fTotalChart.chartUpdateTime := 2;
   AddChart(fTotalChart);
 
-  fTrackLayer := TExpoSenseTrackLayer.Create(
+  fTrackLayer := TExpoSenseHeightTrackLayer.Create(
     Self, 'Personal exposure', 'EC' + 'personal-track-' + 'EC', 'Personal Track ' + 'EC', 'EC',
     DefaultExpoSensoECValueToHeightFactor,
     True, True);
   AddLayer(fTrackLayer);
+
+
+
+  // add air (realtime)
+
+  USDataSource := 'us_ams_test/us_ams_test@app-usdata01.tsn.tno.nl/uspsde';
+  USScenarioID := 1;
+  USUserName := 'us_ams_test';
+  USTablePrefix := 'V1#';
+  IMB3RemoteHost := 'app-usmodel01.tsn.tno.nl';
+
+  oraSession := TOraSession.Create(nil);
+  try
+    oraSession.ConnectString := USDataSource;
+    oraSession.Open;
+
+    scenarioID := USScenarioID;
+
+    tablePrefix := GetScenarioTablePrefix(oraSession, scenarioID);
+    federation := GetScenarioFederation(oraSession, scenarioID);
+
+
+    sourceProjection := CSProjectedCoordinateSystemList.ByEPSG(28992);
+
+    fIMB3Connection.Free;
+    fIMB3Connection := TIMBConnection.Create(IMB3RemoteHost, 4000, 'PublisherExposens', 1, federation);
+
+    metaLayer := TDictionary<Integer, TMetaLayerEntry>.Create;
+    try
+      if ReadMetaLayer(oraSession, tablePrefix, metaLayer) then
+      begin
+        for imlep in metalayer do
+        begin
+          if imlep.value._published>0 then
+          begin
+            layer := imlep.value.CreateUSLayer(
+              self, tablePrefix, ConnectStringFromSession(oraSession),
+              SubscribeUSDataEvents(USUserName, imlep.value.IMB_EVENTCLASS, USTablePrefix, fIMB3Connection),
+              sourceProjection, imlep.value.Domain, imlep.value.description);
+            if Assigned(layer) then
+            begin
+              AddLayer(layer);
+              // schedule reading objects and send to
+              AddCommandToQueue(Self, (layer as TUSLayer).ReadObjects);
+              Log.WriteLn('Added layer '+imlep.value.Domain+'\'+imlep.value.description);
+            end
+            else Log.WriteLn('Could not add US layer '+imlep.value.Domain+'\'+imlep.value.description, llError);
+          end;
+        end;
+      end;
+    finally
+      metaLayer.Free;
+    end;
+  finally
+    oraSession.Free;
+  end;
+
 end;
 
 procedure TExpoSenseScenario.triggerUpdateTimesliderData;
@@ -1361,6 +1690,7 @@ end;
 
 { TExpoSenseProject }
 
+{
 function TExpoSenseProject.addClient(const aClientID: string): TClient;
 begin
   Result := TExpoSenseClient.Create(Self, fProjectCurrentScenario, fProjectRefScenario, aClientID);
@@ -1371,46 +1701,20 @@ begin
     TMonitor.Exit(clients);
   end;
 end;
-
-procedure TExpoSenseProject.checkForEmptyScenarios(aTimer: TTimer; aTime: THighResTicks);
-var
-  scenario: TScenario;
-  id: string;
-begin
-  TMonitor.Enter(scenarios);
-  try
-    for scenario in scenarios.Values do
-    begin
-      if (scenario.clientAmount=0) and
-         (scenario is TExpoSenseScenario) and
-         ((scenario as TExpoSenseScenario).fLastClient<=Now-{$IFDEF DEBUG}dtOneMinute/4{$ELSE}dtOneMinute*5{$ENDIF}) then
-      begin
-        try
-          id := scenario.ID;
-          //scenarios.Remove(id);
-          Log.WriteLn('Removing scenario '+id);
-          //exit; // only 1 at the time because we are within for loop
-        except
-          on E: Exception
-          do Log.WriteLn('Could not remove scenario '+id+': '+E.Message, llError);
-        end;
-      end;
-    end;
-  finally
-    TMonitor.Exit(scenarios);
-  end;
-end;
-
+}
 constructor TExpoSenseProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
   aTilerStatusURL: string; aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
+var
+  scenario: TExpoSenseScenario;
 begin
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
     aTilerStatusURL, nil, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView);
   fTiler.onTilerStatus := handleTilerStatus;
   //Set ExpoSense controls
-  SetControl('timeslider', '1');
-  clientMessageHandlers.Add('timeslider',
+  SetControl(timeSliderControl, '1');
+  windControl; // init by first use
+  clientMessageHandlers.Add(timeSliderControl,
     procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
     begin
       if Assigned(aClient.currentScenario) and (aClient.currentScenario is TExpoSenseScenario)  then
@@ -1426,12 +1730,15 @@ begin
         (aClient.currentScenario as TExpoSenseScenario).HandleScenarioRefresh(aClient, aType, aPayload);
       end;
     end);
+  scenario := CreateExpoSenseScenario('demo track'{, guid, lts, uts});
+  scenarios.Add(scenario.ID, scenario);
+  fProjectCurrentScenario := scenario;
 end;
 
-function TExpoSenseProject.CreateExpoSenseScenario(const aScenarioID: string; aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double): TExpoSenseScenario;
+function TExpoSenseProject.CreateExpoSenseScenario(const aScenarioID: string{; aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double}): TExpoSenseScenario;
 begin
-  Result := TExpoSenseScenario.Create(Self, aScenarioID, 'Fietsproject', 'Persoonlijke fietsdata - ' + aScenarioID, False, MapView,
-    aGUID, aLowerTimeStamp, aUpperTimeStamp);
+  Result := TExpoSenseScenario.Create(Self, aScenarioID, 'GPS tracks', 'Exposure on GPS tracks', False, MapView{,
+    aGUID, aLowerTimeStamp, aUpperTimeStamp});
 end;
 
 function TExpoSenseProject.handleTilerStatus(aTiler: TTiler): string;
@@ -1460,7 +1767,7 @@ begin
 end;
 
 { TExpoSenseClient }
-
+(*
 constructor TExpoSenseClient.Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
 begin
   inherited;
@@ -1469,16 +1776,17 @@ end;
 procedure TExpoSenseClient.Login(aJSONObject: TJSONObject);
 var
   scenarioID: string;
-  userID: string;
+//  userID: string;
   scenario: TScenario;
-  userdef: string;
-  lts: Double;
-  uts: Double;
-  userdef_split: TArray<string>;
-  guid: TGUID;
+//  userdef: string;
+//  lts: Double;
+//  uts: Double;
+//  userdef_split: TArray<string>;
+//  guid: TGUID;
 begin
-  userID := aJSONObject.GetValue<string>('userid');
+  //userID := aJSONObject.GetValue<string>('userid');
   scenarioID := aJSONObject.GetValue<string>('scenario'); //todo: check if scenarioID is valid GUID?
+
   if not TRegEx.IsMatch(scenarioID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$') then
     exit;
   guid := TGUID.Create(scenarioID);
@@ -1496,11 +1804,12 @@ begin
       Log.WriteLn('EXPERT scenario: '+scenarioID+' '+lts.ToString+' <= ts <= '+uts.ToString, llWarning);
     end;
   end;
+
   TMonitor.Enter(fProject.scenarios);
   try
     if not fProject.scenarios.TryGetValue(scenarioID, scenario) then
     begin
-      scenario := (fProject as TExpoSenseProject).CreateExpoSenseScenario(scenarioID, guid, lts, uts);
+      scenario := (fProject as TExpoSenseProject).CreateExpoSenseScenario(scenarioID{, guid, lts, uts});
       fProject.scenarios.Add(scenario.ID, scenario);
     end;
   finally
@@ -1509,11 +1818,11 @@ begin
   removeClient(fCurrentScenario);
   fCurrentScenario := scenario;
   addClient(fCurrentScenario);
-  Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
+  //Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
   SendSession();
   fProject.SendDomains(self, 'domains');
 end;
-
+*)
 
 end.
 

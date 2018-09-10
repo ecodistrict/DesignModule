@@ -47,7 +47,7 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
-        <DCC_UnitSearchPath>imb;logger;odac;avl;delaunay;oracleTools;us;world;imb3;publisher-core;TatukGIS_11\$(Platform);TatukGIS_11\License;TatukGIS_11\Resources;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>imb;logger;odac;avl;delaunay;oracleTools;us;world;imb3;publisher-core;TatukGIS_11\$(Platform);TatukGIS_11\License;TatukGIS_11\Resources;mc;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_Locale>1043</VerInfo_Locale>
         <SanitizedProjectName>PublishingServerExpoSense</SanitizedProjectName>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
@@ -58,6 +58,7 @@
         <DCC_S>false</DCC_S>
         <DCC_F>false</DCC_F>
         <DCC_K>false</DCC_K>
+        <DCC_Define>NONET;$(DCC_Define)</DCC_Define>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <Manifest_File>(None)</Manifest_File>

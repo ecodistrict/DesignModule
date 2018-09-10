@@ -821,6 +821,7 @@ function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Int
 function getUSScenarioFilter(aOraSession: TOraSession; const aProjectID: string): TStringArray;
 
 function ReadMetaLayer(aSession: TOraSession; const aTablePrefix: string; aMetaLayer: TMetaLayer): Boolean;
+function SubscribeUSDataEvents(const aUserName, aIMBEventClass, aTablePrefix: string; aIMBConnection: TIMBConnection): TIMBEventEntryArray;
 
 //function ConnectToUSProject(const aConnectString, aProjectID: string; out aMapView: TMapView): TOraSession;
 
@@ -1266,15 +1267,18 @@ begin
         objectTypes := '"control"';
         geometryType := '';
         diffRange := diffRange; // todo:
-        Result := TUSControlsLayer.Create(
-          aScenario as TUSScenario,
-          aDomain,
-          OBJECT_ID.ToString, // id
-          aName,
-          LEGEND_DESC.Replace('~~', '-').replace('\', '-'),
-          False,
-          aConnectString,
-          aSourceProjection);
+        if aScenario is TUSScenario then
+        begin
+          Result := TUSControlsLayer.Create(
+            aScenario as TUSScenario,
+            aDomain,
+            OBJECT_ID.ToString, // id
+            aName,
+            LEGEND_DESC.Replace('~~', '-').replace('\', '-'),
+            False,
+            aConnectString,
+            aSourceProjection);
+        end;
       end;
     21:
       begin
@@ -1852,7 +1856,8 @@ begin
   begin
     fDataEvents[i] := aDataEvent[i];
     fDataEvents[i].OnChangeObject := handleChangeObject;
-    SubscribeTo((aScenario.Project as TUSProject).GetTableSync(fDataEvents[i].EventName), handleTableChange);
+    if aScenario.Project is TUSProject
+    then SubscribeTo((aScenario.Project as TUSProject).GetTableSync(fDataEvents[i].EventName), handleTableChange);
   end;
 end;
 
@@ -4305,29 +4310,40 @@ begin
   ReadMeasures;
   ReadUSControls;
   // load current scenario and ref scenario first
-  scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession), fProjectID);
-  fProjectCurrentScenario := ReadScenario(scenarioID.ToString);
-  Log.WriteLn('current US scenario: '+fProjectCurrentScenario.ID+' ('+(fProjectCurrentScenario as TUSScenario).fTableprefix+'): "'+fProjectCurrentScenario.description+'"', llOk);
-  // ref
-  scenarioID := GetScenarioBaseID(OraSession, scenarioID);
-  if scenarioID>=0 then
+  if USDBScenarios.Count>0 then
   begin
-    fProjectRefScenario := ReadScenario(scenarioID.ToString);
-    Log.WriteLn('reference US scenario: '+fProjectRefScenario.ID+' ('+(fProjectRefScenario as TUSScenario).fTableprefix+'): "'+fProjectRefScenario.description+'"', llOk);
-  end
-  else Log.WriteLn('NO reference US scenario', llWarning);
-  if fPreLoadScenarios then
-  begin
-    for s in fUSDBScenarios.Keys do
+    scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession), fProjectID);
+    fProjectCurrentScenario := ReadScenario(scenarioID.ToString);
+    if not Assigned(fProjectCurrentScenario) then
     begin
-      for filter in fUSScenarioFilters do
-        if fUSDBScenarios[s]._published.ToString = filter then
-        begin
-          ReadScenario(s);
-          break;
-        end;
+      fProjectCurrentScenario := ReadScenario(scenarios.Keys.ToArray[0]);
+      Log.WriteLn('current scenario '+scenarioID.ToString+' not found, override by using first', llWarning);
     end;
-  end;
+    Log.WriteLn('current US scenario: '+fProjectCurrentScenario.ID+' ('+(fProjectCurrentScenario as TUSScenario).fTableprefix+'): "'+fProjectCurrentScenario.description+'"', llOk);
+    // ref
+    scenarioID := GetScenarioBaseID(OraSession, scenarioID);
+    if scenarioID>=0 then
+    begin
+      fProjectRefScenario := ReadScenario(scenarioID.ToString);
+      if Assigned(fProjectRefScenario)
+      then Log.WriteLn('reference US scenario: '+fProjectRefScenario.ID+' ('+(fProjectRefScenario as TUSScenario).fTableprefix+'): "'+fProjectRefScenario.description+'"', llOk)
+      else Log.WriteLn('Reference US scenario '+scenarioID.ToString+' NOT found', llWarning);
+    end
+    else Log.WriteLn('NO reference US scenario', llWarning);
+    if fPreLoadScenarios then
+    begin
+      for s in fUSDBScenarios.Keys do
+      begin
+        for filter in fUSScenarioFilters do
+          if fUSDBScenarios[s]._published.ToString = filter then
+          begin
+            ReadScenario(s);
+            break;
+          end;
+      end;
+    end;
+  end
+  else Log.WriteLn('No defined scenarios found!', llError);
 end;
 
 procedure TUSProject.ReadMeasures;
