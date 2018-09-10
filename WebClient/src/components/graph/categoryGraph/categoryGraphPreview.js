@@ -35,8 +35,6 @@ var CategoryGraphPreview = GraphPreview.extend({
 
         this._redraw();
         this._categoryGraphViewModel.on('modelReset', this._redraw, this);
-
-        this.resizeObserver = DomUtil.onResize(this._rootElement, this._redraw.bind(this));
     },
 
     remove: function () {
@@ -69,7 +67,7 @@ var CategoryGraphPreview = GraphPreview.extend({
     },
 
     _onGraphModelChanged: function () {
-        var updatedModel = toCategoryGraphViewModel(this.graphViewModel);
+        var updatedModel = toCategoryGraphViewModel(this._graphModel);
         this._categoryGraphViewModel.set({
             axes: updatedModel.axes,
             lines: updatedModel.lines,

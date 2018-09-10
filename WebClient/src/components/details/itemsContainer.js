@@ -85,6 +85,10 @@ var ItemsContainer = L.Evented.extend({
 
         newViews.forEach(function (viewInfo) {
             this._element.appendChild(viewInfo.view.element());
+            
+            if (this.isVisisble()) {
+                viewInfo.view.show();
+            }
         }.bind(this));
     },
     
@@ -137,6 +141,10 @@ var ItemsContainer = L.Evented.extend({
         this._views.forEach(function (viewInfo) {
             viewInfo.view.hide();
         });
+    },
+
+    isVisisble: function () {
+        return !L.DomUtil.hasClass(this._element, 'hidden');        
     },
 
     _onModelCollectionChange: function (data) {
