@@ -4,6 +4,7 @@
 
 import './detailsItem.css';
 import detailsItemHtml from './detailsItem.html';
+import TooltipView from '../../core/widgets/tooltip/tooltipView';
 
 /* globals L, d3 */
 
@@ -28,10 +29,19 @@ var DetailsItemView = L.Evented.extend({
         if (this._rootElement) return; 
 
         this._rootElement = L.DomUtil.create('div', 'details-item-view', this._parent);
+
+        this._tooltip = new TooltipView({
+            html: function () { return this._model.title; }.bind(this)
+        });
+
         d3.select(this._rootElement)
             .html(detailsItemHtml)
             .style('width', this._width + 'px')
-            .style('height', this._height + 'px');
+            .style('height', this._height + 'px')
+            .on('mouseover', this._tooltip.show)
+            .on('touchstart', this._tooltip.show)
+            .on('mouseout', this._tooltip.hide)
+            .on('touchend', this._tooltip.hide);
         
         L.DomEvent
             .on(this._rootElement, 'click', L.DomEvent.stop)
@@ -56,6 +66,8 @@ var DetailsItemView = L.Evented.extend({
 
         L.DomUtil.remove(this._rootElement);
         this._rootElement = null;
+
+        this._tooltip.remove();
     },
 
     show: function () {

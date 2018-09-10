@@ -9,7 +9,6 @@ import GraphPreview from '../graphPreview';
 import { convertGraphModelToCategoryGraphViewModel as toCategoryGraphViewModel } from './categoryGraphViewModelConverters';
 import categoryGraphLines from './categoryGraphLines';
 import categoryGraphBars from './categoryGraphBars';
-import DomUtil from '../../../utils/DomUtil';
 
 var CategoryGraphPreview = GraphPreview.extend({
 
