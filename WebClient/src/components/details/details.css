@@ -3,6 +3,14 @@
     background: #fff;
     border-radius: 5px;
     opacity: .95;
+    overflow-y: auto;
+    overflow-x: auto;
+    max-height: 80vh;
+    max-width: 80vw;    
+}
+
+#phone .details-view {
+    max-height: 300px;
 }
 
 .details-view.collapsed {
