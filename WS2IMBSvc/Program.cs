@@ -5,6 +5,8 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
 
+using System.Diagnostics;
+
 namespace WS2IMBSvc
 {
     static class Program
@@ -12,14 +14,47 @@ namespace WS2IMBSvc
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
-        static void Main()
+        static void Main(string[] args)
         {
-            ServiceBase[] ServicesToRun;
-            ServicesToRun = new ServiceBase[]
+
+            using (var service = new WS2IMBService())
             {
-                new WS2IMBService()
-            };
-            ServiceBase.Run(ServicesToRun);
+                //if (Debugger.IsAttached || (args.Length > 0 && args[0].ToLower().Equals("/console")))
+                if (Environment.UserInteractive)
+                {
+                    service.DoStart(args);
+                    Boolean quit = false;
+                    while (!quit)
+                    {
+                        Console.WriteLine("");
+                        Console.WriteLine("Press Q to stop program. Press U to send update.");
+                        ConsoleKeyInfo ki = Console.ReadKey();
+                        switch (ki.Key)
+                        {
+                            case ConsoleKey.Q:
+                                {
+                                    quit = true;
+                                    break;
+                                }
+                            /*
+                            case ConsoleKey.U:
+                                {
+                                    //service.DebugUpdate();
+                                    break;
+                                }
+                            */
+                        }
+                    }
+                    Console.WriteLine("Service stopping");
+                    service.DoStop();
+                    Console.WriteLine("Service stopped");
+                }
+                else
+                {
+                    ServiceBase.Run(service);
+                }
+            }
+
         }
     }
 }

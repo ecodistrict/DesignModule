@@ -8,5 +8,8 @@
     <Setting Name="IMBHub" Type="System.String" Scope="Application">
       <Value Profile="(Default)">vps17642.public.cloudvps.com</Value>
     </Setting>
+    <Setting Name="Log" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">./trace.log</Value>
+    </Setting>
   </Settings>
 </SettingsFile>
