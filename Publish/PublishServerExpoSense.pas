@@ -97,6 +97,15 @@ const
 
   chartValueFactor = 1.0e-6;
 
+  ModalityPaletteJSON =
+    '{"entries":['+
+      '{"color":{"fill":"#2e8857"}, "minValue":1, "description":"Walking"},'+ // seaGreen
+      '{"color":{"fill":"#9370db"}, "minValue":2, "description":"Bicycle"},'+ // MediumPurple
+      '{"color":{"fill":"#b22222"}, "minValue":3, "description":"Motorized"},'+ // Crimson
+      '{"color":{"fill":"#2f4f4f"}, "minValue":4, "description":"Other"}'+ // DarkSlateGray
+    ']}';
+
+
 type
   {
   TExpoSenseClient = class(TClient)
@@ -143,7 +152,7 @@ type
     function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
   end;
 
-  TExponsenseDotTrackLayer = class(TLayerBase)
+  TExpoSenseDotTrackLayer = class(TLayerBase)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean=False; aShowInDomains: Boolean=True);
   destructor Destroy; override;
@@ -155,7 +164,29 @@ type
     function getJSON: string; override;
   public
     procedure Update(aStart, aEnd: TDateTime);
-    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aValue: Double; aMode: Integer);
+    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aMode: Integer);
+    procedure reset();
+    procedure RegisterLayer; override;
+    procedure handleRefreshTrigger(aTimeStamp: TDateTime);
+    function uniqueObjectsTilesLink: string;
+
+    function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
+  end;
+
+  TExpoSenseLineTrackLayer = class(TLayerBase)
+  constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
+    aDefaultLoad: Boolean=False; aShowInDomains: Boolean=True);
+  destructor Destroy; override;
+  protected
+    fTilerLayer: TTilerLayer;
+    // timers
+    fPreviewRequestTimer: TTimer;
+    fSendRefreshTimer: TTImer;
+    function getJSON: string; override;
+  public
+    procedure Update(aStart, aEnd: TDateTime);
+    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aPrevLat, aPrevLon: Double; aMode: Integer);
     procedure reset();
     procedure RegisterLayer; override;
     procedure handleRefreshTrigger(aTimeStamp: TDateTime);
@@ -170,13 +201,18 @@ type
     aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double});
   destructor Destroy; override;
   private
-    fTrackLayer: TExpoSenseHeightTrackLayer;
+    fHeightTrackLayer: TExpoSenseHeightTrackLayer;
+    fDotTrackLayer: TExpoSenseDotTrackLayer;
+    fLineTrackLayer: TExpoSenseLineTrackLayer ;
     fLastLats: TDictionary<TGUID, Double>;
     fLastLons: TDictionary<TGUID, Double>;
+    fPrevLats: TDictionary<TGUID, Double>;
+    fPrevLons: TDictionary<TGUID, Double>;
     //fSensorsDataSet: TSensorsDataSet;
     fTimeSliderDataTimer: TTimer;
     fFirstTimeSliderUpdate: Boolean;
-    fMobileChart: TChartLines;
+    fMeasuredECValuesChart: TChartLines;
+    fCalculatedECValuesChart: TChartLines;
     fTotalChart: TChartLines;
     fFiltered: Boolean;
     fShowDataSelectionTimer: TTimer;
@@ -326,7 +362,7 @@ function CreateGraySliderPalette(const aTitle: string): TWDPalette;
 var
   factor: Double;
 const
-  step1 = 80;
+  step1 = 1000;
 begin
   factor := 1 / 1000000000;
   Result := TDiscretePalette.Create(aTitle, [
@@ -500,21 +536,12 @@ end;
 
 procedure TExpoSenseHeightTrackLayer.RegisterLayer;
 var
-  paletteJSON: string;
   paletteJSONObject: TJSONObject;
   modalityPalette: TWDPalette;
   _legendJSON: string;
   //start: TDateTime;
 begin
-  paletteJSON :=
-    '{"entries":['+
-      '{"color":{"fill":"#ffff00"}, "minValue":0, "description":"No modality"},'+
-      '{"color":{"fill":"#00ff00"}, "minValue":1, "description":"Walking"},'+
-      '{"color":{"fill":"#0000ff"}, "minValue":2, "description":"Bicycle"},'+
-      '{"color":{"fill":"#ff0000"}, "minValue":3, "description":"Motorized"},'+
-      '{"color":{"fill":"#000000"}, "minValue":4, "description":"Other"}'+
-    ']}';
-  paletteJSONObject := TJSONObject.ParseJSONValue(paletteJSON) as TJSONObject;
+  paletteJSONObject := TJSONObject.ParseJSONValue(ModalityPaletteJSON) as TJSONObject;
   try
     if Assigned(paletteJSONObject)
     then modalityPalette := JSON2PaletteAndLegend(paletteJSONObject, _legendJSON)
@@ -562,19 +589,18 @@ begin
     end,
     // preview
     procedure (aTilerLayer: TTilerLayer)
-    var
-      pvBASE64: string;
     begin
-      pvBASE64 := aTilerLayer.previewAsBASE64;
+      fPreviewBase64 := aTilerLayer.previewAsBASE64;
       // layer clients
       forEachSubscriber<TClient>(
         procedure(aClient: TClient)
         begin
-          aClient.SendPreview(elementID, pvBASE64);
+          aClient.SendPreview(elementID, fPreviewBase64);
         end);
       Log.WriteLn('send normal preview on '+elementID);
     end,
     modalityPalette);//, -1, '' .addLayer(elementID, aSliceType, aPalette);
+  fPreviewBase64 := fTilerLayer.previewAsBASE64;
   // trigger registration
   fTilerLayer.signalRegisterLayer(scenario.project.tiler, fDescription, False, 250);
   {
@@ -604,47 +630,29 @@ begin
   // todo: implement
 end;
 
-{
-procedure TExpoSenseTrackLayer.RegisterLayer;
-begin
-  RegisterOnTiler(False, SliceType, name, 2500, fPalette.Clone);
-end;
-
-procedure TExpoSenseTrackLayer.RegisterSlice;
-begin
-  tilerLayer.signalAddSlice();
-end;
-
-function TExpoSenseTrackLayer.SliceType: Integer;
-begin
-  Result := stGeometryIH;
-end;
-}
-
 { TExponsenseDotTrackLayer }
 
-procedure TExponsenseDotTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aValue: Double;
-  aMode: Integer);
+procedure TExpoSenseDotTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aMode: Integer);
 var
   geometryPoint: TWDGeometryPoint;
+  id: TWDID;
 begin
   geometryPoint := TWDGeometryPoint.Create(aLon, aLat, Double.NaN);
   try
+    id := TByteBuffer.bb_bytes(aSensorID, SizeOf(aSensorID))+TByteBuffer.bb_bytes(aTimeStamp, SizeOf(aTimeStamp));
     fTilerLayer.signalData(
-      TByteBuffer.bb_tag_guid(icehObjectID, aSensorID)+
       TByteBuffer.bb_tag_rawbytestring(icehTilerGeometryPoint, geometryPoint.Encode)+
       TByteBuffer.bb_tag_double(icehTilerValue, aMode)+
-      TByteBuffer.bb_tag_double(icehTilerValue2, aValue*Self.fValueHeightFactor)+
-      TByteBuffer.bb_tag_double(icehObjectTS, aTimeStamp));
+      TByteBuffer.bb_tag_bytes(icehObjectID, PAnsiChar(id)^, length(id)));
+      // todo: radius?
   finally
     geometryPoint.Free;
   end;
 end;
 
-constructor TExponsenseDotTrackLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad,
+constructor TExpoSenseDotTrackLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad,
   aShowInDomains: Boolean);
 begin
-  fValueHeightFactor := aValueHeightFactor;
   inherited Create(
     aScenario, aDomain, aID, aName, aDescription,
     aDefaultLoad, 'mobilesensor', aShowInDomains, False, 0.8, '', '');
@@ -660,19 +668,17 @@ begin
     end);
   fSendRefreshTimer := scenario.project.Timers.CreateInactiveTimer;
   fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*3); // todo: parameterize
-  //fLayerUpdateTimer := scenario.project.Timers.CreateInactiveTimer;
-  //fLayerUpdateTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond/aLayerUpdateFrequency);
   fTilerLayer := nil;
   RegisterLayer;
 end;
 
-destructor TExponsenseDotTrackLayer.Destroy;
+destructor TExpoSenseDotTrackLayer.Destroy;
 begin
   FreeAndNil(fTilerLayer);
   inherited;
 end;
 
-function TExponsenseDotTrackLayer.getJSON: string;
+function TExpoSenseDotTrackLayer.getJSON: string;
 begin
   Result := inherited getJSON;
   if Assigned(fTilerLayer) and (fTilerLayer.URL<>'')
@@ -681,7 +687,7 @@ begin
   jsonAddString(Result, 'type', ltTile);
 end;
 
-function TExponsenseDotTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
+function TExpoSenseDotTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
 begin
   Result := inherited;
   if Assigned(fTilerLayer) and (fTilerLayer.URL <> '') then
@@ -692,12 +698,12 @@ begin
     aClient.SendLegend(elementID, '', Self.legendJSON);
 end;
 
-function TExponsenseDotTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
+function TExpoSenseDotTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
 begin
   Result := inherited;
 end;
 
-procedure TExponsenseDotTrackLayer.handleRefreshTrigger(aTimeStamp: TDateTime);
+procedure TExpoSenseDotTrackLayer.handleRefreshTrigger(aTimeStamp: TDateTime);
 var
   timeStampStr: string;
   tiles: string;
@@ -722,26 +728,16 @@ begin
     on E: Exception
     do Log.WriteLn('Exception in TLayer.handleRefreshTrigger: '+e.Message, llError);
   end;
-
 end;
 
-procedure TExponsenseDotTrackLayer.RegisterLayer;
+procedure TExpoSenseDotTrackLayer.RegisterLayer;
 var
-  paletteJSON: string;
   paletteJSONObject: TJSONObject;
   modalityPalette: TWDPalette;
   _legendJSON: string;
   //start: TDateTime;
 begin
-  paletteJSON :=
-    '{"entries":['+
-      '{"color":{"fill":"#ffff00"}, "minValue":0, "description":"No modality"},'+
-      '{"color":{"fill":"#00ff00"}, "minValue":1, "description":"Walking"},'+
-      '{"color":{"fill":"#0000ff"}, "minValue":2, "description":"Bicycle"},'+
-      '{"color":{"fill":"#ff0000"}, "minValue":3, "description":"Motorized"},'+
-      '{"color":{"fill":"#000000"}, "minValue":4, "description":"Other"}'+
-    ']}';
-  paletteJSONObject := TJSONObject.ParseJSONValue(paletteJSON) as TJSONObject;
+  paletteJSONObject := TJSONObject.ParseJSONValue(ModalityPaletteJSON) as TJSONObject;
   try
     if Assigned(paletteJSONObject)
     then modalityPalette := JSON2PaletteAndLegend(paletteJSONObject, _legendJSON)
@@ -789,19 +785,212 @@ begin
     end,
     // preview
     procedure (aTilerLayer: TTilerLayer)
-    var
-      pvBASE64: string;
     begin
-      pvBASE64 := aTilerLayer.previewAsBASE64;
+      fPreviewBase64 := aTilerLayer.previewAsBASE64;
       // layer clients
       forEachSubscriber<TClient>(
         procedure(aClient: TClient)
         begin
-          aClient.SendPreview(elementID, pvBASE64);
+          aClient.SendPreview(elementID, fPreviewBase64);
+        end);
+      Log.WriteLn('send normal preview on '+elementID);
+    end,
+    modalityPalette);
+  fPreviewBase64 := fTilerLayer.previewAsBASE64;
+  // trigger registration
+  fTilerLayer.signalRegisterLayer(scenario.project.tiler, fDescription, False, 250);
+end;
+
+procedure TExpoSenseDotTrackLayer.reset;
+begin
+  fTilerLayer.signalSliceAction(tsaClearSlice);
+end;
+
+function TExpoSenseDotTrackLayer.uniqueObjectsTilesLink: string;
+begin
+  if Assigned(fTilerLayer)
+  then Result := fTilerLayer.URLTimeStamped
+  else Result := '';
+end;
+
+procedure TExpoSenseDotTrackLayer.Update(aStart, aEnd: TDateTime);
+begin
+  // todo: implement
+end;
+
+{ TExpoSenseLineTrackLayer }
+
+procedure TExpoSenseLineTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aPrevLat, aPrevLon: Double; aMode: Integer);
+var
+  geometry: TWDGeometry;
+//  id: TWDID;
+begin
+  geometry := TWDGeometry.Create();
+  try
+    // build geometry from previous to this point
+    //aLon, aLat, Double.NaN
+    geometry.AddPoint(aPrevLon, aPrevLat, Double.NaN);
+    geometry.AddPoint(aLon, aLat, Double.NaN);
+    //id := TByteBuffer.bb_bytes(aSensorID, SizeOf(aSensorID))+TByteBuffer.bb_bytes(aTimeStamp, SizeOf(aTimeStamp));
+    fTilerLayer.signalData(
+      TByteBuffer.bb_tag_rawbytestring(icehTilerGeometry, geometry.Encode)+
+      TByteBuffer.bb_tag_double(icehTilerValue, aMode)+
+      //TByteBuffer.bb_tag_bytes(icehObjectID, PAnsiChar(id)^, length(id)));
+      TByteBuffer.bb_tag_guid(icehObjectID, TGUID.NewGuid));
+      // todo: radius?
+  finally
+    geometry.Free;
+  end;
+end;
+
+constructor TExpoSenseLineTrackLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad, aShowInDomains: Boolean);
+begin
+  inherited Create(
+    aScenario, aDomain, aID, aName, aDescription,
+    aDefaultLoad, 'mobilesensor', aShowInDomains, False, 0.8, '', '');
+  fPreviewRequestTimer := scenario.project.Timers.SetTimer(
+    procedure (aTimer: TTImer; aTime: THighResTicks)
+    begin
+      if Assigned(fTilerLayer) then
+      begin
+        Log.WriteLn('triggered preview timer for '+elementID);
+        fTilerLayer.signalRequestPreview;
+      end
+      else Log.WriteLn('## triggered preview timer for '+elementID+' without having a tiler layer', llError);
+    end);
+  fSendRefreshTimer := scenario.project.Timers.CreateInactiveTimer;
+  fSendRefreshTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*3); // todo: parameterize
+  //fLayerUpdateTimer := scenario.project.Timers.CreateInactiveTimer;
+  //fLayerUpdateTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond/aLayerUpdateFrequency);
+  fTilerLayer := nil;
+  RegisterLayer;
+end;
+
+destructor TExpoSenseLineTrackLayer.Destroy;
+begin
+  FreeAndNil(fTilerLayer);
+  inherited;
+end;
+
+function TExpoSenseLineTrackLayer.getJSON: string;
+begin
+  Result := inherited getJSON;
+  if Assigned(fTilerLayer) and (fTilerLayer.URL<>'')
+  then jsonAddString(Result, 'tiles', fTilerLayer.URLTimeStamped)
+  else jsonAddString(Result, 'tiles', '', True);
+  jsonAddString(Result, 'type', ltTile);
+end;
+
+function TExpoSenseLineTrackLayer.HandleClientSubscribe(aClient: TClient): Boolean;
+begin
+  Result := inherited;
+  if Assigned(fTilerLayer) and (fTilerLayer.URL <> '') then
+    aClient.SendRefresh(elementID, '', fTilerLayer.URLTimeStamped);
+
+  legendJSON := Self.legendJSON;
+  if legendJSON <> '' then
+    aClient.SendLegend(elementID, '', Self.legendJSON);
+end;
+
+function TExpoSenseLineTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
+begin
+  Result := inherited;
+end;
+
+procedure TExpoSenseLineTrackLayer.handleRefreshTrigger(aTimeStamp: TDateTime);
+var
+  timeStampStr: string;
+  tiles: string;
+begin
+  try
+    if aTimeStamp<>0
+    then timeStampStr := FormatDateTime(publisherDateTimeFormat, aTimeStamp)
+    else timeStampStr := '';
+    tiles := uniqueObjectsTilesLink;
+
+    Log.WriteLn('TLayer.handleRefreshTrigger for '+elementID+' ('+timeStampStr+'): '+tiles);
+
+    // signal refresh to layer client
+    forEachSubscriber<TClient>(
+      procedure(aClient: TClient)
+      begin
+        Log.WriteLn('TLayer.handleRefreshTrigger for '+elementID+', direct subscribed client: '+aClient.clientID, llNormal, 1);
+        aClient.SendRefresh(elementID, timeStampStr, tiles);
+      end);
+    scenario.LayerRefreshed(fTilerLayer.ID, elementID, aTimeStamp, Self);
+  except
+    on E: Exception
+    do Log.WriteLn('Exception in TLayer.handleRefreshTrigger: '+e.Message, llError);
+  end;
+end;
+
+procedure TExpoSenseLineTrackLayer.RegisterLayer;
+var
+  paletteJSONObject: TJSONObject;
+  modalityPalette: TWDPalette;
+  _legendJSON: string;
+  //start: TDateTime;
+begin
+  paletteJSONObject := TJSONObject.ParseJSONValue(ModalityPaletteJSON) as TJSONObject;
+  try
+    if Assigned(paletteJSONObject)
+    then modalityPalette := JSON2PaletteAndLegend(paletteJSONObject, _legendJSON)
+    else modalityPalette := CreateBlueTrackPalette('Modality');
+  finally
+    paletteJSONObject.Free;
+  end;
+  legendJSON := _legendJSON;
+  fTilerLayer.Free;
+  fTilerLayer := TTilerLayer.Create(
+    scenario.project.Connection, elementID, stGeometryI,
+    // tiler info
+    procedure (aTilerLayer: TTilerLayer)
+    begin
+      aTilerLayer.signalAddSlice();
+      aTilerLayer.signalSliceAction(tsaClearSlice);
+    end,
+    // refresh
+    procedure(aTilerLayer: TTilerLayer; aTimeStamp: TDateTime; aImmediate: Boolean)
+    begin
+      // todo: implement
+      try
+        if aImmediate  then
+        begin
+          fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*ImmediateTilerRefreshTime),
+            procedure(aTimer: TTimer; aTime: THighResTicks)
+            begin
+              handleRefreshTrigger(aTimeStamp);
+            end);
+        end
+        else
+        begin
+          fSendRefreshTimer.Arm(DateTimeDelta2HRT(dtOneSecond*1),
+            procedure(aTimer: TTimer; aTime: THighResTicks)
+            begin
+              handleRefreshTrigger(aTimeStamp);
+            end);
+        end;
+        // refresh preview also
+        fPreviewRequestTimer.DueTimeDelta := DateTimeDelta2HRT(dtOneSecond*30);
+      except
+        on E: Exception
+        do Log.WriteLn('Exception in TLayer.handleTilerRefresh ('+elementID+'): '+E.Message, llError);
+      end;
+    end,
+    // preview
+    procedure (aTilerLayer: TTilerLayer)
+    begin
+      fPreviewBase64 := aTilerLayer.previewAsBASE64;
+      // layer clients
+      forEachSubscriber<TClient>(
+        procedure(aClient: TClient)
+        begin
+          aClient.SendPreview(elementID, fPreviewBase64);
         end);
       Log.WriteLn('send normal preview on '+elementID);
     end,
     modalityPalette);//, -1, '' .addLayer(elementID, aSliceType, aPalette);
+  fPreviewBase64 := fTilerLayer.previewAsBASE64;
   // trigger registration
   fTilerLayer.signalRegisterLayer(scenario.project.tiler, fDescription, False, 250);
   {
@@ -814,19 +1003,19 @@ begin
   }
 end;
 
-procedure TExponsenseDotTrackLayer.reset;
+procedure TExpoSenseLineTrackLayer.reset;
 begin
   fTilerLayer.signalSliceAction(tsaClearSlice);
 end;
 
-function TExponsenseDotTrackLayer.uniqueObjectsTilesLink: string;
+function TExpoSenseLineTrackLayer.uniqueObjectsTilesLink: string;
 begin
   if Assigned(fTilerLayer)
   then Result := fTilerLayer.URLTimeStamped
   else Result := '';
 end;
 
-procedure TExponsenseDotTrackLayer.Update(aStart, aEnd: TDateTime);
+procedure TExpoSenseLineTrackLayer.Update(aStart, aEnd: TDateTime);
 begin
   // todo: implement
 end;
@@ -866,6 +1055,8 @@ begin
   fDataPoints := TObjectDictionary<TGUID, TOrderedListTS<TExpoSenseDataPoint>>.Create([doOwnsValues]);
   fLastLats := TDictionary<TGUID, Double>.Create;
   fLastLons := TDictionary<TGUID, Double>.Create;
+  fPrevLats := TDictionary<TGUID, Double>.Create;
+  fPrevLons := TDictionary<TGUID, Double>.Create;
   //fSensorsDataSet := TSensorsDataSet.Create;
   fTimeSliderDataTimer := aProject.Timers.CreateInactiveTimer;
   fTimeSliderDataTimer.MaxPostponeDelta := DateTimeDelta2HRT(MaxTimeSliderUpdateTime*dtOneSecond);
@@ -908,6 +1099,8 @@ begin
   //FreeAndNil(fTrackLayers);
   FreeAndNil(fLastLons);
   FreeAndNil(fLastLats);
+  FreeAndNil(fPrevLats);
+  FreeAndNil(fPrevLons);
   FreeAndNil(fDataPoints);
   //FreeAndNil(fSensorsDataSet);
   inherited;
@@ -936,7 +1129,8 @@ begin
     aClient.SendView(fMapView.lat, fMapView.lon, Double.NaN);
   end;
   //fMobileChart.sub
-  aClient.SubscribeTo(fMobileChart, nil);
+  aClient.SubscribeTo(fMeasuredECValuesChart, nil);
+  aClient.SubscribeTo(fCalculatedECValuesChart, nil);
   aClient.SubscribeTo(fTotalChart, nil);
   //aClient.SubscribeTo(fTrackLayer);
 end;
@@ -944,7 +1138,8 @@ end;
 function TExpoSenseScenario.HandleClientUnsubscribe(aClient: TClient): Boolean;
 begin
   Result := inherited;
-  aClient.UnsubscribeFrom(fMobileChart);
+  aClient.UnsubscribeFrom(fMeasuredECValuesChart);
+  aClient.UnsubscribeFrom(fCalculatedECValuesChart);
   aClient.UnsubscribeFrom(fTotalChart);
   //aClient.UnsubscribeFrom(fTrackLayer);
 end;
@@ -1217,6 +1412,8 @@ var
   modeStr: string;
   mode: Integer;
   sliderTime: string;
+  prevLon: Double;
+  prevLat: Double;
 begin
   timestamp := 0;
   mode := 3; // todo: indetermined?
@@ -1249,8 +1446,12 @@ begin
           // todo: change all values in track from this time to the end to this mode
           Update(timeStamp, Double.PositiveInfinity, mode);
           triggerUpdateTimesliderData();
-          if not fFiltered
-          then fTrackLayer.Update(timeStamp, Double.PositiveInfinity);
+          if not fFiltered then
+          begin
+            fHeightTrackLayer.Update(timeStamp, Double.PositiveInfinity);
+            fDotTrackLayer.Update(timeStamp, Double.PositiveInfinity);
+            fLineTrackLayer.Update(timeStamp, Double.PositiveInfinity);
+          end;
         end;
       sensordata_ec:
         begin
@@ -1265,12 +1466,19 @@ begin
             triggerUpdateTimesliderData();
             if not fFiltered then
             begin
-              fTrackLayer.AddValue(sensorid, timeStamp, lastLat, lastLon, value, mode);
-              fMobileChart.AddValue(timeStamp, [value*chartValueFactor, value*chartValueFactor*1.1]); // todo: measured value
-              if fMobileChart.allValues.Count>=2 then
+              fHeightTrackLayer.AddValue(sensorid, timeStamp, lastLat, lastLon, value, mode);
+              fDotTrackLayer.AddValue(sensorid, timeStamp, lastLat, lastLon, mode);
+              if fPrevLons.TryGetValue(sensorid, prevLon) and fPrevLats.TryGetValue(sensorid, prevLat)
+              then fLineTrackLayer.AddValue(sensorid, timestamp, lastLat, lastLon, prevLat, prevLon, mode);
+              if not lastLon.isNaN
+              then fPrevLons.AddOrSetValue(sensorid, lastLon);
+              if not lastLat.isNaN
+              then fPrevLats.AddOrSetValue(sensorid, lastLat);
+              fMeasuredECValuesChart.AddValue(timeStamp, [value*chartValueFactor, value*chartValueFactor*1.1]); // todo: measured value
+              if fMeasuredECValuesChart.allValues.Count>=2 then
               begin
-                average := (value*chartValueFactor+fMobileChart.allValues[fMobileChart.allValues.Count-2].y[0])/2.0;
-                delta := timeStamp-fMobileChart.allValues[fMobileChart.allValues.Count-2].x;
+                average := (value*chartValueFactor+fMeasuredECValuesChart.allValues[fMeasuredECValuesChart.allValues.Count-2].y[0])/2.0;
+                delta := timeStamp-fMeasuredECValuesChart.allValues[fMeasuredECValuesChart.allValues.Count-2].x;
                 _totalValue := average * delta * 24 * 60;
                 if fTotalChart.allValues.Count>0
                 then _totalValue := _totalValue + fTotalChart.allValues[fTotalChart.allValues.Count-1].y[0];
@@ -1564,19 +1772,28 @@ var
   scenarioID: Integer;
   tablePrefix: string;
   federation: string;
-  sourceProjection: TGIS_CSProjectedCoordinateSystem;
+  USSourceProjection: TGIS_CSProjectedCoordinateSystem;
   metaLayer: TDictionary<Integer, TMetaLayerEntry>;
   imlep: TPair<Integer, TMetaLayerEntry>;
   layer: TLayerBase;
   IMB3RemoteHost: string;
   USTablePrefix: string;
 begin
-  fMobileChart :=  TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'EC', 'EC', 'Personal EC', False, 'line',
+  fMeasuredECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Measured' + 'EC'+'Chart', 'Measured EC', 'Personal, measured EC exposure', True, 'line',
     TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
-    [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'),
-      TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')], 'time', 3);
-  fMobileChart.chartUpdateTime := 2;
-  AddChart(fMobileChart);
+    [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'){,
+      TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')}],
+    'time', 3);
+  fMeasuredECValuesChart.chartUpdateTime := 2;
+  AddChart(fMeasuredECValuesChart);
+
+  fCalculatedECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Calculated' + 'EC'+'Chart', 'Calculated EC', 'Personal, Calculated EC exposure', True, 'line',
+    TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
+    [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'){,
+      TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')}],
+    'time', 3);
+  fCalculatedECValuesChart.chartUpdateTime := 2;
+  AddChart(fCalculatedECValuesChart);
 
   fTotalChart := TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'EC' + 'total', 'EC' + '-total', 'Personal EC' + ' Total', False, 'line',
     TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
@@ -1584,21 +1801,30 @@ begin
   fTotalChart.chartUpdateTime := 2;
   AddChart(fTotalChart);
 
-  fTrackLayer := TExpoSenseHeightTrackLayer.Create(
-    Self, 'Personal exposure', 'EC' + 'personal-track-' + 'EC', 'Personal Track ' + 'EC', 'EC',
+  fHeightTrackLayer := TExpoSenseHeightTrackLayer.Create(
+    Self, 'Personal exposure', 'EC' + 'personal-track-' + 'EC', 'Personal Track ' + 'EC', 'EC track',
     DefaultExpoSensoECValueToHeightFactor,
+    False, True);
+  AddLayer(fHeightTrackLayer);
+
+  fDotTrackLayer := TExpoSenseDotTrackLayer.Create(
+    Self, 'Personal exposure', 'EC' + 'personal-track-points-' + 'EC', 'Personal Track Points ' + 'EC', 'EC track points',
     True, True);
-  AddLayer(fTrackLayer);
+  AddLayer(fDotTrackLayer);
 
-
+  fLineTrackLayer := TExpoSenseLineTrackLayer.Create(
+    Self, 'Personal exposure', 'EC' + 'personal-track-lines-' + 'EC', 'Personal Track Lines ' + 'EC', 'EC track lines',
+    True, True);
+  AddLayer(fLineTrackLayer);
 
   // add air (realtime)
-
+  // todo: for now test scenario to see air layer for amsterdam
   USDataSource := 'us_ams_test/us_ams_test@app-usdata01.tsn.tno.nl/uspsde';
   USScenarioID := 1;
   USUserName := 'us_ams_test';
   USTablePrefix := 'V1#';
   IMB3RemoteHost := 'app-usmodel01.tsn.tno.nl';
+  USSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(28992);
 
   oraSession := TOraSession.Create(nil);
   try
@@ -1610,8 +1836,6 @@ begin
     tablePrefix := GetScenarioTablePrefix(oraSession, scenarioID);
     federation := GetScenarioFederation(oraSession, scenarioID);
 
-
-    sourceProjection := CSProjectedCoordinateSystemList.ByEPSG(28992);
 
     fIMB3Connection.Free;
     fIMB3Connection := TIMBConnection.Create(IMB3RemoteHost, 4000, 'PublisherExposens', 1, federation);
@@ -1627,7 +1851,7 @@ begin
             layer := imlep.value.CreateUSLayer(
               self, tablePrefix, ConnectStringFromSession(oraSession),
               SubscribeUSDataEvents(USUserName, imlep.value.IMB_EVENTCLASS, USTablePrefix, fIMB3Connection),
-              sourceProjection, imlep.value.Domain, imlep.value.description);
+              USSourceProjection, imlep.value.Domain, imlep.value.description);
             if Assigned(layer) then
             begin
               AddLayer(layer);

@@ -51,8 +51,27 @@ namespace WS2IMBSvc
             InitializeComponent();
         }
 
+        public void DoStart(string[] args)
+        {
+            OnStart(args);
+        }
+
+        public void DoStop()
+        {
+            OnStop();
+        }
+
         protected override void OnStart(string[] args)
         {
+            string logfile = Properties.Settings.Default.Log;
+            TextWriterTraceListener[] listeners = new TextWriterTraceListener[] {
+                new TextWriterTraceListener(logfile),
+                new TextWriterTraceListener(Console.Out)
+            };
+            Debug.AutoFlush = true;
+
+            Debug.Listeners.AddRange(listeners);
+
             try
             {
                 Lookups.connection = new TSocketConnection(IMBModelName, IMBModelID, "", IMBHub);
@@ -136,11 +155,17 @@ namespace WS2IMBSvc
         {
             try
             {
-                Lookups.host.Close();
-                ((IDisposable)Lookups.host).Dispose();
-                Lookups.host = null;
-                Lookups.connection.close();
-                Debug.WriteLine(DateTime.Now + ": Stopped WS2IMB service");
+                try
+                {
+                    Lookups.host.Close();
+                    ((IDisposable)Lookups.host).Dispose();
+                    Lookups.host = null;
+                    Debug.WriteLine(DateTime.Now + ": Stopped WS2IMB service");
+                }
+                finally
+                {
+                    Lookups.connection.close();
+                }
             }
             catch(Exception e)
             {
