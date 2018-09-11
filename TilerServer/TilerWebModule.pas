@@ -2231,6 +2231,7 @@ var
   prevX, prevY, prevHeight: Double;
   ilp: TPair<TWDID, TOrderedListTS<TSliceGeometryIHDataPoint>>;
   polygon: TPolygon;
+  dataExtent: TExtent;
 begin
   Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
@@ -2268,8 +2269,11 @@ begin
               x := (dp.lon-aExtent.xMin)/aPixelWidth;
               y := (aExtent.yMax-dp.lat)/aPixelHeight;
               height := dp.height;
-              //if bufferExtent.Contains(dp.lon, dp.lat) and not (dp.value.IsNan or dp.height.IsNan) then
-              //begin
+              dataExtent.Init(x, y);
+              if not prevX.IsNan
+              then dataExtent.Expand(prevX, prevY);
+              if bufferExtent.Intersects(dataExtent) then
+              begin
                 colors := fPalette.ValueToColors(dp.Value);
                 aBitmap.Canvas.Stroke.Color := colors.mainColor;
                 aBitmap.Canvas.Fill.Color := colors.mainColor;
@@ -2280,8 +2284,6 @@ begin
                 // draw connection to this point
                 if not prevX.IsNan then
                 begin
-                  //aBitmap.Canvas.DrawLine(TPointF.Create(prevX, prevY), TPointF.Create(x, y), 1);
-                  //aBitmap.Canvas.DrawLine(TPointF.Create(prevX, prevY-prevHeight), TPointF.Create(x, y-height), 1);
                   polygon[2].X := prevX;
                   polygon[2].Y := prevY-prevHeight;
                   polygon[3].X := prevX;
@@ -2290,7 +2292,7 @@ begin
                   aBitmap.Canvas.FillPolygon(polygon, 0.5);
                 end
                 else aBitmap.Canvas.DrawLine(polygon[0], polygon[1], 1);
-              //end;
+              end;
               prevX := x;
               prevY := y;
               prevHeight := height;
@@ -4069,6 +4071,8 @@ var
   action: UInt32;
   otherTilerURL: string;
   lineThickness: Double;
+  lat, lon: Double;
+  value: Double;
 begin
   try
     palette :=  nil;
@@ -4083,6 +4087,8 @@ begin
     currentSlice := nil;
     refSlice := nil;
     lineThickness := 1;
+    lat := Double.NaN;
+    lon := Double.NaN;
     _layerID := Self.LayerID; // default to this layer
     try
       // decode data event and send to correct slice (or create slice if not yet exists)
@@ -4274,6 +4280,20 @@ begin
                           signalRefresh(timeStamp, true);
                         end;
                       end;
+                    tsaSlicePointValue:
+                      begin
+                        if Assigned(slice)
+                        then value := slice.PointValue(lat, lon)
+                        else value := Double.NaN;
+                        // signal back value
+                        aEventEntry.signalEvent(
+                          TByteBuffer.bb_tag_double(icehTilerSliceID, timeStamp)+
+                          TByteBuffer.bb_tag_double(icehTilerPointValueLat, lat)+
+                          TByteBuffer.bb_tag_double(icehTilerPointValueLon, lon)+
+                          TByteBuffer.bb_tag_double(icehTilerValue, value)+
+                          TByteBuffer.bb_tag_uint32(icehTilerSliceAction, tsaSlicePointValue)
+                          );
+                      end;
                   end;
                 end;
               (icehTilerID shl 3) or wtVarInt,
@@ -4292,7 +4312,11 @@ begin
               (icehTilerLineThickness shl 3) or wt64Bit:
                 begin
                   lineThickness := aBuffer.bb_read_double(aCursor);
-                end
+                end;
+              (icehTilerPointValueLat shl 3) or wt64bit:
+                lat := aBuffer.bb_read_double(aCursor);
+              (icehTilerPointValueLon shl 3) or wt64bit:
+                lon := aBuffer.bb_read_double(aCursor);
             else
               Log.WriteLn('unknown fields in layer ('+LayerID.ToString+') data: '+fieldInfo.toString, llWarning);
               aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
