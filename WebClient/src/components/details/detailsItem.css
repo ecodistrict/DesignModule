@@ -11,10 +11,11 @@
 
 .details-item-view:hover {
     box-shadow: 0 1px 10px rgba(0,0,0,0.4);
+    background-color: rgba(173, 216, 230, 0.2);
 }
 
 .details-item-view.selected {
-    background-color: rgba(173,216,230,0.3);
+    background-color: rgba(173,216,230,0.5);
 }
 
 .details-item-view .title {

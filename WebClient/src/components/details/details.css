@@ -54,7 +54,7 @@
 }
 
 .details-view .details-body .section:nth-child(n+2) {
-    border-top: 2px solid grey;
+    border-top: 1px solid grey;
 }
 
 .details-view .details-body .container {

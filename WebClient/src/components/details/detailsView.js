@@ -40,59 +40,26 @@ var DetailsView = L.Control.extend({
 
         this._rootElement = L.DomUtil.create('div', 'details-view', this._parent);
         this._rootElement.innerHTML = detailsHtml;
-        
-        this._graphsSection = d3.select(this._rootElement).select('.graphs').node();
-        this._kpisSection = d3.select(this._rootElement).select('.kpis').node();
-        this._layersSection = d3.select(this._rootElement).select('.layers').node();
+        this._rootElement.setAttribute('aria-haspopup', 'true');
 
-        this._graphsContainer = new ItemsContainer({
-            element: d3.select(this._graphsSection).select('.container').node(),
-            createView: this._createGraphItemView.bind(this),
-            modelCollection: this._graphItemsModel,
-            equalityPredicate: function (modelLeft, modelRight) {
-                return modelLeft.originalModel === modelRight.originalModel;
-            }
-        });
-        this._graphsContainer.on('modelRemoved', this._onGraphItemRemoved, this);
-
-        this._kpisContainer = new ItemsContainer({
-            element: d3.select(this._kpisSection).select('.container').node(),
-            createView: this._createKpiItemView.bind(this),
-            modelCollection: this._kpiItemsModel
-        });
-        this._kpisContainer.on('modelRemoved', this._onKpiItemRemoved, this);
-
-        this._layersContainer = new ItemsContainer({
-            element: d3.select(this._layersSection).select('.container').node(),
-            createView: this._createLayerItemView.bind(this),
-            modelCollection: this._layersItemsModel
-        });
-        this._layersContainer.on('modelRemoved', this._onLayersItemRemoved, this);
+        this._buildGraphsSection();
+        this._buildKpisSection();
+        this._buildLayersSection();
+        this._updateWidth();
 
         L.DomEvent
             .on(this._rootElement, 'click', L.DomEvent.stop)
+            .on(this._rootElement, 'touchstart', L.DomEvent.stop)            
             .on(this._rootElement, 'click', this._expand, this)
-            .on(document, 'click', this._collapse, this);
+            .on(this._rootElement, 'touchstart', this._expand, this)
+            .on(document, 'click', this._collapse, this)
+            .on(document, 'touchstart', this._collapse, this);
         
         if (!L.Browser.android) {
             L.DomEvent
                 .on(this._rootElement, 'mouseenter', this._expand, this)
                 .on(this._rootElement, 'mouseleave', this._collapse, this);
         }
-
-        this._updateWidth();
-        this._graphItemsModel.on('change', this._updateWidth, this);
-        this._kpiItemsModel.on('change', this._updateWidth, this);
-        this._layersItemsModel.on('change', this._updateWidth, this);
-
-        this._updateGraphsSectionVisibility();
-        this._graphItemsModel.on('change', this._updateGraphsSectionVisibility, this);
-
-        this._updateKpisSectionVisibility();        
-        this._kpiItemsModel.on('change', this._updateKpisSectionVisibility, this);
-
-        this._updateLayersSectionVisibility();
-        this._layersItemsModel.on('change', this._updateLayersSectionVisibility, this);
 
         if (this.options.collapsed) {
             this._collapse();
@@ -107,7 +74,10 @@ var DetailsView = L.Control.extend({
     remove: function () {
         if (!this._rootElement) return;
 
-        L.DomEvent.off(document, 'click', this._collapse, this);
+        L.DomEvent
+            .off(document, 'click', this._collapse, this)
+            .off(document, 'touchstart', this._collapse, this);
+
         this._graphItemsModel.off('change', this._updateWidth, this);
         this._kpiItemsModel.off('change', this._updateWidth, this);
         this._layersItemsModel.off('change', this._updateWidth, this);
@@ -126,6 +96,57 @@ var DetailsView = L.Control.extend({
     onAdd: function () {
         this.render();
         return this._rootElement;
+    },
+
+    _buildGraphsSection: function () {
+        this._graphsSection = d3.select(this._rootElement).select('.graphs').node();
+
+        this._graphsContainer = new ItemsContainer({
+            element: d3.select(this._graphsSection).select('.container').node(),
+            createView: this._createGraphItemView.bind(this),
+            modelCollection: this._graphItemsModel,
+            equalityPredicate: function (modelLeft, modelRight) {
+                return modelLeft.originalModel === modelRight.originalModel;
+            }
+        });
+        this._graphsContainer.on('modelRemoved', this._onGraphItemRemoved, this);        
+
+        this._graphItemsModel.on('change', this._updateWidth, this);
+        this._graphItemsModel.on('change', this._updateGraphsSectionVisibility, this);
+
+        this._updateGraphsSectionVisibility();
+    },
+
+    _buildKpisSection: function () {
+        this._kpisSection = d3.select(this._rootElement).select('.kpis').node();
+
+        this._kpisContainer = new ItemsContainer({
+            element: d3.select(this._kpisSection).select('.container').node(),
+            createView: this._createKpiItemView.bind(this),
+            modelCollection: this._kpiItemsModel
+        });
+        this._kpisContainer.on('modelRemoved', this._onKpiItemRemoved, this);
+
+        this._kpiItemsModel.on('change', this._updateWidth, this);
+        this._kpiItemsModel.on('change', this._updateKpisSectionVisibility, this);
+
+        this._updateKpisSectionVisibility();
+    },
+
+    _buildLayersSection: function () {
+        this._layersSection = d3.select(this._rootElement).select('.layers').node();
+
+        this._layersContainer = new ItemsContainer({
+            element: d3.select(this._layersSection).select('.container').node(),
+            createView: this._createLayerItemView.bind(this),
+            modelCollection: this._layersItemsModel
+        });
+        this._layersContainer.on('modelRemoved', this._onLayersItemRemoved, this);
+
+        this._layersItemsModel.on('change', this._updateWidth, this);
+        this._layersItemsModel.on('change', this._updateLayersSectionVisibility, this);
+
+        this._updateLayersSectionVisibility();
     },
 
     _canExpand: function () {

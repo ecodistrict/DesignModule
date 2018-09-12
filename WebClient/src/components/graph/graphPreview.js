@@ -12,6 +12,10 @@ var GraphPreview = L.Evented.extend({
 
     remove: function () { },
 
+    show: function () { },
+
+    hide: function () { },
+
     element: function () { 
         return null;
     }
