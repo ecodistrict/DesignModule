@@ -63,8 +63,8 @@ module.exports = env => {
                 { from: 'portal', to: 'portal' }
             ]),
             new MiniCssExtractPlugin({
-                filename: 'assets/style/' + (devMode ? '[name].css' : '[name].[hash].css'),
-                chunkFilename: 'assets/style/' + (devMode ? '[id].css' : '[id].[hash].css')
+                filename: 'assets/style/[name].[hash].css',
+                chunkFilename: 'assets/style/[id].[hash].css'
             }),
             new webpack.DefinePlugin({
                 PRODUCTION: !devMode

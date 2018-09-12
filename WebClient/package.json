@@ -28,6 +28,13 @@
     "webpack": "^4.17.1",
     "webpack-cli": "^3.1.0",
     "webpack-dev-server": "^3.1.7"
+  },
+  "-vs-binding": {
+    "BeforeBuild": [
+      "build"
+    ],
+    "ProjectOpened": [
+      "start"
+    ]
   }
-, "-vs-binding":{"BeforeBuild":["build"]}
 }
