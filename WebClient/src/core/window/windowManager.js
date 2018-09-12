@@ -94,7 +94,7 @@ var WindowManager = L.Evented.extend({
 
     _createDockHighlightArea: function () {
         this._dockHighlightArea = L.DomUtil.create(
-            'div', 'window-manager-dock-highligh hidden',
+            'div', 'window-manager-dock-highlight hidden',
             this._windowContainer
         );
     },
