@@ -10,7 +10,7 @@ The widget provides a single class *CloseButtonView* which represents a close bu
 
 ### CloseButtonView
 
-Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
+Extends the [View](../../view/view.md) class.
 
 #### Usage example
 
@@ -26,23 +26,15 @@ Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) clas
 #### Options
 Options object that should be passed to *CloseButtonView* constructor.
 
-| Property | Type | Description |
-|---|---|---|
-| parent | Node | *Optional*. DOM node object that will be used as parent for the widget. Widget will be placed within the parent. This field is optional because the widget can be put into a DOM node later on, see *[element()](#methods)* method. |
+See [View](../../view/view.md#options) options.
 
 #### Methods <a name="methods"></a>
-
-| Method | Description |
-|---|---|
-| render() | Renders the button. This method is called automatically when the object is created. This method can be called in order to recreate the widget after `remove()` was called. After calling this method the `element()` method will return a corresponding DOM Node object. |
-| remove() | Removes the widget. After calling this method the `element()` method will return `null`. |
-| element() | Returns the DOM node object representing the widget. Having this node user can place the widget wherever he wants. |
-| show() | Shows the widget. The button is shown by default.  |
-| hide() | Hides the widget button. Behavior is the same as applying `display: none` style, i.e. widget doesn't keep the occupied space when hidden. |
+See [View](../../view/view.md#methods) methods.
 
 #### Events    
 
 | Event | Description
 |---|---|
 | closeClicked | Emitted when the close button is clicked via mouse or via touch. |
-| focus | Emitted when the close button gets a focus. |
+
+See also [View](../../view/view.md#events) events.
