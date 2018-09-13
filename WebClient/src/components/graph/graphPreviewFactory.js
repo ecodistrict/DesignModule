@@ -4,7 +4,7 @@
 
 /* globals L */
 
-import GraphPreview from './graphPreview';
+import View from '../../core/view';
 import CategoryGraphPreview from './categoryGraph/categoryGraphPreview';
 
 var GraphPreviewFactory = L.Evented.extend({
@@ -15,11 +15,12 @@ var GraphPreviewFactory = L.Evented.extend({
         };
     },
 
-    create: function (graphModel) {
-        var Preview = this._previewMap[graphModel.type] || GraphPreview;
+    create: function (graphModel, previewViewportElement) {
+        var PreviewClass = this._previewMap[graphModel.type] || View;
 
-        return new Preview({
-            graphModel: graphModel
+        return new PreviewClass({
+            graphModel: graphModel,
+            parent: previewViewportElement
         });
     }
 });

@@ -3,31 +3,27 @@
  */
 
 import './detailsItem.css';
+import View from '../../core/view';
 import detailsItemHtml from './detailsItem.html';
 import TooltipView from '../../core/widgets/tooltip/tooltipView';
 
 /* globals L, d3 */
 
-var DetailsItemView = L.Evented.extend({
+var DetailsItemView = View.extend({
 
-    initialize: function (opts) {
+    onInitialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided the constructor');
         if (!opts.model) throw new Error('model is not provided');
-        if (!opts.preview) throw new Error('preview is not provided');        
+        if (!opts.previewCreator) throw new Error('previewCreator is not provided');        
 
         this._width = opts.width || 150;
         this._height = opts.height || 80;
 
         this._model = opts.model;
-        this._preview = opts.preview;
-        this._parent = opts.parent;
-
-        this.render();        
+        this._previewCreator = opts.previewCreator;
     },
 
-    render: function () {
-        if (this._rootElement) return; 
-
+    onRender: function () {
         this._rootElement = L.DomUtil.create('div', 'details-item-view', this._parent);
 
         this._tooltip = new TooltipView({
@@ -55,33 +51,26 @@ var DetailsItemView = L.Evented.extend({
 
         var previewViewport = d3.select(this._rootElement).select('.preview-viewport').node();
 
-        this._preview.render(previewViewport);
+        this._preview = this._previewCreator(previewViewport);
+
+        return this._rootElement;
     },
 
-    remove: function () {
-        if (!this._rootElement) return;
-
+    onRemove: function () {
         this._model.off('title', this._updateTitle, this);
         this._model.off('slected', this._updateSelection, this);
-
-        L.DomUtil.remove(this._rootElement);
-        this._rootElement = null;
 
         this._tooltip.remove();
     },
 
     show: function () {
-        L.DomUtil.removeClass(this._rootElement, 'hidden');
+        View.prototype.show.call(this);
         this._preview.show();
     },
 
     hide: function () {
-        L.DomUtil.addClass(this._rootElement, 'hidden');
+        View.prototype.hide.call(this);
         this._preview.hide();
-    },
-
-    element: function () {
-        return this._rootElement;
     },
 
     _updateTitle: function () {

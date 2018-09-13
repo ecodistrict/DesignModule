@@ -5,16 +5,14 @@
 /* globals L, d3 */
 
 import './categoryGraphPreview.css';
-import GraphPreview from '../graphPreview';
+import View from '../../../core/view';
 import { convertGraphModelToCategoryGraphViewModel as toCategoryGraphViewModel } from './categoryGraphViewModelConverters';
 import categoryGraphLines from './categoryGraphLines';
 import categoryGraphBars from './categoryGraphBars';
 
-var CategoryGraphPreview = GraphPreview.extend({
+var CategoryGraphPreview = View.extend({
 
-    initialize: function (opts) {
-        GraphPreview.prototype.initialize.call(this, opts);
-
+    onInitialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided to the constructor');
         if (!opts.graphModel) throw new Error('graphModel is not provided');
 
@@ -23,46 +21,28 @@ var CategoryGraphPreview = GraphPreview.extend({
         this._graphModel.on('series categories axes', this._onGraphModelChanged, this);
     },
 
-    render: function (element) {
-        if (this._rootElement) return;
-
-        this._parent = element;
-        this._rootElement = L.DomUtil.create('div', 'category-graph-preview', element);        
+    onRender: function () {
+        this._rootElement = L.DomUtil.create('div', 'category-graph-preview', this._parent);        
 
         this._buildSvgViewport();
         this._buildGraphContentContainer();
 
         this._redraw();
         this._categoryGraphViewModel.on('modelReset', this._redraw, this);
+
+        return this._rootElement;
     },
 
-    remove: function () {
-        if (!this._rootElement) return;
-
+    onRemove: function () {
         this.resizeObserver.disconect();
         this.resizeObserver = null;
 
         this._graphModel.off('series categories axes', this._onGraphModelChanged, this);
-
-        var parent = this._rootElement.parentNode;
-        if (parent) {
-            parent.removeChild(this._rootElement);
-        }
-
-        this._rootElement = null;
     },
 
     show: function () {
-        L.DomUtil.removeClass(this._rootElement, 'hidden');
+        View.prototype.show.call(this);
         this._redraw();
-    },
-
-    hide: function () {
-        L.DomUtil.addClass(this._rootElement, 'hidden');
-    },
-
-    element: function () {
-        return this._rootElement;
     },
 
     _onGraphModelChanged: function () {

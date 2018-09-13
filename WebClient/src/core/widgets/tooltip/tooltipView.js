@@ -5,6 +5,7 @@
 /* globals L, d3 */ 
 
 import './tooltip.css';
+import View from '../../view';
 
 function buildHtmlFunction(html) {    
     if (typeof html === 'function') return html;
@@ -14,31 +15,21 @@ function buildHtmlFunction(html) {
     };
 }
 
-var TooltipView = L.Evented.extend({
+var TooltipView = View.extend({
 
-    initialize: function (opts) {
+    onInitialize: function (opts) {
         var options = opts || {};
 
         this._parent = document.body;
+
         this._html = buildHtmlFunction(options.html || '');
 
         this.show = this._createShow();
         this.hide = this._createHide();
-
-        this.render();
     },
 
-    render: function () {
-        if (this._rootElement) return;
-
-        this._rootElement = L.DomUtil.create('div', 'tooltip-view', this._parent);
-    },
-
-    remove: function () {
-        if (!this._rootElement) return;
-
-        L.DomUtil.remove(this._rootElement);
-        this._rootElement = null;
+    onRender: function () {
+        return L.DomUtil.create('div', 'tooltip-view', this._parent);
     },
 
     _createShow: function () {

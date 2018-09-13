@@ -123,7 +123,7 @@ var GraphViewController = L.Evented.extend({
     _notifyViewClosed: function (eventData) {
         this.fire('viewClosed', {
             graphViewController: this,
-            view: eventData.windowView
+            view: eventData.view
         });
     },
 

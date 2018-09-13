@@ -3,20 +3,23 @@
  */
 
 import './details.css';
+import View from '../../core/view';
 import detailsHtml from './details.html';
 import ItemsContainer from './itemsContainer';
 import DetailsItemView from './detailsItemView';
 
 /* globals L, d3 */
 
-var DetailsView = L.Control.extend({
+var ControlView = L.Control.extend(View.prototype);
+
+var DetailsView = ControlView.extend({
     options: {
         collapsed: true,
         position: 'topright',
         autoZIndex: true
     },
 
-    initialize: function (opts) {
+    onInitialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided the constructor');
         if (!opts.graphItemsModel) throw new Error('graphItemsModel is not provided');
         if (!opts.kpiItemsModel) throw new Error('kpiItemsModel is not provided');
@@ -29,15 +32,9 @@ var DetailsView = L.Control.extend({
         this._graphPreviewFactory = opts.graphPreviewFactory;
         this._parent = opts.parent;
         this._itemSize = L.extend({ width: 180, height: 100}, opts.itemSize);
-
-        if (this._parent) {
-            this.render();
-        }        
     },
 
-    render: function () {
-        if (this._rootElement) return; 
-
+    onRender: function () {
         this._rootElement = L.DomUtil.create('div', 'details-view', this._parent);
         this._rootElement.innerHTML = detailsHtml;
         this._rootElement.setAttribute('aria-haspopup', 'true');
@@ -69,11 +66,11 @@ var DetailsView = L.Control.extend({
 
         L.DomEvent.disableClickPropagation(this._rootElement);
         L.DomEvent.disableScrollPropagation(this._rootElement);
+
+        return this._rootElement;
     },
 
-    remove: function () {
-        if (!this._rootElement) return;
-
+    onRemove: function () {
         L.DomEvent
             .off(document, 'click', this._collapse, this)
             .off(document, 'touchstart', this._collapse, this);
@@ -88,9 +85,6 @@ var DetailsView = L.Control.extend({
         this._graphsContainer.remove();
         this._kpisContainer.remove();
         this._layersContainer.remove();
-
-        L.DomUtil.remove(this._rootElement);
-        this._rootElement = null;
     },
 
     onAdd: function () {
@@ -174,12 +168,17 @@ var DetailsView = L.Control.extend({
     },
 
     _createGraphItemView: function (graphItemModel) {
-        var preview = this._graphPreviewFactory.create(graphItemModel.originalModel);
+        var graphPreviewFactory = this._graphPreviewFactory;
+
+        function previewCreator(previewViewportElement) {
+            return graphPreviewFactory.create(graphItemModel.originalModel, previewViewportElement);
+        }
+        
         var itemView = new DetailsItemView({
             model: graphItemModel,
             width: this._itemSize.width,
             height: this._itemSize.height,
-            preview: preview
+            previewCreator: previewCreator
         });
         itemView.on('clicked', this._onGraphItemClicked, this);
 
