@@ -1,5 +1,6 @@
 # Components
-UI is build from components that represent certain widgets or controls or groups of a domain-specific controls.
+Layer with application-specific components that implement domain logic and provide domain specific representation on UI.
+Application and it's UI are build from such components that represent certain domain-specific controls.
 
 | Component | Description |
 |---|---|

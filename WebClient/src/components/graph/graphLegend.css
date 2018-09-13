@@ -8,6 +8,11 @@ svg.graph-legend-viewport {
     opacity: 1;
     white-space: nowrap;
 }
+
+.left .graph-legend-entry {
+    direction: rtl;
+}
+
 .graph-legend-entry:hover {
     opacity: 0.5;
 }
@@ -20,6 +25,11 @@ svg.graph-legend-viewport {
     margin-right: 3px;
     border-width: 2px;
     border-style: solid;
+}
+
+.left .graph-legend-entry-marker {
+    margin-right: 0;
+    margin-left: 3px;
 }
 
 .graph-legend-entry-text {

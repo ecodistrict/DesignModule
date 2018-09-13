@@ -45,6 +45,12 @@
     <link rel="stylesheet" href="Content/ControlPropertiesDialog.css" />
     <link rel="stylesheet" href="Content/common.css" />
     <link rel="stylesheet" href="Content/d3Override.css" />
+    <link href="lib/fontawesome5/css/fontawesome.min.css" rel="stylesheet">
+    <link href="lib/fontawesome5/css/regular.min.css" rel="stylesheet">
+    <link href="lib/fontawesome5/css/solid.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="src/core/widgets/closeButton/closeButton.css" />
+    <link rel="stylesheet" href="src/core/widgets/dockButton/dockButton.css" />
+    <link rel="stylesheet" href="src/core/window/windowManager.css" />
     <link rel="stylesheet" href="src/core/window/window.css" />
     <link rel="stylesheet" href="src/components/scaleSlider/scaleSlider.css" />
     <link rel="stylesheet" href="src/components/timeSlider/timeSlider.css" />
@@ -123,7 +129,7 @@
     <!-- other libs -->
     <script src="lib/FileSaver.js"></script>
     <!-- polyfills -->
-    <script src="Scripts/polyfill.js"></script>
+    <script src="src/utils/polyfill.js"></script>
     <!-- modal dialogs -->
     <script src="lib/nouislider.js"></script>
     <script src="Scripts/modaldialog.js"></script>
@@ -134,7 +140,13 @@
     <!-- utils -->
     <script src="src/utils/DomUtil.js"></script>
     <!-- core -->
+    <!-- core widget CloseButton -->
+    <script src="src/core/widgets/closeButton/closeButtonView.js"></script>
+    <!-- core widget DockButton -->
+    <script src="src/core/widgets/dockButton/dockButtonViewModel.js"></script>
+    <script src="src/core/widgets/dockButton/dockButtonView.js"></script>
     <!-- core component Window -->
+    <script src="src/core/window/perimeterLayout.js"></script>
     <script src="src/core/window/windowView.js"></script>
     <script src="src/core/window/windowManager.js"></script>
     <!-- components -->
@@ -268,15 +280,72 @@
             description: sessionDescription,
             referenceScenario: null
         };
-        // Mobile
-        if (window.innerWidth < 500) {
+
+        var layoutOptions;
+        var graphViewOptions;        
+        if (window.innerWidth < 500) { // Mobile
             document.body.setAttribute("id", "phone");
+
+            layoutOptions = {
+                padding: {
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    botton: 0
+                },
+                verticalCellSpacing: 5,
+                topRowCellCount: 0,
+                leftColumnCellCount: 2,
+                rightColumnCellCount: 0,
+                maxCellWidth: window.innerWidth - 50,
+                maxCellHeight: window.innerHeight / 3,
+                minCellWidth: 150,
+                minCellHeight: 80
+            };
+
+            graphViewOptions = {
+                minWidth: 200,
+                minHeight: 150,
+                maxWidth: 900,
+                maxHeight: 600,
+                width: 250,
+                height: 200
+            };
         } else {
             document.body.removeAttribute("id");
+
+            layoutOptions = {
+                padding: {
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    botton: 0
+                },
+                verticalCellSpacing: 8,
+                horizontalCellSpacing: 15,
+                topRowCellCount: 2,
+                leftColumnCellCount: 4,
+                rightColumnCellCount: 4,
+                maxCellWidth: null,
+                maxCellHeight: null,
+                minCellWidth: 150,
+                minCellHeight: 80
+            };
+
+            graphViewOptions = {
+                minWidth: 300,
+                minHeight: 200,
+                maxWidth: 900,
+                maxHeight: 600,
+                width: 350,
+                height: 250
+            };
         }
 
+        var layout = new PerimeterLayout(layoutOptions);
         var windowManager = new WindowManager({
-            element: document.querySelector('#windows-area')
+            element: document.querySelector('#windows-area'),
+            layout: layout
         });
 
         // top-right
@@ -305,14 +374,7 @@
         var graphService = new GraphService();        
         var graphViewManager = new GraphViewManager({
             windowManager: windowManager,
-            graphViewOptions: {
-                minWidth: 300,
-                minHeight: 200,
-                maxWidth: 900,
-                maxHeight: 600,
-                width: 350,
-                height: 250
-            }
+            graphViewOptions: graphViewOptions
         });
 
         // details
