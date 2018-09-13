@@ -116,7 +116,7 @@ When constructing a model an options object can be passed to constructor.
 
 ### ScaleSliderView <a name="ScaleSliderViewApi"></a>
 
-**ScaleSliderView** extends [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
+**ScaleSliderView** extends the [View](../../core/view/view.md) class.
 
 #### Usage example
 
@@ -165,23 +165,23 @@ When constructing a view an options object should be passed to constructor.
 
 | Property | Type | Description |
 |---|---|---|
-| element | DOMNode | Parent DOM element that will be used to render the component in it.  |
 | model | [ScaleSliderModel](#ScaleSliderModel) | Model object. View will subscribe o its events and will modify the object when necessary. |
 | features | Map | **Optional**. Features map. Currently supports only *brush* feature. **true** value stands for enable the feature, **false** for disabling the feature |
 | modelValueDecorator | function(&lt;any&gt; value): string | **Optional**. Function that returns text representation of the model value. This text representation will be used to display value label. |
 | modelValueScaleCreator | function(&lt;any&gt; value): scale | **Optional**. Function that creates a scale for a given value. In such way the view can be equiped with any kind of scale, e.g. linear, time, logarithmic. Also this function specifies the initial range of values displayed. |
 | padding | Object | **Optional**. Padding configuration of the view. Fields are the same as in CSS: top, left, right, bottom. |
 
+See also [View](../../core/view/view.md#options) options.
 
 #### Methods
 
 | Method | Description |
 |---|---|
-| render() | Renders the whole view on a parent DOM element. DOM element is provided in constructor within [options](#ScaleSliderViewOptions) object. |
-| remove() | Remove the entire scene from the parent DOM element. DOM element is provided in constructor within [options](#ScaleSliderViewOptions) object. |
 | resize() | Recalculates new sizes using parent DOM element's size and rerenders the whole view. |
 | setZoomLevel(&lt;number&gt; zoomLevel) | Scales the view *zoomLevel* times keeping the current value selected. |
 | configureFeatures(&lt;Map&gt; features) | Enables or disables feature listed in the *features* map. |
+
+See also [View](../../core/view/view.md#methods) methods.
 
 #### Events
 
@@ -190,3 +190,5 @@ When constructing a view an options object should be passed to constructor.
 | valueClicked | undefined | Event is emitted whenever a *value label* is clicked. |
 | eventSelected | {event: &lt;[Event](#event)&gt;} | Event is emitted whenever an *event* is clicked/selected. |
 | zoomLevelChanged | {zoomLevel: &lt;number&gt;} | Event is emitted whenever *zoomLevel* is changed. |
+
+See also [View](../../core/view/view.md#events) events.
