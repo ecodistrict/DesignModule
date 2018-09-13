@@ -57,7 +57,7 @@ begin
 
           // module
           project := TExpoSenseProject.Create(
-            sessionModel, imbConnection, 'ExpoSenseRS'{$IFDEF DEBUG}+'Test'{$ENDIF}, 'ExpoSense project',
+            sessionModel, imbConnection, 'ExpoSense'{$IFDEF DEBUG}+'Test'{$ENDIF}, 'ExpoSense project',
             tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             False, GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
             TMapView.Create(52.184457864, 4.7378540039, 10));
