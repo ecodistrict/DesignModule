@@ -139,7 +139,7 @@ var PerimeterLayout = L.Evented.extend({
 
     _resizeCells: function () {
         var layoutWidth = this._size.width;
-        var cellWidth = this._calculateCellWidht();
+        var cellWidth = this._calculateCellWidth();
         var cellHeight = this._calculateCellHeight();
 
         var verticalCellSpacing = this._options.verticalCellSpacing;
@@ -191,7 +191,7 @@ var PerimeterLayout = L.Evented.extend({
         });
     },
 
-    _calculateCellWidht: function () {
+    _calculateCellWidth: function () {
         var leftColumn = this._cells.filter(function (cell) { return cell.location === 'left'; });
         var rightColumn = this._cells.filter(function (cell) { return cell.location === 'right'; });
         var topRow = this._cells.filter(function (cell) { return cell.location === 'top'; });
