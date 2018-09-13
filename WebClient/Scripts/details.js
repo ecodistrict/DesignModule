@@ -77,6 +77,7 @@
         this._kpis = {};
         this._charts = {};
         this._layers = {};
+
         LayerManager.Reset();
         for (var domainName in domains) {
             var domain = domains[domainName];
@@ -99,6 +100,30 @@
         this.updateDomains(domains);
         this._update();
         LayerManager.ReactivateVisibleLayers();
+
+        this.showGraphsOnLoad(domains);
+    },
+
+    showGraphsOnLoad: function (domains) {
+        //display graphs with show=1 in json message
+        for (var domainName in domains) {
+            var domain = domains[domainName];
+            {
+                for (var cid in domain.charts) {
+                    if(domain.charts[cid].show)
+                    {
+                        for(var graphId in GraphManager.graphs)
+                        {
+                            if(domain.charts[cid].id === GraphManager.graphs[graphId].graphID)
+                            {
+                                GraphManager.graphs[graphId].graph.ShowGraph();
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     },
 
     updateDomains: function (domains) {

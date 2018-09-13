@@ -460,7 +460,7 @@ function LineBottomLeft(graphObject) {
             })
             .interpolate(graph.interpolation);
 
-        graph.lineG.selectAll(".avgLine").remove();
+        graph.lineG.selectAll(".line-graph-avg-line").remove();
 
         for (var i = 0; i < graph.y.length; i++) {
             var name;
@@ -478,25 +478,30 @@ function LineBottomLeft(graphObject) {
                 .attr("fill", "none")
                 .attr("name", name);
 
-            var yValTotal = 0;
-            for(var j = 0; j < displayData[i].length; j++)
+            //Average line computation
+            if(!!graph.showAvgLine) 
             {
-                yValTotal += displayData[i][j].y.GetDisplayValue();
-            }
-            if(yValTotal != 0)
-            {
-                yValAvg = yValTotal/displayData[i].length;
+                var yValTotal = 0;
+                for(var j = 0; j < displayData[i].length; j++)
+                {
+                    yValTotal += displayData[i][j].y.GetDisplayValue();
+                }
+                if(yValTotal != 0)
+                {
+                    yValAvg = yValTotal/displayData[i].length;
 
-                var yVal = yScale(yValAvg);
-                graph.lineG.append('line')
-                    .attr('class', 'avgLine')
-                    .style('stroke', graph.y[i].color)
-                    .style('stroke-dasharray', ('5, 5'))
-                    .style('stroke-width', 2)
-                    .attr('x1', 0)
-                    .attr('y1', yVal)
-                    .attr('x2', width)
-                    .attr('y2', yVal);
+                    var yVal = yScale(yValAvg);
+                    graph.lineG.append('line')
+                        .attr('class', 'line-graph-avg-line')
+                        .style('stroke', graph.y[i].color)
+                        .style('stroke-dasharray', ('5, 5'))
+                        .style('stroke-width', 2)
+                        .attr('visibility', 'visible')
+                        .attr('x1', 0)
+                        .attr('y1', yVal)
+                        .attr('x2', width)
+                        .attr('y2', yVal);
+                }
             }
 
         }
