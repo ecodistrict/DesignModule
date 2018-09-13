@@ -1,5 +1,5 @@
 /**
- *  ModelCollection. This is a storage of models. This storage emmits events whenever it is changed.
+ *  ModelCollection. This is a storage of models. This storage emits events whenever it is changed.
  */
 
 /* globals L */ 
@@ -14,12 +14,14 @@ var ModelCollection = L.Evented.extend({
             get: function () { return models.slice(); }
         });
 
-        this.set = function (newModels) {
-            models = newModels;
+        this.set = function (newModels) {            
+            models = Array.isArray(newModels) ? newModels.slice() : [];
             this.fire('change', { models: models });
         };
 
         this.add = function (newModels) {
+            if (!newModels) return;
+
             var modelsToAdd = Array.isArray(newModels) ? newModels : [newModels];
             modelsToAdd.filter(function (model) { return !this.contains(model); }.bind(this));
             models = models.concat(modelsToAdd);
@@ -27,6 +29,8 @@ var ModelCollection = L.Evented.extend({
         };
 
         this.remove = function (oldModels) {
+            if (!oldModels) return;
+
             var modelsToRemove = Array.isArray(oldModels) ? oldModels : [oldModels];
             models = models.filter(function (model) { return modelsToRemove.indexOf(model) < 0; });
             this.fire('change', { models: models });
