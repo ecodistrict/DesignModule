@@ -21,8 +21,8 @@ var WindowView = L.Evented.extend({
         this._maxWidth = options.maxWidth || null;
         this._maxHeight = options.maxHeight || null;
 
-        this._left = null;
-        this._top = null;
+        this._persistedLeft = null;
+        this._persistedTop = null;
         this._currentLeft = 0;
         this._currentTop = 0;
         this._width = options.width || this._minWidth;
@@ -158,8 +158,8 @@ var WindowView = L.Evented.extend({
     move: function (left, top) {
         // Don't persist new position while window is docked.
         if (!this.docked()) {
-            this._left = left;
-            this._top = top;
+            this._persistedLeft = left;
+            this._persistedTop = top;
         }
 
         this._currentLeft = left;
@@ -204,16 +204,16 @@ var WindowView = L.Evented.extend({
     },
 
     restoreGeometry: function (doneCallback) {
-        if (this._left === null) {
-            this._left = this._currentLeft;
+        if (this._persistedLeft === null) {
+            this._persistedLeft = this._currentLeft;
         }
-        if (this._top === null) {
-            this._top = this._currentTop;
+        if (this._persistedTop === null) {
+            this._persistedTop = this._currentTop;
         }
 
-        var positionChanged = this._left !== this._currentLeft || this._top !== this._currentTop;
+        var positionChanged = this._persistedLeft !== this._currentLeft || this._persistedTop !== this._currentTop;
 
-        this.move(this._left, this._top);
+        this.move(this._persistedLeft, this._persistedTop);
         this.resize(this._width, this._height);
 
         if (doneCallback) {

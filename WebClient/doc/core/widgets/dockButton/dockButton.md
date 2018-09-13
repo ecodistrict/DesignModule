@@ -30,7 +30,7 @@ The widget provides has a simple Model-View architecture and consists of
         console.log('Undock button clicked, executing the undocking logic...');
         dockModel.docked = false; // update button state
     });
-    dockButton.on('focus', function () { console.log('Close button focused.'); } );
+    dockButton.on('focus', function () { console.log('Dock button focused.'); } );
 
     buttonsContainer.appendChild(dockButton.element());
 ```
@@ -40,7 +40,7 @@ The widget provides has a simple Model-View architecture and consists of
 Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
 
 #### Options
-Options object that should be passed to *CloseButtonView* constructor.
+Options object that should be passed to *DockButtonViewModel* constructor.
 
 | Property | Type | Description |
 |---|---|---|
@@ -63,7 +63,7 @@ Options object that should be passed to *CloseButtonView* constructor.
 Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
 
 #### Options
-Options object that should be passed to *CloseButtonView* constructor.
+Options object that should be passed to *DockButtonView* constructor.
 
 | Property | Type | Description |
 |---|---|---|
@@ -86,4 +86,4 @@ Options object that should be passed to *CloseButtonView* constructor.
 |---|---|
 | dockClicked | Emitted when dock button is clicked via mouse or via touch. `Dock button` means button in `undocked` state indicating a desire to dock.  |
 | undockClicked | Emitted when undock button is clicked via mouse or via touch. `Undock button` means button in `docked` state indicating a desire to undock. |
-| focus | Emitted when the close button gets a focus. |
+| focus | Emitted when the dock button gets a focus. |
