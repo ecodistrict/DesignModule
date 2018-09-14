@@ -6,17 +6,16 @@
 
 /* globals L */
 
-import GraphViewControllerFactory from './graphViewControllerFactory';
-
 var GraphViewManager = L.Evented.extend({
 
     initialize: function (opts) {
         if (!opts.windowManager) throw new Error('windowManager is not provided');
+        if (!opts.graphViewControllerFactory) throw new Error('graphViewControllerFactory is not provided');
         this._options = opts;
 
         this._windowManager = this._options.windowManager;
+        this._graphViewControllerFactory = this._options.graphViewControllerFactory;
         this._graphViewControllers = {};
-        this._graphViewControllerFactory = new GraphViewControllerFactory();
     },
 
     showGraph: function (graphModel) {

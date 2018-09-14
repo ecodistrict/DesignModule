@@ -7,6 +7,7 @@ import './utils/polyfill';
 import PerimeterLayout from './core/window/perimeterLayout';
 import WindowManager from './core/window/windowManager';
 import TimeSliderController from './components/timeSlider/timeSliderController';
+import GraphViewControllerFactory from './components/graph/graphViewControllerFactory';
 import GraphService from './components/graph/graphService';
 import GraphViewManager from './components/graph/graphViewManager';
 import DetailsViewController from './components/details/detailsViewController';
@@ -166,10 +167,12 @@ if (window.innerWidth < 500) {
 }
 
 // graphs
-window.graphService = new GraphService();        
+var graphViewControllerFactory = new GraphViewControllerFactory();
+window.graphService = new GraphService();
 window.graphViewManager = new GraphViewManager({
     windowManager: windowManager,
-    graphViewOptions: graphViewOptions
+    graphViewOptions: graphViewOptions,
+    graphViewControllerFactory: graphViewControllerFactory
 });
 
 // details
