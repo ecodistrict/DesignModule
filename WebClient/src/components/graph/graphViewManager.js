@@ -23,7 +23,7 @@ var GraphViewManager = L.Evented.extend({
         if (this._graphViewControllers[graphModel.id]) return;
         
         var graphViewController = this._graphViewControllerFactory
-            .create(graphModel, this._windowManager, this._options.graphViewOptions);
+            .create(graphModel, this._options.graphViewOptions);
 
         this._addGraphViewController(graphViewController);
         this._notifyGraphShown(graphModel);
@@ -47,6 +47,7 @@ var GraphViewManager = L.Evented.extend({
         var id = graphViewController.graphModel.id;
         this._graphViewControllers[id] = graphViewController;
         graphViewController.on('viewClosed', this._onGraphViewClosed, this);
+        this._windowManager.addWindow(graphViewController.view());
     },
 
     _removeGraphViewController: function (graphViewController) {
