@@ -7,7 +7,6 @@
 import DetailsView from './detailsView';
 import ModelCollection from '../../core/modelCollection';
 import DetailsItemViewModel from './detailsItemViewModel';
-import GraphPreviewFactory from '../graph/graphPreviewFactory';
 
 var DetailsViewController = L.Evented.extend({
 
@@ -15,6 +14,7 @@ var DetailsViewController = L.Evented.extend({
         if (!opts) throw new Error('No arguments are provided the constructor');
         if (!opts.graphService) throw new Error('graphService is not provided');
         if (!opts.graphViewManager) throw new Error('graphViewManager is not provided');
+        if (!opts.graphPreviewFactory) throw new Error('graphPreviewFactory is not provided');
         if (!opts.map) throw new Error('map is not provided');
 
         this._graphService = opts.graphService;
@@ -29,13 +29,11 @@ var DetailsViewController = L.Evented.extend({
         this._kpiItemsModel = new ModelCollection();
         this._layersItemsModel = new ModelCollection();
 
-        var graphPreviewFactory = new GraphPreviewFactory();
-
         this._detailsView = new DetailsView({
             graphItemsModel: this._graphItemsModel,
             kpiItemsModel: this._kpiItemsModel,
             layersItemsModel: this._layersItemsModel,
-            graphPreviewFactory: graphPreviewFactory
+            graphPreviewFactory: opts.graphPreviewFactory
         });
 
         this._detailsView.on('graphItemClicked', this._onGraphItemClicked, this);

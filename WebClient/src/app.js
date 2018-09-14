@@ -8,6 +8,7 @@ import PerimeterLayout from './core/window/perimeterLayout';
 import WindowManager from './core/window/windowManager';
 import TimeSliderController from './components/timeSlider/timeSliderController';
 import GraphViewControllerFactory from './components/graph/graphViewControllerFactory';
+import GraphPreviewFactory from './components/graph/graphPreviewFactory';
 import GraphService from './components/graph/graphService';
 import GraphViewManager from './components/graph/graphViewManager';
 import DetailsViewController from './components/details/detailsViewController';
@@ -168,6 +169,7 @@ if (window.innerWidth < 500) {
 
 // graphs
 var graphViewControllerFactory = new GraphViewControllerFactory();
+var graphPreviewFactory = new GraphPreviewFactory();
 window.graphService = new GraphService();
 window.graphViewManager = new GraphViewManager({
     windowManager: windowManager,
@@ -179,7 +181,8 @@ window.graphViewManager = new GraphViewManager({
 window.detailsViewController = new DetailsViewController({
     map: map,
     graphService: graphService,
-    graphViewManager: graphViewManager
+    graphViewManager: graphViewManager,
+    graphPreviewFactory: graphPreviewFactory
 });
 
 // details
