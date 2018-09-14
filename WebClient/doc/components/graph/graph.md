@@ -49,7 +49,7 @@ Graph component consists of several domains:
 *GraphView* creates and stores *GraphLegendView* view.
 *GraphView* provides a set of methods that should be overriden by any child graph view in order to implement graph-related rendering.
 
-### GraphViewController <a name="graphViewMController"></a>
+### GraphViewController <a name="graphViewController"></a>
 *[GraphViewController](#graphViewControllerApi)* is a *Controller* in *MVC* pattern and is responsible for handling *View* events and actions and adapting the *Model* accordingly.
 *GraphViewController* receives the *[GraphModel](#graphModel)* as an input and converts it to the *GraphViewModel* and *GraphLegendViewModel*. *GraphViewController* creates *GraphView* and passes *GraphViewModel* and *GraphLegendViewModel* models into the *View*.
 *GraphViewController* provides a set of methods that should be overriden by any child graph view controller in order to implement graph-related control flow.
@@ -63,7 +63,7 @@ Graph component consists of several domains:
 ### GraphLegendViewModel <a name="graphLegendViewModel"></a>
 *[GraphLegendViewModel](#graphLegendViewModelApi)* is a helper model that is passed to the *GraphLegendView* by *GraphViewController* and is used *GraphLegendView* for rendering.
 
-### GraphViewControllerFactory <a name="graphViewMControllerFactory"></a>
+### GraphViewControllerFactory <a name="graphViewControllerFactory"></a>
 *[GraphViewControllerFactory](#graphViewControllerFactoryApi)* is a factory class that is used to create *GraphViewController* child class instance based on *[GraphModel](#graphModel)* object. This class hides the choice of the concrete child controller from the user.
 
 ### GraphViewManager <a name="graphViewManager"></a>
@@ -112,11 +112,11 @@ GraphViews that extend from *GraphView* may re-implement (override) the followin
 | onRemoveGraph() | void | Method is called when view is being removed during `remove()` call. Override this method to free resources and perform deinitialization logic. |
 | onAddGraph([WindowManager](../../core/window/windowManager/windowManager.md) windowManager) | void | Method is called when view is added to the WindowManager. When *GraphView* is added to a window manager the geometry of *GraphView* may be changed therefore it might be needed to redraw the *GraphView* content thus override this method and redraw the graph. |
 
-### GraphViewController <a name="graphViewMControllerApi"></a>
+### GraphViewController <a name="graphViewControllerApi"></a>
 
 Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
 
-#### Options <a name="graphViewMControllerOpts"></a>
+#### Options <a name="graphViewControllerOpts"></a>
 
 When constructing GraphViewController an options object should be passed to constructor.
 
@@ -124,7 +124,7 @@ When constructing GraphViewController an options object should be passed to cons
 |---|---|---|
 | graphModel | [GraphModel](#graphModelApi) | Graph model to visualize. |
 
-#### Protected properties <a name="graphViewMControllerProtectedProperties"></a>
+#### Protected properties <a name="graphViewControllerProtectedProperties"></a>
 Properties that can be used in child classes derived from the controller.
 
 | Property | Type | Description |
@@ -132,9 +132,9 @@ Properties that can be used in child classes derived from the controller.
 | graphModel | [GraphModel](#graphModelApi) | *GraphModel* passed to the controller's constructor. |
 | graphLegendViewModel | [GraphLegendViewModel](#graphLegendViewModelApi) | Legend model constructed based on *GraphModel*. |
 | graphViewModel | [GraphViewModel](#graphViewModelApi) | Graph view model constructed based on *GraphModel*. |
-| graphView | [GraphView](#graphViewApi) | *GraphView* created by `createGraphView()` [method](#graphViewMControllerExtensionMethods). |
+| graphView | [GraphView](#graphViewApi) | *GraphView* created by `createGraphView()` [method](#graphViewControllerExtensionMethods). |
 
-#### Methods <a name="graphViewMControllerMethods"></a>
+#### Methods <a name="graphViewControllerMethods"></a>
 
 | Method | Returns | Description |
 |---|---|---|
@@ -143,7 +143,7 @@ Properties that can be used in child classes derived from the controller.
 | isViewOpen() | boolean | Reurns `true` if *GraphView* window is shown, otherwise returns `false`. |
 | remove() | void | Removes the *GraphViewController* object and closes all opened *GraphView* windows. |
 
-#### Extension methods <a name="graphViewMControllerExtensionMethods"></a>
+#### Extension methods <a name="graphViewControllerExtensionMethods"></a>
 Controllers that extend from *GraphViewController* may re-implement (override) the following methods.
 
 | Method | Returns | Description |
@@ -155,7 +155,7 @@ Controllers that extend from *GraphViewController* may re-implement (override) t
 | processCategories(Array categories) | Array | This method is called when original *GraphModel* is updated. `graphModel.categories` property is passed to this method and it can return modified version of the *categories* array. Override this method when you need additional processing of the categories. |
 | processSeries(Array series) | Array | This method is called when original *GraphModel* is updated. `graphModel.series` property is passed to this method and it can return modified version of the *series* array. Override this method when you need additional processing of the series. |
 
-#### Events <a name="graphViewMControllerEvents"></a>
+#### Events <a name="graphViewControllerEvents"></a>
 
 | Property | Type | Description |
 |---|---|---|
@@ -213,7 +213,7 @@ When constructing GraphLegendViewModel an options object should be passed to con
 | color | string | Legend entry color. |
 | enabled | boolean | *Optional*. Indicates wether entry is enable (`true`) or not (`false`). Default is `true`. |
 
-### GraphViewControllerFactory <a name="graphViewMControllerFactoryApi"></a>
+### GraphViewControllerFactory <a name="graphViewControllerFactoryApi"></a>
 
 Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
 
@@ -235,7 +235,7 @@ When constructing GraphViewManager an options object should be passed to constru
 |---|---|---|
 | windowManager | [WindowManager](../../core/window/windowManager/windowManager.md) | Window manager that will manage *GraphViews* positioning on the screen. |
 | graphViewOptions | [GraphViewOptions](#GraphViewOptions) | Options to be passed into *GraphView* constructor. |
-| graphViewControllerFactory | [GraphViewControllerFactory](#graphViewMControllerFactoryApi) | Factory to be used to create *GraphViewControllers* with its' *GrapViews*. |
+| graphViewControllerFactory | [GraphViewControllerFactory](#graphViewControllerFactoryApi) | Factory to be used to create *GraphViewControllers* with its' *GrapViews*. |
 
 #### Methods <a name="graphViewManagerMethods"></a>
 
