@@ -351,7 +351,7 @@ When constructing a model an options object can be passed to constructor.
 | categoryId | string | Category id. This field is used like an id of a group that unites a set of bars. |
 | bars | Array&lt;[Bar](#bar)&gt; | List of all bars within the category. |
 
-#### bar <a name="bar"></a>
+#### Bar <a name="bar"></a>
 
 | Property | Type | Description |
 |---|---|---|

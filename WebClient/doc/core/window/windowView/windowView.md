@@ -10,7 +10,7 @@ Extends the [View](../../view/view.md) class.
 
 Implements [LayoutItem](../layout/layout.md#layoutItem) interface thus is compatible with [Layout](../layout/layout.md).
 
-#### Options
+#### Options <a name="options"></a>
 Options object that should be passed to *WindowView* constructor.
 
 | Property | Type | Description |
@@ -28,13 +28,13 @@ Options object that should be passed to *WindowView* constructor.
 
 See also [View](../../view/view.md#options) options.
 
-#### Properties
+#### Properties <a name="properties"></a>
 
 | Property | Type | Description |
 |---|---|---|
 | windowId | number | This property is managed by the [WindowManager](../windowManager/windowManager.md). *windowId* is set when window is added to the *WindowManager*. This field holds a unique value among windows within the same *WindowManager*. |
 
-#### Methods
+#### Methods <a name="methods"></a>
 
 | Method | Returns | Description |
 |---|---|---|
@@ -53,7 +53,7 @@ See also [View](../../view/view.md#options) options.
 
 See also [View](../../view/view.md#methods) methods.
 
-#### Extension methods
+#### Extension methods <a name="extensionMethods"></a>
 Every window should extend from *WindowView* and may re-implement (override) the following methods.
 
 | Method | Returns | Description |
