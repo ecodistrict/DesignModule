@@ -15,7 +15,6 @@ var DetailsViewController = L.Evented.extend({
         if (!opts.graphService) throw new Error('graphService is not provided');
         if (!opts.graphViewManager) throw new Error('graphViewManager is not provided');
         if (!opts.graphPreviewFactory) throw new Error('graphPreviewFactory is not provided');
-        if (!opts.map) throw new Error('map is not provided');
 
         this._graphService = opts.graphService;
         this._graphViewManager = opts.graphViewManager;
@@ -44,8 +43,10 @@ var DetailsViewController = L.Evented.extend({
 
         this._detailsView.on('layerItemClicked', this._onLayerItemClicked, this);
         this._detailsView.on('layerItemRemoved', this._onLayerItemRemoved, this);
+    },
 
-        opts.map.addControl(this._detailsView);
+    view: function () {
+        return this._detailsView;
     },
 
     remove: function() {

@@ -179,11 +179,11 @@ window.graphViewManager = new GraphViewManager({
 
 // details
 window.detailsViewController = new DetailsViewController({
-    map: map,
     graphService: graphService,
     graphViewManager: graphViewManager,
     graphPreviewFactory: graphPreviewFactory
 });
+map.addControl(window.detailsViewController.view());
 
 // details
 var detailsControl = L.control.details(DataManager.detailsInfo);
