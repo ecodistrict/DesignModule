@@ -2,7 +2,30 @@
  *  ModelCollection. This is a storage of models. This storage emits events whenever it is changed.
  */
 
-/* globals L */ 
+/* globals L */
+
+function toArray(item) {
+    if (!item) return [];
+    return Array.isArray(item) ? item.slice() : [item];
+}
+
+function difference(lModels, rModels) {
+    lModels = toArray(lModels);
+    rModels = toArray(rModels);
+
+    return lModels.filter(function (model) {
+        return rModels.indexOf(model) < 0;
+    });
+}
+
+function intersect(lModels, rModels) {
+    lModels = toArray(lModels);
+    rModels = toArray(rModels);
+
+    return lModels.filter(function (model) {
+        return rModels.indexOf(model) >= 0;
+    });
+}
 
 var ModelCollection = L.Evented.extend({
 
@@ -14,15 +37,18 @@ var ModelCollection = L.Evented.extend({
             get: function () { return models.slice(); }
         });
 
-        this.set = function (newModels) {            
-            models = Array.isArray(newModels) ? newModels.slice() : [];
+        this.set = function (newModels) {
+            var removedModels = difference(models, newModels);
+            models = toArray(newModels);
+            
+            this.fire('remove', { models: removedModels });
             this.fire('change', { models: models });
         };
 
         this.add = function (newModels) {
             if (!newModels) return;
 
-            var modelsToAdd = Array.isArray(newModels) ? newModels : [newModels];
+            var modelsToAdd = toArray(newModels);
             modelsToAdd.filter(function (model) { return !this.contains(model); }.bind(this));
             models = models.concat(modelsToAdd);
             this.fire('change', { models: models });
@@ -31,8 +57,10 @@ var ModelCollection = L.Evented.extend({
         this.remove = function (oldModels) {
             if (!oldModels) return;
 
-            var modelsToRemove = Array.isArray(oldModels) ? oldModels : [oldModels];
+            var removedModels = intersect(models, oldModels);
+            var modelsToRemove = toArray(oldModels);
             models = models.filter(function (model) { return modelsToRemove.indexOf(model) < 0; });
+            this.fire('remove', { models: removedModels });
             this.fire('change', { models: models });
         };
     },

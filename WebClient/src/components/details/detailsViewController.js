@@ -22,6 +22,7 @@ var DetailsViewController = L.Evented.extend({
         this._graphItemsModel = new ModelCollection();
         this._updateGraphItemsModel();
         this._graphService.graphsModel.on('change', this._updateGraphItemsModel, this);
+        this._graphService.graphsModel.on('remove', this._onGraphModelRemoved, this);
         this._graphViewManager.on('graphShown', this._onGraphShown, this);
         this._graphViewManager.on('graphHidden', this._onGraphHidden, this);
 
@@ -36,13 +37,8 @@ var DetailsViewController = L.Evented.extend({
         });
 
         this._detailsView.on('graphItemClicked', this._onGraphItemClicked, this);
-        this._detailsView.on('graphItemRemoved', this._onGraphItemRemoved, this);
-
         this._detailsView.on('kpiItemClicked', this._onKpiItemClicked, this);
-        this._detailsView.on('kpiItemRemoved', this._onKpiItemRemoved, this);
-
         this._detailsView.on('layerItemClicked', this._onLayerItemClicked, this);
-        this._detailsView.on('layerItemRemoved', this._onLayerItemRemoved, this);
     },
 
     view: function () {
@@ -106,9 +102,15 @@ var DetailsViewController = L.Evented.extend({
 
     },
 
-    _onGraphItemRemoved: function (data) {
-        var graphModel = data.detailsItemModel.originalModel;
-        this._graphViewManager.hideGraph(graphModel);
+    _onGraphModelRemoved: function (data) {
+        var graphModels = data.models;
+        var graphViewManager = this._graphViewManager;
+        
+        function hideGraph(graphModel) {
+            graphViewManager.hideGraph(graphModel);
+        }
+        
+        graphModels.forEach(hideGraph);
     },
 
     _onKpiItemRemoved: function (/* jshint unused:false */ data) {

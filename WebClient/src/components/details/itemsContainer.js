@@ -169,11 +169,6 @@ var ItemsContainer = L.Evented.extend({
 
     _removeView: function (viewInfo) {
         viewInfo.view.remove();
-        this._notifyModelRemoved(viewInfo.model);
-    },
-
-    _notifyModelRemoved: function (model) {
-        this.fire('modelRemoved', { model: model });
     }
 
 });

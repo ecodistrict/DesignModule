@@ -103,7 +103,6 @@ var DetailsView = ControlView.extend({
                 return modelLeft.originalModel === modelRight.originalModel;
             }
         });
-        this._graphsContainer.on('modelRemoved', this._onGraphItemRemoved, this);        
 
         this._graphItemsModel.on('change', this._updateWidth, this);
         this._graphItemsModel.on('change', this._updateGraphsSectionVisibility, this);
@@ -119,7 +118,6 @@ var DetailsView = ControlView.extend({
             createView: this._createKpiItemView.bind(this),
             modelCollection: this._kpiItemsModel
         });
-        this._kpisContainer.on('modelRemoved', this._onKpiItemRemoved, this);
 
         this._kpiItemsModel.on('change', this._updateWidth, this);
         this._kpiItemsModel.on('change', this._updateKpisSectionVisibility, this);
@@ -135,7 +133,6 @@ var DetailsView = ControlView.extend({
             createView: this._createLayerItemView.bind(this),
             modelCollection: this._layersItemsModel
         });
-        this._layersContainer.on('modelRemoved', this._onLayersItemRemoved, this);
 
         this._layersItemsModel.on('change', this._updateWidth, this);
         this._layersItemsModel.on('change', this._updateLayersSectionVisibility, this);
@@ -197,18 +194,6 @@ var DetailsView = ControlView.extend({
         this._notifyGraphItemClicked(data.model);
     },
 
-    _onGraphItemRemoved: function (data) {
-        this._notifyGraphItemRemoved(data.model);
-    },
-
-    _onKpiItemRemoved: function (data) {
-        this._notifyKpiItemRemoved(data.model);
-    },
-
-    _onLayerItemRemoved: function (data) {
-        this._notifyLayerItemRemoved(data.model);
-    },
-
     _updateWidth: function () {        
         var maxElementCount = Math.max(
             this._graphItemsModel.models.length,
@@ -260,18 +245,6 @@ var DetailsView = ControlView.extend({
 
     _notifyLayerItemClicked: function (layerItemModel) {
         this.fire('layerItemClicked', { detailsItemModel: layerItemModel });
-    },
-
-    _notifyGraphItemRemoved: function (graphItemModel) {
-        this.fire('graphItemRemoved', { detailsItemModel: graphItemModel });
-    },
-
-    _notifyKpiItemRemoved: function (kpiItemModel) {
-        this.fire('kpiItemRemoved', { detailsItemModel: kpiItemModel });
-    },
-
-    _notifyLayerItemRemoved: function (layerItemModel) {
-        this.fire('layerItemRemoved', { detailsItemModel: layerItemModel });
     }
 
 });
