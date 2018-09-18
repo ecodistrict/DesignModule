@@ -285,7 +285,7 @@ When constructing a model an options object can be passed to constructor.
 
 #### Events <a name="categoryGraphViewModelEvents"></a>
 
-| Property | Type | Description |
+| Property | Data | Description |
 |---|---|---|
 | axes | { axes: [Axes](#axes) } | Event axes. Triggered whenever *axes* property of the model changes. This can happen when *axes* is changed with assign operator or when *set(opts)* method is called. |
 | lines | { lines: Array &lt;[Line](#line)&gt; } | Event lines. Triggered whenever *lines* property of the model changes. This can happen when *lines* is changed with assign operator or when *set(opts)* method is called. |
