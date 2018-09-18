@@ -117,7 +117,8 @@ type
     function autoDiffRange: Double;
     function BuildLegendJSON(aLegendFormat: TLegendFormat): string;
     function CreateUSLayer(aScenario: TScenario; const aTablePrefix: string; const aConnectString: string;
-      const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; const aDomain, aName: string): TLayerBase;
+      const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; const aDomain, aName: string;
+      aOpacity: Double; aDefaultLoad: Boolean): TLayerBase;
   end;
 
   TMetaLayer = TDictionary<Integer, TMetaLayerEntry>;
@@ -616,7 +617,8 @@ type
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
     const aConnectString, aNewQuery, {aChangeQuery, }aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry;
-    aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; aBasicLayer: Boolean=False);
+    aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; aBasicLayer: Boolean=False;
+    aOpacity: Double=0.8);
   destructor Destroy; override;
   private
     fChangeMultipleQuery: string;
@@ -1197,7 +1199,8 @@ end;
 
 
 function TMetaLayerEntry.CreateUSLayer(aScenario: TScenario; const aTablePrefix: string; const aConnectString: string;
-  const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; const aDomain, aName: string): TLayerBase;
+  const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; const aDomain, aName: string;
+  aOpacity: Double; aDefaultLoad: Boolean): TLayerBase;
 
   function defaultValue(aValue, aDefault: Double): Double; overload;
   begin
@@ -1299,7 +1302,7 @@ begin
       OBJECT_ID.ToString, // id
       aName,
       LEGEND_DESC.Replace('~~', '-').replace('\', '-'), // description
-      false, //false, // todo: default load
+      aDefaultLoad,
       objectTypes, geometryType,
       LAYER_TYPE mod 100,
       diffRange,
@@ -1309,7 +1312,9 @@ begin
       SQLQueryChangeMultiple(aTablePrefix),
       aDataEvent,
       aSourceProjection,
-      CreatePaletteFromODB(LEGEND_DESC, odbList, True));
+      CreatePaletteFromODB(LEGEND_DESC, odbList, True),
+      False,
+      aOpacity);
     (Result as TUSLayer).fLegendJSON := BuildLegendJSON(lfVertical);
     (Result as TUSLayer).query := SQLQuery(aTableprefix);
   end;
@@ -1807,7 +1812,8 @@ end;
 
 constructor TUSLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
   const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
-  const aConnectString, aNewQuery, {aChangeQuery, }aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; aBasicLayer: Boolean);
+  const aConnectString, aNewQuery, {aChangeQuery, }aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem;
+  aPalette: TWDPalette; aBasicLayer: Boolean; aOpacity: Double);
 var
   i: Integer;
 begin
@@ -1848,7 +1854,7 @@ begin
   fUpdateThread := TThread.CreateAnonymousThread(UpdateQueuehandler);
   fUpdateThread.NameThreadForDebugging(ElementID + ' queue handler');
   fUpdateThread.FreeOnTerminate := False;
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, aDiffRange, aBasicLayer);
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, aDiffRange, aBasicLayer, aOpacity);
   fUpdateThread.Start;
 
   setLength(fDataEvents, length(aDataEvent));
@@ -2489,7 +2495,7 @@ begin
           if (dom<>'') and (nam<>'') then
           begin
             //todo: check if fix from name to nam worked!?
-            layer := mlp.Value.CreateUSLayer(self, fTablePrefix, connectString, SubscribeUSDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS, fTablePrefix, fIMBConnection), sourceProjection, dom, nam);
+            layer := mlp.Value.CreateUSLayer(self, fTablePrefix, connectString, SubscribeUSDataEvents(oraSession.Username, mlp.Value.IMB_EVENTCLASS, fTablePrefix, fIMBConnection), sourceProjection, dom, nam, 0.8, false);
             if Assigned(layer) then
             begin
               Layers.Add(layer.ID, layer);

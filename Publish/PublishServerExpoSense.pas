@@ -34,6 +34,7 @@ uses
 
   GisCsSystems,
 
+  System.Math,
   System.Classes,
   System.JSON,
   System.Generics.Collections,
@@ -43,6 +44,10 @@ uses
 const
   sensordata_longitude             = 129;               //tag 16
   sensordata_latitude              = 121;               //tag 15
+
+  calculated_latitude	             = 481;               //tag 60
+  calculated_longitude             = 489;               //tag 61
+  calculated_height	               = 497;               //tag 62
 
   //sensordata_pm10                  = 1441;              //tag 180
   //sensordata_pm25                  = 1601;              //tag 200
@@ -55,7 +60,8 @@ const
   sensordata_ec                    = 4321;              // tag 540
   sensordata_linkid                = 2882;              //tag 360
 
-  sensordata_transportationmode    = 2722;              // tag 340                  =
+  sensordata_mode_of_transportation= 2722;              // tag 340
+  sensordata_location_type         = 3042;              // tag 380
 
   //sensordata_pm10_total            = 1449;              //tag 181
   //sensordata_pm25_total            = 1609;              //tag 201
@@ -74,8 +80,8 @@ const
   //sensordata_assim_pm1_total       = 2105;              //tag 263
   sensordata_assim_ec_total        = sensordata_ec+24;    // ((540+3) << 3)+1 // tag 540+3
 
-  meteodata_winddirection          = 129;
-  meteodata_windspeed              = 137;
+  meteodata_windspeed              = 401;
+  meteodata_winddirection          = 409;
 
   kpi_road_segment_id              = 2880;              // tag 360
   kpi_TransportMode                = 3042;              //tag 380
@@ -95,15 +101,65 @@ const
 
   DefaultExpoSensoECValueToHeightFactor = 1/50;
 
-  chartValueFactor = 1.0e-6;
+  chartSensorValueFactor = 1.0e-6;
+  chartCalculatedValueFactor = 1.0e-3; // todo: explain diff in factor compared to sensor factor
 
-  ModalityPaletteJSON =
+const
+  motUnknown = 0;
+  motsUnknown = 'Unknown';
+  motcUnknown = $ffB0E0E6; //c0c0c0;
+
+  motStationary = 1;
+  motsStationary = 'Stationary';
+  motcStationary = $fff8f8f8;
+
+  motWalking = 2;
+  motsWalking = 'Walking';
+  motcWalking = $ff90EE90;
+
+  motCycling = 3;
+  motsCycling = 'Cycling';
+  motcCycling = $ff00BFFF; //9370db;
+
+  motMotorized = 4;
+  motsMotorized = 'Motorized';
+  motcMotorized = $ffDA70D6; //b22222;
+
+  motFlying = 5;
+  motsFlying = 'Flying';
+  motcFlying = $ffff0000;
+
+
+  motStrings: array[0..5] of string = // tag 340, mode of transportation
+    (motsUnknown, motsStationary, motsWalking, motsCycling, motsMotorized, motsFlying);
+
+  motColors: array[0..5] of Cardinal =
+    (motcUnknown, motcStationary, motcWalking, motcCycling, motcMotorized, motcFlying);
+
+  locUnknown = 0;
+  locsUnknown = 'Unknown';
+  locUnderway = 1;
+  locsUnderway = 'Underway';
+  locAtHome = 2;
+  locsAtHome = 'At home';
+  locNotAtHome = 3;
+  locsNotAtHome = 'Not at home';
+  locOutdoors = 4;
+  locsOutdoors = 'Outdoors';
+
+  LTs: array[0..4] of string = // tag 380, location type
+    (locsUnknown, locsUnderway, locsAtHome, locsNotAtHome, locsOutdoors);
+
+  ModalityPaletteJSON : string =
     '{"entries":['+
-      '{"color":{"fill":"#2e8857"}, "minValue":1, "description":"Walking"},'+ // seaGreen
-      '{"color":{"fill":"#9370db"}, "minValue":2, "description":"Bicycle"},'+ // MediumPurple
-      '{"color":{"fill":"#b22222"}, "minValue":3, "description":"Motorized"},'+ // Crimson
-      '{"color":{"fill":"#2f4f4f"}, "minValue":4, "description":"Other"}'+ // DarkSlateGray
+      '{"color":{"fill":"#90EE90"}, "minValue":1, "description":"'+motsWalking+'"},'+
+      '{"color":{"fill":"#00BFFF"}, "minValue":2, "description":"'+motsCycling+'"},'+
+      '{"color":{"fill":"#DA70D6"}, "minValue":3, "description":"'+motsMotorized+'"},'+
+      '{"color":{"fill":"#f8f8f8"}, "minValue":4, "description":"'+motsStationary+'"},'+ // very light gray
+      '{"color":{"fill":"#B0E0E6"}, "minValue":0, "description":"'+motsUnknown+'"}'+ // gray
     ']}';
+
+
 
 
 type
@@ -115,16 +171,26 @@ type
   end;
   }
   TExpoSenseDataPoint = class(TOrderedListTSEntry)
-  constructor Create(aTimeStamp: TDateTime; aLat, aLon: Double; aValue, aHeight: Double);
+  constructor Create(aTimeStamp: TDateTime; aLat, aLon: Double; aValue: Double);
   destructor Destroy; override;
   private
     fGeometry: TWDGeometryPoint;
     fValue: Double;
-    fHeight: Double;
+    fCalculatedGeometry: TWDGeometryPoint;
+    fModeOfTransportation: Integer;
+    fLocation: Integer;
   public
     property geometry: TWDGeometryPoint read fGeometry;
     property value: Double read fValue;
-    property height: Double read fHeight;
+    property calculatedGeometry: TWDGeometryPoint read fCalculatedGeometry write fCalculatedGeometry;
+    property modeOfTransportation: Integer read fModeOfTransportation write fModeOfTransportation;
+    property location: Integer read fLocation write fLocation;
+
+    function id(const aSensorID: TGUID): string;
+
+    class function ModeOfTransportationStrToInt(aMOT: string): Integer;
+    class function LocationStrToInt(aLocation: string): integer;
+
   end;
 
   TExpoSenseHeightTrackLayer = class(TLayerBase)
@@ -134,7 +200,6 @@ type
   destructor Destroy; override;
   protected
     fValueHeightFactor: Double;
-    //fDataPoints: TObjectDictionary<TGUID, TOrderedListTS<TExpoSenseDataPoint>>; // owns
     fTilerLayer: TTilerLayer;
     // timers
     fPreviewRequestTimer: TTimer;
@@ -142,7 +207,8 @@ type
     function getJSON: string; override;
   public
     procedure Update(aStart, aEnd: TDateTime);
-    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aValue: Double; aMode: Integer);
+    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aValue: Double; aMOT: Integer);
+    procedure UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aMOT: Integer);
     procedure Reset();
     procedure RegisterLayer; override;
     procedure handleRefreshTrigger(aTimeStamp: TDateTime);
@@ -164,7 +230,8 @@ type
     function getJSON: string; override;
   public
     procedure Update(aStart, aEnd: TDateTime);
-    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aMode: Integer);
+    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aMOT: Integer);
+    procedure UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aMOT: Integer);
     procedure reset();
     procedure RegisterLayer; override;
     procedure handleRefreshTrigger(aTimeStamp: TDateTime);
@@ -186,7 +253,8 @@ type
     function getJSON: string; override;
   public
     procedure Update(aStart, aEnd: TDateTime);
-    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aPrevLat, aPrevLon: Double; aMode: Integer);
+    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aPrevLat, aPrevLon: Double; aMOT: Integer);
+    procedure UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aMOT: Integer);
     procedure reset();
     procedure RegisterLayer; override;
     procedure handleRefreshTrigger(aTimeStamp: TDateTime);
@@ -197,63 +265,61 @@ type
   end;
 
   TExpoSenseScenario = class(TScenario)
-  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView{;
-    aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double});
+  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
   destructor Destroy; override;
   private
-    fHeightTrackLayer: TExpoSenseHeightTrackLayer;
-    fDotTrackLayer: TExpoSenseDotTrackLayer;
-    fLineTrackLayer: TExpoSenseLineTrackLayer ;
-    fLastLats: TDictionary<TGUID, Double>;
-    fLastLons: TDictionary<TGUID, Double>;
-    fPrevLats: TDictionary<TGUID, Double>;
-    fPrevLons: TDictionary<TGUID, Double>;
+    // tiler track layers
+//    fHeightTrackLayer: TExpoSenseHeightTrackLayer;
+//    fDotTrackLayer: TExpoSenseDotTrackLayer;
+//    fLineTrackLayer: TExpoSenseLineTrackLayer ;
+    // simple, combined track layer
+    fCombinedTrackLayer: TSimpleLayer;
+//    fLastLats: TDictionary<TGUID, Double>;
+//    fLastLons: TDictionary<TGUID, Double>;
+//    fPrevLats: TDictionary<TGUID, Double>;
+//    fPrevLons: TDictionary<TGUID, Double>;
+//    fLastCalcLats: TDictionary<TGUID, Double>;
+//    fLastCalcLons: TDictionary<TGUID, Double>;
     //fSensorsDataSet: TSensorsDataSet;
     fTimeSliderDataTimer: TTimer;
     fFirstTimeSliderUpdate: Boolean;
     fMeasuredECValuesChart: TChartLines;
     fCalculatedECValuesChart: TChartLines;
-    fTotalChart: TChartLines;
+    //fTotalChart: TChartLines;
     fFiltered: Boolean;
     fShowDataSelectionTimer: TTimer;
     fDataPoints: TObjectDictionary<TGUID, TOrderedListTS<TExpoSenseDataPoint>>;
     fIMB3Connection: TIMBConnection; //owns
     procedure triggerUpdateTimesliderData;
     function jsonTimesliderData(aPalette: TWDPalette; var aExtent: TWDExtent): string;
-    //procedure ShowDataSelection(aTrackLayer: TExpoSenseTrackLayer; aMobileChart, aTotalChart: TChartLines; aFrom, aTo: TDateTime);
   protected
-    //fGUID: TGUID;
-    //fQueryCounter: Integer;
-    //fQuerySubscribed: Boolean;
     fPubEvent: TEventEntry;
-    //fQueryEvent: TEventEntry;
     fLiveEvent: TEventEntry;
-    //fQueryEventHandler: TOnEvent;
     fLiveEventHandler: TOnEvent;
     fLiveCounter: Integer;
     fDBCounter: Integer;
     fLastClient: TDateTime;
+    //fValueStored: TObjectDictionary<Integer, TDictionary<TGUID, Double>>;
+
     procedure handleLiveEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-    //procedure handleQueryEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
     procedure handleUniEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-    //procedure addToSensorDataSet(const aSensorid: TGUID; aTimestamp: TDateTime; aFieldInfo: UInt32; aLat, aLon, aValue: Double);
+  protected
+//    function GetValueStored(aTag: Integer; const aSensorID: TGUID): Double;
+//    procedure setValueStored(aTag: Integer; const aSensorID: TGUID; aValue: Double);
+//    property ValueStored[aTag: Integer; const aSensorID: TGUID]: Double read GetValueStored write setValueStored;
   public
     function HandleClientSubscribe(aClient: TClient): Boolean; override;
     function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
     procedure HandleTimeSliderEvent(aClient: TClient; const aType: string; aPayload: TJSONObject);
     procedure HandleScenarioRefresh(aClient: TClient; const aType: string; aPayload: TJSONObject);
-    procedure AddPoint(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aValue, aHeight: Double);
-    procedure Update(aStart, aEnd: TDateTime; aMode: Integer);
-    {
-    procedure ProcessRecord(
-      aTrackLayer: TExpoSenseTrackLayer; aMobileChart, aTotalChart: TChartLines;
-      aCursor: TCursor;
-      var aLat, aLon: Double;
-      var aTimeStamp: TDateTime;
-      var aValue, aTotalValue: Double);
-    }
+    procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aValue: Double);
+    procedure UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aMOT: Integer);
+    procedure UpdateLocation(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aLocation: Integer);
+//    procedure Update(aStart, aEnd: TDateTime; aMode: Integer);
+//    procedure CombinedTrackAddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLastLat, aLastLon, aPrevLat, aPrevLon: Double; aMOT: Integer);
+//    procedure CombinedTrackUpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aMOT: Integer);
+//    procedure CombinedTrackUpdateLocation(const aSensorID: TGUID; aTimeStamp: TDateTime; aLocation: Integer);
   public
-    //procedure InquireDB(const aInquire: string; const aLowerTimestamp, aUpperTimestamp: Double);
     procedure ReadBasicData(); override;
   end;
 
@@ -262,11 +328,9 @@ type
     aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
   protected
     function handleTilerStatus(aTiler: TTiler): string;
-    procedure handleNewClient(aClient: TClient); override;
-    procedure handleRemoveClient(aClient: TClient); override;
   public
-    //function addClient(const aClientID: string): TClient; override;
     function CreateExpoSenseScenario(const aScenarioID: string{; aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double}): TExpoSenseScenario;
+    procedure ReadBasicData(); override;
   end;
 
 implementation
@@ -276,60 +340,6 @@ function GuidToTWDID(aGuid: TGUID): TWDID;
 begin
   SetLength(Result, SizeOf(aGuid));
   Move(aGuid, PAnsiChar(Result)^, SizeOf(aGuid));
-end;
-
-// Discrete palette for the ExpoSense project
-
-function CreateColorTrackPalette(const aTitle: string): TWDPalette;
-var
-  factor: Double;
-begin
-  factor := 1 / 1000000000;
-  Result := TRampPalette.Create(aTitle, [
-    TRampPaletteEntry.Create($Ff00AF00, 0 * factor, '0'),
-    //TRampPaletteEntry.Create($FF00C800, 5, '5'),
-    TRampPaletteEntry.Create($FF00E100, 10 * factor, '10'),
-    //TRampPaletteEntry.Create($FF32FF32, 15, '15'),
-    TRampPaletteEntry.Create($FF7DFF4B, 20 * factor, '20'),
-    //TRampPaletteEntry.Create($FFC8FF4B, 25, '25'),
-    TRampPaletteEntry.Create($FFF2FF4B, 30 * factor, '30'),
-    //TRampPaletteEntry.Create($FFFFFA01, 35, '35'),
-    TRampPaletteEntry.Create($FFFFE101, 40 * factor, '40'),
-    //TRampPaletteEntry.Create($FFFFC801, 45, '45'),
-    TRampPaletteEntry.Create($FFFFAF01, 50 * factor, '50'),
-    //TRampPaletteEntry.Create($FFFF9601, 55, '55'),
-    TRampPaletteEntry.Create($FFFF7D01, 60 * factor, '60'),
-    //TRampPaletteEntry.Create($FFFF6401, 65, '65'),
-    TRampPaletteEntry.Create($FFFF4B01, 70 * factor, '70'),
-    //TRampPaletteEntry.Create($FFFF0000, 75, '75'),
-    TRampPaletteEntry.Create($FFE10000, 80 * factor, '80'),
-    //TRampPaletteEntry.Create($FFC80000, 85, '85'),
-    TRampPaletteEntry.Create($FFAF0000, 90 * factor, '90'),
-    //TRampPaletteEntry.Create($FF960019, 95, '95'),
-    TRampPaletteEntry.Create($FF7D0032, 100 * factor, '100'),
-    //TRampPaletteEntry.Create($FF6E004B, 105, '105'),
-    TRampPaletteEntry.Create($FF640064, 110 * factor, '110'),
-    //TRampPaletteEntry.Create($FF500073, 115, '115'),
-    TRampPaletteEntry.Create($FF37005C, 120 * factor, '120')],
-      $FF00AF00,
-      $00000000,
-      $FF37005C);
-end;
-
-function CreateGrayTrackPalette(const aTitle: string): TWDPalette;
-var
-  factor: Double;
-begin
-  factor := 1 / 1000000000;
-  Result := TRampPalette.Create(aTitle, [
-    TRampPaletteEntry.Create($FFE0E0E0, 0 * factor, '0'),
-    TRampPaletteEntry.Create($FFA8A8A8, 30 * factor, '30'),
-    TRampPaletteEntry.Create($FF707070, 60 * factor, '60'),
-    TRampPaletteEntry.Create($FF383838, 90 * factor, '90'),
-    TRampPaletteEntry.Create($FF000000, 120 * factor, '120')],
-      $FFDDDDDD,
-      $00000000,
-      $FF000000);
 end;
 
 function CreateBlueTrackPalette(const aTitle: string): TWDPalette;
@@ -372,35 +382,60 @@ begin
 //    TDiscretePaletteEntry.Create(TGeoColors.Create($FF888888), 40 * factor, 80 * factor, '40 - 80'),
 //    TDiscretePaletteEntry.Create(TGeoColors.Create($FF000000), 80 * factor, Double.PositiveInfinity, '80+')],
       TGeoColors.Create(0)); // black transparent
-  {
-  Result := TRampPalette.Create(aTitle, [
-    TRampPaletteEntry.Create($FFDDDDDD, 0 * factor, '0'),
-    TRampPaletteEntry.Create($FF000000, 120 * factor, '120')],
-      $FFDDDDDD,
-      $00000000,
-      $FF000000);
-  }
 end;
 
 { TExpoSenseDataPoint }
 
-constructor TExpoSenseDataPoint.Create(aTimeStamp: TDateTime; aLat, aLon, aValue, aHeight: Double);
+constructor TExpoSenseDataPoint.Create(aTimeStamp: TDateTime; aLat, aLon, aValue: Double);
 begin
   inherited Create(aTimeStamp);
   fGeometry := TWDGeometryPoint.Create(aLon, aLat, double.NaN);
   fValue := aValue;
-  fHeight := aHeight;
+  fCalculatedGeometry := nil;
+  fModeOfTransportation := motUnknown;
+  fLocation := locUnknown;
 end;
 
 destructor TExpoSenseDataPoint.Destroy;
 begin
   FreeAndNil(fGeometry);
+  FreeAndNil(fCalculatedGeometry);
   inherited;
+end;
+
+function TExpoSenseDataPoint.id(const aSensorID: TGUID): string;
+begin
+  Result := aSensorID.ToString+FormatDateTime('yyyymmdd-hhnnss', timeStamp);
+end;
+
+class function TExpoSenseDataPoint.LocationStrToInt(aLocation: string): integer;
+begin
+  aLocation := aLocation.toLower;
+  Result := length(LTs)-1;
+  while (Result>0) and (aLocation<>LTS[Result].toLower)
+  do Result := Result-1;
+end;
+
+class function TExpoSenseDataPoint.ModeOfTransportationStrToInt(aMOT: string): Integer;
+begin
+  aMOT := aMOT.ToLower;
+  Result := length(motStrings)-1;
+  while (Result>0) and (aMOT<>motStrings[Result].toLower)
+  do Result := Result-1;
+  {
+  if aMot.ToLower=motsWalking.ToLower
+  then Result := motWalking
+  else if aMot.ToLower=motsCycling.ToLower
+  then Result := motCycling
+  else if aMot.ToLower= motsMotorized.ToLower
+  then Result := motMotorized
+  else Result := motOther;
+  }
 end;
 
 { TExpoSenseTrackLayer }
 
-procedure TExpoSenseHeightTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aValue: Double; aMode: Integer);
+procedure TExpoSenseHeightTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aValue: Double; aMOT: Integer);
 var
   geometryPoint: TWDGeometryPoint;
 begin
@@ -409,7 +444,7 @@ begin
     fTilerLayer.signalData(
       TByteBuffer.bb_tag_guid(icehObjectID, aSensorID)+
       TByteBuffer.bb_tag_rawbytestring(icehTilerGeometryPoint, geometryPoint.Encode)+
-      TByteBuffer.bb_tag_double(icehTilerValue, aMode)+
+      TByteBuffer.bb_tag_double(icehTilerValue, aMOT)+
       TByteBuffer.bb_tag_double(icehTilerValue2, aValue*Self.fValueHeightFactor)+
       TByteBuffer.bb_tag_double(icehObjectTS, aTimeStamp));
   finally
@@ -443,28 +478,6 @@ begin
   fTilerLayer := nil;
   RegisterLayer;
 end;
-{
-procedure TExpoSenseTrackLayer.RegisterLayer;
-begin
-  RegisterOnTiler(False, SliceType, name, 2500, fPalette.Clone);
-end;
-
-procedure TExpoSenseTrackLayer.RegisterSlice;
-begin
-  tilerLayer.signalAddSlice();
-end;
-
-procedure TExpoSenseTrackLayer.reset;
-begin
-  ClearObjects;
-  tilerLayer.signalSliceAction(tsaClearSlice);
-end;
-
-function TExpoSenseTrackLayer.SliceType: Integer;
-begin
-  Result := stGeometryIH;
-end;
-}
 
 destructor TExpoSenseHeightTrackLayer.Destroy;
 begin
@@ -490,16 +503,6 @@ begin
   legendJSON := Self.legendJSON;
   if legendJSON <> '' then
     aClient.SendLegend(elementID, '', Self.legendJSON);
-  // handle subscribe on dependent diff layers
-  {
-  TMonitor.Enter(fDependentDiffLayers);
-  try
-    for diffLayer in fDependentDiffLayers
-    do diffLayer.HandleClientSubscribe(aClient);
-  finally
-    TMonitor.Exit(fDependentDiffLayers);
-  end;
-  }
 end;
 
 function TExpoSenseHeightTrackLayer.HandleClientUnsubscribe(aClient: TClient): Boolean;
@@ -630,9 +633,14 @@ begin
   // todo: implement
 end;
 
+procedure TExpoSenseHeightTrackLayer.UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aMOT: Integer);
+begin
+  // todo: implement
+end;
+
 { TExponsenseDotTrackLayer }
 
-procedure TExpoSenseDotTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aMode: Integer);
+procedure TExpoSenseDotTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aMOT: Integer);
 var
   geometryPoint: TWDGeometryPoint;
   id: TWDID;
@@ -642,7 +650,7 @@ begin
     id := TByteBuffer.bb_bytes(aSensorID, SizeOf(aSensorID))+TByteBuffer.bb_bytes(aTimeStamp, SizeOf(aTimeStamp));
     fTilerLayer.signalData(
       TByteBuffer.bb_tag_rawbytestring(icehTilerGeometryPoint, geometryPoint.Encode)+
-      TByteBuffer.bb_tag_double(icehTilerValue, aMode)+
+      TByteBuffer.bb_tag_double(icehTilerValue, aMOT)+
       TByteBuffer.bb_tag_bytes(icehObjectID, PAnsiChar(id)^, length(id)));
       // todo: radius?
   finally
@@ -818,9 +826,14 @@ begin
   // todo: implement
 end;
 
+procedure TExpoSenseDotTrackLayer.UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aMOT: Integer);
+begin
+  // todo: implement
+end;
+
 { TExpoSenseLineTrackLayer }
 
-procedure TExpoSenseLineTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aPrevLat, aPrevLon: Double; aMode: Integer);
+procedure TExpoSenseLineTrackLayer.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aPrevLat, aPrevLon: Double; aMOT: Integer);
 var
   geometry: TWDGeometry;
 //  id: TWDID;
@@ -834,7 +847,7 @@ begin
     //id := TByteBuffer.bb_bytes(aSensorID, SizeOf(aSensorID))+TByteBuffer.bb_bytes(aTimeStamp, SizeOf(aTimeStamp));
     fTilerLayer.signalData(
       TByteBuffer.bb_tag_rawbytestring(icehTilerGeometry, geometry.Encode)+
-      TByteBuffer.bb_tag_double(icehTilerValue, aMode)+
+      TByteBuffer.bb_tag_double(icehTilerValue, aMOT)+
       //TByteBuffer.bb_tag_bytes(icehObjectID, PAnsiChar(id)^, length(id)));
       TByteBuffer.bb_tag_guid(icehObjectID, TGUID.NewGuid));
       // todo: radius?
@@ -1020,12 +1033,20 @@ begin
   // todo: implement
 end;
 
+procedure TExpoSenseLineTrackLayer.UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aMOT: Integer);
+begin
+  // todo: implement
+end;
+
 { TExpoSenseScenario }
 
-procedure TExpoSenseScenario.AddPoint(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aValue, aHeight: Double);
+procedure TExpoSenseScenario.AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aValue: Double);
 var
   ol: TOrderedListTS<TExpoSenseDataPoint>;
   edp: TExpoSenseDataPoint;
+  sliderTime: string;
+  so: TCircleMarker;
+  prevESDP: TExpoSenseDataPoint;
 begin
   // todo: implement
   if not fDataPoints.TryGetValue(aSensorID, ol) then
@@ -1033,30 +1054,66 @@ begin
     ol := TOrderedListTS<TExpoSenseDataPoint>.Create();
     fDataPoints.AddOrSetValue(aSensorID, ol);
   end;
-  edp := TExpoSenseDataPoint.Create(aTimeStamp, aLat, aLon, aValue, aHeight);
-  ol.AddTS(edp);
+  prevESDP := ol.ItemsTS[aTimeStamp, True];
+  if (prevESDP=nil) or (prevESDP.value<>aValue) then
+  begin
+    edp := TExpoSenseDataPoint.Create(aTimeStamp, aLat, aLon, aValue);
+    ol.AddTS(edp);
+
+    if not fFiltered then
+    begin
+      // todo: CombinedTrackAddValue(sensorid, timestamp, lastLat, lastLon, prevLat, prevLon, mot);
+
+      so := TCircleMarker.Create(fCombinedTrackLayer, edp.id(aSensorID), aLat, aLon, 2);
+      so.addOptionGeoColor(TGeoColors.Create(motColors[edp.modeOfTransportation]));
+      fCombinedTrackLayer.AddObject(so, so.jsonNewObject);
+
+  //    fHeightTrackLayer.AddValue(sensorid, timeStamp, lastLat, lastLon, value, mot);
+  //    fDotTrackLayer.AddValue(sensorid, timeStamp, lastLat, lastLon, mot);
+  //    prevLon := ValueStored[sensordata_longitude-1, sensorid];
+  //    prevLat := ValueStored[sensordata_latitude-1, sensorid];
+  //    if not (prevLon.IsNan or prevLat.IsNan)
+  //    then fLineTrackLayer.AddValue(sensorid, timestamp, lastLat, lastLon, prevLat, prevLon, mot);
+  //    ValueStored[sensordata_longitude-1, sensorid] := lastLon;
+  //    ValueStored[sensordata_latitude-1, sensorid] := lastLat;
+
+      fMeasuredECValuesChart.AddValue(aTimeStamp, [aValue*chartSensorValueFactor]);
+      {
+      if fMeasuredECValuesChart.allValues.Count>=2 then
+      begin
+        average := (value*chartValueFactor+fMeasuredECValuesChart.allValues[fMeasuredECValuesChart.allValues.Count-2].y[0])/2.0;
+        delta := timeStamp-fMeasuredECValuesChart.allValues[fMeasuredECValuesChart.allValues.Count-2].x;
+        _totalValue := average * delta * 24 * 60;
+        if fTotalChart.allValues.Count>0
+        then _totalValue := _totalValue + fTotalChart.allValues[fTotalChart.allValues.Count-1].y[0];
+        fTotalChart.AddValue(timeStamp, [_totalValue])
+      end
+      else fTotalChart.AddValue(timeStamp, [value*chartValueFactor]);
+      }
+      sliderTime := FormatDateTime(publisherDateTimeFormat, aTimestamp);
+      forEachSubscriber<TClient>(
+        procedure(aClient: TClient)
+        begin
+          aClient.signalString('{"type":"timesliderEvents","payload":{"setCurrentTime":"'+sliderTime+'"}}');
+        end);
+    end;
+    triggerUpdateTimesliderData();
+  end;
 end;
 
 constructor TExpoSenseScenario.Create(aProject: TProject; const aID, aName,
-  aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView{;
-  aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double});
+  aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
 begin
-  //if TRegEx.IsMatch(aID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$')
-  //then fGUID := TGUID.Create(aID)
-  //else fGUID := TGUID.Empty;
-  //fGUID := aGUID;
-  //fLive := True;
-  //fQueryCounter := 0;
-  //fQuerySubscribed := False;
-  //fQueryEventHandler := handleQueryEvent;
   fLiveCounter := 0;
   fDBCounter := 0;
-  //fTrackLayer := TExpoSenseTrackLayer.Create;
   fDataPoints := TObjectDictionary<TGUID, TOrderedListTS<TExpoSenseDataPoint>>.Create([doOwnsValues]);
-  fLastLats := TDictionary<TGUID, Double>.Create;
-  fLastLons := TDictionary<TGUID, Double>.Create;
-  fPrevLats := TDictionary<TGUID, Double>.Create;
-  fPrevLons := TDictionary<TGUID, Double>.Create;
+//  fLastLats := TDictionary<TGUID, Double>.Create;
+//  fLastLons := TDictionary<TGUID, Double>.Create;
+//  fPrevLats := TDictionary<TGUID, Double>.Create;
+//  fPrevLons := TDictionary<TGUID, Double>.Create;
+//  fLastCalcLats := TDictionary<TGUID, Double>.Create;
+//  fLastCalcLons := TDictionary<TGUID, Double>.Create;
+//  fValueStored := TObjectDictionary<Integer, TDictionary<TGUID, Double>>.Create([doOwnsValues]);
   //fSensorsDataSet := TSensorsDataSet.Create;
   fTimeSliderDataTimer := aProject.Timers.CreateInactiveTimer;
   fTimeSliderDataTimer.MaxPostponeDelta := DateTimeDelta2HRT(MaxTimeSliderUpdateTime*dtOneSecond);
@@ -1068,44 +1125,38 @@ begin
   fLiveEvent := aProject.Connection.eventEntry('mobilesensordata').subscribe;
   fLiveEventHandler := handleLiveEvent;
   fLiveEvent.OnEvent.Add(fLiveEventHandler);
-  {
-  ltst := GetSetting('LowerTimeStamp', '');
-  if ltst<>''
-  then lts := StrToDateTime(ltst)
-  else lts := Double.NaN;
-  utst := GetSetting('UpperTimeStamp', '');
-  if utst<>''
-  then uts := StrToDateTime(utst)
-  else uts := Double.NaN;
-  InquireDB('', lts, uts);
-  }
-  //InquireDB('', aLowerTimeStamp, aUpperTimeStamp);
 end;
 
 destructor TExpoSenseScenario.Destroy;
 begin
-  {
-  if fQuerySubscribed then //unsubscribe from the previous returnEvent
-  begin
-    fqueryEvent.OnEvent.Remove(fQueryEventHandler);
-    project.Connection.unSubscribe(fQueryEvent);
-  end;
-  }
   fLiveEvent.OnEvent.Remove(fLiveEventHandler);
   project.Connection.unSubscribe(fLiveEvent);
   project.Connection.unPublish(fPubEvent);
   CancelTimer(fTimeSliderDataTimer);
   CancelTimer(fShowDataSelectionTimer);
-  //FreeAndNil(fTrackLayers);
-  FreeAndNil(fLastLons);
-  FreeAndNil(fLastLats);
-  FreeAndNil(fPrevLats);
-  FreeAndNil(fPrevLons);
+//  FreeAndNil(fLastLons);
+//  FreeAndNil(fLastLats);
+//  FreeAndNil(fPrevLats);
+//  FreeAndNil(fPrevLons);
+//  FreeAndNil(fLastCalcLats);
+//  FreeAndNil(fLastCalcLons);
+//  FreeAndNil(fValueStored);
   FreeAndNil(fDataPoints);
-  //FreeAndNil(fSensorsDataSet);
   inherited;
 end;
-
+{
+function TExpoSenseScenario.GetValueStored(aTag: Integer; const aSensorID: TGUID): Double;
+var
+  d: TDictionary<TGUID, Double>;
+begin
+  if fValueStored.TryGetValue(aTag, d) then
+  begin
+    if not d.TryGetValue(aSensorID, Result)
+    then Result := Double.NaN;
+  end
+  else Result := Double.NaN;
+end;
+}
 function TExpoSenseScenario.HandleClientSubscribe(aClient: TClient): Boolean;
 var
   jsonTSData: string;
@@ -1123,15 +1174,17 @@ begin
   end;
   aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
   // set map view according data set
+  {
   if not (extent.CenterY.IsNaN or extent.CenterX.IsNaN) then
   begin
     fMapView := TMapView.Create(extent.CenterY, extent.CenterX, fMapView.zoom);
     aClient.SendView(fMapView.lat, fMapView.lon, Double.NaN);
   end;
+  }
   //fMobileChart.sub
   aClient.SubscribeTo(fMeasuredECValuesChart, nil);
   aClient.SubscribeTo(fCalculatedECValuesChart, nil);
-  aClient.SubscribeTo(fTotalChart, nil);
+  //aClient.SubscribeTo(fTotalChart, nil);
   //aClient.SubscribeTo(fTrackLayer);
 end;
 
@@ -1140,7 +1193,7 @@ begin
   Result := inherited;
   aClient.UnsubscribeFrom(fMeasuredECValuesChart);
   aClient.UnsubscribeFrom(fCalculatedECValuesChart);
-  aClient.UnsubscribeFrom(fTotalChart);
+  //aClient.UnsubscribeFrom(fTotalChart);
   //aClient.UnsubscribeFrom(fTrackLayer);
 end;
 
@@ -1150,116 +1203,6 @@ begin
   handleUniEvent(aEventEntry, aPayload, aCursor, aLimit);
 end;
 
-{
-procedure TExpoSenseScenario.handleQueryEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
-begin
-  fDBCounter := fDBCounter + 1;
-  handleUniEvent(aEventEntry, aPayload, aCursor, aLimit);
-end;
-}
-(*
-procedure TExpoSenseScenario.ProcessRecord(
-  aTrackLayer: TExpoSenseTrackLayer; aMobileChart, aTotalChart: TChartLines;
-  aCursor: TCursor;
-  var aLat, aLon: Double;
-  var aTimeStamp: TDateTime;
-  var aValue, aTotalValue: Double);
-var
-  srp: TPair<TSensor, Integer>;
-  sr: TSensorsRecord;
-  sensorValue: Double;
-  _totalValue: Double;
-  average: Double;
-  delta: Double;
-begin
-  for srp in aCursor.SensorRecords do
-  begin
-    sr := fSensorsDataSet.Data[srp.Value];
-    sr.values[srp.Key].TryGetValue(sensordata_latitude shr 3, aLat);
-    sr.values[srp.Key].TryGetValue(sensordata_longitude shr 3, aLon);
-    if not(aLat.IsNan or aLon.IsNan) then
-    begin
-      if sr.values[srp.Key].TryGetValue(sensordata_ec{sensordata_no2} shr 3, sensorValue) then
-      begin
-        //aTrackLayer.AddPoint(aCursor.CurrentTimeStamp{srp.Key.IDAsGUID}, aLat, aLon, sensorValue);
-        aMobileChart.AddValue(aCursor.CurrentTimeStamp, [sensorValue]);
-        if not aValue.IsNan then
-        begin
-          average := (aValue+sensorValue)/2.0;
-          delta := aCursor.CurrentTimeStamp-aTimeStamp;
-          _totalValue := average * delta * 24 * 60;
-          if aTotalValue.IsNan
-          then aTotalValue := _totalValue
-          else aTotalValue := aTotalValue + _totalValue;
-          aTotalChart.AddValue(aCursor.CurrentTimeStamp, [aTotalValue]);
-        end;
-        aValue := sensorValue;
-        aTimeStamp := aCursor.CurrentTimeStamp;
-      end;
-    end;
-  end;
-end;
-*)
-(*
-procedure TExpoSenseScenario.ShowDataSelection(aTrackLayer: TExpoSenseTrackLayer; aMobileChart, aTotalChart: TChartLines; aFrom, aTo: TDateTime);
-//var
-//  cursor: TCursor;
-//  loopLat: Double;
-//  loopLon: Double;
-//  loopValue: Double;
-//  loopTimeStamp: TDateTime;
-//  loopTotalValue: Double;
-begin
-  // clear track and charts again to handle aborted jobs
-  // todo: **** aTrackLayer.reset;
-  aTotalChart.reset;
-  aMobileChart.reset;
-  // rebuild data
-  aTrackLayer.reset;
-  {
-  cursor := fSensorsDataSet.NewCursor;
-  try
-    loopLat := Double.NaN;
-    loopLon := Double.NaN;
-    loopValue  := Double.NaN;
-    loopTimeStamp := Double.NaN;
-    loopTotalValue  := Double.NaN;
-    TMonitor.Enter(fSensorsDataSet.Cursors);
-    try
-      if aFrom<>0 then
-      begin
-        // check if not before first entry
-        if cursor.First and (aFrom<cursor.CurrentTimeStamp)
-        then aFrom := cursor.CurrentTimeStamp;
-        Log.WriteLn('HandleTimeSliderEvent: brush: '+DateTimeToStr(afrom)+' - '+DateTimeToStr(aTo));
-        // goto start time and add points till end of data or over to-timestamp
-        if cursor.MoveTo(aFrom) then
-        begin
-          repeat
-            ProcessRecord(aTrackLayer, aMobileChart, aTotalChart, cursor, loopLat, loopLon, loopTimeStamp, loopValue, loopTotalValue);
-          until (not cursor.Next) or (cursor.CurrentTimeStamp>aTo);
-        end;
-      end
-      else
-      begin // reset query
-        Log.WriteLn('HandleTimeSliderEvent: brush: reset');
-        // add all points
-        if cursor.First then
-        begin
-          repeat
-            ProcessRecord(aTrackLayer, aMobileChart, aTotalChart, cursor, loopLat, loopLon, loopTimeStamp, loopValue, loopTotalValue);
-          until not cursor.Next;
-        end;
-      end;
-    finally
-      TMonitor.Exit(fSensorsDataSet.Cursors);
-    end;
-  finally
-    fSensorsDataSet.RemoveCursor(cursor);
-  end;
-  }
-end;
-*)
 procedure TExpoSenseScenario.HandleScenarioRefresh(aClient: TClient; const aType: string; aPayload: TJSONObject);
 var
   scenario: TJSONValue;
@@ -1369,54 +1312,26 @@ begin
   end;
 end;
 
-(*
-procedure TExpoSenseScenario.addToSensorDataSet(
-  const aSensorid: TGUID; aTimestamp: TDateTime; aFieldInfo: UInt32; aLat, aLon, aValue: Double);
-var
-  id: TWDID;
-  sensor: TSensor;
-begin
-  id := TByteBuffer.bb_bytes(aSensorid, SizeOf(aSensorid));
-  TMonitor.Enter(fSensorsDataSet.Sensors);
-  try
-    if not fSensorsDataSet.Sensors.TryGetValue(id, sensor) then
-    begin
-      sensor := TSensor.Create(id);
-      fSensorsDataSet.Sensors.Add(id, sensor);
-    end;
-  finally
-    TMonitor.Exit(fSensorsDataSet.Sensors);
-  end;
-  TMonitor.Enter(fSensorsDataSet.Data);
-  try
-    fSensorsDataSet.NewValues(sensor, aTimestamp,
-      [sensordata_latitude shr 3, sensordata_longitude shr 3, aFieldInfo shr 3],
-      [aLat, aLon, aValue]);
-  finally
-    TMonitor.Exit(fSensorsDataSet.Data);
-  end;
-end;
-*)
-
 procedure TExpoSenseScenario.handleUniEvent(aEventEntry: TEventEntry; const aPayload: TByteBuffer; aCursor, aLimit: Integer);
 var
-//  trackLayer: TExpoSenseTrackLayer;
   fieldInfo: UInt32;
   value, timestamp: Double;
   sensorid: TGUID;
-  lastLat: Double;
-  lastLon: Double;
-  average: Double;
-  delta: Double;
-  _totalValue: Double;
+  sensorLat: Double;
+  sensorLon: Double;
+//  average: Double;
+//  delta: Double;
+//  _totalValue: Double;
   modeStr: string;
-  mode: Integer;
-  sliderTime: string;
-  prevLon: Double;
-  prevLat: Double;
+//  prevLon: Double;
+//  prevLat: Double;
+  mot: Integer;
+  locationStr: string;
+  location: Integer;
+  calcLon: Double;
+  calcLat: Double;
 begin
   timestamp := 0;
-  mode := 3; // todo: indetermined?
   while aCursor<aLimit do
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
@@ -1424,136 +1339,90 @@ begin
       wdatTimeStamp:
         begin
           timestamp := aPayload.bb_read_double(aCursor);
-          if not fFiltered then
-          begin
-            sliderTime := FormatDateTime(publisherDateTimeFormat, timestamp);
-            forEachSubscriber<TClient>(
-              procedure(aClient: TClient)
-              begin
-                aClient.signalString('{"type":"timesliderEvents","payload":{"setCurrentTime":"'+sliderTime+'"}}');
-              end);
-          end;
+          // work-a-round for timestamp resolution problem in processor
+          timestamp := Round(timestamp*Double(24.0*60.0*60.0))/Double(24.0*60.0*60.0);
         end;
       (icehObjectID shl 3) or wtLengthDelimited:
         begin
           sensorid := aPayload.bb_read_guid(aCursor);
         end;
-      sensordata_transportationmode:
+      sensordata_mode_of_transportation:
         begin
           modeStr := aPayload.bb_read_string(aCursor);
-          // todo: derive mode of mode string
-          // mode :=
-          // todo: change all values in track from this time to the end to this mode
-          Update(timeStamp, Double.PositiveInfinity, mode);
-          triggerUpdateTimesliderData();
-          if not fFiltered then
+//          lastLon := ValueStored[calculated_longitude, sensorid];
+//          lastLat := ValueStored[calculated_latitude, sensorid];
+          if not (calcLon.IsNan or calcLat.IsNan) then
           begin
-            fHeightTrackLayer.Update(timeStamp, Double.PositiveInfinity);
-            fDotTrackLayer.Update(timeStamp, Double.PositiveInfinity);
-            fLineTrackLayer.Update(timeStamp, Double.PositiveInfinity);
+            mot := TExpoSenseDataPoint.ModeOfTransportationStrToInt(modeStr);
+            UpdateMOT(sensorid, timestamp, calcLat, calcLon, mot);
+          end;
+        end;
+      sensordata_location_type:
+        begin
+          locationStr := aPayload.bb_read_string(aCursor);
+//          lastLon := ValueStored[calculated_longitude, sensorid];
+//          lastLat := ValueStored[calculated_latitude, sensorid];
+          if not (calcLon.IsNan or calcLat.IsNan) then
+          begin
+            location := TExpoSenseDataPoint.LocationStrToInt(locationStr);
+            UpdateLocation(sensorid, timeStamp, calcLat, calcLon, location);
           end;
         end;
       sensordata_ec:
         begin
           value := aPayload.bb_read_double(aCursor);
-          // correct for negative sensor values (just ignore)
-          if value<0
-          then value := 0;
-          if fLastLons.TryGetValue(sensorid, lastLon) and fLastLats.TryGetValue(sensorid, lastLat) then
+          // correct for negative sensor values (just ignore and use 0)
+          //if value<0
+          //then value := 0;
+          if value>0 then
           begin
-            //addToSensorDataSet(sensorid, timestamp, fieldInfo, lastLat, lastLon, value);
-            AddPoint(sensorid, timeStamp, lastLat, lastLon, mode, value);
-            triggerUpdateTimesliderData();
-            if not fFiltered then
+//            lastLon := ValueStored[sensordata_longitude, sensorid];
+//            lastLat := ValueStored[sensordata_latitude, sensorid];
+            if not (sensorLon.IsNan or sensorLat.IsNan) then
             begin
-              fHeightTrackLayer.AddValue(sensorid, timeStamp, lastLat, lastLon, value, mode);
-              fDotTrackLayer.AddValue(sensorid, timeStamp, lastLat, lastLon, mode);
-              if fPrevLons.TryGetValue(sensorid, prevLon) and fPrevLats.TryGetValue(sensorid, prevLat)
-              then fLineTrackLayer.AddValue(sensorid, timestamp, lastLat, lastLon, prevLat, prevLon, mode);
-              if not lastLon.isNaN
-              then fPrevLons.AddOrSetValue(sensorid, lastLon);
-              if not lastLat.isNaN
-              then fPrevLats.AddOrSetValue(sensorid, lastLat);
-              fMeasuredECValuesChart.AddValue(timeStamp, [value*chartValueFactor, value*chartValueFactor*1.1]); // todo: measured value
-              if fMeasuredECValuesChart.allValues.Count>=2 then
-              begin
-                average := (value*chartValueFactor+fMeasuredECValuesChart.allValues[fMeasuredECValuesChart.allValues.Count-2].y[0])/2.0;
-                delta := timeStamp-fMeasuredECValuesChart.allValues[fMeasuredECValuesChart.allValues.Count-2].x;
-                _totalValue := average * delta * 24 * 60;
-                if fTotalChart.allValues.Count>0
-                then _totalValue := _totalValue + fTotalChart.allValues[fTotalChart.allValues.Count-1].y[0];
-                fTotalChart.AddValue(timeStamp, [_totalValue])
-              end
-              else fTotalChart.AddValue(timeStamp, [value*chartValueFactor]);
+              AddValue(sensorid, timeStamp, sensorLat, sensorLon, value);
             end;
-
           end;
         end;
-
-      {
-      sensordata_linkid:
-        begin
-          id := GuidToTWDID(aPayload.bb_read_guid(aCursor));
-          TMonitor.Enter(fLinkLayers);
-          try
-            for layer in fLinkLayers.Values do
-              layer.AddLinkID(timestamp, id);
-          finally
-            TMonitor.Exit(fLinkLayers);
-          end;
-        end;
-      }
       sensordata_latitude:
         begin
-          value := aPayload.bb_read_double(aCursor);
-          fLastLats.AddOrSetValue(sensorid, value);
+          sensorLat := aPayload.bb_read_double(aCursor);
+          //ValueStored[sensordata_latitude, sensorid] := value;
         end;
       sensordata_longitude:
         begin
-          value := aPayload.bb_read_double(aCursor);
-          fLastLons.AddOrSetValue(sensorid, value);
+          sensorLon := aPayload.bb_read_double(aCursor);
+          //ValueStored[sensordata_longitude, sensorid] := value;
         end;
+      calculated_latitude:
+        begin
+          calcLat := aPayload.bb_read_double(aCursor);
+          //ValueStored[calculated_latitude, sensorid] := value;
+        end;
+      calculated_longitude:
+        begin
+          calcLon := aPayload.bb_read_double(aCursor);
+          //ValueStored[calculated_longitude, sensorid] := value;
+        end;
+      meteodata_windspeed:
+        begin
+          value := aPayload.bb_read_double(aCursor);
+          // todo: store with time stamp
+          if not fFiltered
+          then project.windControl.windSpeed := value;
+        end;
+      meteodata_winddirection:
+        begin
+          value := aPayload.bb_read_double(aCursor);
+          // todo: store with time stamp
+          if not fFiltered
+          then project.windControl.windDirection := value;
+        end
     else
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
     end;
   end;
 end;
-
-(*
-procedure TExpoSenseScenario.InquireDB(const aInquire: string; const aLowerTimestamp, aUpperTimestamp: Double);
-var
-  returnString: string;
-  buffer: TByteBuffer;
-begin
-  if fQuerySubscribed then //unsubscribe from the previous returnEvent
-  begin
-    fqueryEvent.OnEvent.Remove(fQueryEventHandler);
-    project.Connection.unSubscribe(fQueryEvent);
-  end;
-  //subscribe to the returnEvent
-  returnString := ID + '-' + fQueryCounter.ToString();
-  fQueryCounter := fQueryCounter+1;
-  fQueryEvent := project.Connection.eventEntry(returnString, False).subscribe;
-  fQueryEvent.OnEvent.Add(fQueryEventHandler);
-  fQuerySubscribed := True;
-  if (fProject is TExpoSenseProject) and not aLowerTimeStamp.IsNan then
-  begin
-    buffer := TByteBuffer.bb_tag_guid(icehObjectID, fGUID.Empty); //expert scenario, send empty guid to access all data
-    Log.WriteLn('Inquire expert scenario');
-  end
-  else if fGUID <> TGUID.Empty then //check if's not the empty guid
-    buffer := TByteBuffer.bb_tag_guid(icehObjectID, fGUID)
-  else //constant non-empty Guid, prevents people using the empty guid to access all data
-    buffer := TByteBuffer.bb_tag_guid(icehObjectID, TGUID.Create('{00000000-0000-0000-0000-000000000001}'));
-  if not aLowerTimeStamp.IsNaN
-  then buffer := buffer + TByteBuffer.bb_tag_double(wDatTimeStampLower shr 3, aLowerTimeStamp);
-  if not aUpperTimeStamp.IsNan
-  then buffer := buffer + TByteBuffer.bb_tag_double(wDatTimeStampUpper shr 3, aUpperTimeStamp);
-  buffer := buffer + TByteBuffer.bb_tag_string(wdatReturnEventName shr 3, returnString);
-  buffer := buffer + TByteBuffer.bb_tag_string(wdatObjectsInquire shr 3, aInquire);
-  fPubEvent.signalEvent(buffer);
-end;
-*)
 
 function TExpoSenseScenario.jsonTimesliderData(aPalette: TWDPalette; var aExtent: TWDExtent): string;
 var
@@ -1561,10 +1430,6 @@ var
   oneList: TOrderedListTS<TExpoSenseDataPoint>;
   sensor: TPair<TGUID, TOrderedListTS<TExpoSenseDataPoint>>;
   edp: TExpoSenseDataPoint;
-//  cursor: TCursor;
-//  srp: TPair<TSensor, Integer>;
-//  sensorValue: Double;
-//  sr: TSensorsRecord;
   stepSize: TDateTime;
   entryStartTimeStamp: TDateTime;
   entryColor: TAlphaRGBPixel;
@@ -1588,7 +1453,7 @@ begin
       for edp in sensor.Value do
       begin
         // todo: add all and sort at the end (not implemented yet)
-        oneList.AddTS(TExpoSenseDataPoint.Create(edp.timeStamp, edp.geometry.y, edp.geometry.x, edp.value, edp.height));
+        oneList.AddTS(TExpoSenseDataPoint.Create(edp.timeStamp, edp.geometry.y, edp.geometry.x, edp.value{, edp.height}));
       end;
     end;
     entryStartTimeStamp := Double.NaN;
@@ -1662,104 +1527,6 @@ begin
   finally
     oneList.Free;
   end;
-  (*
-  cursor := fSensorsDataSet.NewCursor;
-  try
-    TMonitor.Enter(fSensorsDataSet);
-    try
-      entryStartTimeStamp := Double.NaN;
-      entryColor := 0;
-      prevTimeStamp := Double.NaN;
-      if cursor.First then
-      begin
-        repeat
-          // init step values
-          loopSensorValue := Double.NaN;
-          loopLat := Double.NaN;
-          loopLon := Double.NaN;
-          for srp in cursor.SensorRecords do
-          begin
-            sr := fSensorsDataSet.Data[srp.Value];
-            // todo: check if sr has always entry for sensor (iesrp.key)?
-            if (cursor.CurrentTimeStamp-sr.timeStamp<=MaxNoSensorValueTime) and
-               sr.values[srp.Key].TryGetValue(aTag, sensorValue) then
-            begin
-              // check if value is not too old and if higher then
-              if loopSensorValue.IsNaN or (loopSensorValue<sensorValue) then
-              begin
-                loopSensorValue := sensorValue;
-                sr.values[srp.Key].TryGetValue(sensordata_latitude shr 3, loopLat);
-                sr.values[srp.Key].TryGetValue(sensordata_longitude shr 3, loopLon);
-                if not (loopLat.IsNan or loopLon.IsNan)
-                then aExtent.Expand(loopLon, loopLat);
-              end;
-            end;
-          end;
-
-          // color with value
-          loopSensorValueColor := aPalette.ValueToColors(loopSensorValue).fillColor;
-
-          // calculate length of step
-          if Double(prevTimeStamp).IsNaN then
-          begin
-            // FIRST step, init entry
-            stepSize := 0;
-            entryStartTimeStamp := cursor.CurrentTimeStamp;
-            entryColor := loopSensorValueColor;
-          end
-          else stepSize := cursor.CurrentTimeStamp-prevTimeStamp; // NOT first step
-
-          // check if entry should be closed (added)
-          if loopSensorValueColor<>entryColor then
-          begin
-            // check for transparancy
-            if (entryColor and $FF000000)<>0 then
-            begin
-              // calculate end time for entry
-              if stepSize>MaxNoSensorValueTime
-              then entryEndTimeStamp := prevTimeStamp+MaxNoSensorValueTime
-              else entryEndTimeStamp := cursor.CurrentTimeStamp;
-              // build entry
-              entry :=
-                '"start":"'+FormatDateTime(publisherDateTimeFormat, entryStartTimeStamp)+'"'+','+
-                '"end":"'+FormatDateTime(publisherDateTimeFormat, entryEndTimeStamp)+'"'+','+
-                '"color":"'+ColorToJSON(entryColor)+'"'+','+
-                //'"tooltip":'+'"max value: '+prevmax.toString+'"'+','+ // localized double
-                '"lat":'+DoubleToJSON(loopLat)+','+
-                '"lon":'+DoubleToJSON(loopLon);
-              jsonAdd(Result, '{'+entry+'}');
-              c := c+1;
-            end;
-            // start new entry
-            entryStartTimeStamp := cursor.CurrentTimeStamp;
-            entryColor := loopSensorValueColor;
-          end;
-          // prepare next step
-          prevTimeStamp := cursor.CurrentTimeStamp;
-        until not cursor.Next;
-        // add last step
-        // check for transparancy
-        if (entryColor and $FF000000)<>0 then
-        begin
-          entryEndTimeStamp := cursor.CurrentTimeStamp+MaxNoSensorValueTime;
-          entry :=
-            '"start":"'+FormatDateTime(publisherDateTimeFormat, entryStartTimeStamp)+'"'+','+
-            '"end":"'+FormatDateTime(publisherDateTimeFormat, entryEndTimeStamp)+'"'+','+
-            '"color":"'+ColorToJSON(entryColor)+'"'+','+
-            //'"tooltip":'+'"max value: '+prevmax.toString+'"'+','+ // localized double
-            '"lat":'+DoubleToJSON(loopLat)+','+
-            '"lon":'+DoubleToJSON(loopLon);
-          jsonAdd(Result, '{'+entry+'}');
-          c := c+1;
-        end;
-      end;
-    finally
-      TMonitor.Exit(fSensorsDataSet);
-    end;
-  finally
-    fSensorsDataSet.RemoveCursor(cursor);
-  end;
-  *)
   Log.WriteLn('Create timeslider data: '+c.ToString+' elements');
 end;
 
@@ -1778,44 +1545,31 @@ var
   layer: TLayerBase;
   IMB3RemoteHost: string;
   USTablePrefix: string;
+  paletteJSONObject: TJSONObject;
+  legendJSON: string;
 begin
   fMeasuredECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Measured' + 'EC'+'Chart', 'Measured EC', 'Personal, measured EC exposure', True, 'line',
-    TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
+    TChartAxis.Create('time', 'lightBlue', 'Time', 'min'),
     [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'){,
       TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')}],
-    'time', 3);
+    'time', 3, True);
   fMeasuredECValuesChart.chartUpdateTime := 2;
   AddChart(fMeasuredECValuesChart);
 
   fCalculatedECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Calculated' + 'EC'+'Chart', 'Calculated EC', 'Personal, Calculated EC exposure', True, 'line',
-    TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
+    TChartAxis.Create('time', 'lightBlue', 'Time', 'min'),
     [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'){,
       TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')}],
-    'time', 3);
+    'time', 3, True);
   fCalculatedECValuesChart.chartUpdateTime := 2;
   AddChart(fCalculatedECValuesChart);
-
+  {
   fTotalChart := TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'EC' + 'total', 'EC' + '-total', 'Personal EC' + ' Total', False, 'line',
-    TChartAxis.Create('tijd', 'lightBlue', 'Time', 'min'),
+    TChartAxis.Create('time', 'lightBlue', 'Time', 'min'),
     [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')], 'time', 3);
   fTotalChart.chartUpdateTime := 2;
   AddChart(fTotalChart);
-
-  fHeightTrackLayer := TExpoSenseHeightTrackLayer.Create(
-    Self, 'Personal exposure', 'EC' + 'personal-track-' + 'EC', 'Personal Track ' + 'EC', 'EC track',
-    DefaultExpoSensoECValueToHeightFactor,
-    False, True);
-  AddLayer(fHeightTrackLayer);
-
-  fDotTrackLayer := TExpoSenseDotTrackLayer.Create(
-    Self, 'Personal exposure', 'EC' + 'personal-track-points-' + 'EC', 'Personal Track Points ' + 'EC', 'EC track points',
-    True, True);
-  AddLayer(fDotTrackLayer);
-
-  fLineTrackLayer := TExpoSenseLineTrackLayer.Create(
-    Self, 'Personal exposure', 'EC' + 'personal-track-lines-' + 'EC', 'Personal Track Lines ' + 'EC', 'EC track lines',
-    True, True);
-  AddLayer(fLineTrackLayer);
+  }
 
   // add air (realtime)
   // todo: for now test scenario to see air layer for amsterdam
@@ -1844,14 +1598,15 @@ begin
     try
       if ReadMetaLayer(oraSession, tablePrefix, metaLayer) then
       begin
-        for imlep in metalayer do
-        begin
-          if imlep.value._published>0 then
-          begin
+        imlep.value := metalayer[1000];
+//        for imlep in metalayer do
+//        begin
+//          if imlep.value._published>0 then
+//          begin
             layer := imlep.value.CreateUSLayer(
               self, tablePrefix, ConnectStringFromSession(oraSession),
               SubscribeUSDataEvents(USUserName, imlep.value.IMB_EVENTCLASS, USTablePrefix, fIMB3Connection),
-              USSourceProjection, imlep.value.Domain, imlep.value.description);
+              USSourceProjection, imlep.value.Domain, imlep.value.description, 0.4, True);
             if Assigned(layer) then
             begin
               AddLayer(layer);
@@ -1860,8 +1615,8 @@ begin
               Log.WriteLn('Added layer '+imlep.value.Domain+'\'+imlep.value.description);
             end
             else Log.WriteLn('Could not add US layer '+imlep.value.Domain+'\'+imlep.value.description, llError);
-          end;
-        end;
+//          end;
+//        end;
       end;
     finally
       metaLayer.Free;
@@ -1870,8 +1625,57 @@ begin
     oraSession.Free;
   end;
 
-end;
+  (*
+  fHeightTrackLayer := TExpoSenseHeightTrackLayer.Create(
+    Self, 'Personal exposure', 'personal-track-' + 'EC', 'Personal Track ribbon ' + 'EC', 'EC track',
+    DefaultExpoSensoECValueToHeightFactor,
+    False, True);
+  AddLayer(fHeightTrackLayer);
 
+  fDotTrackLayer := TExpoSenseDotTrackLayer.Create(
+    Self, 'Personal exposure', 'personal-track-points-' + 'EC', 'Personal Track Points ' + 'EC', 'EC track points',
+    True, True);
+  AddLayer(fDotTrackLayer);
+
+  fLineTrackLayer := TExpoSenseLineTrackLayer.Create(
+    Self, 'Personal exposure', 'personal-track-lines-' + 'EC', 'Personal Track Lines ' + 'EC', 'EC track lines',
+    True, True);
+  AddLayer(fLineTrackLayer);
+  *)
+
+  paletteJSONObject := TJSONObject.ParseJSONValue(ModalityPaletteJSON) as TJSONObject;
+  try
+    if Assigned(paletteJSONObject)
+    then legendJSON := JSON2Legend(paletteJSONObject)
+    else legendJSON := '';
+  finally
+    paletteJSONObject.Free;
+  end;
+
+  fCombinedTrackLayer := TSimpleLayer.Create(
+    Self, 'Personal exposure', 'personal-track-simple', 'Personal Track combined ' + 'EC', 'EC track',
+    [], [], True, '', True, False, 1.0, legendJSON, 1);
+  AddLayer(fCombinedTrackLayer);
+
+  forEachSubscriber<TClient>(
+    procedure(aClient: TClient)
+    begin
+      fProject.SendDomains(aClient, 'updatedomains');
+    end);
+end;
+{
+procedure TExpoSenseScenario.setValueStored(aTag: Integer; const aSensorID: TGUID; aValue: Double);
+var
+  d: TDictionary<TGUID, Double>;
+begin
+  if not fValueStored.TryGetValue(aTag, d) then
+  begin
+    d := TDictionary<TGUID, Double>.Create;
+    fValueStored.AddOrSetValue(aTag, d);
+  end;
+  d.AddOrSetValue(aSensorID, aValue);
+end;
+}
 procedure TExpoSenseScenario.triggerUpdateTimesliderData;
 begin
   if Assigned(fTimeSliderDataTimer) then
@@ -1907,29 +1711,118 @@ begin
   end;
 end;
 
-procedure TExpoSenseScenario.Update(aStart, aEnd: TDateTime; aMode: Integer);
+procedure TExpoSenseScenario.UpdateLocation(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aLocation: Integer);
+var
+  ol: TOrderedListTS<TExpoSenseDataPoint>;
+  dp: TExpoSenseDataPoint;
+  so: TSimpleObject;
 begin
-  // todo: implement
+  if fDataPoints.TryGetValue(aSensorID, ol) then
+  begin
+    dp := ol.ItemsTS[aTimeStamp, True];
+    if Assigned(dp) then
+    begin
+      if not fFiltered then
+      begin
+        // todo: CombinedTrackUpdateMOT(sensorid, timeStamp, mot);
+        if fCombinedTrackLayer.objects.TryGetValue(dp.id(aSensorID), so) then
+        begin
+          // update location
+          if ((so.geometry as TWDGeometryPoint).x <> aLon) or ((so.geometry as TWDGeometryPoint).y <> aLat) then
+          begin
+            (so.geometry as TWDGeometryPoint).x := aLon;
+            (so.geometry as TWDGeometryPoint).y := aLat;
+            fCombinedTrackLayer.UpdateObject(so, sojnGeometry, so.jsonGeometryValue);
+          end;
+          if dp.location<>aLocation then
+          begin
+            if (aLocation=locNotAtHome) or (aLocation=locOutdoors) then
+            begin
+              // todo: check location
+              so.addOptionGeoColor(TGeoColors.Create(motColors[motStationary]));
+              // map value to radius -> 0=3px 5000=5px log
+              (so as TCircleMarker).radius := 5;
+              fCombinedTrackLayer.UpdateObject(so, sojnOptions, so.jsonOptionsValue);
+            end;
+            dp.location := aLocation;
+          end;
+        end;
+
+
+//        fHeightTrackLayer.UpdateMOT(sensorid, timeStamp, mot);
+//        fDotTrackLayer.UpdateMOT(sensorid, timeStamp, mot);
+//        fLineTrackLayer.UpdateMOT(sensorid, timeStamp, mot);
+      end;
+      triggerUpdateTimesliderData();
+    end;
+  end;
+end;
+
+procedure TExpoSenseScenario.UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aMOT: Integer);
+var
+  ol: TOrderedListTS<TExpoSenseDataPoint>;
+  dp: TExpoSenseDataPoint;
+  so: TSimpleObject;
+  layerECLive: TLayerBase;
+begin
+  if fDataPoints.TryGetValue(aSensorID, ol) then
+  begin
+    dp := ol.ItemsTS[aTimeStamp, True];
+    if Assigned(dp) then
+    begin
+      if not fFiltered then
+      begin
+        // todo: CombinedTrackUpdateMOT(sensorid, timeStamp, mot);
+        if fCombinedTrackLayer.objects.TryGetValue(dp.id(aSensorID), so) then
+        begin
+          // update location
+          if ((so.geometry as TWDGeometryPoint).x <> aLon) or ((so.geometry as TWDGeometryPoint).y <> aLat) then
+          begin
+            (so.geometry as TWDGeometryPoint).x := aLon;
+            (so.geometry as TWDGeometryPoint).y := aLat;
+            fCombinedTrackLayer.UpdateObject(so, sojnGeometry, so.jsonGeometryValue);
+          end;
+          if dp.modeOfTransportation<>aMOT then
+          begin
+            // map value to radius log -> 0=>3 px 5000=>max px
+            //(so as TCircleMarker).radius := 1+min(4*ln(max(dp.value, 1))/ln(6500), 4);
+            (so as TCircleMarker).radius := 1.5+min(3.0*dp.value/6500.0, 3.0);
+            so.addOptionGeoColor(TGeoColors.Create(motColors[aMOT]));
+            fCombinedTrackLayer.UpdateObject(so, sojnOptions, so.jsonOptionsValue);
+            dp.modeOfTransportation := aMOT;
+          end;
+        end;
+
+
+//        fHeightTrackLayer.UpdateMOT(sensorid, timeStamp, mot);
+//        fDotTrackLayer.UpdateMOT(sensorid, timeStamp, mot);
+//        fLineTrackLayer.UpdateMOT(sensorid, timeStamp, mot);
+      end;
+      triggerUpdateTimesliderData();
+      // initiate async tiler request to get value of live EC layer
+      if layers.TryGetValue('1000', layerECLive) then
+      begin
+        if layerECLive is TUSLayer then
+        begin
+          (layerECLive as TUSLayer).tilerLayer.onPointValue :=
+            procedure(aTilerLayer: TTilerLayer; const aRequestID: TWDID; aLat, aLon: Double; aTimeStampSlice: TDateTime; aValue: Double)
+            var
+              timeStamp: TDateTime;
+            begin
+              timeStamp := StrToDateTime(string(UTF8String(aRequestID)));
+              fCalculatedECValuesChart.AddValueSorted(timeStamp, [aValue*chartCalculatedValueFactor]);
+            end;
+          (layerECLive as TUSLayer).tilerLayer.signalSliceRequestPointValue(RawByteString(UTF8String(DateTimeToStr(aTimeStamp))), aLat, aLon);
+        end;
+      end;
+    end;
+  end;
 end;
 
 { TExpoSenseProject }
 
-{
-function TExpoSenseProject.addClient(const aClientID: string): TClient;
-begin
-  Result := TExpoSenseClient.Create(Self, fProjectCurrentScenario, fProjectRefScenario, aClientID);
-  TMonitor.Enter(clients);
-  try
-    clients.Add(Result);
-  finally
-    TMonitor.Exit(clients);
-  end;
-end;
-}
 constructor TExpoSenseProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; const aProjectID, aProjectName, aTilerFQDN,
   aTilerStatusURL: string; aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aMapView: TMapView);
-var
-  scenario: TExpoSenseScenario;
 begin
   inherited Create(
     aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN,
@@ -1937,7 +1830,7 @@ begin
   fTiler.onTilerStatus := handleTilerStatus;
   //Set ExpoSense controls
   SetControl(timeSliderControl, '1');
-  windControl; // init by first use
+  windControl.update(10, 5.4, 1); // init by first use
   clientMessageHandlers.Add(timeSliderControl,
     procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
     begin
@@ -1954,15 +1847,11 @@ begin
         (aClient.currentScenario as TExpoSenseScenario).HandleScenarioRefresh(aClient, aType, aPayload);
       end;
     end);
-  scenario := CreateExpoSenseScenario('demo track'{, guid, lts, uts});
-  scenarios.Add(scenario.ID, scenario);
-  fProjectCurrentScenario := scenario;
 end;
 
 function TExpoSenseProject.CreateExpoSenseScenario(const aScenarioID: string{; aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double}): TExpoSenseScenario;
 begin
-  Result := TExpoSenseScenario.Create(Self, aScenarioID, 'GPS tracks', 'Exposure on GPS tracks', False, MapView{,
-    aGUID, aLowerTimeStamp, aUpperTimeStamp});
+  Result := TExpoSenseScenario.Create(Self, aScenarioID, 'GPS tracks', 'Exposure on GPS tracks', False, MapView);
 end;
 
 function TExpoSenseProject.handleTilerStatus(aTiler: TTiler): string;
@@ -1971,82 +1860,14 @@ begin
   Result := 'project '+projectName+' ('+projectID+')';
 end;
 
-procedure TExpoSenseProject.handleNewClient(aClient: TClient);
-begin
-  // todo: ?
-end;
-
-procedure TExpoSenseProject.handleRemoveClient(aClient: TClient);
+procedure TExpoSenseProject.ReadBasicData;
 var
   scenario: TExpoSenseScenario;
 begin
-  if aClient.currentScenario is TExpoSenseScenario then
-  begin
-    scenario := aClient.currentScenario as TExpoSenseScenario;
-    if Assigned(scenario) and (scenario.ClientAmount=0) then
-    begin
-      scenario.fLastClient := Now;
-    end;
-  end;
+  scenario := CreateExpoSenseScenario('demo track'{, guid, lts, uts});
+  scenarios.Add(scenario.ID, scenario);
+  fProjectCurrentScenario := scenario;
 end;
-
-{ TExpoSenseClient }
-(*
-constructor TExpoSenseClient.Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
-begin
-  inherited;
-end;
-
-procedure TExpoSenseClient.Login(aJSONObject: TJSONObject);
-var
-  scenarioID: string;
-//  userID: string;
-  scenario: TScenario;
-//  userdef: string;
-//  lts: Double;
-//  uts: Double;
-//  userdef_split: TArray<string>;
-//  guid: TGUID;
-begin
-  //userID := aJSONObject.GetValue<string>('userid');
-  scenarioID := aJSONObject.GetValue<string>('scenario'); //todo: check if scenarioID is valid GUID?
-
-  if not TRegEx.IsMatch(scenarioID, '^[{][0-9A-Fa-f]{8}[-]([0-9A-Fa-f]{4}[-]){3}[0-9A-Fa-f]{12}[}]$') then
-    exit;
-  guid := TGUID.Create(scenarioID);
-  lts := Double.NaN;
-  uts := Double.NaN;
-  userdef := StandardIni.ReadString('users', userID, '');
-  if userdef<>'' then
-  begin
-    userdef_split := userdef.Split(['|']);
-    if length(userdef_split)>=2 then
-    begin
-      lts := StrToDateTime(userdef_split[0]);
-      uts := StrToDateTime(userdef_split[1]);
-      scenarioID := scenarioID+userID;
-      Log.WriteLn('EXPERT scenario: '+scenarioID+' '+lts.ToString+' <= ts <= '+uts.ToString, llWarning);
-    end;
-  end;
-
-  TMonitor.Enter(fProject.scenarios);
-  try
-    if not fProject.scenarios.TryGetValue(scenarioID, scenario) then
-    begin
-      scenario := (fProject as TExpoSenseProject).CreateExpoSenseScenario(scenarioID{, guid, lts, uts});
-      fProject.scenarios.Add(scenario.ID, scenario);
-    end;
-  finally
-    TMonitor.Exit(fProject.scenarios);
-  end;
-  removeClient(fCurrentScenario);
-  fCurrentScenario := scenario;
-  addClient(fCurrentScenario);
-  //Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
-  SendSession();
-  fProject.SendDomains(self, 'domains');
-end;
-*)
 
 end.
 

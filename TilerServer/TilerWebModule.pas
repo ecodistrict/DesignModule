@@ -2232,6 +2232,8 @@ var
   ilp: TPair<TWDID, TOrderedListTS<TSliceGeometryIHDataPoint>>;
   polygon: TPolygon;
   dataExtent: TExtent;
+  prevDPLon: Double;
+  prevDPLat: Double;
 begin
   Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
@@ -2263,15 +2265,17 @@ begin
           begin
             prevX := Double.NaN;
             prevY := Double.NaN;
+            prevDPLon := Double.NaN;
+            prevDPLat := Double.NaN;
             prevHeight := Double.NaN;
             for dp in ilp.Value do
             begin
               x := (dp.lon-aExtent.xMin)/aPixelWidth;
               y := (aExtent.yMax-dp.lat)/aPixelHeight;
               height := dp.height;
-              dataExtent.Init(x, y);
-              if not prevX.IsNan
-              then dataExtent.Expand(prevX, prevY);
+              dataExtent.Init(dp.lon, dp.lat);
+              if not prevDPLon.IsNan
+              then dataExtent.Expand(prevDPLon, prevDPLat);
               if bufferExtent.Intersects(dataExtent) then
               begin
                 colors := fPalette.ValueToColors(dp.Value);
@@ -2295,6 +2299,8 @@ begin
               end;
               prevX := x;
               prevY := y;
+              prevDPLon := dp.lon;
+              prevDPLat := dp.lat;
               prevHeight := height;
             end;
           end;
@@ -4073,6 +4079,7 @@ var
   lineThickness: Double;
   lat, lon: Double;
   value: Double;
+  pointValueRequestID: TWDID;
 begin
   try
     palette :=  nil;
@@ -4280,6 +4287,7 @@ begin
                           signalRefresh(timeStamp, true);
                         end;
                       end;
+                    {
                     tsaSlicePointValue:
                       begin
                         if Assigned(slice)
@@ -4294,7 +4302,23 @@ begin
                           TByteBuffer.bb_tag_uint32(icehTilerSliceAction, tsaSlicePointValue)
                           );
                       end;
+                    }
                   end;
+                end;
+              (icehTilerSlicePointValue shl 3) or wtLengthDelimited:
+                begin
+                  pointValueRequestID := aBuffer.bb_read_rawbytestring(aCursor);
+                  if Assigned(slice)
+                  then value := slice.PointValue(lat, lon)
+                  else value := Double.NaN;
+                  // signal back value
+                  aEventEntry.signalEvent(
+                    TByteBuffer.bb_tag_double(icehTilerSliceID, timeStamp)+
+                    TByteBuffer.bb_tag_double(icehTilerPointValueLat, lat)+
+                    TByteBuffer.bb_tag_double(icehTilerPointValueLon, lon)+
+                    TByteBuffer.bb_tag_double(icehTilerValue, value)+
+                    TByteBuffer.bb_tag_rawbytestring(icehTilerSlicePointValue, pointValueRequestID)
+                    );
                 end;
               (icehTilerID shl 3) or wtVarInt,
               (icehTilerRefresh shl 3) or wt64Bit,
