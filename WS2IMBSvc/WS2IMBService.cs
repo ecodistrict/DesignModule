@@ -105,22 +105,29 @@ namespace WS2IMBSvc
                 var endPoint = Lookups.host.AddServiceEndpoint(typeof(IWebSocketsServer), binding, "");
                 endPoint.EndpointBehaviors.Add(new ClientTrackerEndpointBehavior());
 
-                CustomBinding bindingSSL = new CustomBinding();
-                // http://www.rauch.io/2015/06/25/all-wcf-timeouts-explained/
-                // https://msdn.microsoft.com/en-us/library/hh924831(v=vs.110).aspx
-                bindingSSL.ReceiveTimeout = new TimeSpan(3, 0, 0);
-                bindingSSL.SendTimeout = new TimeSpan(3, 0, 0);
-                bindingSSL.Elements.Add(new ByteStreamMessageEncodingBindingElement());
+                try
+                {
+                    CustomBinding bindingSSL = new CustomBinding();
+                    // http://www.rauch.io/2015/06/25/all-wcf-timeouts-explained/
+                    // https://msdn.microsoft.com/en-us/library/hh924831(v=vs.110).aspx
+                    bindingSSL.ReceiveTimeout = new TimeSpan(3, 0, 0);
+                    bindingSSL.SendTimeout = new TimeSpan(3, 0, 0);
+                    bindingSSL.Elements.Add(new ByteStreamMessageEncodingBindingElement());
 
-                HttpsTransportBindingElement transportSSL = new HttpsTransportBindingElement();
-                transportSSL.WebSocketSettings.TransportUsage = WebSocketTransportUsage.Always;
-                transportSSL.WebSocketSettings.CreateNotificationOnConnection = true;
-                transportSSL.WebSocketSettings.KeepAliveInterval = new TimeSpan(3, 0, 0);
-                transportSSL.KeepAliveEnabled = true;
-                bindingSSL.Elements.Add(transportSSL);
+                    HttpsTransportBindingElement transportSSL = new HttpsTransportBindingElement();
+                    transportSSL.WebSocketSettings.TransportUsage = WebSocketTransportUsage.Always;
+                    transportSSL.WebSocketSettings.CreateNotificationOnConnection = true;
+                    transportSSL.WebSocketSettings.KeepAliveInterval = new TimeSpan(3, 0, 0);
+                    transportSSL.KeepAliveEnabled = true;
+                    bindingSSL.Elements.Add(transportSSL);
 
-                var endPointSSL = Lookups.host.AddServiceEndpoint(typeof(IWebSocketsServer), bindingSSL, "");
-                endPointSSL.EndpointBehaviors.Add(new ClientTrackerEndpointBehavior());
+                    var endPointSSL = Lookups.host.AddServiceEndpoint(typeof(IWebSocketsServer), bindingSSL, "");
+                    endPointSSL.EndpointBehaviors.Add(new ClientTrackerEndpointBehavior());
+                }
+                catch(Exception e)
+                {
+                    Debug.WriteLine(DateTime.Now + ": >> Could not bind SSL endpoint: " + e.Message);
+                }
 
 
                 Lookups.host.Open();
