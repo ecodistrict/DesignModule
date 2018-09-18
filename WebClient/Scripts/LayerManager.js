@@ -133,7 +133,10 @@ var LayerManager = {
     },
 
     SetNextLegend: function () {
-        for (var i = 0; i < LayerManager._visibleLayers.length; i++)
+        // for (var i = 0; i < LayerManager._visibleLayers.length; i++)
+
+        //legend is displayed for the last selected layer - by default
+        for (var i = LayerManager._visibleLayers.length - 1; i >= 0; i--)
             if (LayerManager._visibleLayers[i].setLegend())
                 return;
         legendControl.clearLegend();
@@ -735,6 +738,15 @@ LayerManager.DetailsLayer = function (data) {
     for (var v in data)
         this[v] = data[v];
 
+    //setting the opacity (if not set at publisher end) and the defaultOpacity values to 0.8
+    if(data['opacity'])
+        this['originalOpacity'] = data['opacity'];
+    else
+    {
+        this['opacity'] = 0.8;
+        this['originalOpacity'] = 0.8;
+    }
+
     this.showing = null;
     this.displayGroup = data.displayGroup ? data.displayGroup : "default";
 
@@ -809,7 +821,13 @@ LayerManager.DetailsLayer = function (data) {
         if (this.previewDisplay) {
             this.previewDisplay.selectedDiv.className = "layerDetailsSelected";
         }
-        this.opacity = opacity;
+
+        //if the opacity is less than 0.05, we circle back to the original opacity value
+        if(opacity < 0.05)
+            this.opacity = this.originalOpacity;
+        else
+            this.opacity = opacity;
+
         if (crd && crd == "reference" && this.ref) {
             this.ref.showLayer(this.maplayer);
             this.showing = this.ref;
@@ -858,7 +876,10 @@ LayerManager.DetailsLayer = function (data) {
         if (element) {
             var layer = element.layer;
             layer.show = 0;
-            var opacity = e.ctrlKey ? 0.5 : 0.8;
+
+            //opacity = e.ctrlKey ? 0.5 : 0.8; 
+
+            opacity = e.ctrlKey ? layer.opacity/2 : layer.originalOpacity;
             // todo: handle ctrl-click to always add or replace layer
 
             if (layer.showing) {

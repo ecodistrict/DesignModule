@@ -481,15 +481,9 @@ function LineBottomLeft(graphObject) {
             //Average line computation
             if(!!graph.showAvgLine) 
             {
-                var yValTotal = 0;
-                for(var j = 0; j < displayData[i].length; j++)
+                var yValAvg = this._calculateAverageY(displayData[i]);
+                if(yValAvg != -1)
                 {
-                    yValTotal += displayData[i][j].y.GetDisplayValue();
-                }
-                if(yValTotal != 0)
-                {
-                    yValAvg = yValTotal/displayData[i].length;
-
                     var yVal = yScale(yValAvg);
                     graph.lineG.append('line')
                         .attr('class', 'line-graph-avg-line')
@@ -536,6 +530,18 @@ function LineBottomLeft(graphObject) {
                 .attr('y', event.offsetY - tooltip[0][0].getBoundingClientRect().height);
         }
         this._UpdatePreview();
+    };
+
+    this._calculateAverageY = function (data) {
+        var total = 0;
+        for(var i = 0; i < data.length; i++)
+        {
+            total += data[i].y.GetDisplayValue();
+        }
+        if(total != 0)
+            return total/data.length;
+        else
+            return -1;
     };
 
     this._clickEvent = function (e) {
