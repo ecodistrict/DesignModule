@@ -70,8 +70,8 @@ Graph component consists of several domains:
 *[GraphViewManager](#graphViewManagerApi)* is a class that manages graph windows and plces them on the screen. *GraphViewManager* is a convinient abstarction that hides all the graph window specific implementation and gives a simple interface to a user. This class allows showing and hiding graph windows using *[GraphModel](#graphModel)* as an input.
 
 ### GraphPreviewFactory <a name="graphPreviewFactory"></a>
-*[GraphPreviewFactory](#graphPreviewFactoryApi)* is a factory class that produces views (previews) with simplified visual representation of a grapg using *[GraphModel](#graphModel)* as an input.
-Previews can bu used within buttons that shows graph windows on the screen.
+*[GraphPreviewFactory](#graphPreviewFactoryApi)* is a factory class that produces views (previews) with simplified visual representation of a graph using *[GraphModel](#graphModel)* as an input.
+Previews can be used within buttons that trigger showing graph windows on the screen.
 
 ### GraphService <a name="graphService"></a>
 *[GraphService](#graphServiceApi)* is a provider of *[GraphModel-s](#graphModel)* to the application.
@@ -200,7 +200,7 @@ When constructing GraphLegendViewModel an options object should be passed to con
 
 #### Events <a name="graphLegendViewModelEvents"></a>
 
-| Property | Type | Description |
+| Property | Data | Description |
 |---|---|---|
 | entries | { entries:Array &lt;[LegendEntry](#graphLegendViewModelLegendEntry)&gt; } | Emitted whenever *entries* property of the model changes. |
 
@@ -217,7 +217,7 @@ When constructing GraphLegendViewModel an options object should be passed to con
 
 Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
 
-#### Methods <a name="graphPreviewFactoryMethods"></a>
+#### Methods <a name="graphViewControllerFactorMethods"></a>
 
 | Method | Returns | Description |
 |---|---|---|
