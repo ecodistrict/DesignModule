@@ -459,6 +459,7 @@ begin
                                               'Benzene: '+value.ToString+' µg/m³'+'<br>'+
                                               'live..');
               UpdateObject(so, sojnOptions, so.jsonOptionsValue);
+              // todo: missing update on other properties due to addPropertyString?
             end
             else UpdateClientsOn(ts);
             triggerUpdateTimesliderData;

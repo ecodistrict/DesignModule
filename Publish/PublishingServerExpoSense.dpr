@@ -57,10 +57,12 @@ begin
 
           // module
           project := TExpoSenseProject.Create(
-            sessionModel, imbConnection, 'ExpoSense'{$IFDEF DEBUG}+'Test'{$ENDIF}, 'ExpoSense project',
+            sessionModel, imbConnection, 'ExpoSense'{$IFDEF DEBUG}+'TestHans'{$ENDIF}, 'ExpoSense project',
             tilerFQDN, GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerFQDN)),
             False, GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
-            TMapView.Create(52.184457864, 4.7378540039, 10));
+            //TMapView.Create(52.184457864, 4.7378540039, 10)
+            TMapView.Create(52.336283087, 4.8837661743, 13) // demo
+            );
           sessionModel.Projects.Add(project);
 
           // main loop
