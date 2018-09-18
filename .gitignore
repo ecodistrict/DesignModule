@@ -27,6 +27,7 @@ App_Data
 # svn repositories
 .svn
 
+/Publish/abbrevia
 /Publish/avl
 /Publish/delaunay
 /Publish/imb3
