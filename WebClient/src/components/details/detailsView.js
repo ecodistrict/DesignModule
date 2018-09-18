@@ -182,16 +182,48 @@ var DetailsView = ControlView.extend({
         return itemView;
     },
 
-    _createKpiItemView: function () {
-        return null;
+    _createKpiItemView: function (kpiItemModel) {
+        function previewCreator(/* jshint unused:false */ previewViewportElement) {
+            return null;
+        }
+        
+        var itemView = new DetailsItemView({
+            model: kpiItemModel,
+            width: this._itemSize.width,
+            height: this._itemSize.height,
+            previewCreator: previewCreator
+        });
+        itemView.on('clicked', this._onKpiItemClicked, this);
+
+        return itemView;
     },
 
-    _createLayerItemView: function () {
-        return null;
+    _createLayerItemView: function (layerItemModel) {
+        function previewCreator(/* jshint unused:false */ previewViewportElement) {
+            return null;
+        }
+        
+        var itemView = new DetailsItemView({
+            model: layerItemModel,
+            width: this._itemSize.width,
+            height: this._itemSize.height,
+            previewCreator: previewCreator
+        });
+        itemView.on('clicked', this._onLayerItemClicked, this);
+
+        return itemView;
     },
 
     _onGraphItemClicked: function (data) {
         this._notifyGraphItemClicked(data.model);
+    },
+
+    _onKpiItemClicked: function (data) {
+        this._notifyKpiItemClicked(data.model);
+    },
+
+    _onLayerItemClicked: function (data) {
+        this._notifyLayerItemClicked(data.model);
     },
 
     _updateWidth: function () {        

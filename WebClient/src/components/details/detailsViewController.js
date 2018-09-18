@@ -111,14 +111,6 @@ var DetailsViewController = L.Evented.extend({
         }
         
         graphModels.forEach(hideGraph);
-    },
-
-    _onKpiItemRemoved: function (/* jshint unused:false */ data) {
-
-    },
-
-    _onLayerItemRemoved: function (/* jshint unused:false */ data) {
-
     }
 
 });
