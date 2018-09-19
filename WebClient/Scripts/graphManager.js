@@ -522,6 +522,13 @@ var GraphManager = {
             }
         }
 
+        //check graph is already added inside alighedGraphs
+        for (var j = 0; j < GraphManager.alignedGraphs.length; j++) {
+            if (GraphManager.alignedGraphs[j].graphID === graphDiv.graphID) {
+                return;
+            }
+        }
+
         graphDiv.style.visibility = "visible";
         GraphManager.container.appendChild(graphDiv);
         GraphManager.alignedGraphs.push(graphDiv);

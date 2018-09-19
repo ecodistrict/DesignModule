@@ -370,25 +370,33 @@ function LineBottomLeft(graphObject) {
         }) : graph.maxY;
 
 
-        if (graph.holdminmax) {
-            if (typeof graph.holdvalues === "undefined") { //todo fix possible missed values when new data.length > maxPoints
-                graph.holdvalues = {
-                    minY: minY,
-                    maxY: maxY
-                };
-            }
-            else {
-                minY = (minY > graph.holdvalues.minY) ? graph.holdvalues.minY : minY;
-                maxY = (maxY < graph.holdvalues.maxY) ? graph.holdvalues.maxY : maxY;
-            }
+        if(graph.graphAxisMinY && graph.graphAxisMaxY) 
+        {
+            minY = graph.graphMinY;
+            maxY = graph.graphMaxY;
         }
-        if (minX == maxX) {
-            minX--;
-            maxX++;
-        }
-        if (minY == maxY) {
-            minY--;
-            maxY++;
+        else
+        {
+            if (graph.holdminmax) {
+                if (typeof graph.holdvalues === "undefined") { //todo fix possible missed values when new data.length > maxPoints
+                    graph.holdvalues = {
+                        minY: minY,
+                        maxY: maxY
+                    };
+                }
+                else {
+                    minY = (minY > graph.holdvalues.minY) ? graph.holdvalues.minY : minY;
+                    maxY = (maxY < graph.holdvalues.maxY) ? graph.holdvalues.maxY : maxY;
+                }
+            }
+            if (minX == maxX) {
+                minX--;
+                maxX++;
+            }
+            if (minY == maxY) {
+                minY--;
+                maxY++;
+            }
         }
 
 
@@ -479,7 +487,7 @@ function LineBottomLeft(graphObject) {
                 .attr("name", name);
 
             //Average line computation
-            if(!!graph.showAvgLine) 
+            if(graph.showAvgLine) 
             {
                 var yValAvg = this._calculateAverageY(displayData[i]);
                 if(yValAvg != -1)
