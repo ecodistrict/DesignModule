@@ -389,14 +389,15 @@ function LineBottomLeft(graphObject) {
                     maxY = (maxY < graph.holdvalues.maxY) ? graph.holdvalues.maxY : maxY;
                 }
             }
-            if (minX == maxX) {
-                minX--;
-                maxX++;
-            }
-            if (minY == maxY) {
-                minY--;
-                maxY++;
-            }
+        }
+        
+        if (minX == maxX) {
+            minX--;
+            maxX++;
+        }
+        if (minY == maxY) {
+            minY--;
+            maxY++;
         }
 
 
