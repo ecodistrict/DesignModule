@@ -370,10 +370,10 @@ function LineBottomLeft(graphObject) {
         }) : graph.maxY;
 
 
-        if(graph.graphAxisMinY && graph.graphAxisMaxY) 
+        if(!(typeof graph.graphAxisMinY === "undefined") && !(typeof graph.graphAxisMaxY === "undefined")) 
         {
-            minY = graph.graphMinY;
-            maxY = graph.graphMaxY;
+            minY = graph.graphAxisMinY;
+            maxY = graph.graphAxisMaxY;
         }
         else
         {
