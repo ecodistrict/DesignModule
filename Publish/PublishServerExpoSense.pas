@@ -101,8 +101,8 @@ const
 
   DefaultExpoSensoECValueToHeightFactor = 1/50;
 
-  chartSensorValueFactor = 1.0e-6;
-  chartCalculatedValueFactor = 1.0e-3; // todo: explain diff in factor compared to sensor factor
+  chartSensorValueFactor = 1.0e-9;
+  chartCalculatedValueFactor = 1.0e-6; //1.0e-3; // todo: explain diff in factor compared to sensor factor
 
 const
   motUnknown = 0;
@@ -119,11 +119,11 @@ const
 
   motCycling = 3;
   motsCycling = 'Cycling';
-  motcCycling = $ff00BFFF; //9370db;
+  motcCycling = $ff1E90FF; // 00BFFF; //9370db;
 
   motMotorized = 4;
   motsMotorized = 'Motorized';
-  motcMotorized = $ffDA70D6; //b22222;
+  motcMotorized = $ffFF00FF; // DA70D6; //b22222;
 
   motFlying = 5;
   motsFlying = 'Flying';
@@ -153,9 +153,9 @@ const
   ModalityPaletteJSON : string =
     '{"entries":['+
       '{"color":{"fill":"#90EE90"}, "minValue":1, "description":"'+motsWalking+'"},'+
-      '{"color":{"fill":"#00BFFF"}, "minValue":2, "description":"'+motsCycling+'"},'+
-      '{"color":{"fill":"#DA70D6"}, "minValue":3, "description":"'+motsMotorized+'"},'+
-      '{"color":{"fill":"#f8f8f8"}, "minValue":4, "description":"'+motsStationary+'"},'+ // very light gray
+      '{"color":{"fill":"#1E90FF"}, "minValue":2, "description":"'+motsCycling+'"},'+
+      '{"color":{"fill":"#FF00FF"}, "minValue":3, "description":"'+motsMotorized+'"},'+
+      '{"color":{"fill":"#f8f8f8"}, "minValue":4, "description":"'+'Indoors'{motsStationary}+'"},'+ // very light gray
       '{"color":{"fill":"#B0E0E6"}, "minValue":0, "description":"'+motsUnknown+'"}'+ // gray
     ']}';
 
@@ -1054,6 +1054,14 @@ begin
     ol := TOrderedListTS<TExpoSenseDataPoint>.Create();
     fDataPoints.AddOrSetValue(aSensorID, ol);
   end;
+
+  if fDataPoints.Count=1 then
+  begin
+    so := TCircleMarker.Create(fCombinedTrackLayer, 'home', aLat, aLon, 12);
+    so.addOptionGeoColor(TGeoColors.Create(motColors[motStationary]));
+    fCombinedTrackLayer.AddObject(so, so.jsonNewObject);
+  end;
+
   prevESDP := ol.ItemsTS[aTimeStamp, True];
   if (prevESDP=nil) or (prevESDP.value<>aValue) then
   begin
@@ -1078,6 +1086,7 @@ begin
   //    ValueStored[sensordata_latitude-1, sensorid] := lastLat;
 
       fMeasuredECValuesChart.AddValue(aTimeStamp, [aValue*chartSensorValueFactor]);
+
       {
       if fMeasuredECValuesChart.allValues.Count>=2 then
       begin
@@ -1165,7 +1174,7 @@ var
 begin
   Result := inherited;
   // send data to time slider
-  palette := CreateGraySliderPalette('EC slider');
+  palette := CreateGraySliderPalette('BC slider');
   try
     extent := TWDExtent.Create;
     jsonTSData := jsonTimesliderData(palette, extent);
@@ -1408,15 +1417,21 @@ begin
         begin
           value := aPayload.bb_read_double(aCursor);
           // todo: store with time stamp
-          if not fFiltered
-          then project.windControl.windSpeed := value;
+          if not fFiltered then
+          begin
+            project.windControl.windSpeed := value;
+            project.windControl.live := True;
+          end;
         end;
       meteodata_winddirection:
         begin
           value := aPayload.bb_read_double(aCursor);
           // todo: store with time stamp
-          if not fFiltered
-          then project.windControl.windDirection := value;
+          if not fFiltered then
+          begin
+            project.windControl.windDirection := value;
+            project.windControl.live := True;
+          end;
         end
     else
       aPayload.bb_read_skip(aCursor, fieldInfo and 7);
@@ -1548,23 +1563,26 @@ var
   paletteJSONObject: TJSONObject;
   legendJSON: string;
 begin
-  fMeasuredECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Measured' + 'EC'+'Chart', 'Measured EC', 'Personal, measured EC exposure', True, 'line',
+  fMeasuredECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Measured' + 'BC'+'Chart', 'Measured BC', 'Personal, measured BC exposure', True, 'line',
     TChartAxis.Create('time', 'lightBlue', 'Time', 'min'),
     [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'){,
       TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')}],
     'time', 3, True);
   fMeasuredECValuesChart.chartUpdateTime := 2;
   AddChart(fMeasuredECValuesChart);
+  fMeasuredECValuesChart.reset;
 
-  fCalculatedECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Calculated' + 'EC'+'Chart', 'Calculated EC', 'Personal, Calculated EC exposure', True, 'line',
+  fCalculatedECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Calculated' + 'BC'+'Chart', 'Calculated BC', 'Personal, Calculated BC exposure', True, 'line',
     TChartAxis.Create('time', 'lightBlue', 'Time', 'min'),
     [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'){,
       TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')}],
     'time', 3, True);
   fCalculatedECValuesChart.chartUpdateTime := 2;
   AddChart(fCalculatedECValuesChart);
+  fCalculatedECValuesChart.reset;
+
   {
-  fTotalChart := TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'EC' + 'total', 'EC' + '-total', 'Personal EC' + ' Total', False, 'line',
+  fTotalChart := TChartLines.Create(Self, 'Personal exposure', 'mobilesensorcharts' + 'BC' + 'total', 'BC' + '-total', 'Personal BC' + ' Total', False, 'line',
     TChartAxis.Create('time', 'lightBlue', 'Time', 'min'),
     [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3')], 'time', 3);
   fTotalChart.chartUpdateTime := 2;
@@ -1606,7 +1624,7 @@ begin
             layer := imlep.value.CreateUSLayer(
               self, tablePrefix, ConnectStringFromSession(oraSession),
               SubscribeUSDataEvents(USUserName, imlep.value.IMB_EVENTCLASS, USTablePrefix, fIMB3Connection),
-              USSourceProjection, imlep.value.Domain, imlep.value.description, 0.4, True);
+              USSourceProjection, imlep.value.Domain, imlep.value.description, 0.2, True);
             if Assigned(layer) then
             begin
               AddLayer(layer);
@@ -1627,18 +1645,18 @@ begin
 
   (*
   fHeightTrackLayer := TExpoSenseHeightTrackLayer.Create(
-    Self, 'Personal exposure', 'personal-track-' + 'EC', 'Personal Track ribbon ' + 'EC', 'EC track',
+    Self, 'Personal exposure', 'personal-track-' + 'BC', 'Personal Track ribbon ' + 'BC', 'BC track',
     DefaultExpoSensoECValueToHeightFactor,
     False, True);
   AddLayer(fHeightTrackLayer);
 
   fDotTrackLayer := TExpoSenseDotTrackLayer.Create(
-    Self, 'Personal exposure', 'personal-track-points-' + 'EC', 'Personal Track Points ' + 'EC', 'EC track points',
+    Self, 'Personal exposure', 'personal-track-points-' + 'BC', 'Personal Track Points ' + 'BC', 'BC track points',
     True, True);
   AddLayer(fDotTrackLayer);
 
   fLineTrackLayer := TExpoSenseLineTrackLayer.Create(
-    Self, 'Personal exposure', 'personal-track-lines-' + 'EC', 'Personal Track Lines ' + 'EC', 'EC track lines',
+    Self, 'Personal exposure', 'personal-track-lines-' + 'BC', 'Personal Track Lines ' + 'BC', 'BC track lines',
     True, True);
   AddLayer(fLineTrackLayer);
   *)
@@ -1653,8 +1671,8 @@ begin
   end;
 
   fCombinedTrackLayer := TSimpleLayer.Create(
-    Self, 'Personal exposure', 'personal-track-simple', 'Personal Track combined ' + 'EC', 'EC track',
-    [], [], True, '', True, False, 1.0, legendJSON, 1);
+    Self, 'Personal exposure', 'personal-track-simple', 'Personal Track combined ' + 'BC', 'BC track',
+    [], [], True, 'BC track dots', True, False, 1.0, legendJSON, 1);
   AddLayer(fCombinedTrackLayer);
 
   forEachSubscriber<TClient>(
@@ -1687,7 +1705,7 @@ begin
         palette: TWDPalette;
         extent: TWDExtent;
       begin
-        palette := CreateGraySliderPalette('EC slider');
+        palette := CreateGraySliderPalette('BC slider');
         try
           extent := TWDExtent.Create;
           jsonTSData := jsonTimesliderData(palette, extent);
@@ -1699,11 +1717,13 @@ begin
           begin
             aClient.signalString('{"type":"timesliderEvents","payload":{"setEvents":['+jsonTSData+']}}');
             // set map view according data set if this is the first time time slider data is send to clients ie after inquire
+            {
             if fFirstTimeSliderUpdate and not (extent.CenterY.IsNaN or extent.CenterX.IsNaN) then
             begin
               fMapView := TMapView.Create(extent.CenterY, extent.CenterX, fMapView.zoom);
               aClient.SendView(extent.CenterY, extent.CenterX, Double.NaN);
             end;
+            }
           end);
         if not (extent.CenterY.IsNaN or extent.CenterX.IsNaN)
         then fFirstTimeSliderUpdate := False;
@@ -1741,7 +1761,7 @@ begin
               // todo: check location
               so.addOptionGeoColor(TGeoColors.Create(motColors[motStationary]));
               // map value to radius -> 0=3px 5000=5px log
-              (so as TCircleMarker).radius := 5;
+              (so as TCircleMarker).radius := 7;
               fCombinedTrackLayer.UpdateObject(so, sojnOptions, so.jsonOptionsValue);
             end;
             dp.location := aLocation;
@@ -1799,7 +1819,7 @@ begin
 //        fLineTrackLayer.UpdateMOT(sensorid, timeStamp, mot);
       end;
       triggerUpdateTimesliderData();
-      // initiate async tiler request to get value of live EC layer
+      // initiate async tiler request to get value of live BC layer
       if layers.TryGetValue('1000', layerECLive) then
       begin
         if layerECLive is TUSLayer then
@@ -1810,7 +1830,7 @@ begin
               timeStamp: TDateTime;
             begin
               timeStamp := StrToDateTime(string(UTF8String(aRequestID)));
-              fCalculatedECValuesChart.AddValueSorted(timeStamp, [aValue*chartCalculatedValueFactor]);
+              fCalculatedECValuesChart.AddValue(timeStamp, [aValue*chartCalculatedValueFactor]);
             end;
           (layerECLive as TUSLayer).tilerLayer.signalSliceRequestPointValue(RawByteString(UTF8String(DateTimeToStr(aTimeStamp))), aLat, aLon);
         end;
