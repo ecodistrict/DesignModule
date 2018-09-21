@@ -440,10 +440,14 @@ function LineBottomLeft(graphObject) {
         graph.Scales = { x: xScale, y: yScale };
 
         var xAxis = d3.svg.axis().scale(xScale).orient(graph.xAxisOrient).ticks(5);
+        if(graph.xScale === 'time')
+            xAxis.tickFormat(d3.time.format("%H:%M"));
         graph.axisX.call(xAxis);
 
 
         var yAxis = d3.svg.axis().scale(yScale).orient(graph.yAxisOrient).ticks(5);
+        if(graph.yScale === 'time')
+            yAxis.tickFormat(d3.time.format("%H:%M"));
         graph.axisY.call(yAxis);
 
         graph.clipShape

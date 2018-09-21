@@ -547,7 +547,9 @@ var GraphManager = {
     {
         if (aScaleType == "time")
         {
-            var result = new Date((aValue - 25569) * 86400 * 1000);
+            var tempDate = new Date((aValue - 25569) * 86400 * 1000);
+            var something  = tempDate.getUTCHours();
+            var result = new Date(tempDate.getUTCFullYear(), tempDate.getUTCMonth(), tempDate.getUTCDate(),  tempDate.getUTCHours(), tempDate.getUTCMinutes(), tempDate.getUTCSeconds());
             result.value = result.getTime();
             result.GetDisplayValue = (function () { return this; }).bind(result);
             return result;
