@@ -1563,20 +1563,20 @@ var
   paletteJSONObject: TJSONObject;
   legendJSON: string;
 begin
-  fMeasuredECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Measured' + 'BC'+'Chart', 'Measured BC', 'Personal, measured BC exposure', True, 'line',
+  fMeasuredECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Measured' + 'BC'+'Chart', 'Measured BC µg/m³', 'Personal, measured BC exposure', True, 'line',
     TChartAxis.Create('time', 'lightBlue', 'Time', 'min'),
     [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'){,
       TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')}],
-    'time', 3, True);
+    'time', 3, True, 10, 0);
   fMeasuredECValuesChart.chartUpdateTime := 2;
   AddChart(fMeasuredECValuesChart);
   fMeasuredECValuesChart.reset;
 
-  fCalculatedECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Calculated' + 'BC'+'Chart', 'Calculated BC', 'Personal, Calculated BC exposure', True, 'line',
+  fCalculatedECValuesChart :=  TChartLines.Create(Self, 'Personal exposure', 'Calculated' + 'BC'+'Chart', 'Calculated BC µg/m³', 'Personal, Calculated BC exposure', True, 'line',
     TChartAxis.Create('time', 'lightBlue', 'Time', 'min'),
     [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'){,
       TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')}],
-    'time', 3, True);
+    'time', 3, True, 10, 0);
   fCalculatedECValuesChart.chartUpdateTime := 2;
   AddChart(fCalculatedECValuesChart);
   fCalculatedECValuesChart.reset;
