@@ -2251,7 +2251,7 @@ begin
       begin
         try
           oid := AnsiString(query.Fields[0].AsInteger.ToString);
-          objects.Add(oid, UpdateObject(query, oid, nil)); // always new object, no registering
+          objects.AddOrSetValue(oid, UpdateObject(query, oid, nil)); // always new object, no registering
           if (objects.Count mod 10000) = 0 then
             Log.Progress('Busy reading objects: ' + objects.Count.ToString + ' for ' + fScenario.ID + '-' + name);
           query.Next;
