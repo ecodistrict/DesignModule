@@ -23,6 +23,7 @@ L.Control.TimeSlider = L.Control.extend({
         var tsStart = new Date(tsCurrent.getTime() - day);
         var tsEnd = new Date(tsCurrent.getTime() + day);
         var selectedDateTimeFormat = d3.time.format('%Y-%m-%d %H:%M');
+        var shownDateTimeFormat = d3.time.format('%Y-%m-%d %H:%M'); // '%H:%M' // to show only time on now-point
         var rectParent = aTimesliderDiv.getBoundingClientRect();
         var range = function () {
             return [aTimesliderDiv.xMargin, rectParent.width - 1 - aTimesliderDiv.xMargin];
@@ -151,7 +152,7 @@ L.Control.TimeSlider = L.Control.extend({
             .attr('x', aTimesliderDiv.xSelTextOffset + rectParent.width / 2)
             .attr('y', rectParent.height - aTimesliderDiv.ySelTextOffsetBottom)
             .attr('text-anchor', 'start')
-            .text(selectedDateTimeFormat(tsCurrent))
+            .text(shownDateTimeFormat(tsCurrent))
             .attr('class', 'selectedTime')
             .style('pointer-events', 'auto')
             .style('font-size', '14px');
@@ -206,12 +207,11 @@ L.Control.TimeSlider = L.Control.extend({
             // recalculate xaxis
             svg.select('g.xaxis').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
             // show time in text
-            var selectedTimeText = selectedDateTimeFormat(newTime);
-            d3.select(aTimesliderDiv).select('.selectedTime').text(selectedTimeText).style('cursor', 'pointer');
+            d3.select(aTimesliderDiv).select('.selectedTime').text(shownDateTimeFormat(newTime)).style('cursor', 'pointer');
             // adjust events to new scale
             updateEvents();
             updateBrush();
-            return selectedTimeText;
+            return selectedDateTimeFormat(newTime);
         };
 
         aTimesliderDiv.setCurrentTime = function (aNewTime, aDelta) {
@@ -361,16 +361,15 @@ L.Control.TimeSlider = L.Control.extend({
             svg.select('g.xaxis').call(xaxis).selectAll('text').style('font-size', '10px').style('pointer-events', 'none');
             // show new time as text
             var selectedTimeTime = aTimesliderDiv.getCurrentTime();
-            var selectedTimeText = selectedDateTimeFormat(selectedTimeTime);
             // change style of time show as text
-            selectedTime.text(selectedTimeText).style('cursor', 'pointer');
+            selectedTime.text(shownDateTimeFormat(selectedTimeTime)).style('cursor', 'pointer');
             // update events to new axis and scale
             updateEvents();
             updateBrush();
             // send new selected time to publisher
             wsSend({
                 type: "timeslider",
-                payload: { selectedTime: selectedTimeText }
+                payload: { selectedTime: selectedDateTimeFormat(selectedTimeTime) }
             });
         }
 

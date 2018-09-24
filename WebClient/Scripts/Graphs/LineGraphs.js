@@ -298,7 +298,8 @@ function LineBottomLeft(graphObject) {
 
 
         //sets data and displaydata
-        GraphManager.AddGraphData(graph, data);
+        if (typeof data !== "undefined")
+            GraphManager.AddGraphData(graph, data);
 
         var width = graph.container.clientWidth;
         var height = graph.container.clientHeight;
