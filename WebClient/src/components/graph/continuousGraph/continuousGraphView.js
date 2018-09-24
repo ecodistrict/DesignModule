@@ -35,7 +35,7 @@ var ContinuousGraphView = GraphView.extend({
         this._buildGraphContentContainer();
 
         this.bisectDate = d3.bisector(function (d) {
-            return d;//d.x;
+            return d; //d.x;
         }).left;
         this._redraw();
     },
@@ -189,11 +189,11 @@ var ContinuousGraphView = GraphView.extend({
         var ele;
         for (ele in lineData) {
 
-            if(lineData[ele].data[0].xAxisId === 'xBottom')
-            xBottomLineCount++;
+            if (lineData[ele].data[0].xAxisId === 'xBottom')
+                xBottomLineCount++;
 
-            else if(lineData[ele].data[0].xAxisId === 'xTop')
-            xTopLineCount++;
+            else if (lineData[ele].data[0].xAxisId === 'xTop')
+                xTopLineCount++;
 
 
             var pointEle;
@@ -213,8 +213,7 @@ var ContinuousGraphView = GraphView.extend({
                     } else {
                         toolTipElemBottomX.push(elemVal);
                     }
-                }
-                else if (lineData[ele].data[pointEle].xAxisId === 'xTop') {
+                } else if (lineData[ele].data[pointEle].xAxisId === 'xTop') {
                     var toolTipElemTopX = this._toolTipElementListTopX.get(elemKey);
                     if (toolTipElemTopX === undefined) {
                         this._toolTipElementListTopX.set(elemKey, [elemVal]);
@@ -222,15 +221,8 @@ var ContinuousGraphView = GraphView.extend({
                         toolTipElemTopX.push(elemVal);
                     }
                 }
-                //console.log(ele + '-- (' + lineData[ele].data[pointEle].x + ',' + lineData[ele].data[pointEle].y + ')');
             }
         }
-
-        //this._toolTipElementListBottomX.set('lineCount', xBottomLineCount);
-        //this._toolTipElementListTopX.set('lineCount', xTopLineCount);
-
-        //console.log(this._toolTipElementListBottomX);
-        //console.log(this._toolTipElementListTopX);
     },
 
     _buildToolTipOverlay: function () {
@@ -258,30 +250,47 @@ var ContinuousGraphView = GraphView.extend({
     },
 
     _mousemove: function () {
-        //this._toolTipElementListBottomX
-        //var lineData = this._buildTypeCollection('line');
+        d3.selectAll('.toolTip').remove();
+
+        var mousePos = d3.mouse(d3.event.currentTarget)[0];
+
+        //xBottom
+        this._buildToolTip(mousePos, this._toolTipElementListBottomX, this._xBottomScale);
+
+        //xTop
+        if (this._xTopScale != null)
+            this._buildToolTip(mousePos, this._toolTipElementListTopX, this._xTopScale);
+    },
+
+    _buildToolTip: function (mousePos, toolTipElementList, xScale) {
         var valueFormat = function (axisId, value) {
             var format = this._axisValueFormat(this.graphViewModel.axes[axisId]);
             return format(value);
         }.bind(this);
 
-        d3.selectAll('.toolTip').remove();
-
-        //xBottom
-        var mouseXPosBottomX = this._xBottomScale.invert(d3.mouse(d3.event.currentTarget)[0]);
-        var mapKeysBottomX = Array.from(this._toolTipElementListBottomX.keys());
-        var sortedKeysBottomX = mapKeysBottomX.sort(function(a, b){ return a - b; });
+        var mouseXPosBottomX = xScale.invert(mousePos);
+        var mapKeysBottomX = Array.from(toolTipElementList.keys());
+        var sortedKeysBottomX = mapKeysBottomX.sort(function (a, b) {
+            return a - b;
+        });
 
         var focusKeyPositionBottomX = this.bisectDate(sortedKeysBottomX, mouseXPosBottomX, 1);
         var focusKeyBottomX = sortedKeysBottomX[focusKeyPositionBottomX];
 
         var prevKeyBottomX = sortedKeysBottomX[focusKeyPositionBottomX - 1];
         var nextKeyBottomX = focusKeyBottomX;
-        var selectedKey = mouseXPosBottomX - prevKeyBottomX > nextKeyBottomX - mouseXPosBottomX ? 
+        var selectedKey = mouseXPosBottomX - prevKeyBottomX > nextKeyBottomX - mouseXPosBottomX ?
             nextKeyBottomX : prevKeyBottomX;
 
-        var selectedElementBottomX = this._toolTipElementListBottomX.get(selectedKey);
-        for(var ele in selectedElementBottomX) {
+        var selectedElementBottomX = toolTipElementList.get(selectedKey);
+        for (var ele in selectedElementBottomX) {
+            var yScale;
+
+            if (selectedElementBottomX[ele].yAxisId === 'yLeft')
+                yScale = this._yLeftScale;
+            else if (selectedElementBottomX[ele].yAxisId === 'yRight')
+                yScale = this._yRightScale;
+
             this._svg.append('g')
                 .attr('class', 'toolTip toolTip-element' + ele)
                 .append('circle')
@@ -301,9 +310,9 @@ var ContinuousGraphView = GraphView.extend({
 
             var toolTipEle = d3.select('.toolTip-element' + ele);
 
-            toolTipEle.attr('transform', 'translate(' + (this._sceneGeometry.left + 
-                this._xBottomScale(selectedElementBottomX[ele].x)) + ',' + 
-                (this._sceneGeometry.top + this._yLeftScale(selectedElementBottomX[ele].y)) + ')')
+            toolTipEle.attr('transform', 'translate(' + (this._sceneGeometry.left +
+                        xScale(selectedElementBottomX[ele].x)) + ',' +
+                    (this._sceneGeometry.top + yScale(selectedElementBottomX[ele].y)) + ')')
                 .style('stroke', selectedElementBottomX[ele].color);
 
             toolTipEle.select('text')
@@ -320,70 +329,7 @@ var ContinuousGraphView = GraphView.extend({
                     return 'y: ' + valueFormat(selectedElementBottomX[ele].yAxisId, selectedElementBottomX[ele].y);
                 });
         }
-
-        //console.log('mouse --- ' + mouseXPosBottomX);
-        //console.log('bisector selected elem --- ' + focusElementBottomX);
     },
-
-    // _mousemove: function () {
-    //     var valueFormat = function (axisId, value) {
-    //         var format = this._axisValueFormat(this.graphViewModel.axes[axisId]);
-    //         return format(value);
-    //     }.bind(this);
-
-    //     d3.selectAll('.toolTip').remove();
-
-    //     var mouseXPos = this._xBottomScale.invert(d3.mouse(d3.event.currentTarget)[0]);
-    //     var lineData = this._buildTypeCollection('line');
-    //     var ele;
-    //     for (ele in lineData) {
-    //         this._svg.append('g')
-    //             .attr('class', 'toolTip toolTip-element' + ele)
-    //             .append('circle')
-    //             .attr('r', 7);
-
-    //         d3.select('.toolTip-element' + ele)
-    //             .append('rect')
-    //             .attr('x', 10)
-    //             .attr('y', -20)
-    //             .attr('width', 60)
-    //             .attr('height', 35);
-
-    //         d3.select('.toolTip-element' + ele)
-    //             .append('text')
-    //             .attr('x', 0)
-    //             .attr('y', 0);
-
-    //         var focusElement = this.bisectDate(lineData[ele].data, mouseXPos, 1);
-    //         if (focusElement < lineData[ele].data.length) {
-    //             var prevElem = lineData[ele].data[focusElement - 1];
-    //             var nextElem = lineData[ele].data[focusElement];
-    //             var selectedElem = mouseXPos - prevElem.x > nextElem.x - mouseXPos ? nextElem : prevElem;
-
-    //             var toolTipEle = d3.select('.toolTip-element' + ele);
-
-    //             toolTipEle.attr('transform', 'translate(' + (this._sceneGeometry.left + this._xBottomScale(selectedElem.x)) +
-    //                     ',' + (this._sceneGeometry.top + this._yLeftScale(selectedElem.y)) + ')')
-    //                 .style('stroke', selectedElem.color);
-
-    //             toolTipEle.select('text')
-    //                 .append('svg:tspan')
-    //                 .attr('x', 15)
-    //                 .attr('y', -5)
-    //                 .text(function () {
-    //                     return 'x: ' + valueFormat(selectedElem.xAxisId, selectedElem.x);
-    //                 })
-    //                 .append('svg:tspan')
-    //                 .attr('x', 15)
-    //                 .attr('dy', 15)
-    //                 .text(function () {
-    //                     return 'y: ' + valueFormat(selectedElem.yAxisId, selectedElem.y);
-    //                 });
-    //         } else {
-    //             d3.select('.toolTip-element' + ele).style('display', 'none');
-    //         }
-    //     }
-    // },
 
     _updateXBottomAxis: function () {
         var axes = this.graphViewModel.axes;
