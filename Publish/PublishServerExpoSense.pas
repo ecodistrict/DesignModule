@@ -104,6 +104,8 @@ const
   chartSensorValueFactor = 1.0e-9;
   chartCalculatedValueFactor = 1.0e-6; //1.0e-3; // todo: explain diff in factor compared to sensor factor
 
+  factorCompensationConcentrationIndoor = 0.7;
+
 const
   motUnknown = 0;
   motsUnknown = 'Unknown';
@@ -176,13 +178,13 @@ type
   private
     fGeometry: TWDGeometryPoint;
     fValue: Double;
-    fCalculatedGeometry: TWDGeometryPoint;
+    //fCalculatedGeometry: TWDGeometryPoint;
     fModeOfTransportation: Integer;
     fLocation: Integer;
   public
     property geometry: TWDGeometryPoint read fGeometry;
     property value: Double read fValue;
-    property calculatedGeometry: TWDGeometryPoint read fCalculatedGeometry write fCalculatedGeometry;
+    //property calculatedGeometry: TWDGeometryPoint read fCalculatedGeometry write fCalculatedGeometry;
     property modeOfTransportation: Integer read fModeOfTransportation write fModeOfTransportation;
     property location: Integer read fLocation write fLocation;
 
@@ -313,8 +315,8 @@ type
     procedure HandleTimeSliderEvent(aClient: TClient; const aType: string; aPayload: TJSONObject);
     procedure HandleScenarioRefresh(aClient: TClient; const aType: string; aPayload: TJSONObject);
     procedure AddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon, aValue: Double);
-    procedure UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aMOT: Integer);
-    procedure UpdateLocation(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aLocation: Integer);
+    procedure UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; {aLat, aLon: Double; }aMOT: Integer);
+    procedure UpdateLocation(const aSensorID: TGUID; aTimeStamp: TDateTime; {aLat, aLon: Double; }aLocation: Integer);
 //    procedure Update(aStart, aEnd: TDateTime; aMode: Integer);
 //    procedure CombinedTrackAddValue(const aSensorID: TGUID; aTimeStamp: TDateTime; aLastLat, aLastLon, aPrevLat, aPrevLon: Double; aMOT: Integer);
 //    procedure CombinedTrackUpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aMOT: Integer);
@@ -391,7 +393,7 @@ begin
   inherited Create(aTimeStamp);
   fGeometry := TWDGeometryPoint.Create(aLon, aLat, double.NaN);
   fValue := aValue;
-  fCalculatedGeometry := nil;
+  //fCalculatedGeometry := nil;
   fModeOfTransportation := motUnknown;
   fLocation := locUnknown;
 end;
@@ -399,7 +401,7 @@ end;
 destructor TExpoSenseDataPoint.Destroy;
 begin
   FreeAndNil(fGeometry);
-  FreeAndNil(fCalculatedGeometry);
+  //FreeAndNil(fCalculatedGeometry);
   inherited;
 end;
 
@@ -1055,11 +1057,14 @@ begin
     fDataPoints.AddOrSetValue(aSensorID, ol);
   end;
 
-  if fDataPoints.Count=1 then
+  // check for first value received, do extra inits
+  if ol.Count=0 then
   begin
     so := TCircleMarker.Create(fCombinedTrackLayer, 'home', aLat, aLon, 12);
     so.addOptionGeoColor(TGeoColors.Create(motColors[motStationary]));
     fCombinedTrackLayer.AddObject(so, so.jsonNewObject);
+    fCalculatedECValuesChart.reset;
+    fMeasuredECValuesChart.reset;
   end;
 
   prevESDP := ol.ItemsTS[aTimeStamp, True];
@@ -1337,10 +1342,12 @@ var
   mot: Integer;
   locationStr: string;
   location: Integer;
-  calcLon: Double;
-  calcLat: Double;
+//  calcLon: Double;
+//  calcLat: Double;
 begin
   timestamp := 0;
+//  calcLon := Double.NaN;
+//  calcLat := Double.NaN;
   while aCursor<aLimit do
   begin
     fieldInfo := aPayload.bb_read_uint32(aCursor);
@@ -1349,7 +1356,8 @@ begin
         begin
           timestamp := aPayload.bb_read_double(aCursor);
           // work-a-round for timestamp resolution problem in processor
-          timestamp := Round(timestamp*Double(24.0*60.0*60.0))/Double(24.0*60.0*60.0);
+          // round to 2 second resolution
+          //timestamp := Round(timestamp*Double(24.0*60.0*60.0/2))/Double(24.0*60.0*60.0/2);
         end;
       (icehObjectID shl 3) or wtLengthDelimited:
         begin
@@ -1360,22 +1368,22 @@ begin
           modeStr := aPayload.bb_read_string(aCursor);
 //          lastLon := ValueStored[calculated_longitude, sensorid];
 //          lastLat := ValueStored[calculated_latitude, sensorid];
-          if not (calcLon.IsNan or calcLat.IsNan) then
-          begin
+//          if not (calcLon.IsNan or calcLat.IsNan) then
+//          begin
             mot := TExpoSenseDataPoint.ModeOfTransportationStrToInt(modeStr);
-            UpdateMOT(sensorid, timestamp, calcLat, calcLon, mot);
-          end;
+            UpdateMOT(sensorid, timestamp, {calcLat, calcLon, }mot);
+//          end;
         end;
       sensordata_location_type:
         begin
           locationStr := aPayload.bb_read_string(aCursor);
 //          lastLon := ValueStored[calculated_longitude, sensorid];
 //          lastLat := ValueStored[calculated_latitude, sensorid];
-          if not (calcLon.IsNan or calcLat.IsNan) then
-          begin
+//          if not (calcLon.IsNan or calcLat.IsNan) then
+//          begin
             location := TExpoSenseDataPoint.LocationStrToInt(locationStr);
-            UpdateLocation(sensorid, timeStamp, calcLat, calcLon, location);
-          end;
+            UpdateLocation(sensorid, timeStamp, {calcLat, calcLon, }location);
+//          end;
         end;
       sensordata_ec:
         begin
@@ -1383,15 +1391,15 @@ begin
           // correct for negative sensor values (just ignore and use 0)
           //if value<0
           //then value := 0;
-          if value>0 then
-          begin
+//          if value>=0 then
+//          begin
 //            lastLon := ValueStored[sensordata_longitude, sensorid];
 //            lastLat := ValueStored[sensordata_latitude, sensorid];
-            if not (sensorLon.IsNan or sensorLat.IsNan) then
-            begin
-              AddValue(sensorid, timeStamp, sensorLat, sensorLon, value);
-            end;
+          if not (sensorLon.IsNan or sensorLat.IsNan) then
+          begin
+            AddValue(sensorid, timeStamp, sensorLat, sensorLon, value);
           end;
+//          end;
         end;
       sensordata_latitude:
         begin
@@ -1403,6 +1411,7 @@ begin
           sensorLon := aPayload.bb_read_double(aCursor);
           //ValueStored[sensordata_longitude, sensorid] := value;
         end;
+      {
       calculated_latitude:
         begin
           calcLat := aPayload.bb_read_double(aCursor);
@@ -1413,6 +1422,7 @@ begin
           calcLon := aPayload.bb_read_double(aCursor);
           //ValueStored[calculated_longitude, sensorid] := value;
         end;
+      }
       meteodata_windspeed:
         begin
           value := aPayload.bb_read_double(aCursor);
@@ -1567,7 +1577,7 @@ begin
     TChartAxis.Create('time', 'lightBlue', 'Time', 'min'),
     [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'){,
       TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')}],
-    'time', 3, True, 10, 0);
+    'time', 3, True, 8, 0);
   fMeasuredECValuesChart.chartUpdateTime := 2;
   AddChart(fMeasuredECValuesChart);
   fMeasuredECValuesChart.reset;
@@ -1576,7 +1586,7 @@ begin
     TChartAxis.Create('time', 'lightBlue', 'Time', 'min'),
     [ TChartAxis.Create('concentration', 'lightBlue', 'Concentration', 'mg/m3'){,
       TChartAxis.Create('concentration', 'PaleVioletRed', 'Concentration', 'mg/m3')}],
-    'time', 3, True, 10, 0);
+    'time', 3, True, 8, 0);
   fCalculatedECValuesChart.chartUpdateTime := 2;
   AddChart(fCalculatedECValuesChart);
   fCalculatedECValuesChart.reset;
@@ -1624,7 +1634,7 @@ begin
             layer := imlep.value.CreateUSLayer(
               self, tablePrefix, ConnectStringFromSession(oraSession),
               SubscribeUSDataEvents(USUserName, imlep.value.IMB_EVENTCLASS, USTablePrefix, fIMB3Connection),
-              USSourceProjection, imlep.value.Domain, imlep.value.description, 0.2, True);
+              USSourceProjection, imlep.value.Domain, imlep.value.description, 0.3, True);
             if Assigned(layer) then
             begin
               AddLayer(layer);
@@ -1731,7 +1741,7 @@ begin
   end;
 end;
 
-procedure TExpoSenseScenario.UpdateLocation(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aLocation: Integer);
+procedure TExpoSenseScenario.UpdateLocation(const aSensorID: TGUID; aTimeStamp: TDateTime; {aLat, aLon: Double; }aLocation: Integer);
 var
   ol: TOrderedListTS<TExpoSenseDataPoint>;
   dp: TExpoSenseDataPoint;
@@ -1748,12 +1758,14 @@ begin
         if fCombinedTrackLayer.objects.TryGetValue(dp.id(aSensorID), so) then
         begin
           // update location
+          {
           if ((so.geometry as TWDGeometryPoint).x <> aLon) or ((so.geometry as TWDGeometryPoint).y <> aLat) then
           begin
             (so.geometry as TWDGeometryPoint).x := aLon;
             (so.geometry as TWDGeometryPoint).y := aLat;
             fCombinedTrackLayer.UpdateObject(so, sojnGeometry, so.jsonGeometryValue);
           end;
+          }
           if dp.location<>aLocation then
           begin
             if (aLocation=locNotAtHome) or (aLocation=locOutdoors) then
@@ -1778,12 +1790,13 @@ begin
   end;
 end;
 
-procedure TExpoSenseScenario.UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; aLat, aLon: Double; aMOT: Integer);
+procedure TExpoSenseScenario.UpdateMOT(const aSensorID: TGUID; aTimeStamp: TDateTime; {aLat, aLon: Double; }aMOT: Integer);
 var
   ol: TOrderedListTS<TExpoSenseDataPoint>;
   dp: TExpoSenseDataPoint;
   so: TSimpleObject;
   layerECLive: TLayerBase;
+  factorIndoor: Double;
 begin
   if fDataPoints.TryGetValue(aSensorID, ol) then
   begin
@@ -1796,12 +1809,17 @@ begin
         if fCombinedTrackLayer.objects.TryGetValue(dp.id(aSensorID), so) then
         begin
           // update location
-          if ((so.geometry as TWDGeometryPoint).x <> aLon) or ((so.geometry as TWDGeometryPoint).y <> aLat) then
+          {
+          if not (aLat.IsNan or aLon.IsNan) then
           begin
-            (so.geometry as TWDGeometryPoint).x := aLon;
-            (so.geometry as TWDGeometryPoint).y := aLat;
-            fCombinedTrackLayer.UpdateObject(so, sojnGeometry, so.jsonGeometryValue);
+            if ((so.geometry as TWDGeometryPoint).x <> aLon) or ((so.geometry as TWDGeometryPoint).y <> aLat) then
+            begin
+              (so.geometry as TWDGeometryPoint).x := aLon;
+              (so.geometry as TWDGeometryPoint).y := aLat;
+              fCombinedTrackLayer.UpdateObject(so, sojnGeometry, so.jsonGeometryValue);
+            end;
           end;
+          }
           if dp.modeOfTransportation<>aMOT then
           begin
             // map value to radius log -> 0=>3 px 5000=>max px
@@ -1814,6 +1832,7 @@ begin
         end;
 
 
+
 //        fHeightTrackLayer.UpdateMOT(sensorid, timeStamp, mot);
 //        fDotTrackLayer.UpdateMOT(sensorid, timeStamp, mot);
 //        fLineTrackLayer.UpdateMOT(sensorid, timeStamp, mot);
@@ -1824,15 +1843,29 @@ begin
       begin
         if layerECLive is TUSLayer then
         begin
-          (layerECLive as TUSLayer).tilerLayer.onPointValue :=
-            procedure(aTilerLayer: TTilerLayer; const aRequestID: TWDID; aLat, aLon: Double; aTimeStampSlice: TDateTime; aValue: Double)
-            var
-              timeStamp: TDateTime;
-            begin
-              timeStamp := StrToDateTime(string(UTF8String(aRequestID)));
-              fCalculatedECValuesChart.AddValue(timeStamp, [aValue*chartCalculatedValueFactor]);
-            end;
-          (layerECLive as TUSLayer).tilerLayer.signalSliceRequestPointValue(RawByteString(UTF8String(DateTimeToStr(aTimeStamp))), aLat, aLon);
+          if dp.value>0 then
+          begin
+            if (dp.modeOfTransportation=motUnknown) or (dp.modeOfTransportation=motStationary)
+            then factorIndoor := factorCompensationConcentrationIndoor
+            else factorIndoor := 1.0;
+            (layerECLive as TUSLayer).tilerLayer.onPointValue :=
+              procedure(aTilerLayer: TTilerLayer; const aRequestID: TWDID; aLat, aLon: Double; aTimeStampSlice: TDateTime; aValue: Double)
+              var
+                timeStamp: TDateTime;
+                _factorIndoor: Double;
+              begin
+                timeStamp := StrToDateTime(string(UTF8String(aRequestID)));
+                _factorIndoor := factorIndoor;
+                fCalculatedECValuesChart.AddValue(timeStamp, [_factorIndoor*aValue*chartCalculatedValueFactor]);
+              end;
+            (layerECLive as TUSLayer).tilerLayer.signalSliceRequestPointValue(
+              RawByteString(UTF8String(DateTimeToStr(aTimeStamp))),
+              dp.geometry.y, dp.geometry.x);
+          end
+          else
+          begin
+            fCalculatedECValuesChart.AddValue(aTimeStamp, [0]);
+          end;
         end;
       end;
     end;
@@ -1849,7 +1882,7 @@ begin
     aTilerStatusURL, nil, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView);
   fTiler.onTilerStatus := handleTilerStatus;
   //Set ExpoSense controls
-  SetControl(timeSliderControl, '1');
+  SetControl(timeSliderControl, '2');
   windControl.update(10, 5.4, 1); // init by first use
   clientMessageHandlers.Add(timeSliderControl,
     procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
