@@ -208,6 +208,7 @@ var ContinuousGraphView = GraphView.extend({
                     'yAxisId': lineData[ele].data[pointEle].yAxisId,
                     'color': lineData[ele].data[pointEle].color
                 };
+                //TODO: Add support for null values for x point
                 if (lineData[ele].data[pointEle].xAxisId === 'xBottom') {
                     var toolTipElemBottomX = this._toolTipElementListBottomX.get(elemKey);
                     if (toolTipElemBottomX === undefined) {
