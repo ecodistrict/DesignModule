@@ -25,6 +25,8 @@ var ContinuousGraphView = GraphView.extend({
     onRenderGraph: function () {
         if (this._svg) return;
 
+        this.graphViewModel.on('modelReset', this._onDataChanged, this);
+
         this._buildSvgViewport();
         this._buildSceneGeometry();
         this._buildScales();
@@ -41,7 +43,12 @@ var ContinuousGraphView = GraphView.extend({
     },
 
     onRemoveGraph: function () {
+        if (!this._svg) return;
 
+        this.graphViewModel.off('modelReset', this._onDataChanged, this);
+
+        this._svg.remove();
+        this._svg = null;
     },
 
     onAddGraph: function () {
@@ -50,6 +57,11 @@ var ContinuousGraphView = GraphView.extend({
 
     onResize: function () {
         this._redraw();
+    },
+
+    _onDataChanged: function () {
+        var performAnimation = true;
+        this._redraw(performAnimation);
     },
 
     _buildSvgViewport: function () {
@@ -183,18 +195,8 @@ var ContinuousGraphView = GraphView.extend({
         this._toolTipElementListTopX = new Map();
         var lineData = this._buildTypeCollection('line');
 
-        var xBottomLineCount = 0;
-        var xTopLineCount = 0;
-
         var ele;
         for (ele in lineData) {
-
-            if (lineData[ele].data[0].xAxisId === 'xBottom')
-                xBottomLineCount++;
-
-            else if (lineData[ele].data[0].xAxisId === 'xTop')
-                xTopLineCount++;
-
 
             var pointEle;
             for (pointEle in lineData[ele].data) {
@@ -229,28 +231,30 @@ var ContinuousGraphView = GraphView.extend({
         var x = this._sceneGeometry.left;
         var y = this._sceneGeometry.top;
 
-        if (d3.select('.toolTip-overlay-container').empty()) {
+        if (this._svg.select('.toolTip-overlay-container').empty()) {
             this._svg.append('rect')
                 .attr('class', 'toolTip-overlay-container')
                 .attr('width', this._sceneGeometry.width)
                 .attr('height', this._sceneGeometry.height)
                 .attr('transform', 'translate(' + x + ', ' + y + ')')
                 .on('mouseover', function () {
-                    d3.selectAll('.toolTip').style('display', null);
+                    if(this._svg)
+                        this._svg.selectAll('.toolTip').style('display', null);
                 })
                 .on('mouseout', function () {
                     d3.selectAll('.toolTip').style('display', 'none');
                 })
-                .on('mousemove', this._mousemove.bind(this));
+                .on('mousemove', this._mousemove.bind(this))
+                .on('touchmove', this._mousemove.bind(this));
         } else {
-            d3.select('.toolTip-overlay-container')
+            this._svg.select('.toolTip-overlay-container')
                 .attr('width', this._sceneGeometry.width)
                 .attr('height', this._sceneGeometry.height);
         }
     },
 
     _mousemove: function () {
-        d3.selectAll('.toolTip').remove();
+        this._svg.selectAll('.toolTip').remove();
 
         var mousePos = d3.mouse(d3.event.currentTarget)[0];
 
@@ -296,23 +300,25 @@ var ContinuousGraphView = GraphView.extend({
                 .append('circle')
                 .attr('r', 7);
 
-            d3.select('.toolTip-element' + ele)
+            this._svg.select('.toolTip-element' + ele)
                 .append('rect')
                 .attr('x', 10)
                 .attr('y', -20)
                 .attr('width', 60)
-                .attr('height', 35);
+                .attr('height', 35)
+                .attr('rx', 8)
+                .attr('ry', 8);
 
-            d3.select('.toolTip-element' + ele)
+            this._svg.select('.toolTip-element' + ele)
                 .append('text')
                 .attr('x', 0)
                 .attr('y', 0);
 
-            var toolTipEle = d3.select('.toolTip-element' + ele);
+            var toolTipEle = this._svg.select('.toolTip-element' + ele);
 
             toolTipEle.attr('transform', 'translate(' + (this._sceneGeometry.left +
-                        xScale(selectedElementBottomX[ele].x)) + ',' +
-                    (this._sceneGeometry.top + yScale(selectedElementBottomX[ele].y)) + ')')
+                        this._setMinScaleValForNull(selectedElementBottomX[ele].x, xScale)) + ',' +
+                    (this._sceneGeometry.top + this._setMinScaleValForNull(selectedElementBottomX[ele].y, yScale)) + ')')
                 .style('stroke', selectedElementBottomX[ele].color);
 
             toolTipEle.select('text')
@@ -320,15 +326,28 @@ var ContinuousGraphView = GraphView.extend({
                 .attr('x', 15)
                 .attr('y', -5)
                 .text(function () {
-                    return 'x: ' + valueFormat(selectedElementBottomX[ele].xAxisId, selectedElementBottomX[ele].x);
+                    var xVal = selectedElementBottomX[ele].x === null ? 'null' : 
+                        valueFormat(selectedElementBottomX[ele].xAxisId, selectedElementBottomX[ele].x);
+                    return 'x: ' + xVal;
                 })
                 .append('svg:tspan')
                 .attr('x', 15)
                 .attr('dy', 15)
                 .text(function () {
-                    return 'y: ' + valueFormat(selectedElementBottomX[ele].yAxisId, selectedElementBottomX[ele].y);
+                    var yVal = selectedElementBottomX[ele].y === null ? 'null' : 
+                        valueFormat(selectedElementBottomX[ele].yAxisId, selectedElementBottomX[ele].y);
+                    return 'y: ' + yVal;
                 });
         }
+    },
+
+    
+    _setMinScaleValForNull: function (value, selectedScale) {
+        if(value===0 || value)
+            return selectedScale(value);
+
+        //returning the min domain value for the scale when a null is encountered
+        return selectedScale(selectedScale.domain()[0]);
     },
 
     _updateXBottomAxis: function () {

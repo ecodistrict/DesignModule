@@ -10,6 +10,15 @@ svg.continuous-graph .line {
     transition: stroke-width 0.3s;
 }
 
+svg.continuous-graph .dashedLine {
+    stroke-linecap: square;
+    stroke-width: 1.5px;
+    fill: none;
+    transition: stroke-width 0.3s;
+    stroke-dasharray: 2, 5;
+    stroke: #A9A9A9;
+}
+
 svg.continuous-graph .axis .title {
     pointer-events: none;
     fill: rgb(0, 0, 0);
@@ -41,9 +50,7 @@ svg.continuous-graph .toolTip text {
 
 svg.continuous-graph .toolTip rect {
     pointer-events: none;
-    /* fill: '#D3D3D3'; */
     fill: white;
-    /*stroke-width: 0;*/
 }
 
 svg.continuous-graph .toolTip-overlay-container {

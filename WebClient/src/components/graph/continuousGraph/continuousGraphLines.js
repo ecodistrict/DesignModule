@@ -82,6 +82,7 @@
             .y(0);
 
         var valueLine = d3.line()
+            .defined(function(d) { return (d.y !== null && d.x !== null); })
             .x(function(d) { return x(d.xAxisId, d.x); })
             .y(function(d) { return y(d.yAxisId, d.y); });
 
@@ -91,8 +92,32 @@
         //         .on('mouseout', tipController.hide);
         // }
 
+        var dashedLinePaths = selection.selectAll('.dashedLine')
+        .data(lines, function (d) { return d.seriesId; });
+
+        dashedLinePaths.exit().remove();
+
+        dashedLinePaths.enter().append('path')
+            .attr('class', 'dashedLine')
+            //.style('stroke', function (d) { return d.color; })
+            .attr('d', function (d) { return baseLine(d.data); })
+            //.call(setEventHandlers)
+            .transition()
+                .duration(animationDuration)
+                .attr('d', function (d) { return valueLine(d.data.filter(valueLine.defined())); });
+                //.style('stroke', function (d) { return d.color; });
+
+        dashedLinePaths.transition()
+            .duration(animationDuration)
+            .attr('d', function (d) { return valueLine(d.data.filter(valueLine.defined())); });
+            //.style('stroke', function (d) { return d.color; });
+
+
+
+
+
         var linePaths = selection.selectAll('.line')
-            .data(lines, function (d) { return d.id; });
+            .data(lines, function (d) { return d.seriesId; });
 
         linePaths.exit().remove();
 

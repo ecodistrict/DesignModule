@@ -77,13 +77,16 @@
             return scale(value);
         };
 
-        var pointCollection = selection.selectAll('.points-collection')
+        var pointCollectionContainer = selection.selectAll('.points-collection')
             .data(points, function (d) { return d.seriesId; });
 
-        pointCollection.enter().append('g')
+        pointCollectionContainer.enter().append('g')
             .attr('class', 'points-collection');
-        
-        pointCollection.exit().remove();
+            
+        pointCollectionContainer.exit().remove();
+
+        var pointCollection = selection.selectAll('.points-collection')
+            .data(points, function (d) { return d.seriesId; });
 
         var pointPlots = pointCollection.selectAll('.point')
             .data(function (d) { return d.data; });
