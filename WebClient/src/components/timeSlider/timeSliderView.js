@@ -5,6 +5,13 @@
  * setting current time, applying a brush, displaying time-anchored events.
  */
 
+/* globals L, d3 */
+
+import './timeSlider.css';
+
+import ScaleSliderView from '../scaleSlider/scaleSliderView';
+import TimeSliderUtils from './timeSliderUtils';
+
 var TimeSliderView = L.Control.extend({
 
     initialize: function (opts) {
@@ -101,3 +108,5 @@ var TimeSliderView = L.Control.extend({
     }
 });
 L.extend(TimeSliderView.prototype, L.Evented.prototype);
+
+export default TimeSliderView;

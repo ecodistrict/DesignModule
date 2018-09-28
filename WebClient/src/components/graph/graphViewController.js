@@ -3,9 +3,12 @@
  * This is a base class for all child graph view controllers.
  */
 
-/* globals L, GraphView, GraphViewModel, GraphLegendViewModel */ 
+/* globals L */
 
-/* exported GraphViewController */
+import GraphView from './graphView';
+import GraphViewModel from './graphViewModel';
+import GraphLegendViewModel from './graphLegendViewModel';
+
 var GraphViewController = L.Evented.extend({
 
     initialize: function (opts) {
@@ -179,3 +182,5 @@ var GraphViewController = L.Evented.extend({
         });
     }
 });
+
+export default GraphViewController;

@@ -4,7 +4,6 @@
 
 /* globals L */ 
 
-/* exported GraphsModel */
 var GraphsModel = L.Evented.extend({
 
     initialize: function (opts) {
@@ -42,3 +41,5 @@ var GraphsModel = L.Evented.extend({
     }
 
 });
+
+export default GraphsModel;

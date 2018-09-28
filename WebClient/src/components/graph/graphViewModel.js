@@ -6,7 +6,6 @@
 
 /* globals L */ 
 
-/* exported GraphViewModel */
 var GraphViewModel = L.Evented.extend({
 
     initialize: function (opts) {
@@ -49,4 +48,6 @@ var GraphViewModel = L.Evented.extend({
         });
     }
 
-}); 
+});
+
+export default GraphViewModel;

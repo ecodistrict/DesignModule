@@ -3,9 +3,12 @@
  * the graphs. It provides the legend functionality.
  */
 
-/* globals L, WindowView, GraphLegendView */ 
+/* globals L */
 
-/* exported GraphView */
+import './graph.css';
+import WindowView from '../../core/window/windowView';
+import GraphLegendView from './graphLegendView';
+
 var GraphView = WindowView.extend({
     
     initialize: function (opts) {
@@ -112,4 +115,6 @@ var GraphView = WindowView.extend({
         }
     }
 
-}); 
+});
+
+export default GraphView;

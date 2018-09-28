@@ -6,7 +6,6 @@
 
 /* globals L */ 
 
-/* exported CategoryGraphViewModel */
 var CategoryGraphViewModel = L.Evented.extend({
 
     initialize: function (opts) {
@@ -49,4 +48,6 @@ var CategoryGraphViewModel = L.Evented.extend({
         this.fire('modelReset');
     }
 
-}); 
+});
+
+export default CategoryGraphViewModel;

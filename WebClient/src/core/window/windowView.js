@@ -2,9 +2,15 @@
  * WindowView base window class.
  */
 
-/* globals L, DomUtil, DockButtonViewModel, DockButtonView, CloseButtonView */ 
+/* globals L */
 
-/* exported WindowView */
+import './window.css';
+
+import DomUtil from '../../utils/DomUtil';
+import DockButtonViewModel from '../widgets/dockButton/dockButtonViewModel';
+import DockButtonView from '../widgets/dockButton/dockButtonView';
+import CloseButtonView from '../widgets/closeButton/closeButtonView';
+
 var WindowView = L.Evented.extend({
 
     initialize: function (opts) {
@@ -595,3 +601,5 @@ var WindowView = L.Evented.extend({
     }
 
 });
+
+export default WindowView;

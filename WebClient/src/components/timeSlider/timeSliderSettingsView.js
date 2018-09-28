@@ -6,6 +6,11 @@
  * label to open the dialog.
  */
 
+ /* globals L, d3 */
+
+import './timeSliderSettings.css';
+import TimeSliderUtils from './timeSliderUtils';
+
 var TimeSliderSettingsView = L.Control.extend({
 
     initialize: function (opts) {
@@ -91,7 +96,7 @@ var TimeSliderSettingsView = L.Control.extend({
     
             if (typeof e.clientX === 'undefined') {
                 this.settings._mdx = this.settings.offsetLeft - e.changedTouches[0].clientX;
-                this.settings._mdy = settings.offsetTop - e.changedTouches[0].clientY;
+                this.settings._mdy = this.settings.offsetTop - e.changedTouches[0].clientY;
             } else {
                 this.settings._mdx = this.settings.offsetLeft - e.clientX;
                 this.settings._mdy = this.settings.offsetTop - e.clientY;
@@ -99,7 +104,7 @@ var TimeSliderSettingsView = L.Control.extend({
         }
     },
 
-    _endmove: function (e) {
+    _endmove: function () {
         window.removeEventListener('mouseup', this._endmove, true);
         window.removeEventListener('touchend', this._endmove, true);
         window.removeEventListener('mousemove', this._moveit, true);
@@ -108,18 +113,20 @@ var TimeSliderSettingsView = L.Control.extend({
         this.settings = null;
     },
 
-    _createRow: function (elements) {
+    _createRow: function () {
+        /*jshint -W101*/
+
         var changeDate = [
-            { name: "dateInput", node: "input", classes: ["dateInput"], width: 0.75, placeholder: 'now', ondblclick: function (e) { this.value = this.placeholder; } },
-            { name: "dateButton", node: "button", classes: ["dateButton", "submitDate"], text: "Go", width: 0.25, onclick: this._submitDate.bind(this) }
+            { name: 'dateInput', node: 'input', classes: ['dateInput'], width: 0.75, placeholder: 'now', ondblclick: function () { this.value = this.placeholder; } },
+            { name: 'dateButton', node: 'button', classes: ['dateButton', 'submitDate'], text: 'Go', width: 0.25, onclick: this._submitDate.bind(this) }
         ];
     
         var controls = [
-            { "name": "fastbackwardButton", "classes": ['fastbackwardButton', 'fastbackward', 'symbolButton'], "node": "button", "text": "&#x23EE;", onclick: this._fastBackward.bind(this) },
-            { "name": "backwardButton", "classes": ['backwardButton', 'backward', 'symbolButton'], "node": "button", "text": "&#x23f4;", onclick: this._backward.bind(this) },
-            { "name": "replayButton", "classes": ['replayButton', 'replay', 'symbolButton'], "node": "button", "text": "&#10226;", onclick: this._replay.bind(this) },
-            { "name": "forwardButton", "classes": ['forwardButton', 'forward', 'symbolButton'], "node": "button", "text": "&#x23f5;", onclick: this._forward.bind(this) },
-            { "name": "fastforwardButton", "classes": ['fastforwardButton', 'fastForward', 'symbolButton'], "node": "button", "text": "&#x23ED;", onclick: this._fastForward.bind(this) }
+            { 'name': 'fastbackwardButton', 'classes': ['fastbackwardButton', 'fastbackward', 'symbolButton'], 'node': 'button', 'text': '&#x23EE;', onclick: this._fastBackward.bind(this) },
+            { 'name': 'backwardButton', 'classes': ['backwardButton', 'backward', 'symbolButton'], 'node': 'button', 'text': '&#x23f4;', onclick: this._backward.bind(this) },
+            { 'name': 'replayButton', 'classes': ['replayButton', 'replay', 'symbolButton'], 'node': 'button', 'text': '&#10226;', onclick: this._replay.bind(this) },
+            { 'name': 'forwardButton', 'classes': ['forwardButton', 'forward', 'symbolButton'], 'node': 'button', 'text': '&#x23f5;', onclick: this._forward.bind(this) },
+            { 'name': 'fastforwardButton', 'classes': ['fastforwardButton', 'fastForward', 'symbolButton'], 'node': 'button', 'text': '&#x23ED;', onclick: this._fastForward.bind(this) }
         ];
     
         var self = this;
@@ -173,9 +180,6 @@ var TimeSliderSettingsView = L.Control.extend({
             } // eo for loop
             content.appendChild(row);
         }
-        var minute = 60000;
-        var hour = 60 * minute; // ms
-        var day = hour * 24;
     
         buildRow(this._content, changeDate, 'changeDate');
         buildRow(this._content, controls, 'controls');
@@ -207,7 +211,7 @@ var TimeSliderSettingsView = L.Control.extend({
         });
     },
     
-    _clearSettings: function (aClearPosition) {    
+    _clearSettings: function () {    
         if (this._div) {
             // clear previous contents
             while (this._div.firstChild) {
@@ -244,3 +248,5 @@ var TimeSliderSettingsView = L.Control.extend({
     }
 });
 L.extend(TimeSliderSettingsView.prototype, L.Evented.prototype);
+
+export default TimeSliderSettingsView;

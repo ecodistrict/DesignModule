@@ -4,7 +4,8 @@
 
 /* globals L */ 
 
-/* exported WindowManager */
+import './windowManager.css';
+
 var WindowManager = L.Evented.extend({
 
     initialize: function (opts) {
@@ -267,3 +268,5 @@ var WindowManager = L.Evented.extend({
     }
 
 });
+
+export default WindowManager;
