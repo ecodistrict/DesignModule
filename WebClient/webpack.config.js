@@ -18,7 +18,10 @@ module.exports = env => {
         module: {
             rules: [
                 // html-loader
-                { test: /\.html$/, use: ['html-loader'] },
+                { 
+                    test: /\.html$/,
+                    use: ['html-loader']
+                },
                 // css-loader
                 { 
                     test: /\.css$/, 
@@ -62,8 +65,8 @@ module.exports = env => {
                 { from: 'portal', to: 'portal' }
             ]),
             new MiniCssExtractPlugin({
-                filename: 'assets/style/' + (devMode ? '[name].css' : '[name].[hash].css'),
-                chunkFilename: 'assets/style/' + (devMode ? '[id].css' : '[id].[hash].css')
+                filename: 'assets/style/[name].[hash].css',
+                chunkFilename: 'assets/style/[id].[hash].css'
             }),
             new webpack.DefinePlugin({
                 PRODUCTION: !devMode

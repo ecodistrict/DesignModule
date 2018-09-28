@@ -4,7 +4,7 @@
 
 In Chrome or Explorer or any other browser one can execute javascript code from Developer Console and trigger application functionality.
 
-An important detail is that classes can't be accessible directly from the global scope because our code is wrapped in modules. To access a class or any other object or function exported by some module you can use `require(modulePath)` function. This function is available in the global scope and it allows loading the specified module using its path relative to project folder, e.g `require('./src/components/graph/graphModel.js')`. **Note** that `require()` function is available in global scope only in debug build and not in production.
+An important detail is that classes are not directly accessible from the global scope because our code is wrapped in modules. To access a class or any other object or function exported by some module you can use `require(modulePath)` function. This function is available in the global scope and it allows loading the specified module using its path relative to project folder, e.g `require('./src/components/graph/graphModel.js')`. **Note** that `require()` function is available in global scope only in debug build and not in production.
 
 ### Example
 
