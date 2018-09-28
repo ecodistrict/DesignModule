@@ -18,7 +18,10 @@ module.exports = env => {
         module: {
             rules: [
                 // html-loader
-                { test: /\.html$/, use: ['html-loader'] },
+                { 
+                    test: /\.html$/,
+                    use: ['html-loader']
+                },
                 // css-loader
                 { 
                     test: /\.css$/, 
@@ -27,9 +30,9 @@ module.exports = env => {
                         {
                             loader: 'css-loader',
                             options: {
-                            sourceMap: devMode,
-                            url: false,
-                            import: false
+                                sourceMap: devMode,
+                                url: false,
+                                import: false
                             }
                         }                    
                     ]
