@@ -41,7 +41,7 @@ module.exports = env => {
                             options: {
                                 name: '[name].[ext]',
                                 outputPath: 'assets/media/',
-                                publicPath: '/assets/media/'
+                                publicPath: '../../assets/media/'
                             }
                         }
                     ]

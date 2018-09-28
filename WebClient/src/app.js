@@ -149,7 +149,7 @@ window.windowManager = new WindowManager({
 
 
 // domains
-var domainsControl = L.control.domains({});
+window.domainsControl = L.control.domains({});
 map.addControl(domainsControl);
 
 DataManager.detailsInfo = {
@@ -186,7 +186,7 @@ window.detailsViewController = new DetailsViewController({
 map.addControl(window.detailsViewController.view());
 
 // details
-var detailsControl = L.control.details(DataManager.detailsInfo);
+window.detailsControl = L.control.details(DataManager.detailsInfo);
 map.addControl(detailsControl);
 
 
