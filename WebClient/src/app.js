@@ -53,10 +53,11 @@ if (session == '') {
     //session = 'TestRKEvaluate'; //Ralph test database evaluate
     //session = 'HenkTest';
     //session = 'D937BA6603B64147BDA2C8CFED9D973F'; //app-usmodel01 AMS
+    session = 'Zuidas-test';
 }
 window.clientType = getParameterByName('clientType', '');
 var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
-var scenario = '';
+window.scenario = '';
 var userid = '';
 // split session in session id/scenario id/user id
 var sessionParts = session.split('$');

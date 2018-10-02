@@ -82,7 +82,7 @@
             var domain = domains[domainName];
             {
                 for (var cid in domain.charts) {
-                    GraphManager.MakeGraph(domain.charts[cid]);
+                    //GraphManager.MakeGraph(domain.charts[cid]);
                 }
                 for (var lid in domain.layers) {
                     if (!domain.layers[lid].basic) {
@@ -117,7 +117,7 @@
                     activekpis[domain.kpis[kid].id] = domain.kpis[kid].id;
             }
         }
-        GraphManager.updateDomains(activecharts);
+        //GraphManager.updateDomains(activecharts);
         LayerManager.updateDomains(activelayers);
         //todo: KPI manager.updateDomains(activekpis);
         this._update();
@@ -208,7 +208,7 @@
         container.appendChild(h);
 
         // determine elements per row
-        var maxElementCount = Math.max(Object.keys(this._kpis).length, LayerManager.ActiveCount, GraphManager.ActiveCount);
+        var maxElementCount = Math.max(Object.keys(this._kpis).length, LayerManager.ActiveCount, 0/*GraphManager.ActiveCount*/);
         var elementsPerRow = maxElementCount > 0 ? Math.ceil(Math.sqrt(maxElementCount)) : 1;
         this.kpis = document.createElement('div');
         this.kpis.className = 'detailskpis';
@@ -241,7 +241,7 @@
             kpiCount++;
         }
 
-        var chartCount = GraphManager.SetPreviews(this.charts);
+        var chartCount = 0;//GraphManager.SetPreviews(this.charts);
 
         var layerCount = LayerManager.SetPreviews(this.layers);
 
