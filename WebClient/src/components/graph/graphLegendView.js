@@ -5,48 +5,38 @@
 /* globals L, d3 */ 
 
 import './graphLegend.css';
+import View from '../../core/view';
 
-var GraphLegendView = L.Evented.extend({
+var GraphLegendView = View.extend({
 
-    initialize: function (opts) {
+    onInitialize: function (opts) {
         if (!opts.element) throw new Error('element is not provided');
         if (!opts.model) throw new Error('model is not provided');
 
         this.element = opts.element;
         this.model = opts.model;
-
-        this.render();
     },   
 
-    render: function () {        
+    onRender: function () {
         L.DomEvent.disableClickPropagation(this.element);
 
-        d3.select(this.element).on('click touchend', this._notifyFocus.bind(this));
+        d3.select(this.element)
+            .classed('hidden', !this._needToShow())
+            .on('click touchend', this._notifyFocus.bind(this));
 
         this._redraw();
-        this._adjustVisibility();
 
         this.model.on('entries', this._redraw, this);
         this.model.on('entries', this._adjustVisibility, this);
+
+        return this.element;
     },
 
-    remove: function () {
+    onRemove: function () {
         d3.select(this.element).on('click touchend', null);
 
         this.model.off('entries', this._redraw, this);
         this.model.off('entries', this._adjustVisibility, this);
-
-        while (this.element.firstChild) {
-            this.element.removeChild(this.element.firstChild);
-        }        
-    },
-
-    show: function () {
-        L.DomUtil.removeClass(this.element, 'hidden');
-    },
-
-    hide: function () {
-        L.DomUtil.addClass(this.element, 'hidden');        
     },
 
     _redraw: function () {        
@@ -81,8 +71,12 @@ var GraphLegendView = L.Evented.extend({
             .text(function (d) { return d.title; });
     },
 
+    _needToShow: function () {
+        return this.model.entries.length > 1;
+    },
+
     _adjustVisibility: function () {
-        if (this.model.entries.length > 1) {
+        if (this._needToShow()) {
             this.show();
         } else {
             this.hide();
@@ -91,10 +85,6 @@ var GraphLegendView = L.Evented.extend({
 
     _notifyEntryClicked: function (entry) {
         this.fire('entryClicked', { entry: entry });
-    },
-    
-    _notifyFocus: function () {
-        this.fire('focus', { view: this });
     }
 
 });

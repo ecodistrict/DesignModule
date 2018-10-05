@@ -2,12 +2,16 @@
  * Application entry point
  */
 
+import './assets/style/main.css';
 import './utils/polyfill';
 import PerimeterLayout from './core/window/perimeterLayout';
 import WindowManager from './core/window/windowManager';
 import TimeSliderController from './components/timeSlider/timeSliderController';
+import GraphViewControllerFactory from './components/graph/graphViewControllerFactory';
+import GraphPreviewFactory from './components/graph/graphPreviewFactory';
 import GraphService from './components/graph/graphService';
 import GraphViewManager from './components/graph/graphViewManager';
+import DetailsViewController from './components/details/detailsViewController';
 
 var wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
 // determine parameters and config
@@ -52,7 +56,7 @@ if (session == '') {
 }
 window.clientType = getParameterByName('clientType', '');
 var sessionDescription = getParameterByName('sessionDescription', 'NOT connected to an active session');
-var scenario = '';
+window.scenario = '';
 var userid = '';
 // split session in session id/scenario id/user id
 var sessionParts = session.split('$');
@@ -145,7 +149,7 @@ window.windowManager = new WindowManager({
 
 
 // domains
-var domainsControl = L.control.domains({});
+window.domainsControl = L.control.domains({});
 map.addControl(domainsControl);
 
 DataManager.detailsInfo = {
@@ -164,14 +168,25 @@ if (window.innerWidth < 500) {
 }
 
 // graphs
-window.graphService = new GraphService();        
+var graphViewControllerFactory = new GraphViewControllerFactory();
+var graphPreviewFactory = new GraphPreviewFactory();
+window.graphService = new GraphService();
 window.graphViewManager = new GraphViewManager({
     windowManager: windowManager,
-    graphViewOptions: graphViewOptions
+    graphViewOptions: graphViewOptions,
+    graphViewControllerFactory: graphViewControllerFactory
 });
 
 // details
-var detailsControl = L.control.details(DataManager.detailsInfo);
+window.detailsViewController = new DetailsViewController({
+    graphService: graphService,
+    graphViewManager: graphViewManager,
+    graphPreviewFactory: graphPreviewFactory
+});
+map.addControl(window.detailsViewController.view());
+
+// details
+window.detailsControl = L.control.details(DataManager.detailsInfo);
 map.addControl(detailsControl);
 
 

@@ -1,71 +1,71 @@
-svg.category-graph {
+.graph-view svg.category-graph {
     width: 100%;
     height: 100%;
 }
 
-svg.category-graph .axis--x path {
+.graph-view svg.category-graph .axis--x path {
     display: none;
 }
 
-svg.category-graph .axis--x .tick line {
+.graph-view svg.category-graph .axis--x .tick line {
     display: none;
 }
 
-svg.category-graph .axis--x .tick text {
+.graph-view svg.category-graph .axis--x .tick text {
     text-anchor: middle;
     cursor: pointer;
     font-family: sans-serif;
     font-size: 10px;
 }
 
-svg.category-graph .axis--x .tick text.rotate {
+.graph-view svg.category-graph .axis--x .tick text.rotate {
     text-anchor: start;
     transform: rotate(45deg) translate(5px, 0px);
 }
 
-svg.category-graph .bar-category .bar {
+.graph-view svg.category-graph .bar-category .bar {
     stroke-width: 0;
     transition: stroke-width 0.3s;
 }
 
-svg.category-graph .bar-category .bar:hover,
-svg.category-graph .bar-category .bar.touchstart {
+.graph-view svg.category-graph .bar-category .bar:hover,
+.graph-view svg.category-graph .bar-category .bar.touchstart {
     cursor: pointer;
     stroke-width: 4px;
 }
 
-svg.category-graph .line {
+.graph-view svg.category-graph .line {
     stroke-linecap: square;
     stroke-width: 2px;
     fill: none;
     transition: stroke-width 0.3s;
 }
 
-svg.category-graph .line:hover,
-svg.category-graph .line.touchstart {
+.graph-view svg.category-graph .line:hover,
+.graph-view svg.category-graph .line.touchstart {
     cursor: pointer;
     stroke-width: 4px;
 }
 
-svg.category-graph .line-points-container circle.point {
+.graph-view svg.category-graph .line-points-container circle.point {
     cursor: pointer;
     r: 4px;
     transition: r 0.3s;
 }
 
-svg.category-graph .line-points-container circle.point:hover, 
-svg.category-graph .line-points-container circle.point.touchstart {
+.graph-view svg.category-graph .line-points-container circle.point:hover, 
+.graph-view svg.category-graph .line-points-container circle.point.touchstart {
     r: 8px;
 }
 
-svg.category-graph .axis .title {
+.graph-view svg.category-graph .axis .title {
     pointer-events: none;
     fill: rgb(0, 0, 0);
     font-size: 1.3em;
     text-anchor: middle;
 }
 
-svg.category-graph .axis--y .title {
+.graph-view svg.category-graph .axis--y .title {
     transform: rotate(-90deg);
 }
 

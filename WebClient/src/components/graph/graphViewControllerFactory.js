@@ -16,12 +16,13 @@ var GraphViewControllerFactory = L.Evented.extend({
         };
     },
 
-    create: function (graphModel, windowManager, graphViewOptions) {
+    create: function (graphModel, graphViewOptions) {
+        // In case type is unknown a generic graph view controller will be returned
+        // in order to show at least an empty graph window and not to crash.
         var ViewController = this._viewControllerMap[graphModel.type] || GraphViewController;
 
         return new ViewController({
             graphModel: graphModel,
-            windowManager: windowManager,
             graphViewOptions: graphViewOptions
         });
     }

@@ -79,6 +79,16 @@
                 .on('touchend.anm', markTouchstart(false));
         }
 
+        function setBarAttributes(selection) {
+            return selection
+                .style('fill', function (d) { return d.color; })
+                .style('stroke', function (d) { return d.color; })
+                .attr('x', function (d, i, data) { return i * (x.bandwidth() / data.length + 2);  })
+                .attr('y', function (d) { return Math.min(y(d.axisId, d.y), y(d.axisId, 0)); })
+                .attr('width',  function (d, i, data) {  return x.bandwidth() / data.length; })
+                .attr('height', function (d) { return Math.abs(y(d.axisId, 0) - y(d.axisId, d.y)); });
+        }
+
         var categories = selection.selectAll('.bar-category')
             .data(bars.categories);
 
@@ -87,40 +97,28 @@
         var newCategory = categories.enter().append('g')
             .attr('class', 'bar-category');
 
-        categories.merge(newCategory)
+        var newAndUpdateCategories = newCategory.merge(categories)
             .attr('transform', function (category) { 
                 return 'translate(' + x(category.categoryId) + ', 0)'; 
             });
 
-        newCategory.selectAll('.bar')
-            .data(function (category) { return category.bars; })
-            .enter().append('rect')
-                .attr('class', 'bar')
-                .style('fill', function (d) { return d.color; })
-                .style('stroke', function (d) { return d.color; })
-                .call(setEventHandlers);
-                
-
-        var updatedBars = categories.selectAll('.bar')
+        var updatedBars = newAndUpdateCategories.selectAll('.bar')
             .data(function (category) { return category.bars; });
-
+        
+        updatedBars.exit().remove();
+        
         updatedBars.enter().append('rect')
             .attr('class', 'bar')
             .style('fill', function (d) { return d.color; })
             .style('stroke', function (d) { return d.color; })
-            .call(setEventHandlers);
-
-        updatedBars.exit().remove();
-
-        categories.selectAll('.bar').merge(updatedBars)
+            .call(setEventHandlers)
             .transition()
+                .duration(animationDuration)
+                .call(setBarAttributes);
+
+        updatedBars.transition()
             .duration(animationDuration)
-            .style('fill', function (d) { return d.color; })
-            .style('stroke', function (d) { return d.color; })
-            .attr('x', function (d, i, data) { return i * (x.bandwidth() / data.length + 2);  })
-            .attr('y', function (d) { return Math.min(y(d.axisId, d.y), y(d.axisId, 0)); })
-            .attr('width',  function (d, i, data) {  return x.bandwidth() / data.length; })
-            .attr('height', function (d) { return Math.abs(y(d.axisId, 0) - y(d.axisId, d.y)); });
+            .call(setBarAttributes);            
     }
 
     drawBars.xBottomScale = xBottomScale;

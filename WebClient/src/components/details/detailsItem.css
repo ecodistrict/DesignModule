@@ -1,0 +1,39 @@
+.details-item-view {
+    border-radius: 3px;
+    border: 1px solid gray;
+    cursor: pointer;
+    transition: box-shadow ease-out .3s, background-color ease-out .3s;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    overflow: hidden;
+    position: relative;
+}
+
+.details-item-view:hover {
+    box-shadow: 0 1px 10px rgba(0,0,0,0.4);
+    background-color: rgba(173, 216, 230, 0.2);
+}
+
+.details-item-view.selected {
+    background-color: rgba(173,216,230,0.5);
+}
+
+.details-item-view .title {
+    font-size: 13px;
+    text-align: center;
+    margin-bottom: 0;
+    margin-left: 5px;
+    margin-right: 5px;
+    margin-top: 5px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.details-item-view .preview-viewport {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    top: 25px;
+    bottom: 5px;
+}

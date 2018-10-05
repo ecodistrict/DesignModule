@@ -9,25 +9,22 @@
 
 import './timeSlider.css';
 
+import View from '../../core/view';
 import ScaleSliderView from '../scaleSlider/scaleSliderView';
 import TimeSliderUtils from './timeSliderUtils';
 
-var TimeSliderView = L.Control.extend({
+var TimeSliderView = View.extend({
 
-    initialize: function (opts) {
+    onInitialize: function (opts) {
         this.element = opts.element;
         this.model = opts.model;
         this.timeFormat = opts.timeFormat || d3.timeFormat('%Y-%m-%d %H:%M');
         this.features = L.extend({
             brush: true
         }, opts.features);
-
-        this.render();
     },   
 
-    render: function () {
-        if (this.scaleView) return; // already rendered
-
+    onRender: function () {
         this.timesliderViewport = L.DomUtil.create('div', 'timeslider-viewport');
         this.scaleView = new ScaleSliderView({
             element: this.timesliderViewport,
@@ -45,11 +42,11 @@ var TimeSliderView = L.Control.extend({
         this.close.innerHTML = '&#x2715;';
         this.close.onclick = this.notifyClose.bind(this);
         this.element.appendChild(this.close);
+
+        return this.timesliderViewport;
     },
 
-    remove: function () {
-        if (!this.scaleView) return; // already removed
-
+    onRemove: function () {
         this.element.removeChild(this.timesliderViewport);
         this.element.removeChild(this.close);
 

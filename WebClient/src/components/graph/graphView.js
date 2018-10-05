@@ -11,7 +11,7 @@ import GraphLegendView from './graphLegendView';
 
 var GraphView = WindowView.extend({
     
-    initialize: function (opts) {
+    onInitialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided to the View');
         if (!opts.graphViewModel) throw new Error('graphViewModel is not provided');
         if (!opts.graphLegendModel) throw new Error('graphLegendModel is not provided');
@@ -21,15 +21,16 @@ var GraphView = WindowView.extend({
 
         this.onInitializeGraph(opts);
 
-        WindowView.prototype.initialize.call(
+        WindowView.prototype.onInitialize.call(
             this, 
-            L.extend({ class: 'graph-view' }, opts)
+            L.extend({ 
+                class: 'graph-view',
+                title: this.graphViewModel.title 
+            }, opts)
         );
-
-        this.setTitle(this.graphViewModel.title);
     },
 
-    onRender: function (viewport) {
+    onRenderWindow: function (viewport) {
         this._legendContainer = L.DomUtil.create(
             'div', 
             'graph-legend right hidden', 
@@ -48,7 +49,7 @@ var GraphView = WindowView.extend({
         this.onRenderGraph(viewport);
     },
 
-    onRemove: function () {
+    onRemoveWindow: function () {
         this.onRemoveGraph();
 
         this.legendView.off('entryClicked', this._notifyEntryClicked, this);

@@ -6,14 +6,15 @@
 
 import './window.css';
 
+import View from '../view';
 import DomUtil from '../../utils/DomUtil';
 import DockButtonViewModel from '../widgets/dockButton/dockButtonViewModel';
 import DockButtonView from '../widgets/dockButton/dockButtonView';
 import CloseButtonView from '../widgets/closeButton/closeButtonView';
 
-var WindowView = L.Evented.extend({
+var WindowView = View.extend({
 
-    initialize: function (opts) {
+    onInitialize: function (opts) {
         var options = opts || {};
 
         this._minWidth = options.minWidth || 350;
@@ -28,6 +29,7 @@ var WindowView = L.Evented.extend({
         this._width = options.width || this._minWidth;
         this._height = options.height || this._minHeight;
         this._windowClass = options.class || '';
+        this._initialWindowTitle = options.title || '';
 
         if (options.resizable === undefined) {
             options.resizable = true;
@@ -51,13 +53,9 @@ var WindowView = L.Evented.extend({
         });
 
         this._bindEventHandlers();
-
-        this.render();
     },
 
-    render: function () {
-        if (this._rootElement) return; // already rendered
-
+    onRender: function () {
         this._rootElement = L.DomUtil.create('div', 'window-view ' + this._windowClass);
         this._rootElement.style.width = '' + this._width + 'px';
         this._rootElement.style.height = '' + this._height + 'px';
@@ -65,6 +63,7 @@ var WindowView = L.Evented.extend({
         
         var titleBar = L.DomUtil.create('div', 'window-titlebar', this._rootElement);
         this._title = L.DomUtil.create('span', 'window-title', titleBar);
+        this.setTitle(this._initialWindowTitle);
 
         var buttonsContainer = L.DomUtil.create('div', 'window-buttons-container', titleBar);
 
@@ -89,13 +88,13 @@ var WindowView = L.Evented.extend({
             this._makeMovable();
         }
 
-        this.onRender(this._viewportElement);
+        this.onRenderWindow(this._viewportElement);
+
+        return this._rootElement;
     },
 
-    remove: function () {
-        if (!this._rootElement) return; // already removed
-
-        this.onRemove();
+    onRemove: function () {
+        this.onRemoveWindow();
 
         document.removeEventListener('mousemove', this._onResizeMousemove);
         document.removeEventListener('mouseup', this._onResizeMouseup);
@@ -106,20 +105,11 @@ var WindowView = L.Evented.extend({
         document.removeEventListener('touchmove', this._onMoveTouchmove);
         document.removeEventListener('touchend', this._onMoveTouchend);
 
-        var parent = this._rootElement.parentNode;
-        if (parent) {
-            parent.removeChild(this._rootElement);
-        }
-
         if (this._windowManager) {
             this._windowManager.off('dockingAvailabilityStatus', 
                 this._onDockingAvailabilityChanged, this);
-        }        
-
-        this._rootElement = null;
+        }
         this._windowManager = null;
-
-        this._notifyRemove();
     },
 
     close: function () {
@@ -141,10 +131,6 @@ var WindowView = L.Evented.extend({
             this._windowManager.dockingAvailabilityStatus);
         this._windowManager.on('dockingAvailabilityStatus', 
             this._onDockingAvailabilityChanged, this);
-    },
-
-    element: function () {
-        return this._rootElement;
     },
 
     viewportElement: function () {
@@ -225,19 +211,11 @@ var WindowView = L.Evented.extend({
         }
     },
 
-    show: function () {
-        L.DomUtil.removeClass(this._rootElement, 'hidden');
-    },
-
-    hide: function () {
-        L.DomUtil.addClass(this._rootElement, 'hidden');        
-    },
-
-    onRender: function (/* jshint unused:false */ viewport) {
+    onRenderWindow: function (/* jshint unused:false */ viewport) {
         // override in child classes
     },
 
-    onRemove: function () {
+    onRemoveWindow: function () {
         // override in child classes
     },
 
@@ -273,48 +251,40 @@ var WindowView = L.Evented.extend({
 
     // private methods
 
-    _notifyFocus: function () {
-        this.fire('focus', { windowView: this });
-    },
-
-    _notifyRemove: function () {
-        this.fire('remove', { windowView: this });
-    },
-
     _notifyMoveStart: function () {
-        this.fire('moveStart', { windowView: this });
+        this.fire('moveStart', { view: this });
     },
 
     _notifyMoving: function () {
-        this.fire('moving', { windowView: this });
+        this.fire('moving', { view: this });
     },
 
     _notifyMoveFinish: function () {
-        this.fire('moveFinish', { windowView: this });
+        this.fire('moveFinish', { view: this });
     },
 
     _notifyResizeStart: function () {
-        this.fire('resizeStart', { windowView: this });
+        this.fire('resizeStart', { view: this });
     },
 
     _notifyResizing: function () {
-        this.fire('resizing', { windowView: this });
+        this.fire('resizing', { view: this });
     },
 
     _notifyResizeFinish: function () {
-        this.fire('resizeFinish', { windowView: this });
+        this.fire('resizeFinish', { view: this });
     },
 
     _notifyDockState: function (docked) {
-        this.fire('resizeFinish', { windowView: this, docked:docked });
+        this.fire('resizeFinish', { view: this, docked:docked });
     },
 
     _notifyMoved: function () {
-        this._fireAsync('moved', { windowView: this });
+        this._fireAsync('moved', { view: this });
     },
 
     _notifyResized: function () {
-        this._fireAsync('resized', { windowView: this });
+        this._fireAsync('resized', { view: this });
     },
 
     _processDockingAvailability: function (dockingAvailable) {

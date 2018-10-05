@@ -6,24 +6,23 @@
 
 /* globals L */
 
-import GraphViewControllerFactory from './graphViewControllerFactory';
-
 var GraphViewManager = L.Evented.extend({
 
     initialize: function (opts) {
         if (!opts.windowManager) throw new Error('windowManager is not provided');
+        if (!opts.graphViewControllerFactory) throw new Error('graphViewControllerFactory is not provided');
         this._options = opts;
 
         this._windowManager = this._options.windowManager;
+        this._graphViewControllerFactory = this._options.graphViewControllerFactory;
         this._graphViewControllers = {};
-        this._graphViewControllerFactory = new GraphViewControllerFactory();
     },
 
     showGraph: function (graphModel) {
         if (this._graphViewControllers[graphModel.id]) return;
         
         var graphViewController = this._graphViewControllerFactory
-            .create(graphModel, this._windowManager, this._options.graphViewOptions);
+            .create(graphModel, this._options.graphViewOptions);
 
         this._addGraphViewController(graphViewController);
         this._notifyGraphShown(graphModel);
@@ -47,6 +46,7 @@ var GraphViewManager = L.Evented.extend({
         var id = graphViewController.graphModel.id;
         this._graphViewControllers[id] = graphViewController;
         graphViewController.on('viewClosed', this._onGraphViewClosed, this);
+        this._windowManager.addWindow(graphViewController.view());
     },
 
     _removeGraphViewController: function (graphViewController) {

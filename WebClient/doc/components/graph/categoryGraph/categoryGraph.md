@@ -4,6 +4,10 @@ Category graph is a graph that has a discrete `x` axis with categories on it.
 
 ![Category graph example](images/categoryGraphExample.png)
 
+Category graph component also provides a preview option.
+
+![Category graph example](images/categoryGraphPreview.png)
+
 Category graph can be built from bars and lines which connect points on categories.
 
 * Bars
@@ -26,6 +30,7 @@ Each line is defined by a single series where data points are line points.
     * [CategoryGraphView](#categoryGraphView)
     * [CategoryGraphViewController](#categoryGraphViewController)
     * [CategoryGraphViewModel](#categoryGraphViewModel)
+    * [CategoryGraphPreview](#categoryGraphPreview)
 * [API reference](#apiReference)
     * [CategoryGraphView](#categoryGraphViewApi)
     * [CategoryGraphViewController](#categoryGraphViewControllerApi)
@@ -35,6 +40,7 @@ Each line is defined by a single series where data points are line points.
         * [Properties](#categoryGraphViewModelProperties)
         * [Methods](#categoryGraphViewModelMethods)
         * [Events](#categoryGraphViewModelEvents)
+    * [CategoryGraphPreview](#categoryGraphPreviewApi)
 
 ## Data format <a name="dataFormat"></a>
 
@@ -52,16 +58,22 @@ Category graph JSON format is defined [here](https://github.com/ecodistrict/publ
 * Number of ticks can be defined for each axis from the server.
 * Ticks can be defined for each axis from the server.
 * Ticks and tooltips numeric values formatting. For formats see [d3-format](https://github.com/d3/d3-format#locale_format) specification.
+* Preview is available. Preview is a simplified version of a graph without any interactivity.
 
 ## To do list <a name="todoList"></a>
 
-* Preview
 * Zooming
 * Reacting on click by sending corresponding message to the server.
 
 ## Architecture <a name="architecture"></a>
 
+The component has the following design in order to show the *View*.
+
 ![Class diagram](images/categoryGraphArchitecture.svg)
+
+Component contains *Preview* with the following design.
+
+![Preview diagram](images/categoryGraphArchitecture-Preview.svg)
 
 The component has a [Model View Controller](https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93controller) design.
 
@@ -80,6 +92,10 @@ In the Graph data structure bars are grouped within series while when drawing ba
 ### CategoryGraphViewModel <a name="categoryGraphViewModel"></a>
 
 *[CategoryGraphViewModel](#categoryGraphViewModelApi) (Model)* holds the data needed to draw the bars and lines without any additional data processing from the *View*. Instead of *series* this model has *lines* and *bars* properties that hold corresponding data optimized for passing these objects directly into **d3** functions without additional preparation.
+
+### CategoryGraphPreview <a name="categoryGraphPreview"></a>
+
+*[CategoryGraphPreview](#categoryGraphPreviewApi) (Preview)* is a simple representation of a category graph. It has no animations and doesn't provide any interactions thus doesn't have a controller. All this component does it gets *GraphModel* as an input and builds/updates *CategoryGraphViewModel* which is then used to draw the graph. Whenever *GraphModel* changes the graph is redrawn. This component can be used in constructiong a button that shows a graph.
 
 ## API reference <a name="apiReference"></a>
 
@@ -269,7 +285,7 @@ When constructing a model an options object can be passed to constructor.
 
 #### Events <a name="categoryGraphViewModelEvents"></a>
 
-| Property | Type | Description |
+| Property | Data | Description |
 |---|---|---|
 | axes | { axes: [Axes](#axes) } | Event axes. Triggered whenever *axes* property of the model changes. This can happen when *axes* is changed with assign operator or when *set(opts)* method is called. |
 | lines | { lines: Array &lt;[Line](#line)&gt; } | Event lines. Triggered whenever *lines* property of the model changes. This can happen when *lines* is changed with assign operator or when *set(opts)* method is called. |
@@ -335,7 +351,7 @@ When constructing a model an options object can be passed to constructor.
 | categoryId | string | Category id. This field is used like an id of a group that unites a set of bars. |
 | bars | Array&lt;[Bar](#bar)&gt; | List of all bars within the category. |
 
-#### bar <a name="bar"></a>
+#### Bar <a name="bar"></a>
 
 | Property | Type | Description |
 |---|---|---|
@@ -345,3 +361,7 @@ When constructing a model an options object can be passed to constructor.
 | color | string | Color of the bar in CSS-compatible format. |
 | axisId | string | Id of the axis to which the `y` value is bind. This property is used to determine `top` position of the bar when displayed on the viewport. *axisId* is also used to decorate the `y` value with units when displayed within a tooltip when bar is hovered. |
 | y | number | `y` value of the bar. The value is converted to a `top` coordinate on the viewport using the *axisId*. |
+
+### CategoryGraphPreview <a name="categoryGraphPreviewApi"></a>
+
+Extends the [View](../../../core/view/view.md) class.

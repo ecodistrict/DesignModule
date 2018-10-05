@@ -8,10 +8,11 @@
 /* globals L, d3 */
 
 import './scaleSlider.css';
+import View from '../../core/view';
 
-var ScaleSliderView = L.Control.extend({
+var ScaleSliderView = View.extend({
 
-    initialize: function (opts) {
+    onInitialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided to the View');
         if (!opts.element) throw new Error('No element is provided to the View');
         if (!opts.model) throw new Error('No model is provided to the View');
@@ -29,8 +30,6 @@ var ScaleSliderView = L.Control.extend({
 
         this.padding = L.extend({ left: 0, top: 0, right: 0, bottom: 0 }, opts.padding);
         this.xAxisMargin = L.extend({ top: 10, left: 15, right: 15, bottom: 0 }, opts.xAxisMargin);
-
-        this.render();
     },
 
     configureFeatures: function (features) {
@@ -64,7 +63,7 @@ var ScaleSliderView = L.Control.extend({
         this.fire('zoomLevelChanged', { zoomLevel: this.innerSpaceTransform.k });
     },
 
-    render: function () {
+    onRender: function () {
         if (this.svgViewport) return; // already rendered
 
         this.width = this.element.offsetWidth;
@@ -90,17 +89,14 @@ var ScaleSliderView = L.Control.extend({
         this._redraw();
 
         this._registerUserEventsHandlers();
+
+        return this.svgViewport.node();
     },
 
-    remove: function () {
-        if (!this.svgViewport) return; // already removed
-
+    onRemove: function () {
         this.model.off('value', this._modelValueChanged, this);
         this.model.off('brush', this._modelBrushChanged, this);
         this.model.off('events', this._modelEventsChanged, this);
-
-        this.svgViewport.remove();
-        this.svgViewport = null;
     },
 
     _buildViewport: function () {

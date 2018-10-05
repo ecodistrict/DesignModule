@@ -8,13 +8,13 @@
     background-position: 50% 50%;
     background-repeat: no-repeat;
     display: block;  
-    background-image: url('../../../Content/images/timeslider.png');
+    background-image: url('./images/timeslider.png');
     width: 36px;
     height: 36px;
   }
   
   .leaflet-retina .timeslider-toggle-button a {
-    background-image: url('../../../Content/images/timeslider-2x.png');
+    background-image: url('./images/timeslider-2x.png');
     background-size: 26px 26px;
   }
   

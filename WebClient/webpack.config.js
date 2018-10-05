@@ -30,9 +30,7 @@ module.exports = env => {
                         {
                             loader: 'css-loader',
                             options: {
-                                sourceMap: devMode,
-                                url: false,
-                                import: false
+                                sourceMap: devMode
                             }
                         }                    
                     ]
@@ -45,7 +43,8 @@ module.exports = env => {
                             loader: 'file-loader',
                             options: {
                                 name: '[name].[ext]',
-                                outputPath: './assets/media/'
+                                outputPath: 'assets/media/',
+                                publicPath: '../../assets/media/'
                             }
                         }
                     ]

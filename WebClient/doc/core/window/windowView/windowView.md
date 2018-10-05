@@ -6,11 +6,11 @@
 
 ## API reference
 
-Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
+Extends the [View](../../view/view.md) class.
 
 Implements [LayoutItem](../layout/layout.md#layoutItem) interface thus is compatible with [Layout](../layout/layout.md).
 
-#### Options
+#### Options <a name="options"></a>
 Options object that should be passed to *WindowView* constructor.
 
 | Property | Type | Description |
@@ -24,24 +24,22 @@ Options object that should be passed to *WindowView* constructor.
 | class | string | *Optional*. CSS class to assign to the window DOM node. |
 | resizable | boolean | *Optional*. Flag indicates if resizing is enabled. Default is `true`. |
 | movable | movable | *Optional*. Flag indicates if moving is enabled. Default is `true`. |
+| title | string | *Optional*. Window title. |
 
-#### Properties
+See also [View](../../view/view.md#options) options.
+
+#### Properties <a name="properties"></a>
 
 | Property | Type | Description |
 |---|---|---|
 | windowId | number | This property is managed by the [WindowManager](../windowManager/windowManager.md). *windowId* is set when window is added to the *WindowManager*. This field holds a unique value among windows within the same *WindowManager*. |
 
-#### Methods
+#### Methods <a name="methods"></a>
 
 | Method | Returns | Description |
 |---|---|---|
-| render() | void | Renders the window. This method is called automatically when the object is created. This method can be called in order to recreate the window after `remove()` was called. After calling this method the `element()` method will return a corresponding DOM Node object. |
-| remove() | void | Removes the window. After calling this method the `element()` method will return `null`. It is not recommended to call this method if window is added to a *WindowManager*, in such case please call `close()` method. `remove` [event](#events) is emitted. |
-| close() | void | Closes and removes the window. This method correctly handles a scenario when window is added to a *WindowManager*. `remove` [event](#events) is emitted.  |
+| close() | void | Closes and removes the window. This method correctly handles a scenario when window is added to a *WindowManager*. It is not recommended to call `remove()` method if window is added to a *WindowManager*, in such case please call `close()` method. `remove` [event](#events) is emitted.  |
 | isOpen() | void | Window status. Returns `true` if window is opened and `false` if window is closed.  |
-| show() | void | Shows the window. |
-| hide() | void | Hides the window. |
-| element() | Node | Returns the root DOM node that represents the window. Having this node user can place the window wherever it is desired. |
 | viewportElement() | Node | Viewport DOM node of the window. Child classes are encouraged to render their content within the viewport node. |
 | setTitle(string titleText) | void | Sets a title text for the window. |
 | move(number left, number top) | void | Moves the window to a specified position. Position is relative to the surface that holds the window. `moved` [event](#events) is emitted. |
@@ -53,13 +51,15 @@ Options object that should be passed to *WindowView* constructor.
 | onAdd([WindowManager](../windowManager/windowManager.md) windowManager) | void | *Caution: this method should be used only from WindowManager*. WindowManager calls this method when windows is added.  |
 | setDockState(boolean docked) | void | *Caution: this method should be used by window owner*. This method sets window dock state. |
 
-#### Extension methods
+See also [View](../../view/view.md#methods) methods.
+
+#### Extension methods <a name="extensionMethods"></a>
 Every window should extend from *WindowView* and may re-implement (override) the following methods.
 
 | Method | Returns | Description |
 |---|---|---|
-| onRender(Node viewport) | void | Method is called when window is being rendered. At he time when this method is called all window's DOM nodes are already created so it is safe to refer them from within this method. |
-| onRemove() | void | Method is called when window is being removed. |
+| onRenderWindow(Node viewport) | void | Method is called when window is being rendered. At the time this method is called all window's DOM nodes are already created so it is safe to refer them from within this method. |
+| onRemoveWindow() | void | Method is called when window is being removed. |
 | onMove() | void | Method is called when window is moved. |
 | onResize() | void | Method is called when window is resized. |
 
@@ -67,13 +67,13 @@ Every window should extend from *WindowView* and may re-implement (override) the
 
 | Event | Data | Description |
 |---|---|---|
-| focus | { windowView: *WindowView* } | Emitted when window gets focused. |
-| remove | { windowView: *WindowView* } | Emitted when window is removed or closed. |
-| moveStart | { windowView: *WindowView* } | Emitted when a user started moving the window via mouse or via touch. |
-| moving | { windowView: *WindowView* } | Emitted when window is moving by a user via mouse or via touch. |
-| moveFinish | { windowView: *WindowView* } | Emitted when user stopped moving the window by unpressing a mouse or ending the touch. |
-| resizeStart | { windowView: *WindowView* } | Emitted when a user started resizing the window via mouse or via touch. |
-| resizing | { windowView: *WindowView* } | Emitted when window is resizing by a user via mouse or via touch. |
-| resizeFinish | { windowView: *WindowView* } | Emitted when user stopped resizing the window by unpressing a mouse or ending the touch. |
-| moved | { windowView: *WindowView* } | Emitted when window is moved. Move can be caused by user or internally. |
-| resized | { windowView: *WindowView* } | Emitted when window is resized. Resize can be caused by user or internally. |
+| moveStart | { view: *WindowView* } | Emitted when a user started moving the window via mouse or via touch. |
+| moving | { view: *WindowView* } | Emitted when window is moving by a user via mouse or via touch. |
+| moveFinish | { view: *WindowView* } | Emitted when user stopped moving the window by unpressing a mouse or ending the touch. |
+| resizeStart | { view: *WindowView* } | Emitted when a user started resizing the window via mouse or via touch. |
+| resizing | { view: *WindowView* } | Emitted when window is resizing by a user via mouse or via touch. |
+| resizeFinish | { view: *WindowView* } | Emitted when user stopped resizing the window by unpressing a mouse or ending the touch. |
+| moved | { view: *WindowView* } | Emitted when window is moved. Move can be caused by user or internally. |
+| resized | { view: *WindowView* } | Emitted when window is resized. Resize can be caused by user or internally. |
+
+See also [View](../../view/view.md#events) events.

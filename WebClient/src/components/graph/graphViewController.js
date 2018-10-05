@@ -13,7 +13,6 @@ var GraphViewController = L.Evented.extend({
 
     initialize: function (opts) {
         if (!opts.graphModel) throw new Error('graphModel is not provided');
-        if (!opts.windowManager) throw new Error('windowManager is not provided');
 
         this._graphViewOptions = L.extend({
             minWidth: 150,
@@ -23,8 +22,6 @@ var GraphViewController = L.Evented.extend({
             width: 300,
             height: 200
         }, opts.graphViewOptions);
-
-        this.windowManager = opts.windowManager;
 
         this.graphModel = opts.graphModel;
         this.graphModel.on('title', this._updateGraphViewModelTitle, this);
@@ -52,8 +49,10 @@ var GraphViewController = L.Evented.extend({
         this.graphView = this.createGraphView();
         this.graphView.on('entryClicked', this._toggleLegendEntry, this);
         this.graphView.on('remove', this._notifyViewClosed, this);
-        
-        this.windowManager.addWindow(this.graphView);
+    },
+
+    view: function () {
+        return this.graphView;
     },
 
     closeView: function () {
@@ -84,8 +83,6 @@ var GraphViewController = L.Evented.extend({
         this.graphView.off('entryClicked', this._toggleLegendEntry, this);
         this.graphView.off('remove', this._notifyViewRemoved, this);
         this.graphView = null;
-        
-        this.windowManager = null;
     },
 
     onInitialize: function () {
@@ -123,7 +120,7 @@ var GraphViewController = L.Evented.extend({
     _notifyViewClosed: function (eventData) {
         this.fire('viewClosed', {
             graphViewController: this,
-            view: eventData.windowView
+            view: eventData.view
         });
     },
 

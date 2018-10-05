@@ -158,7 +158,7 @@ var WindowManager = L.Evented.extend({
     },
 
     _onWindowFocus: function (data) {
-        var window = data.windowView;
+        var window = data.view;
         var index = this._windowStack.indexOf(window);
         if (index < 0) return;
 
@@ -169,7 +169,7 @@ var WindowManager = L.Evented.extend({
     },
 
     _onWindowMoving: function (data) {
-        var window = data.windowView;
+        var window = data.view;
         if (!window.docked()) return;
 
         var newSpace = this._layout.findNearestSpace(window);
@@ -181,7 +181,7 @@ var WindowManager = L.Evented.extend({
     },
 
     _onWindowMoveFinish: function (data) {
-        var window = data.windowView;
+        var window = data.view;
         if (!window.docked()) return;
 
         var dockToSpace = function (window, space) {
@@ -213,7 +213,7 @@ var WindowManager = L.Evented.extend({
     },
 
     _onWindowResizeStart: function (data) {
-        var window = data.windowView;
+        var window = data.view;
         if (!window.docked()) return;
 
         this._layout.remove(window);
