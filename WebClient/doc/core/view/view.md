@@ -44,4 +44,4 @@ Every child view use the following methods.
 | Event | Data | Description
 |---|---|---|
 | remove | { view: *View* } | Emitted when the view is removed via `remove()` method. |
-| focus | { view: *View* } | Can be emitted from child classes when view is focused focus. |
+| focus | { view: *View* } | Can be emitted from child classes when view is focused. |

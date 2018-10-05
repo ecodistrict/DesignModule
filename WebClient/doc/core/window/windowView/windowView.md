@@ -58,7 +58,7 @@ Every window should extend from *WindowView* and may re-implement (override) the
 
 | Method | Returns | Description |
 |---|---|---|
-| onRenderWindow(Node viewport) | void | Method is called when window is being rendered. At he time when this method is called all window's DOM nodes are already created so it is safe to refer them from within this method. |
+| onRenderWindow(Node viewport) | void | Method is called when window is being rendered. At the time this method is called all window's DOM nodes are already created so it is safe to refer them from within this method. |
 | onRemoveWindow() | void | Method is called when window is being removed. |
 | onMove() | void | Method is called when window is moved. |
 | onResize() | void | Method is called when window is resized. |

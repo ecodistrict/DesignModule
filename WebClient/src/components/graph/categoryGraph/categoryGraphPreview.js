@@ -34,9 +34,6 @@ var CategoryGraphPreview = View.extend({
     },
 
     onRemove: function () {
-        this.resizeObserver.disconect();
-        this.resizeObserver = null;
-
         this._graphModel.off('series categories axes', this._onGraphModelChanged, this);
     },
 

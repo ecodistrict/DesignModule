@@ -58,7 +58,7 @@ var DetailsItemView = View.extend({
 
     onRemove: function () {
         this._model.off('title', this._updateTitle, this);
-        this._model.off('slected', this._updateSelection, this);
+        this._model.off('selected', this._updateSelection, this);
 
         this._tooltip.remove();
     },

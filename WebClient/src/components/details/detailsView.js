@@ -5,7 +5,7 @@
 import './details.css';
 import View from '../../core/view';
 import detailsHtml from './details.html';
-import ItemsContainer from './itemsContainer';
+import DetailsItemsContainer from './detailsItemsContainer';
 import DetailsItemView from './detailsItemView';
 
 /* globals L, d3 */
@@ -95,7 +95,7 @@ var DetailsView = ControlView.extend({
     _buildGraphsSection: function () {
         this._graphsSection = d3.select(this._rootElement).select('.graphs').node();
 
-        this._graphsContainer = new ItemsContainer({
+        this._graphsContainer = new DetailsItemsContainer({
             element: d3.select(this._graphsSection).select('.container').node(),
             createView: this._createGraphItemView.bind(this),
             modelCollection: this._graphItemsModel,
@@ -113,7 +113,7 @@ var DetailsView = ControlView.extend({
     _buildKpisSection: function () {
         this._kpisSection = d3.select(this._rootElement).select('.kpis').node();
 
-        this._kpisContainer = new ItemsContainer({
+        this._kpisContainer = new DetailsItemsContainer({
             element: d3.select(this._kpisSection).select('.container').node(),
             createView: this._createKpiItemView.bind(this),
             modelCollection: this._kpiItemsModel
@@ -128,7 +128,7 @@ var DetailsView = ControlView.extend({
     _buildLayersSection: function () {
         this._layersSection = d3.select(this._rootElement).select('.layers').node();
 
-        this._layersContainer = new ItemsContainer({
+        this._layersContainer = new DetailsItemsContainer({
             element: d3.select(this._layersSection).select('.container').node(),
             createView: this._createLayerItemView.bind(this),
             modelCollection: this._layersItemsModel

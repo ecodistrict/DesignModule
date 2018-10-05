@@ -1,5 +1,5 @@
 /**
- * ItemsContainer is a generic container to store model and their views.
+ * DetailsItemsContainer is a container to store details items as models and their views.
  * View will be created for model. Views are added to a DOM element associated with the container.
  */
 
@@ -7,7 +7,7 @@
 
 import { not } from '../../utils/functionUtils';
 
-var ItemsContainer = L.Evented.extend({
+var DetailsItemsContainer = L.Evented.extend({
 
     initialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided the constructor');
@@ -173,4 +173,4 @@ var ItemsContainer = L.Evented.extend({
 
 });
 
-export default ItemsContainer;
+export default DetailsItemsContainer;
