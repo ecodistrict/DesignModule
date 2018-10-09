@@ -19,13 +19,18 @@ uses
   GisCsSystems, GisLayerSHP, GisLayerVector,
   GisFunctions,
   GisUtils, GisTypes,
+  GisCSProjections,
 
   imb4,
   WorldDataCode,
   WorldLegends,
   WorldTilerConsts,
+  WorldJSON,
   Data.DB,
   FireDAC.Comp.Client,
+
+  TimerPool,
+  //CommandQueue,
 
   TilerControl,
 
@@ -35,6 +40,7 @@ uses
   Zipper,
 
   System.JSON,
+  System.IOUtils,
   System.Generics.Collections,
   System.Classes,
   Winapi.Windows,
@@ -50,6 +56,13 @@ const
 
   DisabledKPIsSection = 'DisabledKPIs';
 
+  DefaultFieldNameGeometry = 'shape';
+
+  // up/download file types
+  udftLayer = 'layer';
+  udftShape = 'shape';
+  udftText = 'text';
+
 type
   TFileInfoRecord = class
   constructor Create(const aFieldName: string; aFieldType: TFieldType; aIsIndexField, aIsGeometryField: Boolean);
@@ -60,6 +73,7 @@ type
     isGeometryField: Boolean;
     sqlFieldValue: string;
     deleteFlag: Boolean;
+    degreeConversion: Boolean;
   protected
     function getTypeName: string;
   public
@@ -75,7 +89,7 @@ type
   destructor Destroy; override;
   protected
     fLayerType: Integer;
-    fPalette: TWDPalette;
+    //fPalette: TWDPalette;
   public
     procedure RegisterLayer; override;
     procedure RegisterSlice; override;
@@ -83,6 +97,10 @@ type
   end;
 
   TEcodistrictScenario = class(TScenario)
+  constructor Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
+  destructor Destroy; override;
+  private
+    fRefreshTimer: TTimer;
   protected
     procedure ReadObjectFromQuery(aLayer: TLayer);
   public
@@ -533,7 +551,8 @@ begin
   end;
 end;
 
-function PGFieldTypeName2Type(const aFieldTypeName: string): TFieldType;
+function FieldTypeName2Type(const aFieldTypeName: string): TFieldType;
+// converts from pg and upload/download types
 // aFieldTypeName should be in lower case
 begin
   if aFieldTypeName='text'
@@ -567,13 +586,15 @@ begin
   then Result := ftTimeStamp
   else if aFieldTypeName='user-defined'
   then Result := ftObject
+  else if aFieldTypeName='public.geometry' // added, pg but only for setting
+  then Result := ftObject
   else if aFieldTypeName='geometry' // added, not pg
   then Result := ftObject
-  else Result := ftUnknown;
-  // 'public.geometry'
+  else Result := TFieldType(StrToIntDef(aFieldTypeName, Ord(ftUnknown)));
 end;
 
 function PGFieldType2TypeName(aFieldType: TFieldType; aIsGeometryFieldType: Boolean): string;
+// converts to pg types
 begin
   if aIsGeometryFieldType then
   begin
@@ -585,19 +606,47 @@ begin
       ftWideMemo,
       ftString,
       ftWideString:  Result := 'text';
-      ftInteger:     Result := 'integer';
+      ftInteger,
       ftLargeint:    Result := 'integer';
       ftFloat,
       ftExtended,
-      ftSingle:      Result := 'double precision';
+      ftSingle:      Result := 'double precision'; // diff
       ftBoolean:     Result := 'boolean';
       //
       ftGuid:        Result := 'uuid';
       ftCurrency:    Result := 'money';
-      ftTimeStamp:   Result := 'timestamp without time zone';
-      //ftObject:      Result := 'public.geometry';
+      ftTimeStamp:   Result := 'timestamp without time zone'; // diff
     else
                      Result := 'public.geometry';
+    end;
+  end;
+end;
+
+function DownloadType2TypeName(aFieldType: TFieldType; aIsGeometryFieldType: Boolean): string;
+// converts to upload/download types
+begin
+ if aIsGeometryFieldType then
+  begin
+    Result := 'geometry';
+  end
+  else
+  begin
+    case aFieldType of
+      ftWideMemo,
+      ftString,
+      ftWideString:  Result := 'text';
+      ftInteger,
+      ftLargeint:    Result := 'integer';
+      ftFloat,
+      ftExtended,
+      ftSingle:      Result := 'float'; // diff
+      ftBoolean:     Result := 'boolean';
+      //
+      ftGuid:        Result := 'uuid';
+      ftCurrency:    Result := 'money';
+      ftTimeStamp:   Result := 'timestamp'; // diff
+    else
+                     Result := Ord(aFieldType).toString;
     end;
   end;
 end;
@@ -613,35 +662,12 @@ begin
   isGeometryField := aIsGeometryField;
   sqlFieldValue := '';
   deleteFlag := False;
+  degreeConversion := False;
 end;
 
 function TFileInfoRecord.getTypeName: string;
 begin
-  if isGeometryField then
-  begin
-                     Result := 'public.geometry';
-  end
-  else
-  begin
-    case fieldType of
-      ftWideMemo,
-      ftString,
-      ftWideString:  Result := 'text';
-      ftInteger:     Result := 'integer';
-      ftLargeint:    Result := 'integer';
-      ftFloat,
-      ftExtended,
-      ftSingle:      Result := 'double precision';
-      ftBoolean:     Result := 'boolean';
-      //
-      ftGuid:        Result := 'uuid';
-      ftCurrency:    Result := 'money';
-      ftTimeStamp:   Result := 'timestamp without time zone';
-      //ftObject:      Result := 'public.geometry';
-    else
-                     Result := 'public.geometry';
-    end;
-  end;
+  Result := PGFieldType2TypeName(fieldType, isGeometryField);
 end;
 
 class function TFileInfoRecord.GISFieldType2DBFieldType(aGISFieldType:TGIS_FieldType): TFieldType;
@@ -649,8 +675,8 @@ begin
   case aGISFieldType of
     TGIS_FieldType.String:
       Result := ftString;
-    TGIS_FieldType.Number:
-      Result := ftInteger;
+    TGIS_FieldType.Number: // int or float
+      Result := ftFloat; // ftInteger;
     TGIS_FieldType.Float:
       Result := ftFloat;
     TGIS_FieldType.Boolean:
@@ -669,14 +695,14 @@ constructor TEcodistrictLayer.Create(aScenario: TScenario; const aDomain, aID, a
   const aObjectTypes, aGeometryType: string; aLayerType: Integer; aPalette: TWDPalette; const aLegendJSON: string; aBasicLayer: Boolean);
 begin
   fLayerType := aLayerType;
-  fPalette := aPalette;
-  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, Double.NaN, aBasicLayer);
-  fLegendJSON := aLegendJSON; // property of TLayer
+  //fPalette := aPalette;
+  inherited Create(aScenario, aDomain, aID, aName, aDescription, aDefaultLoad, aObjectTypes, aGeometryType, ltTile, True, Double.NaN, aBasicLayer, 0.8, 'default', aLegendJSON, '', aPalette, 5, 7);
+  //fLegendJSON := aLegendJSON; // property of TLayer
 end;
 
 destructor TEcodistrictLayer.Destroy;
 begin
-  FreeAndNil(fPalette);
+  //FreeAndNil(fPalette);
   inherited;
 end;
 
@@ -740,6 +766,31 @@ begin
       FreeAndNil(Result);
     end;
   end;
+end;
+
+constructor TEcodistrictScenario.Create(aProject: TProject; const aID, aName, aDescription: string; aAddbasicLayers: Boolean; aMapView: TMapView);
+begin
+  inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView);
+  fRefreshTimer := aProject.Timers.CreateInactiveTimer(
+    procedure(aTimer: TTimer; aTime: THighResTicks)
+    begin
+      Log.WriteLn('Sending refresh to all clients on scenario');
+      Self.forEachSubscriber<TClient>(
+        procedure(aClient: TClient)
+        begin
+          Self.project.SendDomains(aClient, 'updatedomains');
+        end);
+    end);
+end;
+
+destructor TEcodistrictScenario.Destroy;
+begin
+  if Assigned(fRefreshTimer) then
+  begin
+    fRefreshTimer.Cancel;
+    fRefreshTimer := nil;
+  end;
+  inherited;
 end;
 
 const
@@ -1663,7 +1714,7 @@ begin
     while not query.Eof do
     begin
       tableName :=  query.Fields[0].AsString;
-      addDownloadableFile(tableName, ['shape', 'text'], GenerateDownloadableFile);
+      addDownloadableFile(tableName, [udftShape, udftText, udftLayer], GenerateDownloadableFile);
       query.Next;
     end;
   finally
@@ -1722,6 +1773,10 @@ var
   _json: string;
   tempDataFolder: string;
   streamFileName: string;
+  minValue: Double;
+  maxValue: Double;
+  layersJSON: TWDJSONObject;
+  diQuery: TDIQuery;
 begin
   try
     // signal the preparing of the download to the user
@@ -1770,22 +1825,49 @@ begin
       try
         query.Connection := fDBConnection as TFDConnection;
         query.SQL.Text :=
-          'SELECT column_name, data_type '+
+          'SELECT column_name, data_type, is_nullable '+
           'FROM information_schema.columns '+
           'WHERE table_schema = '''+schemaName+''' and table_name='''+aTableName+''' '+
           'ORDER BY ordinal_position';
         query.Open();
         while not query.Eof do
         begin
-          if query.Fields[1].AsString='USER-DEFINED' then
+          if aFileType=udftLayer then
           begin
-            fieldName := 'ST_AsGeoJSON('+query.Fields[0].AsString+') as '+query.Fields[0].AsString;
-            geometryFields.Add(query.Fields[0].AsString);
+            // skip indexed fields for now (detected by checking for nullable fields)..
+            if query.Fields[2].AsBoolean then
+            begin
+              fieldName := query.Fields[0].AsString;
+              case FieldTypeName2Type(query.Fields[1].AsString) of
+                //ftString:
+                ftInteger,
+                ftFloat,
+                ftCurrency:
+                  begin
+                    fieldName := 'MIN('+fieldName+') as min_'+fieldName+', MAX('+fieldName+') max_'+fieldName;
+                    if fieldNames<>''
+                    then fieldNames := fieldNames+',';
+                    fieldNames := fieldNames+fieldName;
+                  end;
+                //ftTimeStamp
+                //ftBoolean
+                //ftGuid
+                //ftObject
+              end;
+            end;
           end
-          else fieldName := query.Fields[0].AsString;
-          if fieldNames<>''
-          then fieldNames := fieldNames+',';
-          fieldNames := fieldNames+fieldName;
+          else
+          begin
+            if query.Fields[1].AsString='USER-DEFINED' then
+            begin
+              fieldName := 'ST_AsGeoJSON('+query.Fields[0].AsString+') as '+query.Fields[0].AsString;
+              geometryFields.Add(query.Fields[0].AsString);
+            end
+            else fieldName := query.Fields[0].AsString;
+            if fieldNames<>''
+            then fieldNames := fieldNames+',';
+            fieldNames := fieldNames+fieldName;
+          end;
           query.Next;
         end;
       finally
@@ -1804,8 +1886,93 @@ begin
             'SELECT '+fieldNames+' '+
             'FROM '+schemaName+'.'+aTableName;
           query.Open();
+          if aFileType=udftLayer then
+          begin
+            Log.WriteLn('reading table meta data to save as layer information');
+            streamFileName := aTableName+'.layer';
 
-          if aFileType='text' then
+            with WDJSONCreate(layersJSON) do
+            begin
+              with addArray('layers') do
+              begin
+                // todo: build layer meta information file in json format
+                // only 1 record should be in query giving min and max values of int and float fields
+                // fields are in pairs, min and max
+                f := 0;
+                while f<query.FieldCount do
+                begin
+                  fieldName := query.Fields[f].FieldName.Substring(4); // strip min_
+                  // check for existing definition
+                  if DIQueries.TryGetValue(aTableName+'_'+fieldName, diQuery) then
+                  begin
+                    with addObject() do // object within array
+                    begin
+                      add('datafieldname', fieldName);
+                      add('id', diQuery.id);
+                      add('name', diQuery.name);
+                      add('domain', diQuery.domain);
+                      add('description', diQuery.description);
+                      add('defaultload', diQuery.defaultload);
+                      add('basiclayer', diQuery.basiclayer);
+                      add('sql', diQuery.sql);
+                      add('palettejson', TWDJSONObjectAsText.Create(diQuery.palettejson));
+                      add('legendjson', TWDJSONObjectAsText.Create(diQuery.legendjson));
+                    end;
+                  end
+                  else
+                  begin
+                    // definition does not exist yet, so create one for the layer file
+                    minValue := query.Fields[f].AsFloat;
+                    maxValue := query.Fields[f+1].AsFloat;
+                    with addObject() do // object within array
+                    begin
+                      add('datafieldname', fieldName);
+                      add('id', aTableName+'_'+fieldName);
+                      add('name', fieldName);
+                      add('domain', 'domain');
+                      add('description', aTableName+' '+fieldName);
+                      add('defaultload', 0);
+                      add('basiclayer', 0);
+                      add('sql', '');
+                      with addObject('palettejson') do
+                      begin
+                        add('description', aTableName+' '+fieldName);
+                        add('type','ramp');
+                        with addArray('entries') do
+                        begin
+                          with addObject() do // object within array
+                          begin
+                            add('description', 'low');
+                            add('color', '#ffeeee');
+                            add('value', minValue);
+                          end;
+                          with addObject() do // object within array
+                          begin
+                            add('description', 'high');
+                            add('color', '#ff0000');
+                            add('value', maxValue);
+                          end;
+                        end;
+                        add('lowerDataColor', '#ffeeee');
+                        add('noDataColor', '#000000');
+                        add('higherDataColor', '#ff0000');
+                        add('type','ramp');
+                      end;
+                      add('legendjson', TWDJSONObjectAsText.Create(''));
+                    end;
+                  end;
+                  f :=f+2;
+                end;
+              end;
+            end;
+            try
+              writer := TStreamWriter.Create(stream);
+              writer.WriteLine(layersJSON.JSON(pretty));
+            finally
+              layersJSON.Free;
+            end;
+          end
+          else if aFileType=udftText then
           begin
             Log.WriteLn('reading table data to save as text');
             streamFileName := aTableName+'.txt';
@@ -1817,24 +1984,9 @@ begin
               // add header
               for f := 0 to query.FieldCount-1 do
               begin
-                if geometryFields.IndexOf(query.Fields[f].FieldName)>=0 then
-                begin
-                  Line.Add(query.Fields[f].FieldName+':geometry');
-                end
-                else
-                begin
-                  case query.Fields[f].DataType of
-                    ftString,
-                    ftWideMemo:  Line.Add(query.Fields[f].FieldName+':string');
-                    ftInteger:   Line.Add(query.Fields[f].FieldName+':integer');
-                    ftBoolean:   Line.Add(query.Fields[f].FieldName+':boolean');
-                    ftFloat:     Line.Add(query.Fields[f].FieldName+':float');
-                    ftTimeStamp: Line.Add(query.Fields[f].FieldName+':timestamp');
-                  else
-                                 Line.Add(query.Fields[f].FieldName+':'+Ord(query.Fields[f].DataType).toString);
-                    Log.WriteLn('Unknown field type in download query result: '+query.Fields[f].FieldName+': '+Ord(query.Fields[f].DataType).toString, llWarning);
-                  end;
-                end;
+                Line.Add(query.Fields[f].FieldName+':'+DownloadType2TypeName(
+                  query.Fields[f].DataType,
+                  geometryFields.IndexOf(query.Fields[f].FieldName)>=0));
               end;
               writer := TStreamWriter.Create(stream);
               writer.WriteLine(Line.DelimitedText);
@@ -1858,7 +2010,7 @@ begin
               Line.Free;
             end;
           end
-          else if aFileType='shape' then
+          else if aFileType=udftShape then
           begin
             Log.WriteLn('reading table data to save as shape in zip');
             streamFileName := aTableName+'.zip';
@@ -2345,7 +2497,7 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
       query.Open();
       while not query.Eof do
       begin
-        aExistingFieldDefs.AddOrSetValue(query.Fields[0].AsString.ToLower, PGFieldTypeName2Type(query.Fields[1].AsString.ToLower));
+        aExistingFieldDefs.AddOrSetValue(query.Fields[0].AsString.ToLower, FieldTypeName2Type(query.Fields[1].AsString.ToLower));
         query.Next;
       end;
     finally
@@ -2375,22 +2527,26 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
         //for fdp in aFieldDefs do
         for f := 0 to aFieldDefs.Count-1 do
         begin
-          if existingFieldDefs.TryGetValue(aFieldDefs[f].fieldName.ToLower, existingFieldType) then
+          if aFieldDefs[f].fieldType<>ftUnknown then
           begin
-            // already exists -> check
-            if aFieldDefs[f].fieldType<>existingFieldType
-            then Log.WriteLn('Upload of '+aTableName+': column type for '+aFieldDefs[f].fieldName+' deviates ('+aFieldDefs[f].getTypeName+'('+Ord(aFieldDefs[f].fieldType).toString+') <> '+PGFieldType2TypeName(existingFieldType, false)+'('+Ord(existingFieldType).toString+') )', llWarning);
+            if existingFieldDefs.TryGetValue(aFieldDefs[f].fieldName.ToLower, existingFieldType) then
+            begin
+              // already exists -> check
+              if aFieldDefs[f].fieldType<>existingFieldType
+              then Log.WriteLn('Upload of '+aTableName+': column type for '+aFieldDefs[f].fieldName+' deviates ('+aFieldDefs[f].getTypeName+'('+Ord(aFieldDefs[f].fieldType).toString+') <> '+PGFieldType2TypeName(existingFieldType, false)+'('+Ord(existingFieldType).toString+') )', llWarning);
+            end
+            else
+            begin
+              // does not already exist -> add
+              if added
+              then sql := sql+',';
+              sql := sql+
+                'ADD COLUMN '+aFieldDefs[f].fieldName+' '+aFieldDefs[f].getTypeName;
+              added := True;
+              Log.WriteLn('Upload of '+aTableName+' to existing data: adding column '+aFieldDefs[f].fieldName+': '+aFieldDefs[f].getTypeName);
+            end;
           end
-          else
-          begin
-            // does not already exist -> add
-            if added
-            then sql := sql+',';
-            sql := sql+
-              'ADD COLUMN '+aFieldDefs[f].fieldName+' '+aFieldDefs[f].getTypeName;
-            added := True;
-            Log.WriteLn('Upload of '+aTableName+' to existing data: adding column '+aFieldDefs[f].fieldName+': '+aFieldDefs[f].getTypeName);
-          end;
+          else Log.WriteLn('Upload of '+aTableName+' to existing data: skipping column '+aFieldDefs[f].fieldName);
         end;
         if added then
         begin
@@ -2411,7 +2567,7 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
       // add all other fields
       for f := 0 to aFieldDefs.Count-1 do
       begin
-        if f<>aIDFieldIndex
+        if (aFieldDefs[f].fieldType<>ftUnknown) and (f<>aIDFieldIndex)
         then sql := sql+','+aFieldDefs[f].fieldName+' '+aFieldDefs[f].getTypeName;
       end;
       // add constraint
@@ -2420,6 +2576,23 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
       // create table
       (fDBConnection as TFDConnection).ExecSQL(sql);
       Result := True;
+    end;
+  end;
+
+  procedure AddField(const aFieldName, aFieldValue: string; aIsIndexField: Boolean; var aNames, aValues, aSets: string);
+  begin
+    if aNames<>''
+    then aNames := aNames+',';
+    if aValues<>''
+    then aValues := aValues+',';
+    aNames := aNames+aFieldName;
+    aValues := aValues+aFieldValue;
+    // for aSets parse all fields except index
+    if not aIsIndexField then
+    begin
+      if aSets<>''
+      then aSets := aSets+',';
+      aSets := aSets+aFieldName+'='+aFieldValue;
     end;
   end;
 
@@ -2437,19 +2610,25 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
     sets := '';
     for f := 0 to aFieldDefs.Count-1 do
     begin
-      if f>0 then
+      if aFieldDefs[f].fieldType<>ftUnknown then
       begin
-        names := names+',';
-        values := values+',';
-      end;
-      names := names+aFieldDefs[f].fieldName;
-      values := values+aFieldDefs[f].sqlFieldValue;
-      // for sets parse all fields except index
-      if not aFieldDefs[f].isIndexField then
-      begin
-        if sets<>''
-        then sets := sets+',';
-        sets := sets+aFieldDefs[f].fieldName+'='+aFieldDefs[f].sqlFieldValue;
+        AddField(aFieldDefs[f].fieldName, aFieldDefs[f].sqlFieldValue, aFieldDefs[f].isIndexField, names, values, sets);
+        {
+        if f>0 then
+        begin
+          names := names+',';
+          values := values+',';
+        end;
+        names := names+aFieldDefs[f].fieldName;
+        values := values+aFieldDefs[f].sqlFieldValue;
+        // for sets parse all fields except index
+        if not aFieldDefs[f].isIndexField then
+        begin
+          if sets<>''
+          then sets := sets+',';
+          sets := sets+aFieldDefs[f].fieldName+'='+aFieldDefs[f].sqlFieldValue;
+        end;
+        }
       end;
     end;
     sql :=
@@ -2475,9 +2654,10 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
   begin
     if s<>'' then
     begin
-      if Pos('''', s)=0
-      then Result := ''''+s+''''
-      else raise Exception.Create('Illegal character in sql string '+s);
+      //if Pos('''', s)=0
+      //then
+      Result := ''''+s.Replace('''', '''''')+''''; // replace single quotes to 2 single quotes
+      //else raise Exception.Create('Illegal character in sql string '+s);
     end
     else Result := 'null';
   end;
@@ -2487,7 +2667,7 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
     Result := i.toString;
   end;
 
-  function handleColumn(const lp: TArray<System.string>; fieldDefs: TObjectList<TFileInfoRecord>; out isGeometry: Boolean; var fieldNameGeometry: string; f: Integer; var idfni: Integer): TFileInfoRecord;
+  function handleColumn(const lp: TArray<System.string>; fieldDefs: TObjectList<TFileInfoRecord>; out isGeometry: Boolean; var fieldNameGeometry: string; var f: Integer; var idfni: Integer): TFileInfoRecord;
   begin
     isGeometry := lp[1].ToLower='geometry';
     if isGeometry
@@ -2496,25 +2676,194 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
     if (lp[0].ToLower='id') or ((idfni<0) and lp[0].ToLower.EndsWith('_id')) then
     begin
       idfni := f;
-      Result := TFileInfoRecord.Create(lp[0], PGFieldTypeName2Type(lp[1].ToLower), True, isGeometry);
+      Result := TFileInfoRecord.Create(lp[0], FieldTypeName2Type(lp[1].ToLower), True, isGeometry);
       fieldDefs.Add(Result);
     end
     else
     begin
-      Result := TFileInfoRecord.Create(lp[0], PGFieldTypeName2Type(lp[1].ToLower), False, isGeometry);
-      fieldDefs.Add(Result);
+      if lp[1].ToLower='deg' then
+      begin
+        // reset to geometry field
+        isGeometry := True;
+        fieldNameGeometry := DefaultFieldNameGeometry;
+        Result := TFileInfoRecord.Create(fieldNameGeometry, ftFloat, False, isGeometry);
+        fieldDefs.Add(Result);
+        Result.degreeConversion := True;
+      end
+      else
+      begin
+        Result := TFileInfoRecord.Create(lp[0], FieldTypeName2Type(lp[1].ToLower), False, isGeometry);
+        fieldDefs.Add(Result);
+      end;
     end;
+  end;
+
+  function DecodeDegreeCoordinate(const aDegreeCoordinate: string; out aIsLat: Boolean): Double;
+  var
+    dsi: Integer;
+    cdeg: Integer;
+    cminInt: Integer;
+  begin
+    dsi := aDegreeCoordinate.IndexOf(',');
+    if dsi<0
+    then dsi := aDegreeCoordinate.IndexOf('.');
+    if dsi>=0 then
+    begin
+      // degrees part 1 or 2 digits
+      if dsi-2>0
+      then cdeg := Integer.Parse(aDegreeCoordinate.Substring(0, dsi-2))
+      else cdeg := 0;
+      // minutes parts (integer part)
+      if dsi-2>=0
+      then cminInt := Integer.Parse(aDegreeCoordinate.Substring(dsi-2, 2))
+      else cminInt := Integer.Parse(aDegreeCoordinate.Substring(0, dsi));
+      case UpCase(aDegreeCoordinate[aDegreeCoordinate.Length]) of
+        'N':
+          begin
+            Result := cdeg+(cminInt+Double.Parse('0.'+aDegreeCoordinate.Substring(dsi+1, aDegreeCoordinate.Length-dsi-2), dotFormat))/60.0;
+            aIsLat := True;
+          end;
+        'S':
+          begin
+            Result := -cdeg-(cminInt+Double.Parse('0.'+aDegreeCoordinate.Substring(dsi+1, aDegreeCoordinate.Length-dsi-2), dotFormat))/60.0;
+            aIsLat := True;
+          end;
+        'E':
+          begin
+            Result := cdeg+(cminInt+Double.Parse('0.'+aDegreeCoordinate.Substring(dsi+1, aDegreeCoordinate.Length-dsi-2), dotFormat))/60.0;
+            aIsLat := False;
+          end;
+        'W':
+          begin
+            Result := -cdeg-(cminInt+Double.Parse('0.'+aDegreeCoordinate.Substring(dsi+1, aDegreeCoordinate.Length-dsi-2), dotFormat))/60.0;
+            aIsLat := False;
+          end;
+      else
+        Result := cdeg+(cminInt+Double.Parse('0.'+aDegreeCoordinate.Substring(dsi+1, aDegreeCoordinate.Length-dsi-1), dotFormat))/60.0;
+        aIsLat := False;
+      end;
+    end
+    else
+    begin
+      Result := Double.NaN; // conversion error
+      aIsLat := False;
+    end;
+  end;
+
+  procedure UpsertDetailsLayer(
+    const aSchemaName, aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName, aSQL: string;
+    const aID, aDomain, aName, aDescription: string;
+    const aObjectTypes, aGeometryType:string; aDefaultLoad, aBasicLayer, aLayerType: Integer;
+    const aPaletteJSON, aLegendJSON: string);
+  var
+    sql: string;
+    names: string;
+    values: string;
+    sets: string;
+  begin
+    names := '';
+    values := '';
+    sets := '';
+
+    AddField('id', sqlSN(aID), True, names, values, sets);
+    AddField('domain', sqlSN(aDomain), false, names, values, sets);
+    AddField('name', sqlSN(aName), false, names, values, sets);
+    AddField('description', sqlSN(aDescription), false, names, values, sets);
+    AddField('objecttypes', sqlSN(aObjectTypes), false, names, values, sets);
+    AddField('geometrytype', sqlSN(aGeometryType), false, names, values, sets);
+    AddField('defaultload', sqlI(aDefaultLoad), false, names, values, sets);
+    AddField('basiclayer', sqlI(aBasicLayer), false, names, values, sets);
+    AddField('sql', sqlSN(aSQL), false, names, values, sets);
+    AddField('tablename', sqlSN(aTableName), false, names, values, sets);
+    AddField('idfieldname', sqlSN(aIDFieldName), false, names, values, sets);
+    AddField('geometryfieldname', sqlSN(aGeometryFieldName), false, names, values, sets);
+    AddField('datafieldname', sqlSN(aDataFieldName), false, names, values, sets);
+    AddField('layertype', sqlI(aLayerType), false, names, values, sets);
+    AddField('palettejson', sqlSN(aPaletteJSON), false, names, values, sets);
+    AddField('legendjson', sqlSN(aLegendJSON), false, names, values, sets);
+
+    sql :=
+      'INSERT INTO '+aSchemaName+'.di_queries ('+names+') '+
+      'VALUES ('+values+') '+
+      'ON CONFLICT (id) '+
+      'DO UPDATE SET '+sets; //+
+    (fDBConnection as TFDConnection).ExecSQL(sql);
+  end;
+
+  procedure RemoveLayer(const aSchemaName, aID: string);
+  begin
+    (fDBConnection as TFDConnection).ExecSQL(
+      'DELETE FROM '+aSchemaName+'.di_queries '+
+      'WHERE id='''+aID+'''');
+  end;
+
+  procedure Refresh(aScenario: TScenario);
+  begin
+    aScenario.ReadBasicData;
+    // todo: work-a-round, delay sending refresh to give tiler time to send url to use in update domains signal to clients
+    (aScenario as TEcodistrictScenario).fRefreshTimer.Arm(dtOneSecond*5);
+  end;
+
+  procedure AddDetailsLayer(const aSchemaName, aDataFieldName: string; aDIQuery: TDIQuery; aLayerDefinition: TJSONValue);
+  var
+    DIQueryNew: TDIQuery;
+    jsonValue: TJSONValue;
+  begin
+    DIQueryNew.datafieldname := aDataFieldName;
+    if not aLayerDefinition.TryGetValue<string>('id', DIQueryNew.id)
+    then DIQueryNew.id := aDIQuery.tablename+'_'+DIQueryNew.datafieldname;
+    if not aLayerDefinition.TryGetValue<string>('domain', DIQueryNew.domain)
+    then DIQueryNew.domain := aDIQuery.domain;
+    if not aLayerDefinition.TryGetValue<string>('name', DIQueryNew.name)
+    then DIQueryNew.name := DIQueryNew.id;
+    if not aLayerDefinition.TryGetValue<string>('description', DIQueryNew.description)
+    then DIQueryNew.description := DIQueryNew.name;
+    DIQueryNew.objecttypes := aDIQuery.objecttypes;
+    DIQueryNew.geometrytype := aDIQuery.geometryType;
+    if not aLayerDefinition.TryGetValue<Integer>('defaultload', DIQueryNew.defaultload)
+    then DIQueryNew.defaultload := 0;
+    if not aLayerDefinition.TryGetValue<Integer>('basiclayer', DIQueryNew.basiclayer)
+    then DIQueryNew.basiclayer := 0;
+    if not aLayerDefinition.TryGetValue<string>('sql', DIQueryNew.sql)
+    then DIQueryNew.sql := '';
+    DIQueryNew.tablename := aDIQuery.tablename;
+    DIQueryNew.idfieldname := aDIQuery.idfieldname;
+    DIQueryNew.geometryfieldname := aDIQuery.geometryfieldname;
+    DIQueryNew.layertype := aDIQuery.layertype;
+
+    if aLayerDefinition.TryGetValue<TJSONValue>('palettejson', jsonValue) then
+    begin
+      if jsonValue is TJSONObject
+      then DIQueryNew.palettejson := jsonValue.ToJSON
+      else if jsonValue is TJSONString
+      then DIQueryNew.palettejson := jsonValue.toString
+      else DIQueryNew.palettejson := '';
+    end
+    else DIQueryNew.palettejson := '';
+
+    if aLayerDefinition.TryGetValue<TJSONValue>('legendjson', jsonValue) then
+    begin
+      if jsonValue is TJSONObject
+      then DIQueryNew.legendjson := jsonValue.ToJSON
+      else if jsonValue is TJSONString
+      then DIQueryNew.legendjson := jsonValue.ToString
+      else DIQueryNew.legendjson := '';
+    end
+    else DIQueryNew.legendjson := '';
+
+    DIQueries.AddOrSetValue(DIQueryNew.id, DIQueryNew);
+
+    UpsertDetailsLayer(
+      aSchemaName, DIQueryNew.tablename, DIQueryNew.idfieldname, DIQueryNew.geometryfieldname, DIQueryNew.dataFieldName, DIQueryNew.SQL,
+      DIQueryNew.id, DIQueryNew.domain, DIQueryNew.name, DIQueryNew.description, DIQueryNew.objecttypes, DIQueryNew.geometrytype, DIQueryNew.defaultLoad,
+      DIQueryNew.basiclayer, DIQueryNew.layertype, DIQueryNew.paletteJSON, DIQueryNew.legendJSON);
   end;
 
   procedure ProcessFileOnExt(const aPath, aFileExt, aSchemaName, aTableName: string);
   var
     shapeFile: TGIS_LayerSHP;
     shape: TGIS_Shape;
-    //partI: Integer;
-    //pointI: Integer;
-    //p: TGIS_Point3D;
-    //id: Int64;
-    //geoJSON: string;
+    projectedShape: TGIS_Shape;
     tempDataFolder: string;
     fileNames: TArray<string>;
     fn: string;
@@ -2535,314 +2884,446 @@ procedure TEcodistrictProject.HandleFileUpload(aClient: TClient; const aFileInfo
     layer: TLayerBase;
     DIQuery: TDIQuery;
     changed: Boolean;
+    lon: Double;
+    lat: Double;
+    isLat: Boolean;
+    WGS84Projection: TGIS_CSCoordinateSystem;
+    layerDefinition: TJSONValue;
+    removeID: string;
+    layersJSONArray: TJSONArray;
+    layerEntry: TJSONValue;
   begin
-    idfni := -1;
-    sliceType := -1;
-    fieldNameID := 'id';
-    fieldNameGeometry := 'shape';
-    fieldDefs := TObjectList<TFileInfoRecord>.Create;
-    layer := nil;
-    changed := False;
-    try
-      if aFileExt='.txt' then
-      begin
-        lines := TStringList.Create;
-        line := TStringList.Create;
-        try
-          line.Delimiter := #9;
-          line.StrictDelimiter := True;
-          lines.LoadFromFile(aPath);
-          // decode csv header
-          line.DelimitedText := lines[0];
-          for f := 0 to line.Count-1 do
-          begin
-            lp := line[f].Split([':']);
-            for l := 0 to Length(lp)-1
-            do lp[l] := lp[l].trim();
-
-            if length(lp)=2 then
+    if aFileExt='.layer' then
+    begin
+      try
+        if DIQueries.TryGetValue(aTableName, DIQuery) then
+        begin
+          layerDefinition := TJSONObject.ParseJSONValue(TFile.ReadAllText(aPath));
+          try
+            if layerDefinition.TryGetValue<string>('remove', removeID) then
             begin
-              handleColumn(lp, fieldDefs, isGeometry, fieldNameGeometry, f, idfni);
+              RemoveLayer(aSchemaName, removeID);
+              DIQueries.Remove(removeID);
+              aClient.SendMessage('Layer "'+removeID+'" removed', TMessageType.mtSucces, 3000);
+              Refresh(aClient.currentScenario);
             end
-            else
+            // array of layers
+            else if layerDefinition.TryGetValue<TJSONArray>('layers', layersJSONArray) then
             begin
-              if length(lp)>2 then
+              aClient.SendMessage('Defining details layer for '+aTableName, TMessageType.mtNone, 3000);
+              for layerEntry in layersJSONArray do
               begin
-                if lp[2]='-' then
+                if (layerEntry as TJSONObject).TryGetValue<string>('datafieldname', fieldname)
+                then AddDetailsLayer(aSchemaName, fieldName, DIQuery, layerEntry as TJSONObject)
+                else Log.WriteLn('skipping incorrect layer definition in');
+              end;
+              aClient.SendMessage('Details layer added', TMessageType.mtSucces, 3000);
+              Refresh(aClient.currentScenario);
+            end
+            // single layer
+            else if layerDefinition.TryGetValue<string>('datafieldname', fieldname) then
+            begin
+              aClient.SendMessage('Defining details layer for '+aTableName, TMessageType.mtNone, 3000);
+              AddDetailsLayer(aSchemaName, fieldName, DIQuery, layerDefinition);
+              aClient.SendMessage('Details layer added', TMessageType.mtSucces, 3000);
+              Refresh(aClient.currentScenario);
+            end
+            else aClient.SendMessage('No data field name definedfor: '+aTableName, TMessageType.mtError, 5000);
+          finally
+            layerDefinition.Free;
+          end;
+        end
+        else aClient.SendMessage('No basic layer defined for: '+aTableName, TMessageType.mtError, 5000);
+      except
+        on E: Exception do
+        begin
+          Log.WriteLn('Unhandled exception uploading layer file '+aPath+': '+e.Message, llError);
+          aClient.SendMessage('Could not upload layer file: '+e.Message, TMessageType.mtError, 5000);
+        end;
+      end;
+    end
+    else
+    begin
+      idfni := -1;
+      sliceType := -1;
+      fieldNameID := 'id';
+      fieldNameGeometry := DefaultFieldNameGeometry;
+      fieldDefs := TObjectList<TFileInfoRecord>.Create;
+      layer := nil;
+      changed := False;
+      try
+        if aFileExt='.txt' then
+        begin
+          aClient.SendMessage('Uploading data in text file for '+aTableName+'..', TMessageType.mtNone, 3000);
+          lines := TStringList.Create;
+          line := TStringList.Create;
+          try
+            line.Delimiter := #9;
+            line.StrictDelimiter := True;
+            lines.LoadFromFile(aPath);
+            // decode csv header
+            line.DelimitedText := lines[0];
+            //for f := 0 to line.Count-1 do
+            f := 0;
+            while f<line.Count do
+            begin
+              lp := line[f].Split([':']);
+              for l := 0 to Length(lp)-1
+              do lp[l] := lp[l].trim();
+
+              if length(lp)=2 then
+              begin
+                handleColumn(lp, fieldDefs, isGeometry, fieldNameGeometry, f, idfni);
+              end
+              else
+              begin
+                if length(lp)>2 then
                 begin
-                  with handleColumn(lp, fieldDefs, isGeometry, fieldNameGeometry, f, idfni) do
+                  if lp[2]='-' then
                   begin
-                    deleteFlag := True;
+                    with handleColumn(lp, fieldDefs, isGeometry, fieldNameGeometry, f, idfni) do
+                    begin
+                      deleteFlag := True;
+                    end;
+                  end
+                  else
+                  begin
+                    fieldDefs.Add(TFileInfoRecord.Create(line[f], FieldTypeName2Type(lp[1].ToLower), False, False));
+                    Log.WriteLn('Upload text: '+aTableName+', invalid field def: '+line[f], llWarning);
                   end;
                 end
                 else
                 begin
-                  fieldDefs.Add(TFileInfoRecord.Create(line[f], ftUnknown, False, False));
-                  Log.WriteLn('Upload text: '+aTableName+', invalid field def: '+line[f], llWarning);
+                  fieldDefs.Add(TFileInfoRecord.Create(lp[0], ftUnknown, False, False));
+                  Log.WriteLn('Upload text: '+aTableName+', invalid field def: '+line[f], llError);
                 end;
-              end
-              else
-              begin
-                fieldDefs.Add(TFileInfoRecord.Create(lp[0], PGFieldTypeName2Type(lp[1].ToLower), False, False));
-                Log.WriteLn('Upload text: '+aTableName+', invalid field def: '+line[f], llError);
               end;
+              f := f+1;
             end;
-          end;
-          // if no id column is found use first column
-          if (idfni<0) and (line.Count>0)
-          then idfni := 0;
+            // if no id column is found use first column
+            if (idfni<0) and (line.Count>0)
+            then idfni := 0;
 
-          if idfni>=0
-          then fieldNameID := fieldDefs[idfni].fieldName;
+            if idfni>=0
+            then fieldNameID := fieldDefs[idfni].fieldName;
 
-          // do fixup of table with column info from file
-          FixupTable(aSchemaName, aTableName, idfni, fieldDefs);
-          // decode csv file
-          for l := 1 to lines.Count-1 do
-          begin
-            line.DelimitedText := lines[l];
-            // to decode csv data line to field defs values
-            for f := 0 to line.Count-1 do
+            // do fixup of table with column info from file
+            FixupTable(aSchemaName, aTableName, idfni, fieldDefs);
+            // decode csv file
+            for l := 1 to lines.Count-1 do
             begin
-              if fieldDefs[f].isGeometryField then
+              line.DelimitedText := lines[l];
+              // to decode csv data line to field defs values
+              //for f := 0 to line.Count-1 do
+              f := 0;
+              while f<line.Count do
               begin
-                fieldDefs[f].sqlFieldValue := 'ST_GeomFromGeoJSON('''+line[f]+''')';
-                // todo: detect kind geometry to add basic layer for..
-                if sliceType<0 then
+                if fieldDefs[f].isGeometryField then
                 begin
-                  if line[f].IndexOf(gtMultiLineString)>=0
-                  then sliceType := stGeometryI
-                  else if line[f].IndexOf(gtPolygon)>=0
-                  then sliceType := stGeometry
-                  else if line[f].IndexOf(gtPoint)>=0
-                  then sliceType := stLocation;
-                end;
-              end
-              else
-              begin
-                case fieldDefs[f].fieldType of
-                  ftWideMemo,
-                  ftString,
-                  ftWideString:
-                    fieldDefs[f].sqlFieldValue := ''''+line[f]+'''';
-                  ftInteger,
-                  ftLargeint:
-                    fieldDefs[f].sqlFieldValue := line[f];
-                  // todo: check all other types!
-                  ftFloat,
-                  ftExtended,
-                  ftSingle:
-                    fieldDefs[f].sqlFieldValue := line[f];
-                  ftBoolean:
-                    fieldDefs[f].sqlFieldValue := line[f];
-                  ftGuid:
-                    fieldDefs[f].sqlFieldValue := line[f];
-                  ftCurrency:
-                    fieldDefs[f].sqlFieldValue := line[f];
-                  ftTimeStamp:
-                    fieldDefs[f].sqlFieldValue := ''''+line[f]+'''';
+                  if fieldDefs[f].degreeConversion then
+                  begin
+                    lat := DecodeDegreeCoordinate(line[f], isLat);
+                    lon := DecodeDegreeCoordinate(line[f+1], isLat);
+                    fieldDefs[f].sqlFieldValue := 'ST_GeomFromGeoJSON(''{"type": "Point","coordinates": ['+lon.toString(dotFormat)+','+lat.toString(dotFormat)+']}'')';
+                    sliceType := stLocation;
+                    f := f+1; // skip lon field, already processed
+                  end
+                  else
+                  begin
+                    fieldDefs[f].sqlFieldValue := 'ST_GeomFromGeoJSON('''+line[f]+''')';
+                    // todo: detect kind geometry to add basic layer for..
+                    if sliceType<0 then
+                    begin
+                      if line[f].IndexOf(gtMultiLineString)>=0
+                      then sliceType := stGeometryI
+                      else if line[f].IndexOf(gtPolygon)>=0
+                      then sliceType := stGeometry
+                      else if line[f].IndexOf(gtPoint)>=0
+                      then sliceType := stLocation;
+                    end;
+                  end;
+                end
                 else
-                    fieldDefs[f].sqlFieldValue := 'null';
+                begin
+                  case fieldDefs[f].fieldType of
+                    ftWideMemo,
+                    ftString,
+                    ftWideString:
+                      fieldDefs[f].sqlFieldValue := sqlSN(line[f]);
+                    ftInteger,
+                    ftLargeint:
+                      fieldDefs[f].sqlFieldValue := line[f];
+                    // todo: check all other types!
+                    ftFloat,
+                    ftExtended,
+                    ftSingle:
+                      fieldDefs[f].sqlFieldValue := line[f].Replace(',', '.'); // only dot format in SQL
+                    ftBoolean:
+                      fieldDefs[f].sqlFieldValue := line[f];
+                    ftGuid:
+                      fieldDefs[f].sqlFieldValue := line[f];
+                    ftCurrency:
+                      fieldDefs[f].sqlFieldValue := line[f];
+                    ftTimeStamp:
+                      fieldDefs[f].sqlFieldValue := sqlSN(line[f]);
+                  else
+                      fieldDefs[f].sqlFieldValue := 'null';
+                  end;
                 end;
+                f := f+1;
               end;
-            end;
-            if not fieldDefs[idfni].deleteFlag
-            then UpsertRow(aSchemaName, aTableName, idfni, fieldDefs)
-            else DeleteRow(aSchemaName, aTableName, idfni, fieldDefs);
-            changed := True;
-          end;
-        finally
-          lines.Free;
-          line.Free;
-        end;
-      end
-      else if aFileExt='.zip' then
-      begin
-        // todo: unzip and process indiviual files
-        tempDataFolder := IncludeTrailingPathDelimiter(GetTempDirectory)+TGUID.NewGuid.ToString;
-        ForceDirectories(tempDataFolder);
-        if UnZipFiles(aPath, tempDataFolder, fileNames) then
-        begin
-          for fn in fileNames
-          do ProcessFileOnExt(tempDataFolder+'\'+fn, ExtractFileExt(fn).ToLower, aSchemaName, aTableName);
-        end
-        else aClient.SendMessage('Could not unzip uploaded file', mtError, 50000);
-      end
-      // parse shp file, we expect dbf etc. to be there (from zip)
-      else if aFileExt='.shp' then
-      begin
-        shapeFile := TGIS_LayerSHP.Create;
-        try
-          // load shape file
-          shapeFile.Name := 'uploaded shape file';
-          shapeFile.Path := aPath;
-          shapeFile.Open;
-          for f := 0 to shapeFile.Fields.Count-1 do
-          begin
-            fieldName := shapeFile.FieldInfo(f).Name;
-            fieldType := shapeFile.FieldInfo(f).FieldType;
-            // column is id field if name = 'id' or if no id field is defined and column ends on '_id'
-            if (fieldName.ToLower='id') or ((idfni<0) and fieldName.ToLower.EndsWith('_id')) then
-            begin
-              idfni := f;
-              fieldDefs.Add(TFileInfoRecord.Create(fieldName, TFileInfoRecord.GISFieldType2DBFieldType(fieldType), True, False));
-            end
-            else fieldDefs.Add(TFileInfoRecord.Create(fieldName, TFileInfoRecord.GISFieldType2DBFieldType(fieldType), False, False));
-          end;
-          // add the geometry field type as the last entry so shape field indexes match the fieldDefs indexes
-          fieldDefs.Add(TFileInfoRecord.Create(fieldNameGeometry, ftString, False, True));
-          // if no id column is found use first column
-          if (idfni<0) and (shapeFile.Fields.Count>0)
-          then idfni := 0;
-          if idfni>=0
-          then fieldNameID := fieldDefs[idfni].fieldName;
-          // check table structure
-          FixupTable(aSchemaName, aTableName, idfni, fieldDefs);
-          // parse shapes in shape file
-          shape := shapeFile.FindFirst(GisWholeWorld);
-          while Assigned(shape) do
-          begin
-            if Assigned(shape) then
-            begin
-              // shape geometry in json format, last fieldDefs entry is the geometry field
-              // todo: projection
-              // https://gis.stackexchange.com/questions/60928/how-to-insert-a-geojson-polygon-into-a-postgis-table
-              if shape is TGIS_ShapePoint then
-              begin
-                fieldDefs[fieldDefs.Count-1].sqlFieldValue := 'ST_GeomFromGeoJSON('''+TGIS_Utils.GisExportPointToJSON(shape)+''')';
-                sliceType := stLocation;
-              end
-              else if shape is TGIS_ShapeArc then
-              begin
-                fieldDefs[fieldDefs.Count-1].sqlFieldValue := 'ST_GeomFromGeoJSON('''+TGIS_Utils.GisExportArcToJSON(shape)+''')';
-                sliceType := stGeometryI;
-              end
-              else
-              begin
-                fieldDefs[fieldDefs.Count-1].sqlFieldValue := 'ST_GeomFromGeoJSON('''+TGIS_Utils.GisExportPolygonToJSON(shape)+''')';
-                sliceType := stGeometry;
-              end;
-
-              // todo: detect kind geometry to add basic layer for..
-
-              // fields on shape
-              for f := 0 to shapeFile.Fields.Count-1 do
-              begin
-                fieldName := shapeFile.FieldInfo(f).Name;
-                fieldType := shapeFile.FieldInfo(f).FieldType;
-                case fieldType of
-                  TGIS_FieldType.String:
-                    fieldDefs[f].sqlFieldValue := ''''+shape.GetField(fieldName)+'''';
-                  TGIS_FieldType.Number:
-                    fieldDefs[f].sqlFieldValue := Integer(shape.GetField(fieldName)).ToString;
-                  TGIS_FieldType.Float:
-                    fieldDefs[f].sqlFieldValue := Double(shape.GetField(fieldName)).ToString(dotFormat);
-                  TGIS_FieldType.Boolean:
-                    fieldDefs[f].sqlFieldValue := Boolean(shape.GetField(fieldName)).ToString(TUseBoolStrs.True).toLower;
-                  TGIS_FieldType.Date:
-                    fieldDefs[f].sqlFieldValue := 'null'; // todo: how to parse
-                else
-                    fieldDefs[f].sqlFieldValue := 'null';
-                end;
-              end;
-              UpsertRow(aSchemaName, aTableName, idfni, fieldDefs);
+              if not fieldDefs[idfni].deleteFlag
+              then UpsertRow(aSchemaName, aTableName, idfni, fieldDefs)
+              else DeleteRow(aSchemaName, aTableName, idfni, fieldDefs);
               changed := True;
             end;
-            shape := shapeFile.FindNext;
+          finally
+            lines.Free;
+            line.Free;
           end;
-        finally
-          shapeFile.Free;
-        end;
-      end;
-    finally
-      fieldDefs.Free;
-    end;
-    {
-    cnt := FDSingleStringResultQuery(fDBConnection as TFDConnection,
-      'SELECT Count(*) '+
-      'FROM '+aSchemaName+'.di_queries '+
-      'WHERE tablename='''+aTableName+'''');
-    if cnt='0' then
-    }
-    if Changed then
-    begin
-      if not DIQueries.ContainsKey(aTableName) then
-      begin
-        case sliceType of
-          stLocation:
-            geometryType := gtPoint;
-          stGeometryI:
-            geometryType := gtMultiLineString;
-        else
-          geometryType := gtPolygon;
-        end;
-        Log.WriteLn('Adding basic layer definition for '+aSchemaName+'.'+aTableName);
-        try
-          DIQuery.id := aTableName;
-          DIQuery.domain := 'Basic structures';
-          DIQuery.name := aTableName;
-          DIQuery.description := 'Basic '+aTableName;
-          DIQuery.objecttypes := '"'+aTableName+'"';
-          DIQuery.geometrytype := geometryType;
-          DIQuery.defaultload := 0;
-          DIQuery.basiclayer := 1;
-          DIQuery.sql := '';
-          DIQuery.tablename := '"'+aTableName+'"'; // normally " is not needed
-          DIQuery.idfieldname := fieldNameID;
-          DIQuery.geometryfieldname := fieldNameGeometry;
-          DIQuery.datafieldname := '';
-          DIQuery.layertype := sliceType;
-          DIQuery.palettejson := '';
-          DIQuery.legendjson := '';
-          // first create entry in database
-          (fDBConnection as TFDConnection).ExecSQL(
-            'INSERT INTO '+aSchemaName+'.di_queries ('+
-              'id, domain, name, description, objecttypes, geometrytype, defaultload, '+
-              'basiclayer, sql, tablename, idfieldname, geometryfieldname, datafieldname,'+
-              'layertype, palettejson, legendjson) '+
-            'VALUES ('+
-              sqlSN(DIQuery.id)+','+sqlSN(DIQuery.domain)+','+sqlSN(DIQuery.name)+','+sqlSN(DIQuery.description)+','+sqlSN(DIQuery.objecttypes)+','+sqlSN(DIQuery.geometrytype)+','+sqlI(DIQuery.defaultload)+','+
-              sqlI(DIQuery.basiclayer)+','+sqlSN(DIQuery.sql)+','+sqlSN(DIQuery.tablename)+','+sqlSN(DIQuery.idfieldname)+','+sqlSN(DIQuery.geometryfieldname)+','+sqlSN(DIQuery.datafieldname)+','+
-              sqlI(sliceType)+','+sqlSN(DIQuery.palettejson)+','+sqlSN(DIQuery.legendjson)+')');
-          // then add to internal list
-          DIQueries.Add(aTableName, DIQuery);
-        except
-          on E: Exception
-          do Log.WriteLn('Exception adding basic layer def to diqueries for '+aTableName+': '+E.Message, llError);
-        end;
-        try
-          layer := (aClient.currentScenario as TEcodistrictScenario).AddLayerFromTable(
-            'Basic structures', aTableName,  aTableName, 'Basic '+aTableName, '"'+aTableName+'"', geometryType,
-            false, true,
-            aSchemaName, aTableName,fieldNameID, fieldNameGeometry, '',
-            sliceType, CreateBasicPalette, '');
-        except
-          on E: Exception
-          do Log.WriteLn('Could not add basic layer to scenario for '+aTableName+': '+E.Message, llError);
-        end;
-        // handle the refresh of the client
-        (aClient.currentScenario as TEcodistrictScenario).forEachSubscriber<TClient>(
-          procedure(aClient: TClient)
-          begin
-            SendDomains(aClient, 'updatedomains');
-          end);
-        addDownloadableFile(aTableName, ['shape', 'text'], GenerateDownloadableFile);
-        forEachSubscriber<TClient>(
-          procedure(aClient: TClient)
-          begin
-            aClient.SendClearDownloadableFile();
-            aClient.SendAddDownloadableFiles(DownloadableFiles);
-          end);
-      end
-      else
-      begin
-        // basic layer defined so just lookup and send refresh
-        if (aClient.currentScenario as TEcodistrictScenario).Layers.TryGetValue(aTableName, layer) then
+        end
+        else if aFileExt='.zip' then
         begin
-          (aClient.currentScenario as TEcodistrictScenario).ReadObjectFromQuery(layer as TLayer);
-          (layer as TLayer).signalObjects(nil); // send object to tiler which will trigger refresh
+          // todo: unzip and process indiviual files
+          tempDataFolder := IncludeTrailingPathDelimiter(GetTempDirectory)+TGUID.NewGuid.ToString;
+          ForceDirectories(tempDataFolder);
+          if UnZipFiles(aPath, tempDataFolder, fileNames) then
+          begin
+            for fn in fileNames do
+            begin
+              // skip folders
+              if not (fn.EndsWith('\') or fn.EndsWith('/')) then
+              begin
+                // skip all files starting with a dot, the are prob. secondary stream files from max osx or linux
+                l := fn.LastDelimiter('/\:');
+                if fn.Substring(l+1,1)<>'.'
+                then ProcessFileOnExt(tempDataFolder+'\'+fn, ExtractFileExt(fn).ToLower, aSchemaName, aTableName);
+              end;
+            end;
+          end
+          else
+          begin
+            log.WriteLn('Could not unzip uploaded file: '+aPath, llError);
+            aClient.SendMessage('Could not unzip uploaded file', TMessageType.mtError, 5000);
+          end;
+        end
+        // parse shp file, we expect dbf etc. to be there (from zip)
+        else if aFileExt='.shp' then
+        begin
+          aClient.SendMessage('Uploading data in shape file for '+aTableName+'..', TMessageType.mtNone, 3000);
+          shapeFile := TGIS_LayerSHP.Create;
+          try
+            // load shape file
+            shapeFile.Name := 'uploaded shape file';
+            shapeFile.Path := aPath;
+            shapeFile.Open;
+
+            // reproject
+            //shapeFile.CS := CSProjectedCoordinateSystemList.ByEPSG(4326);
+            //TGIS_CSProjTransverseMercator.Create(4326, 'WGS84'); //
+            WGS84Projection := CSGeographicCoordinateSystemList.ByEPSG(4326); //('GED'); //ByEPSG(4326);
+
+            //shapeFile.ImportLayer(loadedShapeFile, GisWholeWorld, gisShapeTypeUnknown, '', False );
+
+            for f := 0 to shapeFile.Fields.Count-1 do
+            begin
+              fieldName := shapeFile.FieldInfo(f).Name;
+              fieldType := shapeFile.FieldInfo(f).FieldType;
+              // column is id field if name = 'id' or if no id field is defined and column ends on '_id'
+              if (fieldName.ToLower='id') or ((idfni<0) and fieldName.ToLower.EndsWith('_id')) then
+              begin
+                idfni := f;
+                fieldDefs.Add(TFileInfoRecord.Create(fieldName, TFileInfoRecord.GISFieldType2DBFieldType(fieldType), True, False));
+              end
+              else fieldDefs.Add(TFileInfoRecord.Create(fieldName, TFileInfoRecord.GISFieldType2DBFieldType(fieldType), False, False));
+            end;
+            // add the geometry field type as the last entry so shape field indexes match the fieldDefs indexes
+            fieldDefs.Add(TFileInfoRecord.Create(fieldNameGeometry, ftString, False, True));
+            // if no id column is found use first column
+            if (idfni<0) and (shapeFile.Fields.Count>0)
+            then idfni := 0;
+            if idfni>=0
+            then fieldNameID := fieldDefs[idfni].fieldName;
+            // check table structure
+            FixupTable(aSchemaName, aTableName, idfni, fieldDefs);
+            // parse shapes in shape file
+            shape := shapeFile.FindFirst(GisWholeWorld);
+            while Assigned(shape) do
+            begin
+              if Assigned(shape) then
+              begin
+                // shape geometry in json format, last fieldDefs entry is the geometry field
+                // todo: projection
+                // https://gis.stackexchange.com/questions/60928/how-to-insert-a-geojson-polygon-into-a-postgis-table
+                projectedShape := shape.CreateCopyCS(WGS84Projection);
+                try
+                  if projectedShape is TGIS_ShapePoint then
+                  begin
+                    fieldDefs[fieldDefs.Count-1].sqlFieldValue := 'ST_GeomFromGeoJSON('''+TGIS_Utils.GisExportPointToJSON(projectedShape)+''')';
+                    sliceType := stLocation;
+                  end
+                  else if projectedShape is TGIS_ShapeArc then
+                  begin
+                    fieldDefs[fieldDefs.Count-1].sqlFieldValue := 'ST_GeomFromGeoJSON('''+TGIS_Utils.GisExportArcToJSON(projectedShape)+''')';
+                    sliceType := stGeometryI;
+                  end
+                  else if projectedShape is TGIS_ShapePolygon then
+                  begin
+                    fieldDefs[fieldDefs.Count-1].sqlFieldValue := 'ST_GeomFromGeoJSON('''+TGIS_Utils.GisExportPolygonToJSON(projectedShape)+''')';
+                    sliceType := stGeometry;
+                  end
+                  else
+                  begin // unknown projectedShape type
+                    // for now just also use polygon
+                    fieldDefs[fieldDefs.Count-1].sqlFieldValue := 'ST_GeomFromGeoJSON('''+TGIS_Utils.GisExportPolygonToJSON(projectedShape)+''')';
+                    sliceType := stGeometry;
+                  end;
+                finally
+                  projectedShape.Free;
+                end;
+
+                // todo: detect kind geometry to add basic layer for..
+
+                // fields on shape
+                for f := 0 to shapeFile.Fields.Count-1 do
+                begin
+                  fieldName := shapeFile.FieldInfo(f).Name;
+                  fieldType := shapeFile.FieldInfo(f).FieldType;
+                  case fieldType of
+                    TGIS_FieldType.String:
+                      fieldDefs[f].sqlFieldValue := ''''+shape.GetField(fieldName)+'''';
+                    TGIS_FieldType.Number:
+                      fieldDefs[f].sqlFieldValue := Double(shape.GetField(fieldName)).ToString(dotFormat);
+                    TGIS_FieldType.Float:
+                      fieldDefs[f].sqlFieldValue := Double(shape.GetField(fieldName)).ToString(dotFormat);
+                    TGIS_FieldType.Boolean:
+                      fieldDefs[f].sqlFieldValue := Boolean(shape.GetField(fieldName)).ToString(TUseBoolStrs.True).toLower;
+                    TGIS_FieldType.Date:
+                      fieldDefs[f].sqlFieldValue := 'null'; // todo: how to parse
+                  else
+                      fieldDefs[f].sqlFieldValue := 'null';
+                  end;
+                end;
+                UpsertRow(aSchemaName, aTableName, idfni, fieldDefs);
+                changed := True;
+              end;
+              shape := shapeFile.FindNext;
+            end;
+          finally
+            shapeFile.Free;
+            //loadedShapeFile.Free;
+          end;
+        end;
+      finally
+        fieldDefs.Free;
+      end;
+      {
+      cnt := FDSingleStringResultQuery(fDBConnection as TFDConnection,
+        'SELECT Count(*) '+
+        'FROM '+aSchemaName+'.di_queries '+
+        'WHERE tablename='''+aTableName+'''');
+      if cnt='0' then
+      }
+      if Changed then
+      begin
+        if not DIQueries.ContainsKey(aTableName) then
+        begin
+          case sliceType of
+            stLocation:
+              geometryType := gtPoint;
+            stGeometryI:
+              geometryType := gtMultiLineString;
+          else
+            geometryType := gtPolygon;
+          end;
+          Log.WriteLn('Adding basic layer definition for '+aSchemaName+'.'+aTableName);
+          try
+            DIQuery.id := aTableName;
+            DIQuery.domain := 'Basic structures';
+            DIQuery.name := aTableName;
+            DIQuery.description := 'Basic '+aTableName;
+            DIQuery.objecttypes := '"'+aTableName+'"';
+            DIQuery.geometrytype := geometryType;
+            DIQuery.defaultload := 0;
+            DIQuery.basiclayer := 1;
+            DIQuery.sql := '';
+            DIQuery.tablename := '"'+aTableName+'"'; // normally " is not needed
+            DIQuery.idfieldname := fieldNameID;
+            DIQuery.geometryfieldname := fieldNameGeometry;
+            DIQuery.datafieldname := '';
+            DIQuery.layertype := sliceType;
+            DIQuery.palettejson := '';
+            DIQuery.legendjson := '';
+            // first create entry in database
+            (fDBConnection as TFDConnection).ExecSQL(
+              'INSERT INTO '+aSchemaName+'.di_queries ('+
+                'id, domain, name, description, objecttypes, geometrytype, defaultload, '+
+                'basiclayer, sql, tablename, idfieldname, geometryfieldname, datafieldname,'+
+                'layertype, palettejson, legendjson) '+
+              'VALUES ('+
+                sqlSN(DIQuery.id)+','+sqlSN(DIQuery.domain)+','+sqlSN(DIQuery.name)+','+sqlSN(DIQuery.description)+','+sqlSN(DIQuery.objecttypes)+','+sqlSN(DIQuery.geometrytype)+','+sqlI(DIQuery.defaultload)+','+
+                sqlI(DIQuery.basiclayer)+','+sqlSN(DIQuery.sql)+','+sqlSN(DIQuery.tablename)+','+sqlSN(DIQuery.idfieldname)+','+sqlSN(DIQuery.geometryfieldname)+','+sqlSN(DIQuery.datafieldname)+','+
+                sqlI(sliceType)+','+sqlSN(DIQuery.palettejson)+','+sqlSN(DIQuery.legendjson)+')');
+            // then add to internal list
+            DIQueries.Add(aTableName, DIQuery);
+          except
+            on E: Exception
+            do Log.WriteLn('Exception adding basic layer def to diqueries for '+aTableName+': '+E.Message, llError);
+          end;
+          {
+          try
+            layer := (aClient.currentScenario as TEcodistrictScenario).AddLayerFromTable(
+              'Basic structures', aTableName,  aTableName, 'Basic '+aTableName, '"'+aTableName+'"', geometryType,
+              false, true,
+              aSchemaName, aTableName,fieldNameID, fieldNameGeometry, '',
+              sliceType, CreateBasicPalette, '');
+          except
+            on E: Exception
+            do Log.WriteLn('Could not add basic layer to scenario for '+aTableName+': '+E.Message, llError);
+          end;
+          // handle the refresh of the clients
+          forEachSubscriber<TClient>(
+            procedure(aClient: TClient)
+            begin
+              SendDomains(aClient, 'updatedomains');
+            end);
+          }
+          addDownloadableFile(aTableName, [udftShape, udftText, udftLayer], GenerateDownloadableFile);
+          Refresh(aClient.currentScenario);
+          {
+          forEachSubscriber<TClient>(
+            procedure(aClient: TClient)
+            begin
+              aClient.SendClearDownloadableFile();
+              aClient.SendAddDownloadableFiles(DownloadableFiles);
+            end);
+          }
+        end
+        else
+        begin
+          // basic layer defined so just lookup and send refresh
+          if (aClient.currentScenario as TEcodistrictScenario).Layers.TryGetValue(aTableName, layer) then
+          begin
+            (aClient.currentScenario as TEcodistrictScenario).ReadObjectFromQuery(layer as TLayer);
+            (layer as TLayer).signalObjects(nil); // send object to tiler which will trigger refresh
+          end;
         end;
       end;
+    end;
+  end;
+
+  function PathToTableName(aPath: string): string;
+  var
+    i: Integer;
+  begin
+    Result := '';
+    // extract only file name part, in lower case
+    aPath := ChangeFileExt(ExtractFileName(aPath), '').toLower;
+    // only use chars that are letters or numbers
+    for i := 1 to Length(aPath) do
+    begin
+      if CharInSet(aPath[i],['a'..'z', '0'..'9'])
+      then Result := Result+aPath[i];
     end;
   end;
 
@@ -2855,14 +3336,18 @@ begin
     if Assigned(aClient.currentScenario)
     then schemaName := (aClient.currentScenario as TEcodistrictScenario).ScenarioSchemaName
     else schemaName := ProjectSchemaName;
-
-    tableName := ChangeFileExt(ExtractFileName(aFileInfo.fileName), '');
+    tableName := PathToTableName(aFileInfo.fileName);
     fileExt := ExtractFileExt(aFileInfo.fileName).toLower;
-    ProcessFileOnExt(aFileInfo.path, fileExt, schemaName, tableName);
-    aClient.SendMessage('Parsed uploaded file '+aFileInfo.fileName, TMessageType.mtSucces, 3000);
+    if (fileExt='.txt') or (fileExt='.zip') or (fileExt='.layer') then
+    begin
+      ProcessFileOnExt(aFileInfo.path, fileExt, schemaName, tableName);
+      aClient.SendMessage('Parsed uploaded file '+aFileInfo.fileName, TMessageType.mtSucces, 3000);
+    end
+    else aClient.SendMessage('Found file extension '+fileExt+', only .txt and .zip are supported..', TMessageType.mtError, 5000);
   except
     on E: Exception do
     begin
+      log.WriteLn('Unhandled exception uploading file '+aFileInfo.fileName+': '+E.Message, llError);
       aClient.SendMessage('Could not process uploaded file '+aFileInfo.fileName+': '+E.Message, TMessageType.mtError, 5000);
     end;
   end;
@@ -3342,6 +3827,8 @@ begin
       then Result := TEcodistrictScenario.Create(Self, Self.ProjectID, Self.ProjectName, Self.ProjectDescription, Self.addBasicLayers, Self.mapView)
       else Result := TEcodistrictScenario.Create(Self, aID, '', '', Self.addBasicLayers, Self.mapView);
       scenarios.Add(aID, Result);
+      if not Assigned(projectCurrentScenario)
+      then projectCurrentScenario := Result;
     end;
   finally
     TMonitor.Exit(scenarios);
@@ -3481,7 +3968,8 @@ begin
     Result := (project as TEcodistrictProject).ReadDIMeasures;
     for isp in project.scenarios do
     begin
-      isp.Value.forEachSubscriber<TClient>(procedure(aClient: TClient)
+      isp.Value.forEachSubscriber<TClient>(
+        procedure(aClient: TClient)
         begin
           // todo: update measures? aClient.SendDomains('updatedomains');
         end);
@@ -3502,7 +3990,8 @@ begin
 
     for isp in project.scenarios do
     begin
-      isp.Value.forEachSubscriber<TClient>(procedure(aClient: TClient)
+      isp.Value.forEachSubscriber<TClient>(
+        procedure(aClient: TClient)
         begin
           project.SendDomains(aClient, 'updatedomains');
         end);
@@ -3851,7 +4340,7 @@ begin
                 begin
                   _status := 'Success - schema already created before';
                   // add numer of buildings
-                  _status := _status+' (buildings: '+getNumberOfBuildings(EcoDistrictSchemaId(_caseId, _variantId)).toString+')';
+                  //_status := _status+' (buildings: '+getNumberOfBuildings(EcoDistrictSchemaId(_caseId, _variantId)).toString+')';
                 end
                 else
                 begin
@@ -4545,6 +5034,8 @@ begin
     if not result.scenarios.TryGetValue(EcodistrictBaseScenario, scenario) then
     begin
       scenario := TEcodistrictScenario.Create(result, result.ProjectID, result.ProjectName, result.ProjectDescription, result.addBasicLayers, (result as TEcodistrictProject).mapView);
+      if not Assigned(result.projectCurrentScenario)
+      then result.projectCurrentScenario := scenario;
       result.scenarios.Add(EcodistrictBaseScenario, scenario);
       Log.WriteLn('added base scenario '+EcodistrictBaseScenario+': '+result.ProjectName+', '+result.ProjectDescription, llNormal, 1);
     end
@@ -4781,6 +5272,9 @@ begin
       begin
         // add scenario
         scenario := TEcodistrictScenario.Create(project, aVariantId, aVariantName, aVariantDescription, project.addBasicLayers, (project as TEcodistrictProject).mapView);
+        // todo: too late?
+        if not Assigned(project.projectCurrentScenario)
+        then project.projectCurrentScenario := scenario;
         project.scenarios.Add(aVariantId, scenario);
         Log.WriteLn('added scenario '+aVariantId+': '+aVariantName+', '+aVariantDescription, llNormal, 1);
       end;

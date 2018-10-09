@@ -133,10 +133,11 @@ var LayerManager = {
     },
 
     SetNextLegend: function () {
-        // for (var i = 0; i < LayerManager._visibleLayers.length; i++)
 
+        //legend is displayed for the first selected layer - by default
+        for (var i = 0; i < LayerManager._visibleLayers.length; i++)
         //legend is displayed for the last selected layer - by default
-        for (var i = LayerManager._visibleLayers.length - 1; i >= 0; i--)
+        //for (var i = LayerManager._visibleLayers.length - 1; i >= 0; i--)
             if (LayerManager._visibleLayers[i].setLegend())
                 return;
         legendControl.clearLegend();

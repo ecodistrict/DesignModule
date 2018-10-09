@@ -26,8 +26,8 @@ discreteEntry: {
 }
 
 discrete: {
-	"orientationVertical": true(default)|false
-	"noDataColor": <geoColor>(default={fill: [0, 0, 0, 255]})
+	"orientationVertical": true(default)|false,
+	"noDataColor": <geoColor>(default={fill: [0, 0, 0, 255]}),
 	"entries": [<discreteEntry>[,<discreteEntry>]]
 }
 
