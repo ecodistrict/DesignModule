@@ -1,5 +1,8 @@
 unit PublishServerUS;
 
+// todo: handling changeobject event for chart will trigger multiple charts?
+// todo: .. and ref chart is not taken into account
+
 interface
 
 uses
@@ -5067,7 +5070,7 @@ end;
 
 function TUSChart.getJSON: string;
 begin
-  if fChanged or not fChanged then    //to do remove the not fChanged
+  if fChanged or not fChanged then    // todo: remove the not fChanged
   begin
     TMonitor.Enter(Self);
     try
@@ -5472,6 +5475,7 @@ begin
   end;
   if clientMessage <> '' then
   begin
+    clientMessage := '{"type":"updatechart", "payload":[' + clientMessage + ']}';
     fScenario.forEachSubscriber<TClient>(procedure (aClient: TClient)
       begin
         aClient.signalString(clientMessage);
