@@ -51,6 +51,7 @@ var
 begin
   AbZipKit := TAbZipKit.Create(nil);
   try
+    AbZipKit.ExtractOptions := [eoCreateDirs, eoRestorePath];
     AbZipKit.OpenArchive(aZipFilePath);
     AbZipKit.BaseDirectory := aRootPath;
     AbZipKit.ExtractFiles('*.*');
