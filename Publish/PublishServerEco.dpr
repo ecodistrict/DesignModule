@@ -82,6 +82,8 @@ begin
           //ecodistrictModule.HandleModuleCase('1234', 'Kiel test case', 'Test case for Ecodistrict publishing server based on Kiel (Antwerp) data..', mapView, nil);
           ecodistrictModule.HandleModuleCase('5b7fc843820bed04cf284953', 'test case', 'Test case for Ecodistrict publishing server..', mapView, nil);
 
+          //mapView := TMapView.Create(39.49756688894252, -0.393362045288086, 15); // Valencia
+          //ecodistrictModule.HandleModuleCase('5a6f19f07077d2096a218483', 'blanca case', 'blanca case..', mapView, nil);
 
           // main loop
           WriteLn('Press return to quit');
