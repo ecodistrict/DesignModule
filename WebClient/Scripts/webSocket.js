@@ -7,7 +7,7 @@ var wsLookup = {
     measures: function (payload) {
         measuresControl.resetMeasures(payload);
     },
-    domains: function (payload) {
+    domains: function (payload) {        
         // first domains after login
         domainsControl.resetDomains(payload);
         // remove all basic overlay layers from layers control (and with that from map)
@@ -53,6 +53,9 @@ var wsLookup = {
                 layerControl.removeLayer(lcl.layer);
             }
         }
+
+        var graphs = [];
+
         // add basic layers from domains
         for (var domainName in payload) {
             var domain = payload[domainName];
@@ -61,6 +64,15 @@ var wsLookup = {
                 if (layer.basic)
                     addBasicLayer(layer);
             }
+
+            // collect graphs
+            if (domain && Array.isArray(domain.charts)) {
+                graphs = graphs.concat(domain.charts);
+            }
+        }
+
+        if (graphService) {            
+            graphService.updateGraphs(graphs);
         }
     },
     refresh: function (payload) {

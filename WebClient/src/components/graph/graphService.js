@@ -9,6 +9,46 @@
 import './graphModel';
 import ModelCollection from '../../core/modelCollection';
 import GraphModel from './graphModel';
+import chroma from 'chroma-js';
+
+function buildCategories(chartColumns) {
+    var categories = chartColumns[0].slice(1).map(function(category) {
+		return {
+			id: '' + category,
+			title: '' + category
+		};
+    });
+    
+    return categories;
+}
+
+function buildSeries(type, chartColumns, nameFunction, colorFunction) {
+    var categories = buildCategories(chartColumns);
+
+    var series = chartColumns.slice(1).map(function(row) {
+        if (!Array.isArray(row)) return null;
+
+		var data = row.slice(1).map(function(item, i) {
+			return {
+				categoryId: categories[i].id,
+				y: item,
+				axisId: 'yLeft'			
+			};
+		});
+		var rowName = row[0];
+		
+		return {
+			type: type,
+			id: nameFunction(rowName),
+			title: nameFunction(rowName),
+			color: colorFunction(rowName),
+			data: data
+		};
+    });
+    series = series.filter(function (item) { return !!item; });
+
+    return series;
+}
 
 function convertChartToGraphModel(chart) {
     if (!chart) throw new Error('chart is not provided');
@@ -28,34 +68,32 @@ function convertChartToGraphModel(chart) {
 	
 	var columns = chart.data.columns;
 	
-	var categories = columns[0].slice(1).map(function(category) {
-		return {
-			id: '' + category,
-			title: '' + category
-		};
-	});
-	
-	var series = columns.slice(1).map(function(row) {
-        if (!Array.isArray(row)) return null;
+	var categories = buildCategories(columns);	
+    var series = buildSeries(chart.type, columns, function (name) { return name; }, color);
+    
+    if (chart.ref) {
+        var refChart = chart.ref;
+        if (!refChart.data) throw new Error('chart.ref.data is not provided');
+        if (!Array.isArray(refChart.data.columns)) throw new Error('chart.ref.data.columns is not an array');
 
-		var data = row.slice(1).map(function(item, i) {
-			return {
-				categoryId: categories[i].id,
-				y: item,
-				axisId: 'yLeft'			
-			};
-		});
-		var rowName = row[0];
-		
-		return {
-			type: chart.type,
-			id: rowName,
-			title: rowName,
-			color: color(rowName),
-			data: data
-		};
-    });	
-    series = series.filter(function (item) { return !!item; });
+        var refColumns = chart.data.columns;
+        var refSeries = buildSeries(
+            chart.type,
+            refColumns, 
+            function (name) { return 'Reference ' + name; }, 
+            function (x) { return chroma(color(x)).brighten(1).desaturate(0.5); }
+        );
+
+        if (series.length !== refSeries.length) throw new Error('ref series doesn\'t match base series' );
+
+        var combinedSeries = [];
+        for (var i = 0; i < series.length; ++i) {
+            combinedSeries.push(series[i]);
+            combinedSeries.push(refSeries[i]);
+        }
+        
+        series = combinedSeries;
+    }
 	
 	return new GraphModel({
 		type: 'category',
