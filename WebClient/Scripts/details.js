@@ -50,7 +50,7 @@
 
             var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
-            link.title = 'Details of selected domains in KPIs, charts and map layers';
+            link.title = 'Details of selected domains in KPIs and map layers';
 
 
             if (L.Browser.touch) {

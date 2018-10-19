@@ -249,6 +249,7 @@ var wsLookup = {
         InfoTextControl['leaflet-control-zoom'] = { description: 'Zoom', active: true, iconPosition: 'right' };
         InfoTextControl['leaflet-control-layers-toggle'] = { description: 'Selecteer de basis kaart', active: true, iconPosition: 'left' };
         InfoTextControl['leaflet-control-domains-toggle'] = { description: 'Selecteer de relevante domeinen door deze aan te klikken', active: true, iconPosition: 'left' };
+        InfoTextControl['leaflet-control-graphs-toggle'] = { description: 'Select a desired graph to display from the provided list', active: true, iconPosition: 'left' };
         InfoTextControl['leaflet-control-details-toggle'] = { description: 'Selecteer de gewenste kaart uit een overzicht van beschikbare kaarten', active: true, iconPosition: 'left' };
         InfoTextControl['projectDescription'] = { description: 'Klik hier om een scenario te selecteren en eventueel een referentiescenario aan te geven', active: true, iconPosition: 'bottom' };
 
