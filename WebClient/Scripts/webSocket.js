@@ -108,7 +108,12 @@ var wsLookup = {
         }
     },
     showchart: function (payload) {
-        GraphManager.ShowGraphs(payload);
+        if (graphService) {
+            var graphs = payload.map(function (id) {
+                return { id: id }
+            });
+            graphService.showGraphs(graphs);
+        }
     },
     showelement: function (payload) {
         for (var i = 0; i < payload.length; i++)

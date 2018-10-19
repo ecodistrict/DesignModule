@@ -11,7 +11,22 @@ import ModelCollection from '../../core/modelCollection';
 import GraphModel from './graphModel';
 import chroma from 'chroma-js';
 
+function buildAxes(chartData) {
+    var axes = {
+		yLeft: {
+			formatSpecifier: ',.1f'
+		},
+		xBottom: {
+			title: chartData.x || ''
+		}
+    };
+    
+    return axes;
+}
+
 function buildCategories(chartColumns) {
+    if (!Array.isArray(chartColumns)) return [];
+
     var categories = chartColumns[0].slice(1).map(function(category) {
 		return {
 			id: '' + category,
@@ -23,6 +38,8 @@ function buildCategories(chartColumns) {
 }
 
 function buildSeries(type, chartColumns, nameFunction, colorFunction) {
+    if (!Array.isArray(chartColumns)) return [];
+
     var categories = buildCategories(chartColumns);
 
     var series = chartColumns.slice(1).map(function(row) {
@@ -50,24 +67,17 @@ function buildSeries(type, chartColumns, nameFunction, colorFunction) {
     return series;
 }
 
-function convertChartToGraphModel(chart) {
+function convertChartToGraphOpts(chart) {
     if (!chart) throw new Error('chart is not provided');
-    if (!chart.data) throw new Error('chart.data is not provided');
-    if (!Array.isArray(chart.data.columns)) throw new Error('chart.data.columns is not an array');    
+    if (!chart.id) throw new Error('chart.id is not provided');
 
-	var color = d3.scaleOrdinal(d3.schemeCategory10);
+    if (!chart.data) return { id: chart.id };
+    
 
-	var axes = {
-		yLeft: {
-			formatSpecifier: ',.1f'
-		},
-		xBottom: {
-			title: chart.data.x || ''
-		}
-	};
-	
-	var columns = chart.data.columns;
-	
+    var color = d3.scaleOrdinal(d3.schemeCategory10);
+    var columns = chart.data.columns;
+
+	var axes = buildAxes(chart.data);
 	var categories = buildCategories(columns);	
     var series = buildSeries(chart.type, columns, function (name) { return name; }, color);
     
@@ -95,7 +105,7 @@ function convertChartToGraphModel(chart) {
         series = combinedSeries;
     }
 	
-	return new GraphModel({
+	return {
 		type: 'category',
 		id: chart.id,
 		title: chart.title,
@@ -103,7 +113,14 @@ function convertChartToGraphModel(chart) {
 		categories: categories,
         series: series,
         clickable: chart.clickable
-	});
+	};
+}
+
+function convertChartToGraphModel(chart) {
+    if (!chart) throw new Error('chart is not provided');
+
+    var graphOpts = convertChartToGraphOpts(chart);
+	return new GraphModel(graphOpts);
 }
 
 function updateGraph(graphModel, graphData) {
@@ -156,15 +173,18 @@ var GraphService = L.Evented.extend({
 
         try {
             var graphModels = originalGraphs
-                .map(convertChartToGraphModel)
-                .map(function (newGraphModel) {
-                    var graphModel = graphsModel.getById(newGraphModel.id);
+                .map(convertChartToGraphOpts)
+                .map(function (graphOpts) {
+                    var graphModel = graphsModel.getById(graphOpts.id);
+
                     if (graphModel) {
-                        updateGraph(graphModel, newGraphModel);
-                        return graphModel;
+                        graphModel.set(graphOpts);
+                    } else {
+                        graphModel = new GraphModel(graphOpts);
                     }
-                    return newGraphModel;
-                });
+
+                    return graphModel;
+                });                
             graphsModel.set(graphModels);
         } catch (error) {
             console.error('Failed to update graphs because graphs data is incorrect.', error);
@@ -178,13 +198,22 @@ var GraphService = L.Evented.extend({
         var graphsModel = this.graphsModel;
 
         try {
-            var graphModels = originalGraphs.map(convertChartToGraphModel);
-            graphModels.forEach(function (newGraphModel) {
-                var graphModel = graphsModel.getById(newGraphModel.id);
-                if (!graphModel) return;
+            var graphModels = originalGraphs
+                .map(convertChartToGraphOpts)
+                .map(function (graphOpts) {
+                    var graphModel = graphsModel.getById(graphOpts.id);
 
-                updateGraph(graphModel, newGraphModel);
-            });
+                    if (graphModel) {
+                        graphModel.set(graphOpts);
+                    } else {
+                        graphModel = new GraphModel(graphOpts);
+                    }
+
+                    return graphModel;
+                })
+                .filter(function (graphModel) {
+                    return !!graphModel.type;
+                });
 
             this.fire('showGraphs', {
                 graphModels: graphModels
