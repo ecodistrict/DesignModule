@@ -274,7 +274,7 @@ var wsLookup = {
         historyControl.removeHistoryItems(payload);
     },
     resetgraphs: function (payload) {
-        GraphManager.ResetGraphs(payload);
+        // not needed
     },
     ccv: function (payload) {
         SyncManager.handleCCVMessage(payload);

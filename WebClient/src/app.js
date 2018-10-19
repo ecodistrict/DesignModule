@@ -244,8 +244,6 @@ window.projectDescription = L.control.projectDescription;
 projectDescription.options.description = sessionDescription;
 map.addControl(projectDescription);
 
-GraphManager.Initialize();
-
 map.addEventListener('overlayadd',
     function (e) {
         if (e.layer.basicLayer && e.layer.basicID)
@@ -257,18 +255,6 @@ map.addEventListener('overlayremove',
         if (e.layer.basicLayer && e.layer.basicID)
             delete DataManager.activeBasicLayers[e.layer.basicID];
     });
-
-// test graph
-/*
-testGraph = {};
-testGraph.id = 'tg';
-testGraph.name = 'tg name';
-testGraph.type = 'table';
-testGraph.data = { header: { a: 'Option', b: 'Value' }, data: [{ a: 'Heel belangrijke waarde', b: 2.4 }, { a: 'Ook heel belangrijk', b: '7.456 MW' }] };
-
-GraphManager.MakeGraph(testGraph);
-testGraph.container.graph.ShowGraph();
-*/
 
 // link up connection control
 window.connectionStatus = document.getElementById('connectionStatus');
