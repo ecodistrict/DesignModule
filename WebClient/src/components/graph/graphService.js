@@ -123,17 +123,6 @@ function convertChartToGraphModel(chart) {
 	return new GraphModel(graphOpts);
 }
 
-function updateGraph(graphModel, graphData) {
-    if (!graphModel) return;
-    if (!graphData) return;
-
-    graphModel.title = graphData.title;
-    graphModel.axes = graphData.axes;
-    graphModel.categories = graphData.categories;
-    graphModel.series = graphData.series;
-    graphModel.clickable = graphData.clickable;
-}
-
 var GraphService = L.Evented.extend({
 
     initialize: function () {
