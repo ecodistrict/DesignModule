@@ -116,7 +116,9 @@ var wsLookup = {
             switch (payload[i].type)
             {
                 case 'chart':
-                    GraphManager.MakeAndShowChart(payload[i].element)
+                    if (graphService) {
+                        graphService.showGraphs(payload[i].element);
+                    }
                     break;
             }
         }

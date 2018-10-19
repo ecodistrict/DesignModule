@@ -278,10 +278,11 @@ var CategoryGraphView = GraphView.extend({
             .classed('rotate', this._xAxisTickGeometry.rotated)
             .attr('transform', this._xAxisTickGeometry.rotated ? 
                 'rotate(45)' : '')
-            .on('mouseover', this._tip.show)
-            .on('touchstart', this._tip.show)
-            .on('mouseout', this._tip.hide)
-            .on('touchend', this._tip.hide)
+            .on('mouseover.tooltip touchstart.tooltip', this._tip.show)
+            .on('mouseout.tooltip touchend.tooltip', this._tip.hide)
+            .on('click touchend', function (d) {
+                this._notifyGraphCategoryClicked(d.id);
+            }.bind(this))
             .text(function (d) {
                 return DomUtil.truncateTextByWidth(this, d.title, maxTextWidth);
             });
@@ -416,6 +417,13 @@ var CategoryGraphView = GraphView.extend({
         xAxisTmp.remove();
 
         return textSize;
+    },
+
+    _notifyGraphCategoryClicked: function (categoryId) {
+        this.fire('graphCategoryClicked', {
+            view: this,
+            categoryId: categoryId
+        });
     }
     
 });

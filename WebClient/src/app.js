@@ -7,10 +7,7 @@ import './utils/polyfill';
 import PerimeterLayout from './core/window/perimeterLayout';
 import WindowManager from './core/window/windowManager';
 import TimeSliderController from './components/timeSlider/timeSliderController';
-import GraphViewControllerFactory from './components/graph/graphViewControllerFactory';
-import GraphPreviewFactory from './components/graph/graphPreviewFactory';
-import GraphService from './components/graph/graphService';
-import GraphViewManager from './components/graph/graphViewManager';
+import GraphComponent from './components/graph/graphComponent';
 import DetailsViewController from './components/details/detailsViewController';
 
 var wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
@@ -79,7 +76,6 @@ DataManager.sessionInfo = {
 };
 
 var layoutOptions;
-var graphViewOptions;        
 if (window.innerWidth < 500) { // Mobile
     document.body.setAttribute("id", "phone");
 
@@ -98,15 +94,6 @@ if (window.innerWidth < 500) { // Mobile
         maxCellHeight: window.innerHeight / 3,
         minCellWidth: 150,
         minCellHeight: 80
-    };
-
-    graphViewOptions = {
-        minWidth: 200,
-        minHeight: 150,
-        maxWidth: 900,
-        maxHeight: 600,
-        width: 250,
-        height: 200
     };
 } else {
     document.body.removeAttribute("id");
@@ -127,15 +114,6 @@ if (window.innerWidth < 500) { // Mobile
         maxCellHeight: null,
         minCellWidth: 150,
         minCellHeight: 80
-    };
-
-    graphViewOptions = {
-        minWidth: 300,
-        minHeight: 200,
-        maxWidth: 900,
-        maxHeight: 600,
-        width: 350,
-        height: 250
     };
 }
 
@@ -168,20 +146,16 @@ if (window.innerWidth < 500) {
 }
 
 // graphs
-var graphViewControllerFactory = new GraphViewControllerFactory();
-var graphPreviewFactory = new GraphPreviewFactory();
-window.graphService = new GraphService();
-window.graphViewManager = new GraphViewManager({
-    windowManager: windowManager,
-    graphViewOptions: graphViewOptions,
-    graphViewControllerFactory: graphViewControllerFactory
+window.graphComponent = new GraphComponent({
+    windowManager: windowManager
 });
+window.graphService = graphComponent.service();
 
 // details
 window.detailsViewController = new DetailsViewController({
-    graphService: graphService,
-    graphViewManager: graphViewManager,
-    graphPreviewFactory: graphPreviewFactory
+    graphService: graphComponent.service(),
+    graphViewManager: graphComponent.graphViewManager(),
+    graphPreviewFactory: graphComponent.graphPreviewFactory()
 });
 map.addControl(window.detailsViewController.view());
 

@@ -21,11 +21,14 @@ var CategoryGraphViewController = GraphViewController.extend({
     },
 
     createGraphView: function () {
-        return new CategoryGraphView(L.extend({
+        var graphView = new CategoryGraphView(L.extend({
             graphViewModel: this.graphViewModel,
             categoryGraphViewModel: this.categoryGraphViewModel,
             graphLegendModel: this.graphLegendViewModel,
         }, this._graphViewOptions));
+        graphView.on('graphCategoryClicked', this._onGraphCategoryClicked, this);
+
+        return graphView;
     },
 
     _onDataChanged: function () {
@@ -34,6 +37,17 @@ var CategoryGraphViewController = GraphViewController.extend({
             axes: updatedModel.axes,
             lines: updatedModel.lines,
             bars: updatedModel.bars
+        });
+    },
+
+    _onGraphCategoryClicked: function (data) {
+        this._notifyGraphCategoryClicked(data.categoryId);        
+    },
+
+    _notifyGraphCategoryClicked: function (categoryId) {
+        this.fire('graphCategoryClicked', {
+            graphModel: this.graphModel,
+            categoryId: categoryId
         });
     }
     

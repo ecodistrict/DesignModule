@@ -4,7 +4,7 @@
  * maintaining them in sync with the server.
  */
 
-/* globals L, d3 */
+/* globals L, d3, wsSend */
 
 import './graphModel';
 import ModelCollection from '../../core/modelCollection';
@@ -53,7 +53,7 @@ function buildSeries(type, chartColumns, nameFunction, colorFunction) {
 function convertChartToGraphModel(chart) {
     if (!chart) throw new Error('chart is not provided');
     if (!chart.data) throw new Error('chart.data is not provided');
-    if (!Array.isArray(chart.data.columns)) throw new Error('chart.data.columns is not an array');
+    if (!Array.isArray(chart.data.columns)) throw new Error('chart.data.columns is not an array');    
 
 	var color = d3.scaleOrdinal(d3.schemeCategory10);
 
@@ -81,7 +81,7 @@ function convertChartToGraphModel(chart) {
             chart.type,
             refColumns, 
             function (name) { return 'Reference ' + name; }, 
-            function (x) { return chroma(color(x)).brighten(1).desaturate(0.5); }
+            function (x) { return chroma(color(x)).brighten(1.4).desaturate(1.1); }
         );
 
         if (series.length !== refSeries.length) throw new Error('ref series doesn\'t match base series' );
@@ -101,8 +101,20 @@ function convertChartToGraphModel(chart) {
 		title: chart.title,
 		axes: axes,
 		categories: categories,
-		series: series,
+        series: series,
+        clickable: chart.clickable
 	});
+}
+
+function updateGraph(graphModel, graphData) {
+    if (!graphModel) return;
+    if (!graphData) return;
+
+    graphModel.title = graphData.title;
+    graphModel.axes = graphData.axes;
+    graphModel.categories = graphData.categories;
+    graphModel.series = graphData.series;
+    graphModel.clickable = graphData.clickable;
 }
 
 var GraphService = L.Evented.extend({
@@ -113,6 +125,14 @@ var GraphService = L.Evented.extend({
         Object.defineProperty(this, 'graphsModel', {
             get: function () { return this._graphsModel; }
         });
+    },
+
+    remove: function () {
+        this.off();
+        
+        this._graphsModel.off();
+        this._graphsModel.set([]);
+        this._graphsModel = null;
     },
 
     setGraphs: function (graphs) {
@@ -135,19 +155,56 @@ var GraphService = L.Evented.extend({
         var graphsModel = this.graphsModel;
 
         try {
+            var graphModels = originalGraphs
+                .map(convertChartToGraphModel)
+                .map(function (newGraphModel) {
+                    var graphModel = graphsModel.getById(newGraphModel.id);
+                    if (graphModel) {
+                        updateGraph(graphModel, newGraphModel);
+                        return graphModel;
+                    }
+                    return newGraphModel;
+                });
+            graphsModel.set(graphModels);
+        } catch (error) {
+            console.error('Failed to update graphs because graphs data is incorrect.', error);
+        }
+    },
+
+    showGraphs: function (graphs) {
+        if (!graphs) return;
+        
+        var originalGraphs = Array.isArray(graphs) ? graphs : [graphs];
+        var graphsModel = this.graphsModel;
+
+        try {
             var graphModels = originalGraphs.map(convertChartToGraphModel);
             graphModels.forEach(function (newGraphModel) {
                 var graphModel = graphsModel.getById(newGraphModel.id);
                 if (!graphModel) return;
 
-                graphModel.title = newGraphModel.title;
-                graphModel.axes = newGraphModel.axes;
-                graphModel.categories = newGraphModel.categories;
-                graphModel.series = newGraphModel.series;
+                updateGraph(graphModel, newGraphModel);
+            });
+
+            this.fire('showGraphs', {
+                graphModels: graphModels
             });
         } catch (error) {
-            console.error('Failed to update graphs because graphs data is incorrect.', error);
+            console.error('Failed to show graphs because graphs data is incorrect.', error);
         }
+    },
+
+    reportGraphCategorySelected: function (graphModel, categoryId) {
+        if (!graphModel) return;
+        if (graphModel.clickable !== 'labels') return;
+
+        wsSend({
+            'type': 'graphLabelClick',
+            'payload': {
+                'graphID': graphModel.id,
+                'labelTitle': categoryId
+            }
+        });
     }
 
 });

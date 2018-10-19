@@ -59,6 +59,15 @@ var GraphModel = L.Evented.extend({
                 this.fire('series', { series: series });
             }
         });
+
+        var clickable = options.clickable;
+        Object.defineProperty(this, 'clickable', {
+            get: function () { return clickable; },
+            set: function (newClickable) {
+                clickable = newClickable;
+                this.fire('clickable', { clickable: clickable });
+            }
+        });
     }
 
 });
