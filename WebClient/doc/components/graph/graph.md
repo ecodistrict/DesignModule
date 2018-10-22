@@ -7,6 +7,7 @@ Graph component represents all graphs available in the application.
 | category | [CategoryGraph](categoryGraph/categoryGraph.md) | A graph with categories on `x` axis. These graphs can contain bars and lines. |
 
 * [Architecture](#architecture)
+    * [GraphComponent](#graphComponent)
     * [GraphModel](#graphModel)
     * [GraphView](#graphView)
     * [GraphViewController](#graphViewController)
@@ -18,6 +19,7 @@ Graph component represents all graphs available in the application.
     * [GraphPreviewFactory](#graphPreviewFactory)
     * [GraphService](#graphService)
 * [API reference](#apiReference)
+    * [GraphComponent](#graphComponentApi)
     * [GraphModel](#graphModelApi)
     * [GraphView](#graphViewApi)
     * [GraphViewController](#graphViewControllerApi)
@@ -37,9 +39,16 @@ Graph component consists of several domains:
 - *GraphViewManager* controls the lifecycle of graph windows and places them on the screen;
 - *GraphService* provides graph models to the application.
 
+All pieces related to graphs are encapsulated within *GraphComponent* class.
+
+![General structure](./images/GraphArchitecture-General-Structure.svg)
+
 ![View](./images/GraphArchitecture-View.svg)
 
 ![Preview](./images/GraphArchitecture-Preview.svg)
+
+### GraphComponent <a name="graphComponent"></a>
+*[GraphComponent](#graphComponentApi)* creates, configures and stores all graph-related entities like *GraphService* and *GraphViewManager*.
 
 ### GraphModel <a name="graphModel"></a>
 *[GraphModel](#graphModelApi)* is an application level model that stores data describing a graph and provides simple ways to monitor data changes via subscriptions. This model is not dedicated for view but is a logical representation of a graph.
@@ -78,6 +87,28 @@ Previews can be used within buttons that trigger showing graph windows on the sc
 
 ## API reference <a name="apiReference"></a>
 
+### GraphComponent <a name="graphComponentApi"></a>
+
+Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
+
+#### Options <a name="graphComponentOpts"></a>
+
+When constructing GraphComponent an options object should be passed to constructor.
+
+| Property | Type | Description |
+|---|---|---|
+| windowManager | [WindowManager](../../core/window/windowManager/windowManager.md) | Reference to  a container for WindowView objects (windows). Graphs will be shown in windows that are managed by *windowManager*. |
+
+#### Methods <a name="graphComponentMethods"></a>
+
+| Method | Returns | Description |
+|---|---|---|
+| service() | [GraphService](#graphServiceApi) | Returns *GraphService* object created by the component. The service can be used to get graph models provided by the backend. |
+| graphViewManager() | [GraphViewManager](#graphViewManagerApi) | Returns *GraphViewManager* object created by the component. The *GraphViewManager* can be used to visualize a *GraphModel* object. |
+| graphViewControllerFactory() | [GraphViewControllerFactory](#graphViewControllerFactoryApi) | Returns *GraphViewControllerFactory* object created by the component. This factory can be used to instantiate GraphView-GraphViewController pair for a given *GraphModel* object. |
+| graphPreviewFactory() | [GraphPreviewFactory](#graphPreviewFactoryApi) | Returns *GraphPreviewFactory* object created by the component. This factory can be used to instantiate *GraphPreview* for a given *GraphModel* object. |
+| remove() | void | Removes and deinitialize the entire *GraphComponent*. |
+
 ### GraphModel <a name="graphModelApi"></a>
 
 Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) class therefore it provides convenient subscription methods like *on(...)* and *off(...)*.
@@ -85,7 +116,14 @@ Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) clas
 *Graph JSON format* is defined [here](https://github.com/ecodistrict/publisher-api-documentation/blob/master/doc/api/graph/graphJsonFormat.md).
 
 *GraphModel* has exactly the same properties and construction options as fields from the *Graph JSON format*. All properties except *id* and *type* are mutable.
-*GraphModel* has change events for each mutable property and event name is the same as the property name.
+
+*GraphModel* has change events for each mutable property and event name is the same as the property name. In addition to that, *GraphModel* also sends an cumulative `change` event when something is changed. If more than one field is changed in one shot then only a single `change` event will be emitted. If fileds are changed separatly then `change` event will be emitted for each of them.
+
+#### Methods <a name="graphModelMethods"></a>
+
+| Method | Returns | Description |
+|---|---|---|
+| set(*options*) | void | Sets new values fro the fields listed in the *options* object. A single `change` event will be emitted if something changes wthin this call. Also, a corresponding change event will be emitted for each field that was modified. *options* object is the same as used during *GraphModel* construction. |
 
 ### GraphView <a name="graphViewApi"></a>
 
@@ -222,6 +260,7 @@ Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) clas
 | Method | Returns | Description |
 |---|---|---|
 | create([GraphModel](#graphModelApi) graphModel, [GraphViewOptions](#GraphViewOptions) graphViewOptions) | [GraphViewController](#graphViewControllerApi) | Creates a view controller for a given *graphModel*. *graphViewOptions* will be passed to the *GraphView* created by the controller. |
+| remove() | void | Removes and deinitialize the entire *GraphViewControllerFactory*. |
 
 ### GraphViewManager <a name="graphViewManagerApi"></a>
 
@@ -244,6 +283,7 @@ When constructing GraphViewManager an options object should be passed to constru
 | showGraph([GraphModel](#graphModelApi) graphModel) | void | Shows a graph window defined with the *graphModel* on the screen. `graphShown` event is emitted when graph is shown on the screen. |
 | hideGraph([GraphModel](#graphModelApi) graphModel) | void | Hides a graph window defined with the *graphModel* from the screen. `graphHidden` event is emitted when graph is hidden from the screen. |
 | isGraphShown([GraphModel](#graphModelApi) graphModel) | boolean | Returns `true` if graph is shown on the screen by this *GraphViewManager*. Otherwise returns `false`. |
+| remove() | void | Removes and deinitialize the entire *GraphViewManager*. All open graphs will be closed. |
 
 #### Events <a name="graphViewManagerEvents"></a>
 
@@ -251,6 +291,7 @@ When constructing GraphViewManager an options object should be passed to constru
 |---|---|---|
 | graphShown | { graphModel: [GraphModel](#graphModelApi) } | Emitted whenever graph is shown on the screen. |
 | graphHidden | { graphModel: [GraphModel](#graphModelApi) } | Emitted whenever graph is hidden from the screen. |
+| graphCategoryClicked | { graphModel: [GraphModel](#graphModelApi), categoryId: string } | Emitted whenever user clicked a graph category label. |
 
 ### GraphPreviewFactory <a name="graphPreviewFactoryApi"></a>
 
@@ -261,6 +302,7 @@ Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) clas
 | Method | Returns | Description |
 |---|---|---|
 | create([GraphModel](#graphModelApi) graphModel, Node previewViewportElement?) | [View](../../core/view/view.md) | Creates a preview for a given *graphModel*. *previewViewportElement* is a DOM element to be used as a parent for the preview and is optional. If *previewViewportElement* is not provided then preview will be created not attached to the DOM document and user will have to manually attach it. |
+| remove() | void | Removes and deinitialize the entire *GraphPreviewFactory*. |
 
 ### GraphService <a name="graphServiceApi"></a>
 
@@ -271,3 +313,9 @@ Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) clas
 | Property | Type | Description |
 |---|---|---|
 | graphsModel | [ModelCollection](../../core/modelCollection/modelCollection.md) | Graph models collection. |
+
+#### Methods <a name="graphServiceMethods"></a>
+
+| Method | Returns | Description |
+|---|---|---|
+| reportGraphCategorySelected([GraphModel](#graphModelApi) graphModel, string categoryId) | void | Report to the backend that graph category was selected so that beckend can perform corresponding actions. |
