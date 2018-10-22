@@ -133,12 +133,12 @@ var GraphService = L.Evented.extend({
         });
     },
 
-    remove: function () {
-        this.off();
-        
-        this._graphsModel.off();
+    remove: function () {        
         this._graphsModel.set([]);
+        this._graphsModel.off();
         this._graphsModel = null;
+
+        this.off();
     },
 
     setGraphs: function (graphs) {
