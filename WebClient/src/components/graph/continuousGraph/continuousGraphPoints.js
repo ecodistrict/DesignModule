@@ -95,7 +95,7 @@
 
         pointPlots.enter().append('circle')
             .attr('class', 'point')
-            .attr('r', 5)
+            .attr('r', 3)
             .attr('cx', 0)
             .attr('cy', 0)
             .style('stroke', function (d) { return d.color; })
@@ -103,7 +103,7 @@
             //.call(setEventHandlers)
             .transition()
                 .duration(animationDuration)
-                .attr('r', 5)
+                .attr('r', 3)
                 .attr('cx', function (d) { return x(d.xAxisId, d.x); })
                 .attr('cy', function (d) { return y(d.yAxisId, d.y); })
                 .style('stroke', function (d) { return d.color; })
@@ -111,7 +111,7 @@
 
         pointPlots.transition()
             .duration(animationDuration)
-            .attr('r', 5)
+            .attr('r', 3)
             .attr('cx', function (d) { return x(d.xAxisId, d.x); })
             .attr('cy', function (d) { return y(d.yAxisId, d.y); })
             .style('stroke', function (d) { return d.color; })

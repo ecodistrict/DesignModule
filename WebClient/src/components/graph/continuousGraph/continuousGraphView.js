@@ -316,9 +316,9 @@ var ContinuousGraphView = GraphView.extend({
                 .attr('y', 0);
 
             var toolTipEle = this._svg.select('.toolTip-element' + ele);
-
+            
             toolTipEle.attr('transform', 'translate(' + (this._sceneGeometry.left +
-                        this._setMinScaleValForNull(selectedElementBottomX[ele].x, xScale)) + ',' +
+                    this._setMinScaleValForNull(selectedElementBottomX[ele].x, xScale)) + ',' +
                     (this._sceneGeometry.top + this._setMinScaleValForNull(selectedElementBottomX[ele].y, yScale)) + ')')
                 .style('stroke', selectedElementBottomX[ele].color);
 
@@ -454,7 +454,7 @@ var ContinuousGraphView = GraphView.extend({
 
         this._svg.select('g.axis--y-left .title')
             .attr('x', -this._sceneGeometry.height / 2)
-            .attr('y', '-3em')
+            .attr('y', '-3.5em')
             .text(axes.yLeft.title);
     },
 
