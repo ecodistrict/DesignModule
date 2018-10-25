@@ -36,7 +36,6 @@ uses
 
   Vcl.graphics, // TPicture
 
-  //GisDefs, GisCsSystems, GisLayerSHP, GisLayerVector,
   GisTypes,
   GisCsSystems,
 
@@ -104,7 +103,6 @@ type
     objectType: string;
     geometryType: string;
     _published: Integer;
-    //selectProperties: string;
     // indirect
     legendAVL: string;
     odbList: TODBList;
@@ -115,7 +113,6 @@ type
     function BuildJoin(const aTablePrefix: string; out aShapePrefix, aObjectIDPrefix, aPreJoin: string): string;
     function SQLQuery(const aTablePrefix:string; xMin: Integer=0; yMin: Integer=0; xMax: Integer=-1; yMax: Integer=-1): string;
     function SQLQueryNew(const aTablePrefix:string): string;
-    //function SQLQueryChange(const aTablePrefix:string): string;
     function SQLQueryChangeMultiple(const aTablePrefix:string): string;
     function autoDiffRange: Double;
     function BuildLegendJSON(aLegendFormat: TLegendFormat): string;
@@ -474,7 +471,7 @@ type
   end;
 
   TUSChartSeries = class
-  constructor Create(aLines: TDictionary<string, string>; const aPrefix: string; const aID: Integer; const aSeriesID: string);
+  constructor Create(aLines: TDictionary<string, string>; const aPrefix: string; const aID: Integer; const aSeriesID, aChartTitle: string);
   constructor CreateFromChild(aTitle, aXCol, aYCol, aType: string);
   destructor Destroy; override;
   private
@@ -597,7 +594,6 @@ type
     procedure UpdateQueuehandler();
     procedure handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
     procedure handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
-    //procedure changeActive(const aControlID, aActive: Integer);
   private
     function RemoveControl(aControlID: Integer): Boolean;
     procedure SelectControlObjects(aClient: TClient; aControlID: Integer);
@@ -610,7 +606,6 @@ type
     fPoiCategories: TObjectDictionary<string, TUSPOI>;
     fPalette: TWDPalette;
     fSourceProjection: TGIS_CSProjectedCoordinateSystem; // ref
-    //fControls: TObjectDictionary<integer, TUSControl>;
     procedure handleUpdateLayerObject(aClient: TClient; aPayload: TJSONObject); override;
   public
     procedure ReadObjects(aSender: TObject);
@@ -619,7 +614,7 @@ type
   TUSLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
-    const aConnectString, aNewQuery, {aChangeQuery, }aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry;
+    const aConnectString, aNewQuery, aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry;
     aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; aBasicLayer: Boolean=False;
     aOpacity: Double=0.8);
   destructor Destroy; override;
@@ -636,7 +631,6 @@ type
     fDataEvents: array of TIMBEventEntry;
 
     fNewQuery: TOraQuery;
-    //fChangeQuery: TOraQuery;
     fUpdateQueue: TList<TUSUpdateQueueEntry>;
     fUpdateQueueEvent: TEvent;
     fUpdateThread: TThread;
@@ -656,7 +650,7 @@ type
   TUSBasicLayer = class (TUSLayer)
   constructor Create (aScenario: TScenario; const aDomain, aID, aName, aDescription: string;
     aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
-    const aConnectString, aNewQuery, {aChangeQuery, }aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry;
+    const aConnectString, aNewQuery, aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry;
     aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; const aTableName: string);
   destructor Destroy; override;
   private
@@ -701,25 +695,15 @@ type
     fIMBConnection: TIMBConnection; // ref
     fLayerRefreshEvent: TIMBEventEntry;
     fUSChartGroups: TObjectList<TUSChartGroup>;
-    //fUSControlStatuses: TObjectDictionary<Integer, TUSControlStatus>; //owns, locks with monitor
-    //fUpdateQueue: TList<TUSUpdateQueueEntry>;
-    //fUpdateQueueEvent: TEvent;
-    //fUpdateThread: TThread;
-    //fControlsUpdateEvent: TIMBEventEntry;
     procedure ReadIndicators (aTableNames: array of string; aOraSession: TOraSession);
     procedure ReadIndicator (aTableName: string; aOraSession: TOraSession);
     procedure ReadBasicLayers(aOraSession: TOraSession);
-    //procedure ReadUSControls (aOraSession: TOraSession);
-    //procedure HandleControlsUpdate(aAction, aObjectID: Integer; const aObjectName, aAttribute: string); stdcall;
-    //procedure HandleControlsQueueEvent();
   public
     property IMBConnection: TIMBConnection read fIMBConnection;
   public
     property Tableprefix: string read fTableprefix;
-    //property USControlStatuses: TObjectDictionary<Integer, TUSControlStatus> read fUSControlStatuses;
     function GetUSControlsJSON: string;
     procedure SendUSControlsMessage(aClient: TClient);
-    //procedure ChangeUSControl(aAction, aControlID: Integer; const aObjectName, aAttribute: string);
     procedure UpsertUSControlStatus(const aControlID, aActive: Integer);
   public
     procedure ReadBasicData(); override;
@@ -727,8 +711,8 @@ type
     procedure LayerRefreshed(aTilerLayerID: Integer; const aElementID: string; aTimeStamp: TDateTime; aLayer: TSubscribeObject); override;
   public
     // select objects
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
-    function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aX, aY, aRadius, aMaxZoom: Double): string; overload; override;
+    //function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aGeometry: TWDGeometry): string; overload; override;
+    //function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aX, aY, aRadius, aMaxZoom: Double): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string; overload; override;
     function SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; const aSelectedIDs: TArray<string>): string; overload; override;
     // select object properties
@@ -828,7 +812,6 @@ function getUSScenarioFilter(aOraSession: TOraSession; const aProjectID: string)
 function ReadMetaLayer(aSession: TOraSession; const aTablePrefix: string; aMetaLayer: TMetaLayer): Boolean;
 function SubscribeUSDataEvents(const aUserName, aIMBEventClass, aTablePrefix: string; aIMBConnection: TIMBConnection): TIMBEventEntryArray;
 
-//function ConnectToUSProject(const aConnectString, aProjectID: string; out aMapView: TMapView): TOraSession;
 
 implementation
 
@@ -1311,7 +1294,6 @@ begin
       diffRange,
       aConnectString,
       SQLQueryNew(aTablePrefix),
-      //SQLQueryChange(aTablePrefix),
       SQLQueryChangeMultiple(aTablePrefix),
       aDataEvent,
       aSourceProjection,
@@ -1391,7 +1373,6 @@ begin
   objectType := StringField('OBJECTTYPE');
   geometryType := StringField('GEOMETRYTYPE');
   _published := IntField('PUBLISHED', 1);
-  //selectProperties := StringField('SELECTPROPERTIES');
   {
   ALTER TABLE VXX#META_LAYER
   ADD (DOMAIN VARCHAR2(50), DESCRIPTION VARCHAR2(150), DIFFRANGE NUMBER, OBJECTTYPE VARCHAR2(50), GEOMETRYTYPE VARCHAR2(50), PUBLISHED INTEGER);
@@ -1550,57 +1531,6 @@ begin
   end;
 end;
 
-{
-function TMetaLayerEntry.SQLQueryChange(const aTablePrefix: string): string;
-var
-  join: string;
-  ShapePrefix: string;
-begin
-  join := BuildJoin(aTablePrefix, ShapePrefix);
-  case LAYER_TYPE mod 100 of
-    2:
-      begin
-        Result := ''; // todo: can this work?
-      end;
-    4:
-      begin
-        Result :=
-          'SELECT '+
-            VALUE_EXPR+' AS VALUE '+
-          'FROM '+join+' '+
-          'WHERE '+ShapePrefix+'OBJECT_ID=:OBJECT_ID';
-        if JOINCONDITION<>''
-        then Result := Result+' AND '+
-          JOINCONDITION;
-      end;
-    5, 9:
-      begin
-        Result :=
-          'SELECT '+
-            VALUE_EXPR+','+
-            TEXTURE_EXPR+' '+
-          'FROM '+join+' '+
-          'WHERE '+ShapePrefix+'OBJECT_ID=:OBJECT_ID';
-        if JOINCONDITION<>''
-        then Result := Result+' AND '+
-          JOINCONDITION;
-      end;
-    21:
-      begin
-        Result := ''; // todo: can this work?
-      end;
-  else
-    Result :=
-      'SELECT '+
-        VALUE_EXPR+' AS VALUE '+
-      'FROM '+join+' '+
-      'WHERE '+ShapePrefix+'OBJECT_ID=:OBJECT_ID';
-    if JOINCONDITION<>''
-    then Result := Result+' AND '+
-      JOINCONDITION;
-  end;
-end;
-}
 function TMetaLayerEntry.SQLQueryChangeMultiple(
   const aTablePrefix: string): string;
 var
@@ -1815,7 +1745,7 @@ end;
 
 constructor TUSLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
   const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
-  const aConnectString, aNewQuery, {aChangeQuery, }aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem;
+  const aConnectString, aNewQuery, aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem;
   aPalette: TWDPalette; aBasicLayer: Boolean; aOpacity: Double);
 var
   i: Integer;
@@ -1840,16 +1770,6 @@ begin
     fNewQuery.Prepare;
   end
   else fNewQuery := nil;
-  {
-  if aChangeQuery<>'' then
-  begin
-    fChangeQuery := TOraQuery.Create(nil);
-    fChangeQuery.Session := fOraSession;
-    fChangeQuery.sql.Text := aChangeQuery;
-    fChangeQuery.Prepare;
-  end
-  else  fChangeQuery := nil;
-  }
   fChangeMultipleQuery := aChangeMultipleQuery;
 
   fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
@@ -1881,51 +1801,12 @@ begin
   FreeAndNil(fPoiCategories);
   FreeAndNil(fPalette);
   FreeAndNil(fNewQuery);
-  //FreeAndNil(fChangeQuery);
   FreeAndNil(fOraSession);
 end;
 
 procedure TUSLayer.handleChangeObject(aAction, aObjectID: Integer; const aObjectName, aAttribute: string);
 begin
   handleTableChange(nil, aAction, aObjectID);
-  {
-  try
-    wdid := AnsiString(aObjectID.ToString);
-    if aAction=actionDelete then
-    begin
-      if FindObject(wdid, o)
-      then RemoveObject(o);
-    end
-    else
-    begin
-      if aAction=actionNew then
-      begin
-        if not FindObject(wdid, o) then
-        begin
-          fNewQuery.ParamByName('OBJECT_ID').AsInteger := aObjectID;
-          fNewQuery.Execute;
-          if not fNewQuery.Eof
-          then AddObject(UpdateObject(fNewQuery, wdid, nil))
-          else Log.WriteLn('TUSLayer.handleChangeObject: no result on new object ('+aObjectID.toString+') query '+fNewQuery.SQL.Text, llWarning);
-        end;
-      end
-      else if aAction=actionChange then
-      begin
-        if FindObject(wdid, o) then
-        begin
-          fChangeQuery.ParamByName('OBJECT_ID').AsInteger := aObjectID;
-          fChangeQuery.Execute;
-          if not fChangeQuery.Eof
-          then UpdateObject(fChangeQuery, wdid, o)
-          else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+aObjectID.toString+') query '+fChangeQuery.SQL.Text, llWarning);
-        end;
-      end;
-    end;
-  except
-    on E: Exception
-    do log.WriteLn('Exception in TUSLayer.handleChangeObject: '+e.Message, llError);
-  end;
-  }
 end;
 
 procedure TUSLayer.handleTableChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
@@ -2015,8 +1896,7 @@ begin
       end;
     21: // POI
       begin
-        //
-        (*
+        {
         geometryPoint := TWDGeometryPoint.Create;
         try
           geometryPoint.x := aQuery.Fields[1].AsFloat;
@@ -2038,20 +1918,18 @@ begin
             // signal POI image to tiler
             //ImageToBytes(usPOI);
             //fTilerLayer.s
-            {
-            stream  := TBytesStream.Create;
-            try
-              usPOI.picture.Graphic.SaveToStream(stream);
-              fOutputEvent.signalEvent(TByteBuffer.bb_tag_tbytes(icehTilerPOIImage, stream.Bytes)); // todo: check correct number of bytes
-            finally
-              stream.Free;
-            end;
-            }
+            //stream  := TBytesStream.Create;
+            //try
+            //  usPOI.picture.Graphic.SaveToStream(stream);
+            //  fOutputEvent.signalEvent(TByteBuffer.bb_tag_tbytes(icehTilerPOIImage, stream.Bytes)); // todo: check correct number of bytes
+            //finally
+            //  stream.Free;
+            //end;
           end;
         finally
           objects.Add(oid, TGeometryLayerPOIObject.Create(Self, oid, usPOI.ID, geometryPoint));
         end;
-        *)
+        }
       end;
     10, 98: // control
       begin
@@ -2119,9 +1997,7 @@ var
   localQueue: TList<TUSUpdateQueueEntry>;
   tempQueue: TList<TUSUpdateQueueEntry>;
   entry: TUSUpdateQueueEntry;
-//  newCount: Integer;
   newIDs: string;
-//  ChangeCount: Integer;
   ChangeStack: TStack<string>;
   ChangeString: string;
   i: Integer;
@@ -2150,9 +2026,7 @@ begin
         end;
         if localQueue.Count>0 then
         begin
-//          newCount := 0;
           newIDs := '';
-//          ChangeCount := 0;
           for entry in localQueue do
           try
             begin
@@ -2176,21 +2050,13 @@ begin
               else if entry.action=actionChange then
               begin
                 //Especially for Han, no check if object actually exists:-)
-                //Todo: do we also want to remove the check from actionNew?
-                //if FindObject(wdid, o) then
-                //begin
-                  ChangeStack.Push(entry.objectID.ToString);
-                //end
-                //else Log.WriteLn('TUSLayer.handleChangeObject: no result on change object ('+entry.objectID.toString+')', llWarning);
+                ChangeStack.Push(entry.objectID.ToString);
               end;
             end;
           except
             on e: Exception
             do Log.WriteLn('Exception in handleChangeObject: '+e.Message, llError);
           end;
-          //Log.WriteLn('Objects in queue: ' + localQueue.Count.ToString);
-          //Log.WriteLn('New Objects: ' + newCount.ToString + ', changed objects: ' + ChangeCount.ToString);
-          //ReadMultipleObjects(ChangeStack, oraSession);
           if (ChangeStack.Count > 0) and (ChangeMultipleQuery <> '') then
           begin
             while (ChangeStack.Count > 1000) do
@@ -2337,20 +2203,6 @@ end;
 
 { TUSScenario }
 
-//procedure TUSScenario.ChangeUSControl(aAction, aControlID: Integer; const aObjectName, aAttribute: string);
-//var
-//  layerBase: TLayerBase;
-//begin
-//  TMonitor.Enter(fLayers);
-//  try
-//    for layerBase in fLayers.Values do
-//      if (layerBase is TUSLayer) and ((layerBase as TUSLayer).fLayerType = 10) then //TODO: find other way to check if layer is a control layer -> how can we link this?
-//        (layerBase as TUSLayer).handleChangeObject(aAction, aControlID, aObjectName, aAttribute);
-//  finally
-//    TMonitor.Exit(fLayers);
-//  end;
-//end;
-
 constructor TUSScenario.Create(aProject: TProject; const aID, aName, aDescription, aFederation: string; aAddBasicLayers: Boolean; aMapView: TMapView;
   aIMBConnection: TIMBConnection; const aTablePrefix: string);
 begin
@@ -2362,22 +2214,7 @@ begin
     aTableprefix.Substring(0, aTablePrefix.length-1)+
     '.'+'TilerLayers', false);
   fUSChartGroups := TObjectList<TUSChartGroup>.Create(True);
-  //fUSControlStatuses := TObjectDictionary<Integer, TUSControlStatus>.Create([doOwnsValues]);
   inherited Create(aProject, aID, aName, aDescription, aFederation, aAddbasicLayers, aMapView);
-
-  //fUpdateQueue := TList<TUSUpdateQueueEntry>.Create;
-  //fUpdateQueueEvent := TEvent.Create(nil, False, False, '');
-  //fUpdateThread := TThread.CreateAnonymousThread(HandleControlsQueueEvent);
-  //fUpdateThread.FreeOnTerminate := False;
-  //fUpdateThread.NameThreadForDebugging(ElementID + ' controls queue handler');
-  //fUpdateThread.Start;
-  {
-  fControlsUpdateEvent := fIMBConnection.Subscribe((aProject as TUSProject).OraSession.Username+
-          fTableprefix.Substring(fTableprefix.Length-1)+ // #
-          fTableprefix.Substring(0, fTablePrefix.length-1)+
-          '.GENE_CONTROL', False);
-  fControlsUpdateEvent.OnChangeObject := HandleControlsUpdate;
-  }
 end;
 
 destructor TUSScenario.Destroy;
@@ -2389,7 +2226,6 @@ begin
   end;
   inherited;
   FreeAndNil(fUSChartGroups);
-  //FreeAndNil(fUSControlStatuses);
 end;
 
 function TUSScenario.GetUSControlsJSON: string;
@@ -2812,139 +2648,6 @@ begin
   end;
 end;
 
-function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aGeometry: TWDGeometry): string;
-//var
-  //layers: TList<TLayerBase>;
-  //categories: string;
-  //objectsGeoJSON: string;
-  //totalObjectCount: Integer;
-  //extent: TWDExtent;
-  //l: TLayerBase;
-  //objectCount: Integer;
-begin
-  Result := inherited;
-//  Result := '';
-//  layers := TList<TLayerBase>.Create;
-//  try
-//    if selectLayersOnCategories(aSelectCategories, layers) then
-//    begin
-//      categories := '';
-//      objectsGeoJSON := '';
-//      totalObjectCount := 0;
-//      extent := TWDExtent.FromGeometry(aGeometry);
-//      for l in layers do
-//      begin
-//        if l is TLayer then
-//        begin
-//          objectCount := (l as TLayer).findObjectsInGeometry(extent, aGeometry, objectsGeoJSON);
-//          if objectCount>0 then
-//          begin
-//            if categories=''
-//            then categories := '"'+l.id+'"'
-//            else categories := categories+',"'+l.id+'"';
-//            totalObjectCount := totalObjectCount+objectCount;
-//          end;
-//        end;
-//      end;
-//      if totalObjectCount >300 then
-//      begin
-//        objectsGeoJSON := '';
-//        aClient.SendMessage('Selected too many objects to display', mtWarning);
-//      end;
-//      Result :=
-//        '{"selectedObjects":{"selectCategories":['+categories+'],'+
-//         '"mode":"'+aMode+'",'+
-//         '"objects":['+objectsGeoJSON+']}}';
-//      Log.WriteLn('select on geometry:  found '+totalObjectCount.ToString+' objects in '+categories);
-//    end;
-//    // todo: else warning?
-//  finally
-//    layers.Free;
-//  end;
-end;
-
-function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories, aPrefCategories: TArray<string>; aX, aY, aRadius, aMaxZoom: Double): string;
-//var
-//  layers: TList<TLayerBase>;
-//  dist: TDistanceLatLon;
-//  nearestObject: TLayerObject;
-//  nearestObjectLayer: TLayer;
-//  nearestObjectDistanceInMeters: Double;
-//  l: TLayerBase;
-//  o: TLayerObject;
-//  categories: string;
-//  objectsGeoJSON: string;
-//  totalObjectCount: Integer;
-//  objectCount: Integer;
-begin
-  Result := inherited;
-//  Result := '';
-//  layers := TList<TLayerBase>.Create;
-//  try
-//    if selectLayersOnCategories(aSelectCategories, layers) then
-//    begin
-//      dist := TDistanceLatLon.Create(aY, aY);
-//      if (aRadius=0) then
-//      begin
-//        nearestObject := nil;
-//        nearestObjectLayer := nil;
-//        nearestObjectDistanceInMeters := Infinity;
-//        for l in layers do
-//        begin
-//          if l is TLayer then
-//          begin
-//            o := (l as TLayer).findNearestObject(dist, aX, aY, nearestObjectDistanceInMeters);
-//            if assigned(o) then
-//            begin
-//              nearestObjectLayer := l as TLayer;
-//              nearestObject := o;
-//              if nearestObjectDistanceInMeters=0
-//              then break;
-//            end;
-//          end;
-//        end;
-//        if Assigned(nearestObject) then
-//        begin
-//          // todo:
-//          Result :=
-//            '{"selectedObjects":{"selectCategories":['+nearestObjectLayer.objectTypes+'],'+
-//             '"mode":"'+aMode+'",'+
-//             '"objects":['+nearestObject.JSON2D[nearestObjectLayer.geometryType, '']+']}}';
-//          Log.WriteLn('found nearest object layer: '+nearestObjectLayer.ID+', object: '+string(nearestObject.ID)+', distance: '+nearestObjectDistanceInMeters.toString);
-//        end;
-//      end
-//      else
-//      begin
-//        categories := '';
-//        objectsGeoJSON := '';
-//        totalObjectCount := 0;
-//        for l in layers do
-//        begin
-//          if l is TLayer then
-//          begin
-//            objectCount := (l as TLayer).findObjectsInCircle(dist, aX, aY, aRadius, objectsGeoJSON);
-//            if objectCount>0 then
-//            begin
-//              if categories=''
-//              then categories := '"'+l.id+'"'
-//              else categories := categories+',"'+l.id+'"';
-//              totalObjectCount := totalObjectCount+objectCount;
-//            end;
-//          end;
-//        end;
-//        Result :=
-//          '{"selectedObjects":{"selectCategories":['+categories+'],'+
-//           '"mode":"'+aMode+'",'+
-//           '"objects":['+objectsGeoJSON+']}}';
-//        Log.WriteLn('select on radius:  found '+totalObjectCount.ToString+' objects in '+categories);
-//      end;
-//    end;
-//    // todo: else warning?
-//  finally
-//    layers.Free;
-//  end;
-end;
-
 function TUSScenario.SelectObjects(aClient: TClient; const aType, aMode: string; const aSelectCategories: TArray<string>; aJSONQuery: TJSONArray): string;
 var
   layers: TList<TLayerBase>;
@@ -3202,6 +2905,7 @@ begin
   ControlsJSON := '{' + ControlsJSON + '}';
   ScenariosJSON := '';
   for USDBScenario in fUSDBScenarios.Values do
+  begin
     if USDBScenario._published > 0 then
     begin
       FoundScenario := False;
@@ -3229,18 +2933,7 @@ begin
       end;
       ScenariosJSON := ScenariosJSON + '"' + ScenarioID + '":{ "name": "' + ScenarioName + '", "controls": ' + ScenarioControlsJSON + '}';
     end;
-//  TMonitor.Enter(fScenarios);
-//  try
-//    for Scenario in fScenarios.Values do
-//      if Scenario is TUSScenario then
-//      begin
-//        if ScenariosJSON <> '' then
-//          ScenariosJSON := ScenariosJSON + ',';
-//        ScenariosJSON := ScenariosJSON + '"' + scenario.ID + '":' + (scenario as TUSScenario).GetUSControlsJSON;
-//      end;
-//  finally
-//    TMonitor.Exit(fScenarios);
-//  end;
+  end;
   ScenariosJSON := '{' + ScenariosJSON + '}';
   Result := '{"controls":' + ControlsJSON + ', "scenarios":' + ScenariosJSON + '}';
 end;
@@ -3860,7 +3553,6 @@ begin
               selectedObjectsString := selectedObjectsString + jsonStringValue;
             end;
         end;
-        //measureHistory := TMeasureHistory.Create();
       end;
   end;
   if aJSONObject.TryGetValue<TJSONValue>('dialogDataRequest', jsonValue)
@@ -3901,12 +3593,6 @@ begin
         aClient.SendMessage('Succesfully handled changes. Objects selected: ' + changedCount.toString, mtSucces, 10000)
       else
         aClient.SendMessage('Error applying changes to objects.', mtError);
-
-//      commitBuilder.ParseJSONProperties(jsonProperties);
-//      if commitBuilder.CommitChangesToDB(selectionLayer, OraSession, IMB3Connection, selectedObjects, selectionLayer, changedCount) then
-//        aClient.SendMessage('Succesfully applied changes. Objects changed: ' + changedCount.toString, mtSucces, 10000)
-//      else
-//        aClient.SendMessage('Error applying changes. Objects changed before error: ' + changedCount.toString, mtError);
     end;
   end;
 end;
@@ -4130,33 +3816,6 @@ begin
   end;
 end;
 
-//procedure TUSProject.handleNewClient(aClient: TClient);
-//var
-//  ControlsJSON: string;
-//  USControl: TUSControl;
-//begin
-//  inherited;
-//  //TODO: duplicate code from TUSProject.getUSControlsJSON -> rewrite to use the same code
-//  ControlsJSON := '';
-//  TMonitor.Enter(fUSControls);
-//  try
-//    for USControl in fUSControls.Values do
-//    begin
-//      if ControlsJSON <> '' then
-//        ControlsJSON := ControlsJSON + ',';
-//      ControlsJSON := ControlsJSON + '"' + USControl.ID.ToString + '":{' +
-//        '"name":"' + USControl.Name + '",' +
-//        '"description":"' + USControl.Description + '",' +
-//        '"lat":' + DoubleToJSON(USControl.Lat) + ',' +
-//        '"lon":' + DoubleToJSON(USControl.Lon) + '}';
-//    end;
-//  finally
-//    TMonitor.Exit(fUSControls);
-//  end;
-//  ControlsJSON := '{' + ControlsJSON + '}';
-//  aClient.signalString('{"type":"scenarioControlsMessage", "payload": { "allControls": ' + ControlsJSON + '}}');
-//end;
-
 procedure TUSProject.handleInternalControlsChange(aSender: TSubscribeObject;
   const aAction, aObjectID: Integer);
 begin
@@ -4360,7 +4019,6 @@ var
   measures: TAllRowsResults;
   m: Integer;
 begin
-  // todo:
   if not TableExists(OraSession, MEASURES_TABLE_NAME) then
   begin
     // add table
@@ -4385,9 +4043,6 @@ begin
     begin
       for m := 0 to length(measures)-1 do
       begin
-            // todo:
-        //measure := TMeasure.Create(measures[m][0], measures[m][1], measures[m][2], measures[m][3], measures[m][4], measures[m][5], measures[m][6], StrToIntDef(measures[m][7], 0));
-        //fMeasures.AddOrSetValue(measure.ID, measure);
         AddMeasure(measures[m][0], measures[m][1], measures[m][2], measures[m][3], measures[m][4], measures[m][5], measures[m][6], StrToIntDef(measures[m][7], 0));
       end;
     end
@@ -4718,8 +4373,6 @@ end;
 
 procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon, aZoomLevel: Double);
 var
-//  tryUpdate: Boolean;
-//  res: Variant;
   query: TOraQuery;
 begin
   if not TableExists(aOraSession, PROJECT_TABLE_NAME) then
@@ -4742,7 +4395,7 @@ begin
       query.Session := aOraSession;
       query.SQL.Text :=
         'UPDATE '+PROJECT_TABLE_NAME+' '+
-        'SET '+ //ProjectID='''+aProjectID+''', '+
+        'SET '+
           'LAT='+aLat.ToString(dotFormat)+', '+
           'LON='+aLon.ToString(dotFormat)+', '+
           'ZOOM='+aZoomLevel.ToString+' '+
@@ -4940,7 +4593,7 @@ begin
 
     if aLines.ContainsKey(aPrefix + seriesNumber + 'Data') then
     begin
-      series := TUSChartSeries.Create(aLines, aPrefix, index, seriesIDs[index]);
+      series := TUSChartSeries.Create(aLines, aPrefix, index, seriesIDs[index], fTitle);
       if series.Active then
       begin
         fSeries.Add(seriesNumber, series);
@@ -5291,11 +4944,12 @@ begin
 
 end;
 
-constructor TUSChartSeries.Create(aLines: TDictionary<string, string>; const aPrefix: string; const aID: Integer; const aSeriesID: string);
+constructor TUSChartSeries.Create(aLines: TDictionary<string, string>; const aPrefix: string; const aID: Integer; const aSeriesID, aChartTitle: string);
 var
   sPrefix, sPrefixLong, key: string;
   seriesLines: TDictionary<string, string>;
 begin
+  fYValues := nil;
   fID := aID;
   sPrefix := 'Series' + IntToStr(aID);
   seriesLines := TDictionary<string, string>.Create;
@@ -5322,7 +4976,7 @@ begin
   else if seriesLines.ContainsKey('Title ') then
     fTitle := seriesLines['Title ']
   else
-    fTitle := 'Unknown Title';
+    fTitle := aChartTitle; // 'Unknown Title';
 
   fTitle := StripChars(fTitle, ['"', '''']);
 
@@ -5356,6 +5010,7 @@ end;
 
 constructor TUSChartSeries.CreateFromChild(aTitle, aXCol, aYCol, aType: string);
 begin
+  fYValues := nil;
   fActive := True;
   fTitle := aTitle;
   fXCol := aXCol;
@@ -5368,7 +5023,7 @@ end;
 
 destructor TUSChartSeries.Destroy;
 begin
-
+  FreeAndNil(fYValues);
   inherited;
 end;
 
@@ -5396,9 +5051,9 @@ var
 begin
   Result := '"' + fTitle + '"';
   for index := 0 to fYValues.Count - 1 do
-    begin
-      Result := Result + ',' + fYValues[index].GetJSON;
-    end;
+  begin
+    Result := Result + ',' + fYValues[index].GetJSON;
+  end;
 end;
 
 { TUSChartValue }
@@ -5636,93 +5291,6 @@ begin
 
 end;
 
-{ TMetaBaseLayerEntry }
-{
-function TMetaBaseLayerEntry.AddMetaObjectsEntry(
-  const aMetaObjectsEntry: TMetaObjectsEntry): Boolean;
-var
-  SelectProperty: TSelectProperty;
-begin
-  Result := False;
-  if aMetaObjectsEntry._published > 0 then
-  begin
-    fPublished := aMetaObjectsEntry._published;
-    if SelectProperty.ReadFromMetaObjectsEntry(aMetaObjectsEntry) then
-    begin
-      TMonitor.Enter(fSelectProperties);
-      try
-        fSelectProperties.Add(SelectProperty.SelectProperty, SelectProperty);
-        Result := True;
-      finally
-        TMonitor.Exit(fSelectProperties);
-      end;
-
-    end;
-  end;
-end;
-
-function TMetaBaseLayerEntry.BuildPropertiesQuery(
-  const aPrefix: string): string;
-var
-  SelectProperty: TSelectProperty;
-begin
-  Result := '';
-  TMonitor.Enter(fSelectProperties);
-  try
-    if fSelectProperties.Count > 0 then
-    begin
-      for SelectProperty in fSelectProperties.Values do
-      begin
-        if Result <> '' then
-          Result := Result + ', ';
-        Result := Result + SelectProperty.SelectProperty;
-      end;
-      if Result <> '' then
-        Result := 'SELECT ' + Result + ' FROM ' + aPrefix + fTableName + ' WHERE OBJECT_ID in ';
-    end;
-  finally
-    TMonitor.Exit(fSelectProperties);
-  end;
-
-end;
-
-constructor TMetaBaseLayerEntry.Create(
-  const aMetaObjectsEntry: TMetaObjectsEntry);
-begin
-  fSelectProperties := TDictionary<string, TSelectProperty>.Create;
-  fTableName := aMetaObjectsEntry.TABLE_NAME;
-  fLayerDescription := aMetaObjectsEntry.LAYER_DESCRIPTION;
-  fObjectType := aMetaObjectsEntry.OBJECT_TYPE;
-  fGeometryType := aMetaObjectsEntry.GEOMETRY_TYPE;
-  fPublished := aMetaObjectsEntry._published;
-  AddMetaObjectsEntry(aMetaObjectsEntry);
-end;
-
-destructor TMetaBaseLayerEntry.Destroy;
-begin
-  FreeAndNil(fSelectProperties);
-  inherited;
-end;
-
-function TMetaBaseLayerEntry.GetSelectProperties: TSelectProperties;
-var
-  SelectProperty: TSelectProperty;
-  index: Integer;
-begin
-  index := 0;
-  TMonitor.Enter(fSelectProperties);
-  try
-    SetLength(Result, fSelectProperties.Count);
-    for SelectProperty in fSelectProperties.Values do
-    begin
-      Result[index] := SelectProperty;
-      index := index + 1;
-    end;
-  finally
-    TMonitor.Exit(fSelectProperties);
-  end;
-end;
-}
 { TUSBasicLayer }
 
 constructor TUSBasicLayer.Create(aScenario: TScenario; const aDomain, aID,
@@ -6842,41 +6410,6 @@ end;
 
 { TUSControlsLayer }
 
-//procedure TUSControlsLayer.changeActive(const aControlID, aActive: Integer);
-//var
-//  oraSession: TOraSession;
-//  queryText, publishEventName: string;
-//  publishEvent: TIMBEventEntry;
-//  table: TSubscribeObject;
-//  project: TUSProject;
-//begin
-//  project := (scenario.project as TUSProject);
-//  oraSession := project.OraSession;
-//
-//  //this query will do an upsert in Oracle
-//  queryText :=  'MERGE INTO ' + (scenario as TUSScenario).fTableprefix + 'GENE_CONTROL t1' +
-//                  ' using (SELECT :ID as OBJECT_ID, :ACTIVE as ACTIVE FROM dual) t2' +
-//                ' ON' +
-//                  ' (t1.OBJECT_ID = t2.OBJECT_ID)' +
-//                ' WHEN MATCHED then' +
-//                  ' UPDATE SET ACTIVE = t2.ACTIVE' +
-//                ' WHEN not matched then' +
-//                  ' INSERT (OBJECT_ID, ACTIVE)' +
-//                  ' VALUES (:ID, :ACTIVE)';
-//  oraSession.ExecSQL(queryText, [aControlID, aActive]);
-//  oraSession.Commit;
-//
-//  publishEventName := oraSession.Username + '#' + scenario.Name + '.GENE_CONTROL';
-//  table := project.GetTableSync(publishEventName);
-//  publishEvent := project.IMB3Connection.publish(publishEventName, false);
-//  try
-//    publishEvent.SignalChangeObject(actionChange, aControlID, 'ACTIVE');
-//    table.SendAnonymousEvent(actionChange, aControlID);
-//  finally
-//    publishEvent.UnPublish();
-//  end;
-//end;
-
 constructor TUSControlsLayer.Create(aScenario: TUSScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
   const aConnectString: string; aSourceProjection: TGIS_CSProjectedCoordinateSystem);
 begin
@@ -6885,7 +6418,6 @@ begin
   fOraSession := TOraSession.Create(nil);
   fOraSession.ConnectString := fConnectString;
   fOraSession.Open;
-  //fControls := TObjectDictionary<integer, TUSControl>.Create([doOwnsValues]);
   inherited Create(aScenario, aDomain, aID, aName, aDescription, [], [], aDefaultLoad);
   setPreviewBase64(
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4gUQDi064xlmkQAADKlJREFUeNrtnHl0FFUWxr9X9aqXdDqQzgJhyUISkgCCKChuI+ACbjgq4oDOoB4ZZlRERkbElR1RcRhRUBQGF' +
@@ -7570,9 +7102,9 @@ begin
   else
     contextOption := tagEnable;
   Result := '[{"text": "' + contextOption + '","index": 0, "tag":"'+contextOption+'"},' +
-              '{"text": "Properties","index": 1, "tag":"'+tagProperties+'"},' +
-              '{"text": "Select objects","index": 2, "tag":"'+tagSelectObjects+'"},' +
-              '{"text": "Remove","index": 3, "tag":"'+tagRemove+'"}]'
+             '{"text": "Properties","index": 1, "tag":"'+tagProperties+'"},' +
+             '{"text": "Select objects","index": 2, "tag":"'+tagSelectObjects+'"},' +
+             '{"text": "Remove","index": 3, "tag":"'+tagRemove+'"}]'
 end;
 
 function TUSControlObject.getIconJSON: string;

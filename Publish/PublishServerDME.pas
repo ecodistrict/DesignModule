@@ -33,6 +33,7 @@ uses
   System.SysUtils,
   System.Generics.Collections,
 
+  PublishServerOra,
   PublishServerLib,
   PublishServerGIS,
   PublishServerUS,
@@ -45,6 +46,15 @@ const
   yMin = '482500';
   yMax = '484200';
   targetZone = '719';
+
+  NDWRemoteHostSwitch = 'NDWRemoteHost';
+    //NDWRemoteHostDefault = 'vps17642.public.cloudvps.com';
+    NDWRemoteHostDefault = 'app-usmodel01.tsn.tno.nl';
+  NDWRemotePortSwitch = 'NDWRemotePort';
+    NDWRemotePortDefault = 4000;
+  NDWRemotePrefixSwitch = 'NDWPrefix';
+    //NDWRemotePrefixDefault = 'US_RT.NWB';
+    NDWRemotePrefixDefault = 'NDW';
 
 type
   TUSDesignProject = class(TUSProject)
@@ -61,7 +71,10 @@ type
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
   destructor Destroy; override;
+  private
+    fNDWConnection: TNDWConnection;
   public
+    procedure ReadBasicData(); override;
   end;
 
   TUSEvaluateProject = class(TUSProject)
@@ -718,9 +731,29 @@ end;
 
 destructor TUSMonitorProject.Destroy;
 begin
+  FreeAndNil(fNDWConnection);
   inherited;
 end;
 
+
+procedure TUSMonitorProject.ReadBasicData;
+begin
+  inherited;
+  // add nwb layer
+  if Assigned(fProjectCurrentScenario) then
+  begin
+    fNDWConnection := TNDWConnection.Create(
+      getSetting(NDWRemoteHostSwitch, NDWRemoteHostDefault),
+      getSetting(NDWRemotePortSwitch, NDWRemotePortDefault),
+      getSetting(NDWRemotePrefixSwitch, NDWRemotePrefixDefault),
+      fIMB3Connection.RemoteHost,
+      fIMB3Connection.RemotePort,
+      (fProjectCurrentScenario as TUSScenario).Federation,
+      (fProjectCurrentScenario as TUSScenario).Tableprefix,
+      ConnectStringFromSession(OraSession)
+      );
+  end;
+end;
 
 { TUSEvaluateProject }
 

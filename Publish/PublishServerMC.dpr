@@ -25,6 +25,8 @@ uses
   System.SyncObjs, System.Classes, System.SysUtils, WinApi.Windows;
 
 const
+  PublisherVersion = 181025; // yymmdd
+
   ConnectStringSwitch = 'ConnectString';
     DefaultConnectString = '';
 
@@ -83,7 +85,7 @@ begin
   fIMBLogger := nil;
   fProject := nil;
   // imb4
-  fIMBConnection := TSocketConnection.Create('PublishingServerUS', 2, 'nl.imb', GetSetting(IMB4RemoteHostSwitch, imb4.imbDefaultRemoteHost), GetSetting(IMB4RemotePortSwitch, imb4.imbDefaultRemoteSocketPort));
+  fIMBConnection := TSocketConnection.Create('PublishingServerUS', PublisherVersion, 'nl.imb', GetSetting(IMB4RemoteHostSwitch, imb4.imbDefaultRemoteHost), GetSetting(IMB4RemotePortSwitch, imb4.imbDefaultRemoteSocketPort));
   fIMBConnection.onException := HandleException;
   fIMBConnection.onDisconnect := HandleDisconnect;
   fIMBConnection.setHeartbeat(60*1000);

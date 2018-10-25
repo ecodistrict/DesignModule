@@ -56,8 +56,8 @@ const
 
   ORA_BATCHED_QUERY_ARRAY_LENGTH = 1000;
 
-  const
   dotFormat: TFormatSettings = (DecimalSeparator:'.');
+
   isoDateTimeFormat = 'yyyy-mm-dd hh:nn:ss';
   isoDateTimeFormatSettings: TFormatSettings = (
     DateSeparator:'-';
