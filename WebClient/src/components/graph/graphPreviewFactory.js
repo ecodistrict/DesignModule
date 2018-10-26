@@ -15,6 +15,10 @@ var GraphPreviewFactory = L.Evented.extend({
         };
     },
 
+    destroy: function () {
+
+    },
+
     create: function (graphModel, previewViewportElement) {
         var PreviewClass = this._previewMap[graphModel.type] || View;
 

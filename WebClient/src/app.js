@@ -7,10 +7,7 @@ import './utils/polyfill';
 import PerimeterLayout from './core/window/perimeterLayout';
 import WindowManager from './core/window/windowManager';
 import TimeSliderController from './components/timeSlider/timeSliderController';
-import GraphViewControllerFactory from './components/graph/graphViewControllerFactory';
-import GraphPreviewFactory from './components/graph/graphPreviewFactory';
-import GraphService from './components/graph/graphService';
-import GraphViewManager from './components/graph/graphViewManager';
+import GraphComponent from './components/graph/graphComponent';
 import DetailsViewController from './components/details/detailsViewController';
 
 var wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
@@ -79,7 +76,6 @@ DataManager.sessionInfo = {
 };
 
 var layoutOptions;
-var graphViewOptions;        
 if (window.innerWidth < 500) { // Mobile
     document.body.setAttribute("id", "phone");
 
@@ -98,15 +94,6 @@ if (window.innerWidth < 500) { // Mobile
         maxCellHeight: window.innerHeight / 3,
         minCellWidth: 150,
         minCellHeight: 80
-    };
-
-    graphViewOptions = {
-        minWidth: 200,
-        minHeight: 150,
-        maxWidth: 900,
-        maxHeight: 600,
-        width: 250,
-        height: 200
     };
 } else {
     document.body.removeAttribute("id");
@@ -128,15 +115,6 @@ if (window.innerWidth < 500) { // Mobile
         minCellWidth: 150,
         minCellHeight: 80
     };
-
-    graphViewOptions = {
-        minWidth: 300,
-        minHeight: 200,
-        maxWidth: 900,
-        maxHeight: 600,
-        width: 350,
-        height: 250
-    };
 }
 
 var layout = new PerimeterLayout(layoutOptions);
@@ -153,8 +131,8 @@ window.domainsControl = L.control.domains({});
 map.addControl(domainsControl);
 
 DataManager.detailsInfo = {
-    elementWidth: 400,
-    kpiWidth: 350, kpiHeight: 40,
+    elementWidth: 140,
+    kpiWidth: 134, kpiHeight: 40,
     chartWidth: 134, chartHeight: 100,
     layerWidth: 134, layerHeight: 140,
     padding: 2,
@@ -168,20 +146,16 @@ if (window.innerWidth < 500) {
 }
 
 // graphs
-var graphViewControllerFactory = new GraphViewControllerFactory();
-var graphPreviewFactory = new GraphPreviewFactory();
-window.graphService = new GraphService();
-window.graphViewManager = new GraphViewManager({
-    windowManager: windowManager,
-    graphViewOptions: graphViewOptions,
-    graphViewControllerFactory: graphViewControllerFactory
+window.graphComponent = new GraphComponent({
+    windowManager: windowManager
 });
+window.graphService = graphComponent.service();
 
 // details
 window.detailsViewController = new DetailsViewController({
-    graphService: graphService,
-    graphViewManager: graphViewManager,
-    graphPreviewFactory: graphPreviewFactory
+    graphService: graphComponent.service(),
+    graphViewManager: graphComponent.graphViewManager(),
+    graphPreviewFactory: graphComponent.graphPreviewFactory()
 });
 map.addControl(window.detailsViewController.view());
 
@@ -270,8 +244,6 @@ window.projectDescription = L.control.projectDescription;
 projectDescription.options.description = sessionDescription;
 map.addControl(projectDescription);
 
-GraphManager.Initialize();
-
 map.addEventListener('overlayadd',
     function (e) {
         if (e.layer.basicLayer && e.layer.basicID)
@@ -283,18 +255,6 @@ map.addEventListener('overlayremove',
         if (e.layer.basicLayer && e.layer.basicID)
             delete DataManager.activeBasicLayers[e.layer.basicID];
     });
-
-// test graph
-/*
-testGraph = {};
-testGraph.id = 'tg';
-testGraph.name = 'tg name';
-testGraph.type = 'table';
-testGraph.data = { header: { a: 'Option', b: 'Value' }, data: [{ a: 'Heel belangrijke waarde', b: 2.4 }, { a: 'Ook heel belangrijk', b: '7.456 MW' }] };
-
-GraphManager.MakeGraph(testGraph);
-testGraph.container.graph.ShowGraph();
-*/
 
 // link up connection control
 window.connectionStatus = document.getElementById('connectionStatus');

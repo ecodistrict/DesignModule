@@ -127,7 +127,11 @@ function buildBars(categories, series) {
 
         series.data.forEach(function (point) {
             var bar = createBarData(series, point);
-            categoriesMap[point.categoryId].bars.push(bar);
+            var categoryInfo = categoriesMap[point.categoryId];
+            
+            if (categoryInfo) {
+                categoryInfo.bars.push(bar);
+            }            
         });
     });
 

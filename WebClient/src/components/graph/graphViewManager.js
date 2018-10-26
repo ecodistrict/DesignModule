@@ -18,6 +18,14 @@ var GraphViewManager = L.Evented.extend({
         this._graphViewControllers = {};
     },
 
+    destroy: function () {
+        for (var graphViewControllerId in this._graphViewControllers) {
+            this._removeGraphViewController(this._graphViewControllers[graphViewControllerId]);
+        }
+        
+        this.off();
+    },
+
     showGraph: function (graphModel) {
         if (this._graphViewControllers[graphModel.id]) return;
         
@@ -46,12 +54,14 @@ var GraphViewManager = L.Evented.extend({
         var id = graphViewController.graphModel.id;
         this._graphViewControllers[id] = graphViewController;
         graphViewController.on('viewClosed', this._onGraphViewClosed, this);
+        graphViewController.on('graphCategoryClicked', this._onGraphCategoryClicked, this);
         this._windowManager.addWindow(graphViewController.view());
     },
 
     _removeGraphViewController: function (graphViewController) {
         delete this._graphViewControllers[graphViewController.graphModel.id];
         graphViewController.off('viewClosed', this._onGraphViewClosed, this);
+        graphViewController.off('graphCategoryClicked', this._onGraphCategoryClicked, this);
         graphViewController.remove();
     },
 
@@ -61,12 +71,23 @@ var GraphViewManager = L.Evented.extend({
         this._removeGraphViewController(graphViewController);
     },
 
+    _onGraphCategoryClicked: function (eventData) {        
+        this._notifyGraphCategoryClicked(eventData.graphModel, eventData.categoryId);
+    },
+
     _notifyGraphShown: function (graphModel) {
         this.fire('graphShown', { graphModel: graphModel });
     },
 
     _notifyGraphHidden: function (graphModel) {
         this.fire('graphHidden', { graphModel: graphModel });
+    },
+
+    _notifyGraphCategoryClicked: function (graphModel, categoryId) {
+        this.fire('graphCategoryClicked', {
+            graphModel: graphModel, 
+            categoryId: categoryId
+        });        
     }
 
 });

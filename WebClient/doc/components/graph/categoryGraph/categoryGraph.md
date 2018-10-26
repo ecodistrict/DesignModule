@@ -103,9 +103,21 @@ In the Graph data structure bars are grouped within series while when drawing ba
 
 Extends the [GraphView](../graph.md#graphView) class.
 
+#### Events <a name="categoryGraphViewEvents"></a>
+
+| Property | Data | Description |
+|---|---|---|
+| graphCategoryClicked | { view: `this`, categoryId: string } | Emitted whenever user clicked a graph category label. |
+
 ### CategoryGraphViewController <a name="categoryGraphViewControllerApi"></a>
 
 Extends the [GraphViewController](../graph.md#graphViewController) class.
+
+#### Events <a name="categoryGraphViewControllerEvents"></a>
+
+| Property | Data | Description |
+|---|---|---|
+| graphCategoryClicked | { graphModel: [GraphModel](../graph.md#graphModelApi), categoryId: string } | Emitted whenever user clicked a graph category label. |
 
 ### CategoryGraphViewModel <a name="categoryGraphViewModelApi"></a>
 

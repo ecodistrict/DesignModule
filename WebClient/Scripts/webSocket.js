@@ -7,7 +7,7 @@ var wsLookup = {
     measures: function (payload) {
         measuresControl.resetMeasures(payload);
     },
-    domains: function (payload) {
+    domains: function (payload) {        
         // first domains after login
         domainsControl.resetDomains(payload);
         // remove all basic overlay layers from layers control (and with that from map)
@@ -17,14 +17,27 @@ var wsLookup = {
                 layerControl.removeLayer(lcl.layer);
             }
         }
-        // add basic layers from domains
+
+        var graphs = [];
+        
         for (var domainName in payload) {
             var domain = payload[domainName];
+            
+            // add basic layers from domains
             for (var id2 in domain.layers) {
                 var layer = domain.layers[id2];
                 if (layer.basic)
                     addBasicLayer(layer);
             }
+
+            // collect graphs
+            if (domain && Array.isArray(domain.charts)) {
+                graphs = graphs.concat(domain.charts);
+            }
+        }
+
+        if (graphService) {            
+            graphService.setGraphs(graphs);
         }
     },
     updatedomains: function (payload) {
@@ -40,6 +53,9 @@ var wsLookup = {
                 layerControl.removeLayer(lcl.layer);
             }
         }
+
+        var graphs = [];
+
         // add basic layers from domains
         for (var domainName in payload) {
             var domain = payload[domainName];
@@ -48,6 +64,15 @@ var wsLookup = {
                 if (layer.basic)
                     addBasicLayer(layer);
             }
+
+            // collect graphs
+            if (domain && Array.isArray(domain.charts)) {
+                graphs = graphs.concat(domain.charts);
+            }
+        }
+
+        if (graphService) {            
+            graphService.updateGraphs(graphs);
         }
     },
     refresh: function (payload) {
@@ -78,10 +103,17 @@ var wsLookup = {
         detailsControl.resetkpi(payload); //todo implement KPI's?
     },
     updatechart: function (payload) {
-        GraphManager.UpdateGraphs(payload);
+        if (graphService) {
+            graphService.updateGraphs(payload);
+        }
     },
     showchart: function (payload) {
-        GraphManager.ShowGraphs(payload);
+        if (graphService) {
+            var graphs = payload.map(function (id) {
+                return { id: id }
+            });
+            graphService.showGraphs(graphs);
+        }
     },
     showelement: function (payload) {
         for (var i = 0; i < payload.length; i++)
@@ -89,7 +121,9 @@ var wsLookup = {
             switch (payload[i].type)
             {
                 case 'chart':
-                    GraphManager.MakeAndShowChart(payload[i].element)
+                    if (graphService) {
+                        graphService.showGraphs(payload[i].element);
+                    }
                     break;
             }
         }
@@ -215,6 +249,7 @@ var wsLookup = {
         InfoTextControl['leaflet-control-zoom'] = { description: 'Zoom', active: true, iconPosition: 'right' };
         InfoTextControl['leaflet-control-layers-toggle'] = { description: 'Selecteer de basis kaart', active: true, iconPosition: 'left' };
         InfoTextControl['leaflet-control-domains-toggle'] = { description: 'Selecteer de relevante domeinen door deze aan te klikken', active: true, iconPosition: 'left' };
+        InfoTextControl['leaflet-control-graphs-toggle'] = { description: 'Select a desired graph to display from the provided list', active: true, iconPosition: 'left' };
         InfoTextControl['leaflet-control-details-toggle'] = { description: 'Selecteer de gewenste kaart uit een overzicht van beschikbare kaarten', active: true, iconPosition: 'left' };
         InfoTextControl['projectDescription'] = { description: 'Klik hier om een scenario te selecteren en eventueel een referentiescenario aan te geven', active: true, iconPosition: 'bottom' };
 
@@ -240,7 +275,7 @@ var wsLookup = {
         historyControl.removeHistoryItems(payload);
     },
     resetgraphs: function (payload) {
-        GraphManager.ResetGraphs(payload);
+        // not needed
     },
     ccv: function (payload) {
         SyncManager.handleCCVMessage(payload);
@@ -329,6 +364,7 @@ function wsConnect() {
             console.log(evt.data);
             throw err;
         }
+
         // check if single message -> convert single message to array of 1
         if (!(Object.prototype.toString.call(messages) === '[object Array]')) {
             messages = [messages];

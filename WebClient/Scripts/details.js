@@ -50,7 +50,7 @@
 
             var link = this._categoriesLink = L.DomUtil.create('a', className + '-toggle', container);
             link.href = '#';
-            link.title = 'Details of selected domains in KPIs, charts and map layers';
+            link.title = 'Details of selected domains in KPIs and map layers';
 
 
             if (L.Browser.touch) {
@@ -81,9 +81,6 @@
         for (var domainName in domains) {
             var domain = domains[domainName];
             {
-                for (var cid in domain.charts) {
-                    //GraphManager.MakeGraph(domain.charts[cid]);
-                }
                 for (var lid in domain.layers) {
                     if (!domain.layers[lid].basic) {
                         LayerManager.AddLayer(domain.layers[lid]);
@@ -117,7 +114,6 @@
                     activekpis[domain.kpis[kid].id] = domain.kpis[kid].id;
             }
         }
-        //GraphManager.updateDomains(activecharts);
         LayerManager.updateDomains(activelayers);
         //todo: KPI manager.updateDomains(activekpis);
         this._update();
@@ -208,7 +204,7 @@
         container.appendChild(h);
 
         // determine elements per row
-        var maxElementCount = Math.max(Object.keys(this._kpis).length, LayerManager.ActiveCount, 0/*GraphManager.ActiveCount*/);
+        var maxElementCount = Math.max(Object.keys(this._kpis).length, LayerManager.ActiveCount, 0);
         var elementsPerRow = maxElementCount > 0 ? Math.ceil(Math.sqrt(maxElementCount)) : 1;
         this.kpis = document.createElement('div');
         this.kpis.className = 'detailskpis';
@@ -241,7 +237,7 @@
             kpiCount++;
         }
 
-        var chartCount = 0;//GraphManager.SetPreviews(this.charts);
+        var chartCount = 0;
 
         var layerCount = LayerManager.SetPreviews(this.layers);
 
@@ -254,11 +250,7 @@
     hasElements: function () {
         for (var kpi in this._kpis)
             return true;
-        for (var chart in this._charts)
-            return true;
         if (LayerManager.ActiveCount > 0)
-            return true;
-        if (GraphManager.ActiveCount > 0)
             return true;
         return false;
     },
