@@ -13,12 +13,12 @@ import chroma from 'chroma-js';
 
 function buildAxes(chartData) {
     var axes = {
-		yLeft: {
-			formatSpecifier: ',.1f'
-		},
-		xBottom: {
-			title: chartData.x || ''
-		}
+        yLeft: {
+            formatSpecifier: ',.1f'
+        },
+        xBottom: {
+            title: chartData.x || ''
+        }
     };
     
     return axes;
@@ -28,10 +28,10 @@ function buildCategories(chartColumns) {
     if (!Array.isArray(chartColumns)) return [];
 
     var categories = chartColumns[0].slice(1).map(function(category) {
-		return {
-			id: '' + category,
-			title: '' + category
-		};
+        return {
+            id: '' + category,
+            title: '' + category
+        };
     });
     
     return categories;
@@ -45,22 +45,22 @@ function buildSeries(type, chartColumns, nameFunction, colorFunction) {
     var series = chartColumns.slice(1).map(function(row) {
         if (!Array.isArray(row)) return null;
 
-		var data = row.slice(1).map(function(item, i) {
-			return {
-				categoryId: categories[i].id,
-				y: item,
-				axisId: 'yLeft'			
-			};
-		});
-		var rowName = row[0];
-		
-		return {
-			type: type,
-			id: nameFunction(rowName),
-			title: nameFunction(rowName),
-			color: colorFunction(rowName),
-			data: data
-		};
+        var data = row.slice(1).map(function(item, i) {
+            return {
+                categoryId: categories[i].id,
+                y: item,
+                axisId: 'yLeft'            
+            };
+        });
+        var rowName = row[0];
+        
+        return {
+            type: type,
+            id: nameFunction(rowName),
+            title: nameFunction(rowName),
+            color: colorFunction(rowName),
+            data: data
+        };
     });
     series = series.filter(function (item) { return !!item; });
 
@@ -77,8 +77,8 @@ function convertChartToGraphOpts(chart) {
     var color = d3.scaleOrdinal(d3.schemeCategory10);
     var columns = chart.data.columns;
 
-	var axes = buildAxes(chart.data);
-	var categories = buildCategories(columns);	
+    var axes = buildAxes(chart.data);
+    var categories = buildCategories(columns);    
     var series = buildSeries(chart.type, columns, function (name) { return name; }, color);
     
     if (chart.ref) {
@@ -104,23 +104,23 @@ function convertChartToGraphOpts(chart) {
         
         series = combinedSeries;
     }
-	
-	return {
-		type: 'category',
-		id: chart.id,
-		title: chart.title,
-		axes: axes,
-		categories: categories,
+    
+    return {
+        type: 'category',
+        id: chart.id,
+        title: chart.title,
+        axes: axes,
+        categories: categories,
         series: series,
         clickable: chart.clickable
-	};
+    };
 }
 
 function convertChartToGraphModel(chart) {
     if (!chart) throw new Error('chart is not provided');
 
     var graphOpts = convertChartToGraphOpts(chart);
-	return new GraphModel(graphOpts);
+    return new GraphModel(graphOpts);
 }
 
 var GraphService = L.Evented.extend({
@@ -133,7 +133,7 @@ var GraphService = L.Evented.extend({
         });
     },
 
-    remove: function () {        
+    destroy: function () {        
         this._graphsModel.set([]);
         this._graphsModel.off();
         this._graphsModel = null;

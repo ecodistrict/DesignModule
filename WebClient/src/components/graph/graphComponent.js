@@ -53,22 +53,22 @@ var GraphComponent = L.Evented.extend({
         this._graphViewManager.on('graphCategoryClicked', this._reportGraphCategorySelected, this);
     },
 
-    remove: function () {
+    destroy: function () {
         if (!this._graphService) return;
 
         this._graphService.off('showGraphs', this._showGraphs, this);
         this._graphViewManager.off('graphCategoryClicked', this._reportGraphCategorySelected, this);
 
-        this._graphService.remove();
+        this._graphService.destroy();
         this._graphService = null;
 
-        this._graphViewManager.remove();
+        this._graphViewManager.destroy();
         this._graphViewManager = null;
 
-        this._graphViewControllerFactory.remove();
+        this._graphViewControllerFactory.destroy();
         this._graphViewControllerFactory = null;
 
-        this._graphPreviewFactory.remove();
+        this._graphPreviewFactory.destroy();
         this._graphPreviewFactory = null;
     },
 

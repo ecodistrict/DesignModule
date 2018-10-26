@@ -16,7 +16,7 @@ var GraphViewControllerFactory = L.Evented.extend({
         };
     },
 
-    remove: function () {
+    destroy: function () {
 
     },
 

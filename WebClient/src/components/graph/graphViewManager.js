@@ -18,7 +18,7 @@ var GraphViewManager = L.Evented.extend({
         this._graphViewControllers = {};
     },
 
-    remove: function () {
+    destroy: function () {
         for (var graphViewControllerId in this._graphViewControllers) {
             this._removeGraphViewController(this._graphViewControllers[graphViewControllerId]);
         }
