@@ -45,3 +45,6 @@
 	url = https://cornelissenja@bitbucket.org/imbclients/logger-delphi.git
 
 	branch = master
+[submodule "EcoWiki-2/DesignModule.wiki"]
+	path = EcoWiki-2/DesignModule.wiki
+	url =  https://github.com/ecodistrict/DesignModule.wiki.git
