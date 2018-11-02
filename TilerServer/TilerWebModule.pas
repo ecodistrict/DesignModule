@@ -578,7 +578,6 @@ type
   constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryICLR);
   destructor Destroy; override;
   protected
-    //fGeometries: TObjectDictionary<TWDID, TSliceGeometryICLRObject>;
   protected
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
@@ -586,7 +585,6 @@ type
     function GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors; override;
     function ComputeCoordinateDist(aWidth, aActiveValue, aRefValue, aCapacityFactor, aXY_Diff, aPerpDist: Double; aIsCommonPoly: Boolean): Double;
     procedure DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygonCommon, aPolygonExtra: TPolygon; xCommon, xExtra: Double);
-    //function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
   end;
 
   TSliceDiffGeometryICLR3 = class(TSliceDiffGeometryICLR)
@@ -3828,12 +3826,10 @@ end;
 constructor TSliceDiffGeometryICLR2.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryICLR);
 begin
   inherited Create(aLayer, aPalette, aTimeStamp, aCurrentSlice, aRefSlice);
-  //fGeometries := TObjectDictionary<TWDID, TSliceGeometryICLRObject>.Create([doOwnsValues]);
 end;
 
 destructor TSliceDiffGeometryICLR2.Destroy;
 begin
-  //FreeAndNil(fGeometries);
   inherited;
 end;
 
@@ -4088,121 +4084,6 @@ begin
     end;
   end;
 end;
-
-//function TSliceDiffGeometryICLR2.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
-//var
-//  id: TWDID;
-//  fieldInfo: Uint32;
-//  geometry: TWDGeometry;
-//  len: Uint64;
-//  sgo: TSliceGeometryICLRObject;
-//  value: Double;
-//  texture: Double;
-//  value2: Double;
-//  texture2: Double;
-//begin
-//  Result := True; // trigger refresh
-//  id := '';
-//  value := NaN;
-//  value2 := NaN;
-//  texture := NaN;
-//  texture2 := NaN;
-//  geometry := nil;
-//  try
-//    while aCursor<aLimit do
-//    begin
-//      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
-//      case fieldInfo of
-//        (icehObjectID shl 3) or wtLengthDelimited:
-//          begin
-//            id := aBuffer.bb_read_rawbytestring(aCursor);
-//            if fGeometries.TryGetValue(id, sgo) then
-//            begin
-//              if Assigned(geometry) then
-//              begin
-//                // Assume that geometry is modified if we received geometry in the payload.
-//                // We remove the geometry from fLocations. The list will free the geometry.
-//                fGeometries.Remove(id);
-//                sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
-//                if fMaxExtent.IsEmpty
-//                then fMaxExtent := sgo.extent
-//                else fMaxExtent.Expand(sgo.extent);
-//                fGeometries.Add(id, sgo);
-//                geometry := nil; // do not free. Object is owned by fLocations
-//              end
-//              else
-//              begin
-//                if not IsNaN(value) then
-//                begin
-//                  sgo.value := value;
-//                end;
-//                if not IsNaN(value2) then
-//                begin
-//                  sgo.value2 := value2;
-//                end;
-//                if not IsNaN(texture) then
-//                begin
-//                  sgo.texture := texture;
-//                end;
-//                if not IsNaN(texture2) then
-//                begin
-//                  sgo.texture2 := texture2;
-//                end;
-//              end;
-//            end
-//            else
-//            begin
-//              if Assigned(geometry) then
-//              begin
-//                sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
-//                if fMaxExtent.IsEmpty
-//                  then fMaxExtent := sgo.extent
-//                else fMaxExtent.Expand(sgo.extent);
-//                fGeometries.Add(id, sgo);
-//                geometry := nil;
-//                value := NaN;
-//              end;
-//            end;
-//          end;
-//        (icehTilerValue shl 3) or wt64Bit:
-//          begin
-//            value := aBuffer.bb_read_double(aCursor);
-//          end;
-//        (icehTilerTexture shl 3) or wt64Bit:
-//          begin
-//            texture := aBuffer.bb_read_double(aCursor);
-//          end;
-//        (icehTilerValue2 shl 3) or wt64Bit:
-//          begin
-//            value2 := aBuffer.bb_read_double(aCursor);
-//          end;
-//        (icehTilerTexture2 shl 3) or wt64Bit:
-//          begin
-//            texture2 := aBuffer.bb_read_double(aCursor);
-//          end;
-//        (icehTilerGeometry shl 3) or wtLengthDelimited:
-//          begin
-//            geometry.Free;
-//            geometry := TWDGeometry.Create;
-//            len := aBuffer.bb_read_uint64(aCursor);
-//            geometry.Decode(aBuffer, aCursor, aCursor+Integer(len));
-//          end;
-//        (icehNoObjectID shl 3) or wtLengthDelimited:
-//          begin
-//            id := aBuffer.bb_read_rawbytestring(aCursor);
-//            fGeometries.Remove(id);
-//          end;
-//      else
-//        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
-//      end;
-//    end;
-//
-//
-//  finally
-//    geometry.Free;
-//  end;
-//end;
-
 
 { TSliceDiffGeometryICLR3 }
 
