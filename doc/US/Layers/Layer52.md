@@ -9,21 +9,47 @@ Following is the client requirement provided for this layer:
 
 The first and the second layers represent the data for the reference and the active layers, while the third layer represents the expected difference layer. 
 
+## Logic
+
+The data in the reference and the active layers is colored based on the following range criteria for the data value:
+
+|Class|% Range|Color|
+|---|---|---|
+|1|0 - 70|<span style="background-color:chartreuse">Green</span>|
+|2|71 - 90|<span style="background-color:gold">Yellow</span>|
+|3|91 - 100|<span style="background-color:red">Red</span>|
+
+For the difference layer, following are the possible cases:
+
+|Active Class|Ref Class|Diff. Layer Color|
+|---|---|---|
+|1|1|<span style="background-color:steelblue">Neutral</span>|
+|1|2|<span style="background-color:red">Red</span>|
+|1|3|<span style="background-color:red">Red</span>|
+|2|1|<span style="background-color:chartreuse">Green</span>|
+|2|2|<span style="background-color:steelblue">Neutral</span>|
+|2|3|<span style="background-color:red">Red</span>|
+|3|1|<span style="background-color:chartreuse">Green</span>|
+|3|2|<span style="background-color:chartreuse">Green</span>|
+|3|3|<span style="background-color:steelblue">Neutral</span>|
+
+
+
 ## Implementation
 
 Layer type 52 reuses the layer computation from its parent layer type 5 for computing the active and the reference layers.
 
 Only a new implementation for the difference layer has been added for this layer.
 
-Active Layer:
+**Active Layer:**
 ![ActiveLayer](./images/Layer52_ActiveLayer.PNG)
 
-Reference Layer:
+**Reference Layer:**
 ![ReferenceLayer](./images/Layer52_RefLayer.PNG)
 
 
-Difference Layer:
+**Difference Layer:**
 ![ReferenceLayer](./images/Layer52_DiffLayer.PNG)
 
-Difference Layer - Zoomed in:
+**Difference Layer - Zoomed in:**
 ![ReferenceLayer](./images/Layer52_DiffLayer_ZoomedIn.PNG)
