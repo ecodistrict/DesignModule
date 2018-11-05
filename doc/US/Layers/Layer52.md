@@ -1,6 +1,6 @@
 # Tiler Layer 52
 
-Tiler layer 52 is a child of layer type 5. Hence, it inherits the property of visualizing the data on both sides of the road with the help of color filled polygons.
+Tiler layer 52 is a child of [layer type 5](./Layer5.md). Hence, it inherits the property of visualizing the data on both sides of the road with the help of color filled polygons.
 
 ## Client Requirement
 
@@ -9,7 +9,7 @@ Following is the client requirement provided for this layer:
 
 The first and the second layers represent the data for the reference and the active layers, while the third layer represents the expected difference layer. 
 
-## Logic
+## Logic - Difference Layer
 
 The data in the reference and the active layers is colored based on the following range criteria for the data value:
 

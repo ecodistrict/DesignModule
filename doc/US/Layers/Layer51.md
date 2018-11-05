@@ -1,6 +1,6 @@
 # Tiler Layer 51
 
-Tiler layer 51 is a child of layer type 5. Hence, it inherits the property of visualizing the data on both sides of the road with the help of color filled polygons.
+Tiler layer 51 is a child of [layer type 5](./Layer5.md). Hence, it inherits the property of visualizing the data on both sides of the road with the help of color filled polygons.
 
 The base idea behind the new difference layer was to highlight only the increase or the decrease in a certain parameter when comparing the reference and the active layers.
 
@@ -11,7 +11,7 @@ Following is the client requirement provided for this layer:
 
 The first and the second layers represent the data for the reference and the active layers, while the third layer represents the expected difference layer. 
 
-## Logic
+## Logic - Difference Layer
 
 As can be seen from the client requirements, following are the three possible cases:
 
@@ -43,7 +43,6 @@ Depending upon the difference (WidthRef - WidthActive), the color of the layer i
 |1|+ve value|Green|
 |2|-ve value|Red|
 |3|Zero|Neutral|
-
 
 
 ## Implementation
