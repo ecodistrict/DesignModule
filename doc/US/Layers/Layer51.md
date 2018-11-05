@@ -16,21 +16,21 @@ The first and the second layers represent the data for the reference and the act
 As can be seen from the client requirements, following are the three possible cases:
 
 <table class="temperatureViewStates">
-<tr><td><img src="images/RefActiveDiff1.png" alt="Case1"/></td></tr>
+<tr><td><img src="images/Layer51_RefActiveDiff1.png" alt="Case1"/></td></tr>
 <tr align="center"><td>Case 1</td></tr>
 </table>
 
 <br/>
 
 <table class="temperatureViewStates">
-<tr><td><img src="images/RefActiveDiff2.png" alt="Case1"/></td></tr>
+<tr><td><img src="images/Layer51_RefActiveDiff2.png" alt="Case1"/></td></tr>
 <tr align="center"><td>Case 2</td></tr>
 </table>
 
 <br/>
 
 <table class="temperatureViewStates">
-<tr><td><img src="images/RefActiveDiff3.png" alt="Case1"/></td></tr>
+<tr><td><img src="images/Layer51_RefActiveDiff3.png" alt="Case1"/></td></tr>
 <tr align="center"><td>Case 3</td></tr>
 </table>
 
