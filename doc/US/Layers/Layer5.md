@@ -2,15 +2,14 @@
 
 Tiler layer 5 is a layer that can be used to display data for both sides of the roads.
 
-Tiler layer 5 can be used to visualize data in 2 ways:
-* Color of the layer
-* Width of the layer
+The data in this layer is visualized with the help of polygons.  
+The color and thickness (width) of these polygons can be used to display certain information about a road.
 
-This layer has 2 class implementations, one to visualize the reference and the active scenario values and the other to visualize the difference between the reference and the active scenarios.
+This layer has 2 class implementations, one to visualize the reference and the active scenario values, and the other to visualize the difference between the reference and the active scenarios.
 
 ## Layer Logic
 
-![ActiveLayer](./images/Layer5.PNG)
+![ActiveLayer](./images/Layer5.png)
 
 A road has two sides - left & right.  
 Layer 5 helps visualize data for both sides of the road with the help of colored polygons.
