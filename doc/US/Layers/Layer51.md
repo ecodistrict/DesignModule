@@ -36,11 +36,15 @@ As can be seen from the client requirements, following are the three possible ca
 
 For the sake of computation, we always calculate the difference between the width of the reference scenario layer with the width of the active scenario layer (WidthRef - WidthActive).
 
+Depending upon the difference (WidthRef - WidthActive), the color of the layer is defined.
+
 |Case|WidthRef - WidthActive|Color|
 |---|---|---|
 |1|+ve value|Green|
 |2|-ve value|Red|
 |3|Zero|Neutral|
+
+
 
 ## Implementation
 

@@ -21,7 +21,7 @@ The data in the reference and the active layers is colored based on the followin
 
 For the difference layer, following are the possible cases:
 
-|Active Class|Ref Class|Diff. Layer Color|
+|Ref Class|Active Class|Diff. Layer Color|
 |---|---|---|
 |1|1|<span style="background-color:steelblue">Neutral</span>|
 |1|2|<span style="background-color:red">Red</span>|
@@ -33,7 +33,11 @@ For the difference layer, following are the possible cases:
 |3|2|<span style="background-color:chartreuse">Green</span>|
 |3|3|<span style="background-color:steelblue">Neutral</span>|
 
+As can be seen from the above table, the color of the difference layer is defined by the change is class between the reference layer and the active layer.
 
+If RefClass > ActiveClass, difference layer color is Green.  
+If RefClass < ActiveClass, difference layer color is Red.  
+If RefClass == ActiveClass, difference layer color is SteelBlue(Neutral).
 
 ## Implementation
 
