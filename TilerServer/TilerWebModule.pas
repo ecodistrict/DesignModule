@@ -569,7 +569,7 @@ type
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
     function CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double; Virtual;
-    function GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors; Virtual;
+    function GetPaletteColor(aActiveTexture, aRefTexture: Double; var aValidFlag: Boolean): TGeoColors;
     function ConstructPolygon(aPolyPoints: TArray<Double>): TPolygon; Virtual;
     procedure DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygon: TPolygon);
   end;
@@ -582,7 +582,7 @@ type
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
     function CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double; override;
-    function GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors; override;
+    function GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors;
     function ComputeCoordinateDist(aWidth, aActiveValue, aRefValue, aCapacityFactor, aXY_Diff, aPerpDist: Double; aIsCommonPoly: Boolean): Double;
     procedure DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygonCommon, aPolygonExtra: TPolygon; xCommon, xExtra: Double);
   end;
@@ -592,7 +592,7 @@ type
   protected
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
-    function GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors; override;
+    function GetPaletteColor(aActiveTexture, aRefTexture: Double; var aWidth: Double; var aValidFlag: Boolean): TGeoColors;
     function ComputeICRatioClass(aICValue: Double): Integer;
   end;
 
@@ -3680,10 +3680,10 @@ begin
               widthR := CalculateWidth(isgop.Value.value2, refObj.value2, validR);
 
               //see if we can find L color
-              colorsL := GetPaletteColor(isgop.Value.texture, refObj.texture, widthL, validL);
+              colorsL := GetPaletteColor(isgop.Value.texture, refObj.texture, validL);
 
               //see if we can find R color
-              colorsR := GetPaletteColor(isgop.Value.texture2, refObj.texture2, widthR, validR);
+              colorsR := GetPaletteColor(isgop.Value.texture2, refObj.texture2, validR);
             end;
 
             if not (validR or validL) then //if neither side is valid -> draw a thin black line
@@ -3778,7 +3778,7 @@ begin
   end;
 end;
 
-function TSliceDiffGeometryICLR.GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors;
+function TSliceDiffGeometryICLR.GetPaletteColor(aActiveTexture, aRefTexture: Double; var aValidFlag: Boolean): TGeoColors;
 begin
   if not (IsNaN(aActiveTexture) or IsNaN(aRefTexture))then
     Result := fPalette.ValueToColors(aActiveTexture-aRefTexture)
@@ -4235,7 +4235,7 @@ begin
   else Log.WriteLn('TSliceDiffGeometryICLR3 layer '+fLayer.LayerID.ToString+': no palette defined', llError);
 end;
 
-function TSliceDiffGeometryICLR3.GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors;
+function TSliceDiffGeometryICLR3.GetPaletteColor(aActiveTexture, aRefTexture: Double; var aWidth: Double; var aValidFlag: Boolean): TGeoColors;
 var
   activeClass, refClass: Integer;
 begin
@@ -4249,7 +4249,10 @@ begin
     else if activeClass>refClass then
       Result := fPalette.ValueToColors(fPalette.maxValue())
     else
-      Result := fPalette.ValueToColors((fPalette.minValue() + fPalette.maxValue())/2);
+      begin
+        Result := TGeoColors.Create(TAlphaColorRec.Lightsteelblue,TAlphaColorRec.Lightsteelblue);//fPalette.ValueToColors((fPalette.minValue() + fPalette.maxValue())/2);
+        aWidth := aWidth / 3;
+      end;
   end
   else aValidFlag := False;
 end;

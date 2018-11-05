@@ -2198,7 +2198,7 @@ begin
     9:   Result := stGeometryIC; // energy color (VALUE_EXPR) and width (TEXTURE_EXPR)
     10, 11:  Result := stLocation;  // controls, points: basic layer
     21:  Result := stPOI; // POI
-	51:  Result := stGeometryICLR2; // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
+	  51:  Result := stGeometryICLR2; // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
     52:  Result := stGeometryICLR3; // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
   else
          Result := stUndefined;
