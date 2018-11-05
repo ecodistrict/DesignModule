@@ -10,7 +10,7 @@ This layer has 2 class implementations, one to visualize the reference and the a
 
 ## Layer Logic
 
-![ActiveLayer](./images/Layer5.PNG)
+![ActiveLayer](./images/Layer5.png)
 
 A road has two sides - left & right.  
 Layer 5 helps visualize data for both sides of the road with the help of colored polygons.
