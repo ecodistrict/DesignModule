@@ -1,11 +1,16 @@
-# Tiler Layer 5
+# Tiler Layer: Geometry Polygon Left-Right
 
-Tiler layer 5 is a layer that can be used to display data for both sides of the roads.
+This tiler layer has been assigned the LAYER_TYPE number 5 in the database.
+
+
+The layer can be used to display data for both sides of the road.
 
 The data in this layer is visualized with the help of polygons.  
 The color and thickness (width) of these polygons can be used to display certain information about a road.
 
-This layer has 2 class implementations, one to visualize the reference and the active scenario values, and the other to visualize the difference between the reference and the active scenarios.
+This layer has 2 class implementations:
+1. For visualizing values of any scenario (reference or active).
+2. For visualizing the difference between any two scenarios (reference & active).
 
 ## Layer Logic
 
@@ -16,7 +21,7 @@ Layer 5 helps visualize data for both sides of the road with the help of colored
 
 Both the color and the width of the polygon can be used to convey certain type of information regarding a road.
 
-## Difference Layer
+## Difference Layer Logic
 
 Following are the 3 possible cases for the difference layer:
 

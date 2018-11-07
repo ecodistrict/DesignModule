@@ -1,6 +1,14 @@
-# Tiler Layer 52
+# Tiler Layer: Geometry Class Change Polygon Stripe Left-Right
 
-Tiler layer 52 is a child of [layer type 5](./Layer5.md). Hence, it inherits the property of visualizing the data on both sides of the road with the help of color filled polygons.
+This tiler layer has been assigned the LAYER_TYPE number 52 in the database.
+
+
+This layer is a child of the [Geometry Polygon Left-Right](./Layer-GeometryPolygonLR.md) layer. Hence, it inherits the property of visualizing the data on both sides of the road with the help of color filled polygons.
+
+For visualizing values of any scenario (reference or active), the existing class in the layer - [Geometry Polygon Left-Right](./Layer-GeometryPolygonLR.md) is used.  
+A new class is implemented for creating the new difference layer visualization.
+
+The base idea behind the new difference layer was to highlight only the change in the class of the values when comparing the reference and the active layers.
 
 ## Client Requirement
 
