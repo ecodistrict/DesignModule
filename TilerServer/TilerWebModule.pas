@@ -574,8 +574,8 @@ type
     function ConstructPolygon(aPolyPoints: TArray<Double>): TPolygon; Virtual;
     procedure DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygon: TPolygon);
   end;
-  
-  TSliceDiffGeometryCommonAndExtraPolygonsLR = class(TSliceDiffGeometryPolygonLR)
+
+  TSliceDiffGeometryDoublePolygonLR = class(TSliceDiffGeometryPolygonLR)
   constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
   destructor Destroy; override;
   protected
@@ -588,7 +588,7 @@ type
     procedure DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygonCommon, aPolygonExtra: TPolygon; xCommon, xExtra: Double);
   end;
 
-  TSliceDiffGeometryClassChangePolygonStripeLR = class(TSliceDiffGeometryPolygonLR)
+  TSliceDiffGeometryPolygonStripeLR = class(TSliceDiffGeometryPolygonLR)
   constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
   protected
     // tile generation
@@ -3822,19 +3822,19 @@ begin
   end;
 end;
 
-{ TSliceDiffGeometryCommonAndExtraPolygonsLR }
+{ TSliceDiffGeometryDoublePolygonLR }
 
-constructor TSliceDiffGeometryCommonAndExtraPolygonsLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
+constructor TSliceDiffGeometryDoublePolygonLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
 begin
   inherited Create(aLayer, aPalette, aTimeStamp, aCurrentSlice, aRefSlice);
 end;
 
-destructor TSliceDiffGeometryCommonAndExtraPolygonsLR.Destroy;
+destructor TSliceDiffGeometryDoublePolygonLR.Destroy;
 begin
   inherited;
 end;
 
-function TSliceDiffGeometryCommonAndExtraPolygonsLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+function TSliceDiffGeometryDoublePolygonLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   isgop: TPair<TWDID, TSliceGeometryPolygonLRObject>;
   polygonCommon: TPolygon;
@@ -3986,7 +3986,7 @@ begin
   else Log.WriteLn('TSliceDiffGeometryCommonAndExtraPolygonsLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
 end;
 
-function TSliceDiffGeometryCommonAndExtraPolygonsLR.CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double;
+function TSliceDiffGeometryDoublePolygonLR.CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double;
 begin
   if not IsNaN(aActiveValue) then
   begin
@@ -4002,7 +4002,7 @@ begin
   end;
 end;
 
-function TSliceDiffGeometryCommonAndExtraPolygonsLR.GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors;
+function TSliceDiffGeometryDoublePolygonLR.GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors;
 begin
   if not (IsNaN(aActiveTexture) or IsNaN(aRefTexture)) then
   begin
@@ -4016,7 +4016,7 @@ begin
   else aValidFlag := False;
 end;
 
-function TSliceDiffGeometryCommonAndExtraPolygonsLR.ComputeCoordinateDist(aWidth, aActiveValue, aRefValue, aCapacityFactor, aXY_Diff, aPerpDist: Double; aIsCommonPoly: Boolean): Double;
+function TSliceDiffGeometryDoublePolygonLR.ComputeCoordinateDist(aWidth, aActiveValue, aRefValue, aCapacityFactor, aXY_Diff, aPerpDist: Double; aIsCommonPoly: Boolean): Double;
 begin
   if aWidth > 0 then
   begin
@@ -4039,7 +4039,7 @@ begin
   end;
 end;
 
-procedure TSliceDiffGeometryCommonAndExtraPolygonsLR.DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygonCommon, aPolygonExtra: TPolygon; xCommon, xExtra: Double);
+procedure TSliceDiffGeometryDoublePolygonLR.DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygonCommon, aPolygonExtra: TPolygon; xCommon, xExtra: Double);
 begin
   if aColor.fillColor<>0  then
   begin
@@ -4078,12 +4078,12 @@ end;
 
 { TSliceDiffGeometryClassChangePolygonStripeLR }
 
-constructor TSliceDiffGeometryClassChangePolygonStripeLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
+constructor TSliceDiffGeometryPolygonStripeLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
 begin
   inherited Create(aLayer, aPalette, aTimeStamp, aCurrentSlice, aRefSlice);
 end;
 
-function TSliceDiffGeometryClassChangePolygonStripeLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+function TSliceDiffGeometryPolygonStripeLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
   isgop: TPair<TWDID, TSliceGeometryPolygonLRObject>;
   polygon: TPolygon;
@@ -4218,7 +4218,7 @@ begin
   else Log.WriteLn('TSliceDiffGeometryClassChangePolygonStripeLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
 end;
 
-function TSliceDiffGeometryClassChangePolygonStripeLR.GetPaletteColor(aActiveTexture, aRefTexture: Double; var aWidth: Double; var aValidFlag: Boolean): TGeoColors;
+function TSliceDiffGeometryPolygonStripeLR.GetPaletteColor(aActiveTexture, aRefTexture: Double; var aWidth: Double; var aValidFlag: Boolean): TGeoColors;
 var
   activeClass, refClass: Integer;
 begin
@@ -4240,7 +4240,7 @@ begin
   else aValidFlag := False;
 end;
 
-function TSliceDiffGeometryClassChangePolygonStripeLR.ComputeICRatioClass(aICValue: Double): Integer;
+function TSliceDiffGeometryPolygonStripeLR.ComputeICRatioClass(aICValue: Double): Integer;
 begin
   if aICValue <= 0.7 then
     Result := 1

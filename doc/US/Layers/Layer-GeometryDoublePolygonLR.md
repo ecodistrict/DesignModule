@@ -1,4 +1,4 @@
-# Tiler Layer: Geometry Common & Extra Polygons Left-Right
+# Tiler Layer: Geometry Double Polygon Left-Right
 
 This tiler layer has been assigned the LAYER_TYPE number 51 in the database.
 

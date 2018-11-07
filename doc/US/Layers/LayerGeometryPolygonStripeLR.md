@@ -1,4 +1,4 @@
-# Tiler Layer: Geometry Class Change Polygon Stripe Left-Right
+# Tiler Layer: Geometry Polygon Stripe Left-Right
 
 This tiler layer has been assigned the LAYER_TYPE number 52 in the database.
 
