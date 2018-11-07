@@ -3983,7 +3983,7 @@ begin
       aBitmap.Canvas.EndScene;
     end;
   end
-  else Log.WriteLn('TSliceDiffGeometryCommonAndExtraPolygonsLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+  else Log.WriteLn('TSliceDiffGeometryDoublePolygonLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
 end;
 
 function TSliceDiffGeometryDoublePolygonLR.CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double;
@@ -4215,7 +4215,7 @@ begin
       aBitmap.Canvas.EndScene;
     end;
   end
-  else Log.WriteLn('TSliceDiffGeometryClassChangePolygonStripeLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+  else Log.WriteLn('TSliceDiffGeometryPolygonStripeLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
 end;
 
 function TSliceDiffGeometryPolygonStripeLR.GetPaletteColor(aActiveTexture, aRefTexture: Double; var aWidth: Double; var aValidFlag: Boolean): TGeoColors;
@@ -4596,7 +4596,7 @@ begin
                           slice := TSliceGeometryI.Create(Self, palette.Clone, timeStamp);
                         stGeometryIC:
                           slice := TSliceGeometryIC.Create(Self, palette.Clone, timeStamp);
-                        stGeometryICLR, stGeometryCommonAndExtraPolygonsLR, stGeometryClassChangePolygonStripeLR:
+                        stGeometryICLR, stGeometryDoublePolygonLR, stGeometryPolygonStripeLR:
                           slice := TSliceGeometryPolygonLR.Create(Self, palette.Clone, timeStamp);
                         stGeometryIH:
                           slice := TSliceGeometryIH.Create(Self, palette.Clone, timeStamp, lineThickness);
@@ -4617,10 +4617,10 @@ begin
                           slice := TSliceDiffGeometryIC.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryIC, refSlice as TSliceGeometryIC);
                         stDiffGeometryICLR:
                           slice := TSliceDiffGeometryPolygonLR.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryPolygonLR, refSlice as TSliceGeometryPolygonLR);
-                        stDiffGeometryCommonAndExtraPolygonsLR:
-                          slice := TSliceDiffGeometryCommonAndExtraPolygonsLR.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryPolygonLR, refSlice as TSliceGeometryPolygonLR);
-                        stDiffGeometryClassChangePolygonStripeLR:
-                          slice := TSliceDiffGeometryClassChangePolygonStripeLR.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryPolygonLR, refSlice as TSliceGeometryPolygonLR);
+                        stDiffGeometryDoublePolygonLR:
+                          slice := TSliceDiffGeometryDoublePolygonLR.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryPolygonLR, refSlice as TSliceGeometryPolygonLR);
+                        stDiffGeometryPolygonStripeLR:
+                          slice := TSliceDiffGeometryPolygonStripeLR.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryPolygonLR, refSlice as TSliceGeometryPolygonLR);
 						            stDiffPOI:
                           slice := TSliceDiffPOI.Create(Self, timeStamp, currentSlice as TSlicePOI, refSlice as TSlicePOI, colorRemovedPOI, colorSamePOI, colorNewPOI);
                         stDiffPNG:
