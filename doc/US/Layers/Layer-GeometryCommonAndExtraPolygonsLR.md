@@ -3,7 +3,7 @@
 This tiler layer has been assigned the LAYER_TYPE number 51 in the database.
 
 
-This layer is a child of the [Geometry Polygon Left-Right](./Layer-GeometryPolygonLR.md) layer. Hence, it inherits the property of visualizing the data on both sides of the road with the help of color filled polygons.
+This layer is related to the [Geometry Polygon Left-Right](./Layer-GeometryPolygonLR.md) layer and hence, it shares the property of visualizing the data on both sides of the road with the help of color filled polygons.
 
 For visualizing values of any scenario (reference or active), the existing class in the layer - [Geometry Polygon Left-Right](./Layer-GeometryPolygonLR.md) is used.  
 A new class is implemented for creating the new difference layer visualization.

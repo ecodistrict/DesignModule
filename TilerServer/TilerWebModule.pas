@@ -3897,13 +3897,7 @@ begin
             if not (validR or validL) then //if neither side is valid -> draw a thin black line
             begin
               path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, curScenarioGeometryObject.fGeometry);
-              try
-                aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
-                aBitmap.Canvas.Stroke.Thickness := 1;
-                aBitmap.Canvas.DrawPath(path, 1);
-              finally
-                path.Free;
-              end;
+              DrawDefaultPath(path, aBitmap);
             end
             else //draw our polygons
             begin
@@ -4158,14 +4152,7 @@ begin
             if not (validR or validL) then //if neither side is valid -> draw a thin black line
             begin
               path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, curScenarioGeometryObject.fGeometry);
-              try
-                aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
-                //aBitmap.Canvas.StrokeThickness := 1;
-                aBitmap.Canvas.Stroke.Thickness := 1;
-                aBitmap.Canvas.DrawPath(path, 1);
-              finally
-                path.Free;
-              end;
+              DrawDefaultPath(path, aBitmap);
             end
             else //draw our polygons
             begin
