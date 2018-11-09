@@ -568,6 +568,7 @@ type
   protected
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    function ComputeDistanceBetweenPoints(aXDiff, aYDiff: Double): Double;
     procedure DrawDefaultPath(path: TPathData; aBitmap: FMX.Graphics.TBitmap);
     function CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double; Virtual;
     function GetPaletteColor(aActiveTexture, aRefTexture: Double; var aValidFlag: Boolean): TGeoColors;
@@ -3708,7 +3709,7 @@ begin
                     xn := yCurr-yPrev;
                     yn := xPrev-xCurr;
                     // normalize..
-                    pointDist := sqrt((xn*xn)+(yn*yn));
+                    pointDist := ComputeDistanceBetweenPoints(xn, yn);
 
                     //draw left side
                     if validL then
@@ -3751,6 +3752,11 @@ begin
     end;
   end
   else Log.WriteLn('TSliceDiffGeometryPolygonLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+end;
+
+function TSliceDiffGeometryPolygonLR.ComputeDistanceBetweenPoints(aXDiff, aYDiff: Double): Double;
+begin
+  Result := sqrt((aXDiff*aXDiff)+(aYDiff*aYDiff));
 end;
 
 procedure TSliceDiffGeometryPolygonLR.DrawDefaultPath(path: TPathData; aBitmap: FMX.Graphics.TBitmap);
@@ -3909,7 +3915,7 @@ begin
                   begin
                     xn := yCurr-yPrev;
                     yn := xPrev-xCurr;
-                    pointDist := sqrt((xn*xn)+(yn*yn));
+                    pointDist := ComputeDistanceBetweenPoints(xn, yn);
 
                     if validL then
                     begin
@@ -4063,7 +4069,7 @@ begin
   end;
 end;
 
-{ TSliceDiffGeometryClassChangePolygonStripeLR }
+{ TSliceDiffGeometryPolygonStripeLR }
 
 constructor TSliceDiffGeometryPolygonStripeLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
 begin
@@ -4155,7 +4161,7 @@ begin
                   begin
                     xn := yCurr-yPrev;
                     yn := xPrev-xCurr;
-                    pointDist := sqrt((xn*xn)+(yn*yn));
+                    pointDist := ComputeDistanceBetweenPoints(xn, yn);
 
                     if validL then
                     begin
