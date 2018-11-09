@@ -53,7 +53,7 @@ Depending upon the difference (WidthRef - WidthActive), the color of the layer i
 
 ## Implementation
 
-Layer type 51 reuses the layer computation from its parent layer type 5 for computing the active and the reference layers.
+This layer reuses the layer computation from its parent layer type 5 for computing the active and the reference layers.
 
 Only a new implementation for the difference layer has been added for this layer.
 

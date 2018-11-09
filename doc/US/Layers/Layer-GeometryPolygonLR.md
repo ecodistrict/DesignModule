@@ -12,12 +12,12 @@ This layer has 2 class implementations:
 1. For visualizing values of any scenario (reference or active).
 2. For visualizing the difference between any two scenarios (reference & active).
 
-## Layer Logic
+## Scenario Layer Logic
 
 ![ActiveLayer](./images/Layer5.png)
 
 A road has two sides - left & right.  
-Layer 5 helps visualize data for both sides of the road with the help of colored polygons.
+This layer helps visualize data for both sides of the road with the help of colored polygons.
 
 Both the color and the width of the polygon can be used to convey certain type of information regarding a road.
 
@@ -58,11 +58,11 @@ The color of the difference layer represents the following:
 
 ## Implementation
 
-As mentioned above, layer 5 has implementations for two different types of layer.  
+As mentioned above, the Geometry Polygon Left-Right layer has implementations for two different types of layer.  
 1. The Active & the Reference layers.  
 2. The Difference layer.
 
-Examples of Active & Reference type layers using layer 5:
+Examples of Active & Reference type layers using Geometry Polygon Left-Right layer:
 
 ---
 
@@ -73,7 +73,7 @@ Examples of Active & Reference type layers using layer 5:
 ![ActiveLayer](./images/Layer52_ActiveLayer.PNG)
 
 
-Difference layer using layer 5:
+Difference layer using Geometry Polygon Left-Right layer:
 
 ---
 
