@@ -10,7 +10,7 @@ var ModuleToastsController = L.Evented.extend({
 
     initialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided');
-        if (!opts.modules) throw new Error('modules is not provided');
+        if (!opts.modules) throw new Error('opts.modules property is not provided');
         if (!opts.toastFunction) throw new Error('toastFunction is not provided');
 
         this._actions = {};

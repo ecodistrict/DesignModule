@@ -67,7 +67,7 @@ Options object that should be passed to *WindowManager* constructor.
 
 #### WindowPosition <a name="windowPosition"></a>
 
-*WindowPosition* is a string coinstant taht can be one of the following values.
+*WindowPosition* is a string constant that can be one of the following values.
 
 | Position | Description |
 |---|---|

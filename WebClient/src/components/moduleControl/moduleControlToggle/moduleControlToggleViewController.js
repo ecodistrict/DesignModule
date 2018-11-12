@@ -12,7 +12,7 @@ var ModuleControlToggleViewController = L.Evented.extend({
 
     initialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided to the View');
-        if (!opts.modules) throw new Error('modules argument is not provided');
+        if (!opts.modules) throw new Error('opts.modules property is not provided');
 
         this._modules = opts.modules;
         this._subscribeToModules({ models: this._modules.models });

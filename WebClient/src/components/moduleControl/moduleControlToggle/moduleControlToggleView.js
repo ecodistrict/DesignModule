@@ -21,7 +21,7 @@ var ModuleControlToggleView = ControlView.extend({
 
     onInitialize: function (opts) {
         if (!opts) throw new Error('opts is not provided');
-        if (!opts.toggleViewModel) throw new Error('opts.toggleViewModel is nleaflet-control-model-toggleot provided');
+        if (!opts.toggleViewModel) throw new Error('opts.toggleViewModel is not provided');
 
         this._toggleViewModel = opts.toggleViewModel;
         this._parent = opts.parent;

@@ -43,7 +43,7 @@ Whenever module changes its status a corresponding toast will be shown.
 
 ModuleControl component consists of several domains:
 
-* *ModuleControlService* provides Modlue models to the application;
+* *ModuleControlService* provides Module models to the application;
 * *ModuleControlWindow* (*ModuleControlWindowViewController-ModuleControlWindowViewModel-ModuleControlWindowView*) is a window that shows a list of modules connected to the current session.
 * *ModuleControlToggle* (*ModuleControlToggleViewController-ModuleControlToggleViewModel-ModuleControlToggleView*) represents a toggle button that opens/closes the module control window;
 * *ModuleToastsController* responsible for showing toasts notifications to a user reagarding modules status changes.
@@ -228,6 +228,9 @@ Extends the [L.Evented](https://leafletjs.com/reference-1.0.0.html#evented) clas
 ### ModuleControlWindowView <a name="moduleControlWindowViewApi"></a>
 
 Extends the [WindowView](../../core/window/windowView/windowView.md) class.
+
+**Note.** *ModuleControlWindowView* devides the window view on two sections: one for busy modules and other for ready modules.
+Each section has a caption and a list of modules. Currently such modules list is implemented in *ModuleControlItemListView* class which is responsible for adding module items into the *div* managed by the *ModuleControlItemListView*. Each module item in the list is represented with *ModuleControlItemView-ModuleControlItemViewModel* pair. *ModuleControlItemView* is just a visual representation of a module in the list. *ModuleControlItemViewModel* is data needed for the *ModuleControlItemView*. *ModuleControlWindowViewController* is responsible for creating *ModuleControlItemViewModel*s from *ModuleModel*s. The exact set of fields and functions of *ModuleControlItemListView* and *ModuleControlItemView-ModuleControlItemViewModel* is not importent from the architecture point of view therefore is not present in this documentation, think about it as of private implementation. The reason these private classes are mentioned here is to give a better idea of how the component build.
 
 ### ModuleControlWindowViewController <a name="moduleControlWindowViewControllerApi"></a>
 

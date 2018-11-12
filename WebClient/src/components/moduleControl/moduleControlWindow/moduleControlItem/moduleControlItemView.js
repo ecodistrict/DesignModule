@@ -66,7 +66,7 @@ var ModuleControlItemView = View.extend({
         // This can be fixed with changing the element thus forceing element redraweal.
         if (!this._moduleControlItemModel.loading) {
             d3.select(this._rootElement).select('.module-status-icon')
-                .style('trarsform', 'none');
+                .style('transform', 'none');
         }   
     },
 

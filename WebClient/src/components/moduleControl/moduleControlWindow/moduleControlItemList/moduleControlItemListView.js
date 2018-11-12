@@ -12,7 +12,7 @@ var ModuleControlItemListView = View.extend({
 
     onInitialize: function (opts) {
         if (!opts) throw new Error('No arguments are provided to the View');
-        if (!opts.modules) throw new Error('modules is not provided');
+        if (!opts.modules) throw new Error('opts.modules property is not provided');
 
         this._moduleItems = {};
         this._modules = opts.modules;
