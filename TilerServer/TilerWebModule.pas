@@ -568,11 +568,10 @@ type
   protected
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
-    function ComputeDistanceBetweenPoints(aXDiff, aYDiff: Double): Double;
     procedure DrawDefaultPath(path: TPathData; aBitmap: FMX.Graphics.TBitmap);
     function CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double; Virtual;
     function GetPaletteColor(aActiveTexture, aRefTexture: Double; var aValidFlag: Boolean): TGeoColors;
-    procedure ConstructPolygon(aPolyPoints: TArray<Double>; var polygon: TPolygon);
+    procedure ConstructPolygon(x1, y1, x2, y2, x3, y3, x4, y4: Double; var polygon: TPolygon);
     procedure DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygon: TPolygon);
   end;
 
@@ -587,7 +586,6 @@ type
     function GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors;
     procedure PolygonComputation(aXDCommon, aYDCommon, aXDExtra, aYDExtra, aXPrev, aYPrev, aXCurr, aYCurr: Double; aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap);
     function ComputeCoordinateDist(aWidth, aActiveValue, aRefValue, aCapacityFactor, aXY_Diff, aPerpDist: Double; aIsCommonPoly: Boolean): Double;
-    procedure DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygonCommon, aPolygonExtra: TPolygon; xCommon, xExtra: Double);
   end;
 
   TSliceDiffGeometryPolygonStripeLR = class(TSliceDiffGeometryPolygonLR)
@@ -3331,7 +3329,7 @@ begin
     fRefSlice.fDataLock.BeginRead;
     try
       Result := fCurrentSlice.getDataValueAtPoint(aLat, aLon, cur);
-      if Result=gtsOk then 
+      if Result=gtsOk then
       begin
         Result := fRefSlice.getDataValueAtPoint(aLat, aLon, ref);
         if Result=gtsOk then
@@ -3646,8 +3644,6 @@ var
   validL, validR: Boolean;
   refScenarioGeometryObject: TSliceGeometryPolygonLRObject;
   curScenarioGeometryObject: TSliceGeometryPolygonLRObject;
-
-  polyPoints: TArray<Double>;
 begin
   widthL := Double.NaN;
   widthR := Double.NaN;
@@ -3709,7 +3705,7 @@ begin
                     xn := yCurr-yPrev;
                     yn := xPrev-xCurr;
                     // normalize..
-                    pointDist := ComputeDistanceBetweenPoints(xn, yn);
+                    pointDist := sqrt((xn*xn)+(yn*yn));
 
                     //draw left side
                     if validL then
@@ -3718,8 +3714,7 @@ begin
                       yd := {(1+}widthL*capacityFactor{)}*yn/pointDist;
                       // todo: wrong rotation direction..
 
-                      polyPoints := [xPrev, yPrev, xCurr, yCurr, xCurr+xd, yCurr+yd, xPrev+xd, yPrev+yd];
-                      ConstructPolygon(polyPoints, polygon);
+                      ConstructPolygon(xPrev, yPrev, xCurr, yCurr, xCurr+xd, yCurr+yd, xPrev+xd, yPrev+yd, polygon);
 
                       DrawFillPolygon(colorsL, aBitmap, polygon);
                     end;
@@ -3730,9 +3725,7 @@ begin
                       xd := {(1+}widthR*capacityFactor{)}*xn/pointDist;
                       yd := {(1+}widthR*capacityFactor{)}*yn/pointDist;
 
-                      polyPoints := [xPrev, yPrev, xCurr, yCurr, xCurr-xd, yCurr-yd, xPrev-xd, yPrev-yd];
-                      ConstructPolygon(polyPoints, polygon);
-
+                      ConstructPolygon(xPrev, yPrev, xCurr, yCurr, xCurr-xd, yCurr-yd, xPrev-xd, yPrev-yd, polygon);
                       DrawFillPolygon(colorsR, aBitmap, polygon);
                     end;
                   end;
@@ -3752,11 +3745,6 @@ begin
     end;
   end
   else Log.WriteLn('TSliceDiffGeometryPolygonLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
-end;
-
-function TSliceDiffGeometryPolygonLR.ComputeDistanceBetweenPoints(aXDiff, aYDiff: Double): Double;
-begin
-  Result := sqrt((aXDiff*aXDiff)+(aYDiff*aYDiff));
 end;
 
 procedure TSliceDiffGeometryPolygonLR.DrawDefaultPath(path: TPathData; aBitmap: FMX.Graphics.TBitmap);
@@ -3793,36 +3781,35 @@ begin
   else aValidFlag := False;
 end;
 
-procedure TSliceDiffGeometryPolygonLR.ConstructPolygon(aPolyPoints: TArray<Double>; var polygon: TPolygon);
-var
-  ele: Integer;
+procedure TSliceDiffGeometryPolygonLR.ConstructPolygon(x1, y1, x2, y2, x3, y3, x4, y4: Double; var polygon: TPolygon);
 begin
-  setLength(polygon, 5);
-  ele := 0;
-  While ele < length(aPolyPoints) do
-  begin
-    polygon[trunc(ele/2)].X := aPolyPoints[ele];
-    inc(ele,1);
-    polygon[trunc(ele/2)].Y := aPolyPoints[ele];
-    inc(ele,1);
-  end;
+  polygon[0].X := x1;
+  polygon[0].Y := y1;
 
-  polygon[trunc(ele/2)].X := aPolyPoints[0];
-  ele := ele+1;
-  polygon[trunc(ele/2)].Y := aPolyPoints[1];
+  polygon[1].X := x2;
+  polygon[1].Y := y2;
+
+  polygon[2].X := x3;
+  polygon[2].Y := y3;
+
+  polygon[3].X := x4;
+  polygon[3].Y := y4;
+
+  polygon[4].X := x1;
+  polygon[4].Y := y1;
 end;
 
 procedure TSliceDiffGeometryPolygonLR.DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygon: TPolygon);
 begin
-  if aColor.fillColor<>0  then
+  if aColor.fillColor <> 0 then
   begin
-      aBitmap.Canvas.Fill.Color := aColor.fillColor;
-      aBitmap.Canvas.FillPolygon(aPolygon, 1);
+    aBitmap.Canvas.Fill.Color := aColor.fillColor;
+    aBitmap.Canvas.FillPolygon(aPolygon, 1);
   end;
-  if aColor.outlineColor<>0 then
+  if aColor.outlineColor <> 0 then
   begin
-      aBitmap.Canvas.Stroke.Color := aColor.outlineColor;
-      aBitmap.Canvas.DrawPolygon(aPolygon, 1);
+    aBitmap.Canvas.Stroke.Color := aColor.outlineColor;
+    aBitmap.Canvas.DrawPolygon(aPolygon, 1);
   end;
 end;
 
@@ -3915,7 +3902,7 @@ begin
                   begin
                     xn := yCurr-yPrev;
                     yn := xPrev-xCurr;
-                    pointDist := ComputeDistanceBetweenPoints(xn, yn);
+                    pointDist := sqrt((xn*xn)+(yn*yn));
 
                     if validL then
                     begin
@@ -3992,21 +3979,20 @@ end;
 
 procedure TSliceDiffGeometryDoublePolygonLR.PolygonComputation(aXDCommon, aYDCommon, aXDExtra, aYDExtra, aXPrev, aYPrev, aXCurr, aYCurr: Double; aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap);
 var
-  polyPoints: TArray<Double>;
-  polygonCommon, polygonExtra: TPolygon;
+  polygon: TPolygon;
+  defaultColor: TGeoColors;
 begin
-  setLength(polygonCommon, 5);
-  polyPoints := [aXPrev, aYPrev, aXCurr, aYCurr, aXCurr+aXDCommon, aYCurr+aYDCommon, aXPrev+aXDCommon, aYPrev+aYDCommon];
-  ConstructPolygon(polyPoints, polygonCommon);
+  setLength(polygon, 5);
+  ConstructPolygon(aXPrev, aYPrev, aXCurr, aYCurr, aXCurr+aXDCommon, aYCurr+aYDCommon, aXPrev+aXDCommon, aYPrev+aYDCommon, polygon);
+
+  defaultColor := TGeoColors.Create(TAlphaColorRec.Lightsteelblue,TAlphaColorRec.Lightsteelblue);
+  DrawFillPolygon(defaultColor, aBitmap, polygon);
 
   if abs(aXDCommon) <> abs(aXDExtra) then
   begin
-    setLength(polygonExtra, 5);
-    polyPoints := [polygonCommon[3].X, polygonCommon[3].Y, polygonCommon[2].X, polygonCommon[2].Y, aXCurr+aXDExtra, aYCurr+aYDExtra, aXPrev+aXDExtra, aYPrev+aYDExtra];
-    ConstructPolygon(polyPoints, polygonExtra);
+    ConstructPolygon(polygon[3].X, polygon[3].Y, polygon[2].X, polygon[2].Y, aXCurr+aXDExtra, aYCurr+aYDExtra, aXPrev+aXDExtra, aYPrev+aYDExtra, polygon);
+    DrawFillPolygon(aColor, aBitmap, polygon);
   end;
-
-  DrawFillPolygon(aColor, aBitmap, polygonCommon, polygonExtra, abs(aXDCommon), abs(aXDExtra));
 end;
 
 function TSliceDiffGeometryDoublePolygonLR.ComputeCoordinateDist(aWidth, aActiveValue, aRefValue, aCapacityFactor, aXY_Diff, aPerpDist: Double; aIsCommonPoly: Boolean): Double;
@@ -4029,43 +4015,6 @@ begin
     end
     else
       Result := aRefValue*aCapacityFactor*aXY_Diff/aPerpDist;
-  end;
-end;
-
-procedure TSliceDiffGeometryDoublePolygonLR.DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygonCommon, aPolygonExtra: TPolygon; xCommon, xExtra: Double);
-begin
-  if aColor.fillColor<>0  then
-  begin
-    if xCommon <> xExtra then
-    begin
-      aBitmap.Canvas.Fill.Color := TAlphaColorRec.Lightsteelblue;
-      aBitmap.Canvas.FillPolygon(aPolygonCommon, 1);
-
-      aBitmap.Canvas.Fill.Color := aColor.fillColor;
-      aBitmap.Canvas.FillPolygon(aPolygonExtra, 1);
-    end
-    else
-    begin
-      aBitmap.Canvas.Fill.Color := TAlphaColorRec.Lightsteelblue;
-      aBitmap.Canvas.FillPolygon(aPolygonCommon, 1);
-    end;
-  end;
-
-  if aColor.outlineColor<>0 then
-  begin
-    if xCommon <> xExtra then
-    begin
-      aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Lightsteelblue;
-      aBitmap.Canvas.DrawPolygon(aPolygonCommon, 1);
-
-      aBitmap.Canvas.Stroke.Color := aColor.outlineColor;
-      aBitmap.Canvas.DrawPolygon(aPolygonExtra, 1);
-    end
-    else
-    begin
-      aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Lightsteelblue;
-      aBitmap.Canvas.DrawPolygon(aPolygonCommon, 1);
-    end;
   end;
 end;
 
@@ -4093,8 +4042,6 @@ var
   validL, validR: Boolean;
   refScenarioGeometryObject: TSliceGeometryPolygonLRObject;
   curScenarioGeometryObject: TSliceGeometryPolygonLRObject;
-
-  polyPoints: TArray<Double>;
 begin
   widthL := Double.NaN;
   widthR := Double.NaN;
@@ -4161,15 +4108,14 @@ begin
                   begin
                     xn := yCurr-yPrev;
                     yn := xPrev-xCurr;
-                    pointDist := ComputeDistanceBetweenPoints(xn, yn);
+                    pointDist := sqrt((xn*xn)+(yn*yn));
 
                     if validL then
                     begin
                       xd := widthL*capacityFactor*xn/pointDist;
                       yd := widthL*capacityFactor*yn/pointDist;
 
-                      polyPoints := [xPrev, yPrev, xCurr, yCurr, xCurr+xd, yCurr+yd, xPrev+xd, yPrev+yd];
-                      ConstructPolygon(polyPoints, polygon);
+                      ConstructPolygon(xPrev, yPrev, xCurr, yCurr, xCurr+xd, yCurr+yd, xPrev+xd, yPrev+yd, polygon);
 
                       DrawFillPolygon(colorsL, aBitmap, polygon);
                     end;
@@ -4179,8 +4125,7 @@ begin
                       xd := widthR*capacityFactor*xn/pointDist;
                       yd := widthR*capacityFactor*yn/pointDist;
 
-                      polyPoints := [xPrev, yPrev, xCurr, yCurr, xCurr-xd, yCurr-yd, xPrev-xd, yPrev-yd];
-                      ConstructPolygon(polyPoints, polygon);
+                      ConstructPolygon(xPrev, yPrev, xCurr, yCurr, xCurr-xd, yCurr-yd, xPrev-xd, yPrev-yd, polygon);
 
                       DrawFillPolygon(colorsR, aBitmap, polygon);
                     end;
@@ -5590,4 +5535,3 @@ finalization
   FreeAndNil(canvasLock);
   Log.Finish();
 end.
-
