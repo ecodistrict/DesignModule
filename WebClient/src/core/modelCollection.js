@@ -39,9 +39,11 @@ var ModelCollection = L.Evented.extend({
 
         this.set = function (newModels) {
             var removedModels = difference(models, newModels);
+            var addedModels = difference(newModels, models);
             models = toArray(newModels);
             
             this.fire('remove', { models: removedModels });
+            this.fire('add', { models: addedModels });            
             this.fire('change', { models: models });
         };
 
@@ -49,8 +51,9 @@ var ModelCollection = L.Evented.extend({
             if (!newModels) return;
 
             var modelsToAdd = toArray(newModels);
-            modelsToAdd.filter(function (model) { return !this.contains(model); }.bind(this));
+            modelsToAdd = modelsToAdd.filter(function (model) { return !this.contains(model); }.bind(this));
             models = models.concat(modelsToAdd);
+            this.fire('add', { models: modelsToAdd });
             this.fire('change', { models: models });
         };
 
@@ -63,6 +66,10 @@ var ModelCollection = L.Evented.extend({
             this.fire('remove', { models: removedModels });
             this.fire('change', { models: models });
         };
+
+        Object.defineProperty(this, 'length', {
+            get: function () { return models.length; }
+        });
     },
 
     contains: function (model) {

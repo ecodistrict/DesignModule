@@ -21,7 +21,8 @@ var TooltipView = View.extend({
         var options = opts || {};
 
         this._parent = document.body;
-
+        
+        this._delay = options.delay || 0;
         this._html = buildHtmlFunction(options.html || '');
 
         this.show = this._createShow();
@@ -37,20 +38,26 @@ var TooltipView = View.extend({
         
         return function () {
             var element = this;
+            var tooltipElement = tooltip._rootElement;
+            if (!tooltipElement) return tooltip;
 
-            tooltip._rootElement.innerHTML = tooltip._html();            
+            tooltipElement.innerHTML = tooltip._html();
+            
 
             var elementRect = element.getBoundingClientRect();
-            var tooltipRect = tooltip._rootElement.getBoundingClientRect();
+            var tooltipRect = tooltipElement.getBoundingClientRect();
 
             var left = elementRect.left + (elementRect.width - tooltipRect.width) / 2;
             var top = elementRect.top - tooltipRect.height - 5;
 
-            d3.select(tooltip._rootElement)
+            d3.select(tooltipElement)
                 .style('left', left + 'px')
                 .style('top', top + 'px');
-
-            L.DomUtil.addClass(tooltip._rootElement, 'visible');
+                
+            tooltip._timeoutId = window.setTimeout(function () {
+                L.DomUtil.addClass(tooltipElement, 'visible');
+                tooltip._timeoutId = null;
+            }, tooltip._delay);            
 
             return tooltip;
         };
@@ -59,8 +66,12 @@ var TooltipView = View.extend({
     _createHide: function () {
         var tooltip = this;
         
-        return function () {
+        return function () {            
             L.DomUtil.removeClass(tooltip._rootElement, 'visible');
+
+            window.clearTimeout(tooltip._timeoutId);
+            tooltip._timeoutId = null;
+            
             return tooltip;
         };        
     }

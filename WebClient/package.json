@@ -12,20 +12,29 @@
     "build:prod": "webpack --env.production --progress",
     "start": "webpack-dev-server",
     "watch": "webpack --watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --verbose"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "chroma-js": "^1.4.0"
+    "chroma-js": "^1.4.0",
+    "d3": "^5.4.0",
+    "leaflet": "^1.3.4"
   },
   "devDependencies": {
+    "@babel/cli": "^7.1.2",
+    "@babel/core": "^7.1.2",
+    "@babel/preset-env": "^7.1.0",
+    "babel-core": "^7.0.0-bridge.0",
+    "babel-jest": "^23.6.0",
     "clean-webpack-plugin": "^0.1.19",
     "copy-webpack-plugin": "^4.5.2",
     "css-loader": "^1.0.0",
     "file-loader": "^2.0.0",
     "html-loader": "^0.5.5",
     "html-webpack-plugin": "^3.2.0",
+    "jest": "^23.6.0",
+    "jest-raw-loader": "^1.0.1",
     "mini-css-extract-plugin": "^0.4.2",
     "style-loader": "^0.23.0",
     "webpack": "^4.17.1",

@@ -1,0 +1,63 @@
+.module-control-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    width: 100%;
+    font-size: 14px;
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.module-control-item:hover {
+    background-color: rgba(0, 120, 168, 0.14);
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.4);
+}
+
+.module-control-item .module-description {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.module-control-item .module-description .module-icon {
+    color: rgba(0, 120, 168, 0.6);
+    margin-right: 8px;
+}
+
+.module-control-item .module-description .module-name {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.module-control-item .module-status {
+    display: flex;
+    align-items: center;
+    margin-left: 10px;
+    margin-right: 10px;
+    width: 100px;
+    min-width: 100px;
+    border-left: 2px solid rgba(0, 120, 168, 0.44);
+    padding-left: 10px;
+}
+
+.module-control-item .module-status .module-status-text {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.module-control-item .module-status-icon {
+    display: inline-block;    
+    color: #0078A8;
+    margin-left: auto;
+    font-size: 1em;
+    width: 1em;
+    height: 1em;    
+}
+
+.module-control-item .module-status-icon.module-status-icon-ready {
+    color: rgb(29, 122, 29);
+}

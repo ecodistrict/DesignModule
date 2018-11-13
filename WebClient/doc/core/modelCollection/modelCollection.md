@@ -18,6 +18,7 @@ Options object that should be passed to *ModelCollection* constructor.
 | Property | Type | Description |
 |---|---|---|
 | models | Array&lt;object&gt; | Array containing model objects. Changing this array will not have an effect on the actual property but changing the model objects will actually change them.  |
+| length | number | *Read only*. Number of models in the collection. |
 
 #### Methods
 

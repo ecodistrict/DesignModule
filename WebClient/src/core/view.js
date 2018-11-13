@@ -45,12 +45,22 @@ var View = L.Evented.extend({
         if (!this._rootElement) return;
 
         L.DomUtil.removeClass(this._rootElement, 'hidden');
+
+        this._notifyShow();
     },
 
     hide: function () {
         if (!this._rootElement) return;
 
         L.DomUtil.addClass(this._rootElement, 'hidden');
+
+        this._notifyHide();
+    },
+
+    isVisible: function () {
+        return this._rootElement && 
+               this._rootElement.parentNode && 
+               !L.DomUtil.hasClass(this._rootElement, 'hidden');
     },
 
     onInitialize: function (/* jshint unused:false */ opts) {
@@ -63,6 +73,14 @@ var View = L.Evented.extend({
 
     onRemove: function () {
         // override in child classes
+    },
+
+    _notifyShow: function () {
+        this.fire('show', { view: this });
+    },
+
+    _notifyHide: function () {
+        this.fire('hide', { view: this });
     },
 
     _notifyRemove: function () {

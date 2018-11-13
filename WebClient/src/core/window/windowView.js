@@ -41,10 +41,14 @@ var WindowView = View.extend({
         }
         this._movable = !!options.movable;
 
+        if (options.dockable === undefined) {
+            options.dockable = true;
+        }
+        this._dockable = !!options.dockable;
+
         this._dockState = new DockButtonViewModel({
             docked: false
         });
-        this._dockAvailable = false;
 
         var windowId = 0;
         Object.defineProperty(this, 'windowId', {
@@ -72,6 +76,9 @@ var WindowView = View.extend({
         this._dockButton.on('undockClicked', this._onUndockClicked, this);
         this._dockButton.on('focus', this._notifyFocus, this);
         buttonsContainer.appendChild(this._dockButton.element());
+        if (!this.isDockable()) {
+            this._dockButton.hide();
+        }
 
         this._closeButton = new CloseButtonView();
         this._closeButton.on('closeClicked', this._onCloseBtnClicked, this);
@@ -118,6 +125,20 @@ var WindowView = View.extend({
         } else {
             this.remove();
         }
+    },
+
+    show: function () {
+        View.prototype.show.call(this);
+        if (this._persistedDockState) {
+            this.dock();
+            this._persistedDockState = null;
+        }
+    },
+
+    hide: function () {
+        View.prototype.hide.call(this);
+        this._persistedDockState = this.docked();
+        this.undock();
     },
 
     isOpen: function () {
@@ -203,7 +224,7 @@ var WindowView = View.extend({
         this.resize(this._width, this._height);
 
         if (doneCallback) {
-            if (this.docked() && positionChanged) {
+            if (this.docked() && positionChanged && this.isVisible()) {
                 DomUtil.singleShotEventListener(this._rootElement, 'transitionend', doneCallback);
             } else {
                 doneCallback();
@@ -229,9 +250,32 @@ var WindowView = View.extend({
 
     setDockState: function (docked) {
         // this method should be called only by the owner of this window
+        
+        if (docked && !this.isDockable) return;
+        
         this._dockState.docked = docked;
         this._restoreDockStyle();
         this._notifyDockState(this._dockState.docked);
+    },
+
+    isDockable: function () {
+        return this._dockable;
+    },
+
+    dock: function () {
+        if (!this._windowManager) return;
+        if (!this.isDockable()) return;
+        if (this.docked()) return;
+
+        this._windowManager.dockWindow(this);
+    },
+
+    undock: function () {
+        if (!this._windowManager) return;
+        if (!this.isDockable()) return;
+        if (!this.docked()) return;
+
+        this._windowManager.undockWindow(this);
     },
 
     docked: function () {
@@ -290,7 +334,7 @@ var WindowView = View.extend({
     _processDockingAvailability: function (dockingAvailable) {
         var docked = this.docked();
 
-        if (dockingAvailable || docked) {
+        if (this.isDockable() && (dockingAvailable || docked)) {
             this._dockButton.show();
         } else {
             this._dockButton.hide();
@@ -346,15 +390,11 @@ var WindowView = View.extend({
     },
 
     _onDockClicked: function () {
-        if (!this._windowManager) return;
-
-        this._windowManager.dockWindow(this);
+        this.dock();
     },
 
     _onUndockClicked: function () {
-        if (!this._windowManager) return;
-        
-        this._windowManager.undockWindow(this);
+        this.undock();
     },
 
     _onDockingAvailabilityChanged: function (data) {

@@ -1,0 +1,8 @@
+.module-control .module-control-item-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.module-control .module-control-item-list > div:nth-child(n+2) {
+    margin-top: 6px;
+}

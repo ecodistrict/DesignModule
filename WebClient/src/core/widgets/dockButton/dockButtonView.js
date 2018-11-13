@@ -14,16 +14,19 @@ var DockButtonView = View.extend({
         if (!opts.dockButtonViewModel) throw new Error('dockButtonViewModel is not provided');
 
         this.dockButtonViewModel = opts.dockButtonViewModel;
-        this.dockButtonViewModel.on('docked', this._updateState, this);
     },
 
     onRender: function () {
-        var rootElement = L.DomUtil.create('span', 'dock-btn', this._parent);
-        rootElement.addEventListener('click', this._onClick.bind(this));
-        rootElement.addEventListener('touchend', this._onClick.bind(this));
-        rootElement.addEventListener('mousedown', this._onPress.bind(this));
-        rootElement.addEventListener('touchstart', this._onPress.bind(this));
-        return rootElement;
+        this._buttonElement = L.DomUtil.create('span', 'dock-btn', this._parent);        
+        this._buttonElement.addEventListener('click', this._onClick.bind(this));
+        this._buttonElement.addEventListener('touchend', this._onClick.bind(this));
+        this._buttonElement.addEventListener('mousedown', this._onPress.bind(this));
+        this._buttonElement.addEventListener('touchstart', this._onPress.bind(this));
+
+        this._updateState();
+        this.dockButtonViewModel.on('docked', this._updateState, this);
+        
+        return this._buttonElement;
     },
 
     onRemove: function () {
@@ -32,15 +35,15 @@ var DockButtonView = View.extend({
 
     _updateState: function () {
         if (this.dockButtonViewModel.docked) {
-            L.DomUtil.removeClass(this._rootElement, 'fas');
-            L.DomUtil.removeClass(this._rootElement, 'fa-thumbtack');
-            L.DomUtil.addClass(this._rootElement, 'fas');
-            L.DomUtil.addClass(this._rootElement, 'fa-window-restore');
+            L.DomUtil.removeClass(this._buttonElement, 'fas');
+            L.DomUtil.removeClass(this._buttonElement, 'fa-thumbtack');
+            L.DomUtil.addClass(this._buttonElement, 'fas');
+            L.DomUtil.addClass(this._buttonElement, 'fa-window-restore');
         } else {
-            L.DomUtil.removeClass(this._rootElement, 'fas');
-            L.DomUtil.removeClass(this._rootElement, 'fa-window-restore');
-            L.DomUtil.addClass(this._rootElement, 'fas');
-            L.DomUtil.addClass(this._rootElement, 'fa-thumbtack');
+            L.DomUtil.removeClass(this._buttonElement, 'fas');
+            L.DomUtil.removeClass(this._buttonElement, 'fa-window-restore');
+            L.DomUtil.addClass(this._buttonElement, 'fas');
+            L.DomUtil.addClass(this._buttonElement, 'fa-thumbtack');
         }        
     },
 

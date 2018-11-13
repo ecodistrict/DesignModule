@@ -20,8 +20,8 @@ Options object that should be passed to *View* constructor.
 | render() | Renders the button. This method is called automatically when the object is created. This method can be called in order to recreate the view after `remove()` was called. After calling this method the `element()` method will return a corresponding DOM Node object. |
 | remove() | Removes the view. After calling this method the `element()` method will return `null`. When this method is called [`remove`](#events) event is emitted. |
 | element() | Returns the DOM node object representing the view. Having this node user can place the view wherever he wants. |
-| show() | Shows the view. |
-| hide() | Hides the view. Behavior is the same as applying `display: none` style, i.e. view doesn't keep the occupied space when hidden. |
+| show() | Shows the view. When this method is called [`show`](#events) event is emitted. |
+| hide() | Hides the view. Behavior is the same as applying `display: none` style, i.e. view doesn't keep the occupied space when hidden. When this method is called [`hide`](#events) event is emitted. |
 
 #### Extension methods <a name="extensionMethods"></a>
 Every child view may re-implement (override) the following methods.
@@ -45,3 +45,5 @@ Every child view use the following methods.
 |---|---|---|
 | remove | { view: *View* } | Emitted when the view is removed via `remove()` method. |
 | focus | { view: *View* } | Can be emitted from child classes when view is focused. |
+| show | { view: *View* } | Emitted when the view is shown. |
+| hide | { view: *View* } | Emitted when the view is hidden. |

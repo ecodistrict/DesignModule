@@ -9,6 +9,8 @@ import WindowManager from './core/window/windowManager';
 import TimeSliderController from './components/timeSlider/timeSliderController';
 import GraphComponent from './components/graph/graphComponent';
 import DetailsViewController from './components/details/detailsViewController';
+import ModuleService from './components/moduleControl/moduleService';
+import ModuleControlComponent from './components/moduleControl/moduleControlComponent';
 
 var wsp = 'https:' == document.location.protocol ? 'wss' : 'ws';
 // determine parameters and config
@@ -212,10 +214,13 @@ window.timeSliderController = new TimeSliderController({
 /*var timesliderControl = L.control.timeslider(timeslider);
 map.addControl(timesliderControl);*/
 
-
-DataManager.modelControl = L.control.ModelControl();
-map.addControl(DataManager.modelControl);
-map.removeControl(DataManager.modelControl);
+// module control
+window.moduleControlComponent = new ModuleControlComponent({
+    map: map,
+    windowManager: windowManager,
+    toastFunction: AddErrorMessage
+});
+window.moduleService = moduleControlComponent.service();
 
 // current-reference-difference control
 window.crd = L.control.crd({ parent: currefdiff });

@@ -48,7 +48,7 @@ Options object that should be passed to *WindowManager* constructor.
 
 | Method | Returns | Description |
 |---|---|---|
-| addWindow([WindowView](../windowView/windowView.md) window) | void | Adds the window to the *WindowManager*. When added the window is put on top of windows stack showing it over other windows within the *WindowManager*. If possible, window will be docked, if not - window will be left undocked (floating). |
+| addWindow([WindowView](../windowView/windowView.md) window, [AddWindowOptions](#addWindowOptions) opts) | void | Adds the window to the *WindowManager*. When added the window is put on top of windows stack showing it over other windows within the *WindowManager*. If possible, window will be docked, if not - window will be left undocked (floating). If `opts.position` is passed then window will be placed in that position and won't be docked. `opts` is an optional parameter and can be omitted. |
 | removeWindow([WindowView](../windowView/windowView.md) window) | void | Removes the window from the *WindowManager* and destroys it. |
 | dockWindow([WindowView](../windowView/windowView.md) window) | boolean | Docks the window to a space provided by the *layout*. Returns `true` if docking was sucessfull otherwise returns `false`. |
 | undockWindow([WindowView](../windowView/windowView.md) window) | void | Undocks the window leaving it floating. |
@@ -58,3 +58,17 @@ Options object that should be passed to *WindowManager* constructor.
 | Event | Data | Description |
 |---|---|---|
 | dockingAvailabilityStatus | { dockingAvailabilityStatus: boolean } | Emitted when dock possibility changes. `data.dockingAvailabilityStatus` is `true` when docking is possible and `false` when not possible. |
+
+#### AddWindowOptions <a name="addWindowOptions"></a>
+
+| Property | Type | Description |
+|---|---|---|
+| position | [WindowPosition](#windowPosition) | Property indicates window position. |
+
+#### WindowPosition <a name="windowPosition"></a>
+
+*WindowPosition* is a string constant that can be one of the following values.
+
+| Position | Description |
+|---|---|
+| `center` | Positions the window in the center of the window manager area. |

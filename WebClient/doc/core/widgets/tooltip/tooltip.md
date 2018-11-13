@@ -43,6 +43,7 @@ Options object that should be passed to *TooltipView* constructor.
 | Property | Type | Description |
 |---|---|---|
 | html | string or function | *Optional*. HTML content of the tooltip. It can be a simple string or a function that returns HTML as a string. If function is passed then it will be called each time tooltip is shown so the content of the tooltip will be always up to date. |
+| delay | number | *Optional*. Timeout in ms to delay the tooltip. |
 
 See also [View](../../view/view.md#options) options.
 

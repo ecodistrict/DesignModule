@@ -46,8 +46,10 @@ var WindowManager = L.Evented.extend({
         this._createDockHighlightArea();
     },
 
-    addWindow: function (window) {
+    addWindow: function (window, opts) {
         if (!window) throw this._createNoWindowError();
+
+        var options = opts || {};
 
         window.on('focus', this._onWindowFocus, this);
         window.on('moving', this._onWindowMoving, this);
@@ -57,13 +59,24 @@ var WindowManager = L.Evented.extend({
         this._addWindowToStack(window);
         window.windowId= ++this._windowIdCounter;
         this._windowMetaInfoMap[window.windowId] = {};
-        var docked = this.dockWindow(window);
+        
+        var docked = false;
+        if (window.isDockable() && !options.position) {
+            docked = this.dockWindow(window);
+        }
+
         this._windowContainer.appendChild(window.element());
         window.onAdd(this);
 
         if (!docked) {
-            window.move(this._nextPosition.x, this._nextPosition.y);
-            this._incrementNextPostion();
+
+            if (options.position) {
+                this._positionWindow(window, options.position);
+            } else {
+                window.move(this._nextPosition.x, this._nextPosition.y);
+                this._incrementNextPostion();
+            }
+            
         }
     },
 
@@ -112,6 +125,18 @@ var WindowManager = L.Evented.extend({
 
     _hideDockHighlightArea: function () {
         L.DomUtil.addClass(this._dockHighlightArea, 'hidden');
+    },
+
+    _positionWindow: function (window, position) {
+        if (position === 'center') {
+            var containerRect = this._windowContainer.getBoundingClientRect();            
+            var windowRect = window.getBoundingRect();
+
+            var x = (containerRect.width - windowRect.width) / 2;
+            var y = (containerRect.height - windowRect.height) / 2;
+
+            window.move(x, y);
+        }
     },
 
     _incrementNextPostion: function () {

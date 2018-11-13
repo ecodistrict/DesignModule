@@ -1,0 +1,44 @@
+.module-control-toggle-view {
+    position: relative;
+    background: #fff;
+    border-radius: 5px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    width: 36px;
+    height: 36px;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.leaflet-touch .module-control-toggle-view {
+  width: 44px;
+  height: 44px;
+}
+
+.module-control-toggle-view .module-control-icon-container {
+    display: block;
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    background-image: url('images/modelcontrol.png');
+    width: 100%;
+    height: 100%;
+}
+
+.leaflet-retina .module-control-toggle-view .module-control-icon-container {
+    background-image: url('images/modelcontrol-2x.png');
+    background-size: 26px 26px;
+}
+
+.module-control-toggle-view .module-control-progress-icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;    
+    color: #0078A8;
+    font-size: 36px;
+    opacity: 0.3;
+}

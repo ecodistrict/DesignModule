@@ -23,7 +23,8 @@ Options object that should be passed to *WindowView* constructor.
 | height | number | *Optional*. Initial height of the window. |
 | class | string | *Optional*. CSS class to assign to the window DOM node. |
 | resizable | boolean | *Optional*. Flag indicates if resizing is enabled. Default is `true`. |
-| movable | movable | *Optional*. Flag indicates if moving is enabled. Default is `true`. |
+| movable | boolean | *Optional*. Flag indicates if moving is enabled. Default is `true`. |
+| dockable | boolean | *Optional*. Flag indicates if docking is enabled. Default is `true`. |
 | title | string | *Optional*. Window title. |
 
 See also [View](../../view/view.md#options) options.
@@ -45,7 +46,10 @@ See also [View](../../view/view.md#options) options.
 | move(number left, number top) | void | Moves the window to a specified position. Position is relative to the surface that holds the window. `moved` [event](#events) is emitted. |
 | resize(number width, number height) | void | Resize the window to a specified size. If window is not docked then dimensional limitations are taken into account otherwise limitations are ignored. `resized` [event](#events) is emmited. |
 | restoreGeometry(function doneCallback) | void | Restores position and size that window had before been docked. *doneCallback* will be called when geometry is restored, this can happen asynchronously because of transform animation. |
+| isDockable() | boolean | Returns `true` if window supports dock feature otherwise returns `false`. |
 | docked() | boolean | Returns `true` if window is docked otherwise returns `false`. |
+| dock() | void | Docks the window if possible. |
+| undock() | void | Undocks the window if possible. |
 | fillSpace([SpaceGeometry](../layout/layout.md#spaceGeometry) spaceGeometry) | void | [LayoutItem](../layout/layout.md#layoutItem) interface method. Changes window position and size according to *spaceGeometry*. Position is relative to the surface that holds the window. If window is not docked then dimensional limitations are taken into account otherwise limitations are ignored. `moved` and `resized` [events](#events) are emitted. |
 | getBoundingRect() | [SpaceGeometry](../layout/layout.md#spaceGeometry) | [LayoutItem](../layout/layout.md#layoutItem) interface method. Returns window position and size. Position is relative to the surface that holds the window. |
 | onAdd([WindowManager](../windowManager/windowManager.md) windowManager) | void | *Caution: this method should be used only from WindowManager*. WindowManager calls this method when windows is added.  |

@@ -51,6 +51,16 @@
   
     // Warn when variables are defined but never used.
     "unused": true,
+
+    // This option defines globals exposed by jest test framework
+    "globals": {
+      "describe": true,
+      "test": true,
+      "it": true,
+      "jest": true,
+      "expect": true,
+      "beforeEach": true
+    },
   
     /*
      * RELAXING OPTIONS
