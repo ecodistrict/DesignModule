@@ -3750,32 +3750,32 @@ end;
 
 procedure TSliceDiffGeometryPolygonLR.UpdateBufferExtent(const aExtent: TExtent; capacityFactor, aPixelWidth, aPixelHeight: Double; var bufferExtent: TExtent);
 var
-  maxValue: Double;
+  maxAbsValue: Double;
   maxPixels: Double;
   isgop: TPair<TWDID, TSliceGeometryPolygonLRObject>;
-  geometryPolygonLRObjectVal1, geometryPolygonLRObjectVal2: Double;
+  value: Double;
 begin
-  maxValue := double.NaN;
+  maxAbsValue := double.NaN;
   for isgop in (fCurrentSlice as TSliceGeometryPolygonLR).fGeometries do
   begin
-    geometryPolygonLRObjectVal1 := isgop.Value.value;
-    if not geometryPolygonLRObjectVal1.IsNan then
+    if not isgop.Value.value.IsNan then
     begin
-      if maxValue.IsNan or (maxValue<abs(geometryPolygonLRObjectVal1))
-      then maxValue := abs(geometryPolygonLRObjectVal1);
+      value := abs(isgop.Value.value);
+      if maxAbsValue.IsNan or (maxAbsValue<value)
+      then maxAbsValue := value;
     end;
 
-    geometryPolygonLRObjectVal2 := isgop.Value.value2;
-    if not geometryPolygonLRObjectVal2.IsNan then
+    if not isgop.Value.value2.IsNan then
     begin
-      if maxValue.IsNan or (maxValue<abs(geometryPolygonLRObjectVal2))
-      then maxValue := abs(geometryPolygonLRObjectVal2);
+      value := abs(isgop.Value.value2);
+      if maxAbsValue.IsNan or (maxAbsValue<value)
+      then maxAbsValue := value;
     end;
   end;
   // adjust extent to max dynamic width of geometry
-  if maxValue.IsNan
+  if maxAbsValue.IsNan
   then maxPixels := 0
-  else maxPixels := ceil(maxValue*capacityFactor);
+  else maxPixels := ceil(maxAbsValue*capacityFactor);
   bufferExtent := aExtent.Inflate(maxPixels*aPixelWidth, maxPixels*aPixelHeight);
 end;
 
