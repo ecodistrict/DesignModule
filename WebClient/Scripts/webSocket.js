@@ -11,8 +11,9 @@ var wsLookup = {
         // first domains after login
         domainsControl.resetDomains(payload);
         // remove all basic overlay layers from layers control (and with that from map)
-        for (var id in layerControl._layers) {
-            var lcl = layerControl._layers[id];
+        // removing so iterate from end to start
+        for (var i = layerControl._layers.length - 1; i >= 0; i--) {
+            var lcl = layerControl._layers[i];
             if (lcl.overlay) {
                 layerControl.removeLayer(lcl.layer);
             }
@@ -47,8 +48,9 @@ var wsLookup = {
         crd.reset(false, false, false);
         domainsControl.updateDomains(payload);
         // replace all basic overlay layers from layers control (and with that from map)
-        for (var id in layerControl._layers) {
-            var lcl = layerControl._layers[id];
+        // removing so iterate from end to start
+        for (var i = layerControl._layers.length - 1; i >= 0; i--) {
+            var lcl = layerControl._layers[i];
             if (lcl.overlay) {
                 layerControl.removeLayer(lcl.layer);
             }
@@ -377,17 +379,40 @@ function wsConnect() {
                 // { type: "type", payload: xx }
                 if (DebugLogging) {
                     console.log('received message, type: ' + message.type);
-                    console.log(JSON.parse(JSON.stringify(message)));
+                    console.log(JSON.stringify(message));
                 }
                 if (typeof wsLookup[message.type] !== "undefined") //only access functions that are defined!
                     wsLookup[message.type](message.payload);
             }
+            // todo: temp fix until new message format is active in WS2IMB
             else if (typeof message.connection !== "undefined") {
-                // todo: temp fix until new message format is active in WS2IMB
                 wsLookup["connection"]({ message: message.connection.message });
+                console.log('>> received old message, type: ' + JSON.stringify(message));
             }
+                // todo: temp fix until new message format is active in all publishers
+            else if (typeof message.login !== "undefined") {
+                wsLookup["login"](message.login);
+                console.log('>> received old message, type: ' + JSON.stringify(message));
+            }
+            else if (typeof message.measures !== "undefined") {
+                wsLookup["measures"](message.measures);
+                console.log('>> received old message, type: ' + JSON.stringify(message));
+            }
+            else if (typeof message.addhistorymeasures !== "undefined") {
+                wsLookup["addhistorymeasures"](message.addhistorymeasures);
+                console.log('>> received old message, type: ' + JSON.stringify(message));
+            }
+            else if (typeof message.domains !== "undefined") {
+                wsLookup["domains"](message.domains);
+                console.log('>> received old message, type: ' + JSON.stringify(message));
+            }
+            else if (typeof message.selectedObjects !== "undefined") {
+                wsLookup["selectedObjects"](message.selectedObjects);
+                console.log('>> received old message, type: ' + JSON.stringify(message));
+            }
+            // todo: all fixes failed
             else {
-                console.log('received old message, type: ' + message);
+                console.log('## received unsuported old message, type: ' + JSON.stringify(message));
             }
         }
     };

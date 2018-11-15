@@ -15,6 +15,9 @@ uses
   System.SysUtils;
 
 
+const
+  dotFormat: TFormatSettings = (DecimalSeparator:'.');
+
 // FireDAC work-a-round for crash
 var
   dbFDGUIxWaitCursor1: TFDGUIxWaitCursor=nil;
@@ -38,6 +41,11 @@ function FDSingleStringResultQuery(aDBConnection: TFDConnection; const aQuery: s
 
 function PGGeometriesJSONQuery(const aTableName, aIDFieldName, aGeometryFieldName: string): string;
 function PGSVGPathsQuery(const aTableName, aIDFieldName, aGeometryFieldName, aDataFieldName: string): string;
+
+function sqlSN(const s: string): string;
+function sqlI(i: Integer): string;
+function sqlB(b: boolean): string;
+function sqlF(f: Double): string;
 
 implementation
 
@@ -155,6 +163,30 @@ begin
   else Result :=
     'SELECT '+aIDFieldName+', ST_AsSVG('+aGeometryFieldName+') '+
     'FROM '+aTableName;
+end;
+
+function sqlSN(const s: string): string;
+begin
+  if s<>''
+  then Result := ''''+s.Replace('''', '''''')+'''' // replace single quotes to 2 single quotes
+  else Result := 'null';
+end;
+
+function sqlI(i: Integer): string;
+begin
+  Result := i.toString;
+end;
+
+function sqlB(b: boolean): string;
+begin
+  if b
+  then Result := 'true'
+  else Result := 'false';
+end;
+
+function sqlF(f: Double): string;
+begin
+  Result := f.ToString(dotFormat);
 end;
 
 end.
