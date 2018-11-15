@@ -3759,19 +3759,19 @@ begin
   begin
     if not isgop.Value.value.IsNan then
     begin
-      if maxValue.IsNan or (maxValue<isgop.Value.value)
-      then maxValue := isgop.Value.value;
+      if maxValue.IsNan or (maxValue<abs(isgop.Value.value))
+      then maxValue := abs(isgop.Value.value);
     end;
     if not isgop.Value.value2.IsNan then
     begin
-      if maxValue.IsNan or (maxValue<isgop.Value.value2)
-      then maxValue := isgop.Value.value2;
+      if maxValue.IsNan or (maxValue<abs(isgop.Value.value2))
+      then maxValue := abs(isgop.Value.value2);
     end;
   end;
   // adjust extent to max dynamic width of geometry
   if maxValue.IsNan
   then maxPixels := 0
-  else maxPixels := ceil(abs(maxValue*capacityFactor));
+  else maxPixels := ceil(maxValue*capacityFactor);
   bufferExtent := aExtent.Inflate(maxPixels*aPixelWidth, maxPixels*aPixelHeight);
 end;
 
