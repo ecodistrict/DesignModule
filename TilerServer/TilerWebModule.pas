@@ -289,7 +289,7 @@ type
     property texture: Double read fTexture write fTexture;
   end;
 
-  TSliceGeometryICLRObject = class(TSliceGeometryICObject)
+  TSliceGeometryPolygonLRObject = class(TSliceGeometryICObject)
   constructor Create(aGeometry: TWDGeometry; aValue, aValue2, aTexture, aTexture2: Double);
   protected
     fValue2: Double;
@@ -445,11 +445,11 @@ type
     function ClearSlice(): Boolean; override;
   end;
 
-  TSliceGeometryICLR = class(TSliceOutLineFill)
+  TSliceGeometryPolygonLR = class(TSliceOutLineFill)
   constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime);
   destructor Destroy; override;
   protected
-    fGeometries: TObjectDictionary<TWDID, TSliceGeometryICLRObject>;
+    fGeometries: TObjectDictionary<TWDID, TSliceGeometryPolygonLRObject>;
   protected
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
@@ -563,11 +563,38 @@ type
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
   end;
 
-  TSliceDiffGeometryICLR = class(TSliceDiffOutLineFill)
-  constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryICLR);
+  TSliceDiffGeometryPolygonLR = class(TSliceDiffOutLineFill)
+  constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
   protected
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    procedure DrawDefaultPath(path: TPathData; aBitmap: FMX.Graphics.TBitmap);
+    function CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double; Virtual;
+    function GetPaletteColor(aActiveTexture, aRefTexture: Double; var aValidFlag: Boolean): TGeoColors;
+    procedure ConstructPolygon(x1, y1, x2, y2, x3, y3, x4, y4: Double; var polygon: TPolygon);
+    procedure DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygon: TPolygon);
+  end;
+
+  TSliceDiffGeometryDoublePolygonLR = class(TSliceDiffGeometryPolygonLR)
+  constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
+  destructor Destroy; override;
+  protected
+  protected
+    // tile generation
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    function CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double; override;
+    function GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors;
+    procedure PolygonComputation(aXDCommon, aYDCommon, aXDExtra, aYDExtra, aXPrev, aYPrev, aXCurr, aYCurr: Double; aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap);
+    function ComputeCoordinateDist(aWidth, aActiveValue, aRefValue, aCapacityFactor, aXY_Diff, aPerpDist: Double; aIsCommonPoly: Boolean): Double;
+  end;
+
+  TSliceDiffGeometryPolygonStripeLR = class(TSliceDiffGeometryPolygonLR)
+  constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
+  protected
+    // tile generation
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    function GetPaletteColor(aActiveTexture, aRefTexture: Double; var aWidth: Double; var aValidFlag: Boolean): TGeoColors;
+    function ComputeICRatioClass(aICValue: Double): Integer;
   end;
 
   TSliceDiffPOI = class(TDiffSlice)
@@ -1935,9 +1962,9 @@ begin
   fTexture := aTexture;
 end;
 
-{ TSliceGeometryICLRObject }
+{ TSliceGeometryPolygonLRObject }
 
-constructor TSliceGeometryICLRObject.Create(aGeometry: TWDGeometry; aValue, aValue2, aTexture, aTexture2: Double);
+constructor TSliceGeometryPolygonLRObject.Create(aGeometry: TWDGeometry; aValue, aValue2, aTexture, aTexture2: Double);
 begin
   inherited Create(aGeometry, aValue, aTexture);
   fValue2 := aValue2;
@@ -2606,15 +2633,15 @@ begin
   end;
 end;
 
-{ TSliceGeometryICLR }
+{ TSliceGeometryPolygonLR }
 
-constructor TSliceGeometryICLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime);
+constructor TSliceGeometryPolygonLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime);
 begin
   inherited Create(aLayer, aPalette, aTimeStamp);
-  fGeometries := TObjectDictionary<TWDID, TSliceGeometryICLRObject>.Create([doOwnsValues]);
+  fGeometries := TObjectDictionary<TWDID, TSliceGeometryPolygonLRObject>.Create([doOwnsValues]);
 end;
 
-function TSliceGeometryICLR.ClearSlice: Boolean;
+function TSliceGeometryPolygonLR.ClearSlice: Boolean;
 begin
   Result := Inherited ClearSlice;
   if fGeometries.Count>0 then
@@ -2624,15 +2651,15 @@ begin
   end;
 end;
 
-destructor TSliceGeometryICLR.Destroy;
+destructor TSliceGeometryPolygonLR.Destroy;
 begin
   FreeAndNil(fGeometries);
   inherited;
 end;
 
-function TSliceGeometryICLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+function TSliceGeometryPolygonLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
-  isgop: TPair<TWDID, TSliceGeometryICLRObject>;
+  isgop: TPair<TWDID, TSliceGeometryPolygonLRObject>;
   polygon: TPolygon;
   capacityFactor: Double;
   maxValue: Double;
@@ -2793,22 +2820,22 @@ begin
       aBitmap.Canvas.EndScene;
     end;
   end
-  else Log.WriteLn('TSliceGeometryICLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+  else Log.WriteLn('TSliceGeometryPolygonLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
 end;
 
-function TSliceGeometryICLR.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
+function TSliceGeometryPolygonLR.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
 begin
   aValue := NaN;
   Result := gtsFailed;
 end;
 
-function TSliceGeometryICLR.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
+function TSliceGeometryPolygonLR.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
 var
   id: TWDID;
   fieldInfo: Uint32;
   geometry: TWDGeometry;
   len: Uint64;
-  sgo: TSliceGeometryICLRObject;
+  sgo: TSliceGeometryPolygonLRObject;
   value: Double;
   texture: Double;
   value2: Double;
@@ -2836,7 +2863,7 @@ begin
                 // Assume that geometry is modified if we received geometry in the payload.
                 // We remove the geometry from fLocations. The list will free the geometry.
                 fGeometries.Remove(id);
-                sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
+                sgo := TSliceGeometryPolygonLRObject.Create(geometry, value, value2, texture, texture2);
                 if fMaxExtent.IsEmpty
                 then fMaxExtent := sgo.extent
                 else fMaxExtent.Expand(sgo.extent);
@@ -2867,7 +2894,7 @@ begin
             begin
               if Assigned(geometry) then
               begin
-                sgo := TSliceGeometryICLRObject.Create(geometry, value, value2, texture, texture2);
+                sgo := TSliceGeometryPolygonLRObject.Create(geometry, value, value2, texture, texture2);
                 if fMaxExtent.IsEmpty
                   then fMaxExtent := sgo.extent
                 else fMaxExtent.Expand(sgo.extent);
@@ -3302,7 +3329,7 @@ begin
     fRefSlice.fDataLock.BeginRead;
     try
       Result := fCurrentSlice.getDataValueAtPoint(aLat, aLon, cur);
-      if Result=gtsOk then 
+      if Result=gtsOk then
       begin
         Result := fRefSlice.getDataValueAtPoint(aLat, aLon, ref);
         if Result=gtsOk then
@@ -3592,30 +3619,31 @@ begin
   else Log.WriteLn('TSliceDiffGeometryIC layer '+fLayer.LayerID.ToString+': no palette defined', llError);
 end;
 
-{ TSliceDiffGeometryICLR }
+{ TSliceDiffGeometryPolygonLR }
 
-constructor TSliceDiffGeometryICLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryICLR);
+constructor TSliceDiffGeometryPolygonLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
 begin
   inherited Create(aLayer, aPalette, aTimeStamp, aCurrentSlice, aRefSlice);
 end;
 
-function TSliceDiffGeometryICLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+function TSliceDiffGeometryPolygonLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
 var
-  isgop: TPair<TWDID, TSliceGeometryICLRObject>;
+  isgop: TPair<TWDID, TSliceGeometryPolygonLRObject>;
   polygon: TPolygon;
   capacityFactor: Double;
   // polygon drawing
   part: TWDGeometryPart;
   point: TWDGeometryPoint;
   path: TPathData;
-  x, y, xPrev, yPrev, xn, yn, xd, yd: Double;
-  l: Double;
+  xCurr, yCurr, xPrev, yPrev, xn, yn, xd, yd: Double;
+  pointDist: Double;
   bufferExtent: TExtent;
   widthL, widthR: Double;
   colorsL: TGeoColors;
   colorsR: TGeoColors;
   validL, validR: Boolean;
-  refObj: TSliceGeometryICLRObject;
+  refScenarioGeometryObject: TSliceGeometryPolygonLRObject;
+  curScenarioGeometryObject: TSliceGeometryPolygonLRObject;
 begin
   widthL := Double.NaN;
   widthR := Double.NaN;
@@ -3626,141 +3654,79 @@ begin
     try
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
-      capacityFactor := 0.001/Abs(aExtent.YMax-aExtent.YMin);
-      bufferExtent := aExtent.Inflate(1.3); // todo: make dependent on max values like TSlideGeometryICLR
+      capacityFactor := IfThen((aExtent.YMax <> aExtent.YMin), 0.001/Abs(aExtent.YMax-aExtent.YMin), 0);
+      bufferExtent := aExtent.Inflate(1.3); // todo: make dependent on max values like TSlideGeometryPolygonLR
       fCurrentSlice.fDataLock.BeginRead;
       fRefSlice.fDataLock.BeginRead;
       try
-        for isgop in (fCurrentSlice as TSliceGeometryICLR).fGeometries do
+        for isgop in (fCurrentSlice as TSliceGeometryPolygonLR).fGeometries do
         begin
-          if bufferExtent.Intersects(isgop.Value.fExtent) then
+          curScenarioGeometryObject := isgop.Value;
+          if bufferExtent.Intersects(curScenarioGeometryObject.fExtent) then
           begin
             // get reference geometry object
             validL := True;
             validR := True;
-            if not (fRefSlice as TSliceGeometryICLR).fGeometries.TryGetValue(isgop.Key, refObj) then
+            if not (fRefSlice as TSliceGeometryPolygonLR).fGeometries.TryGetValue(isgop.Key, refScenarioGeometryObject) then
             begin
               validL := False;
               validR := False;
             end
             else
             begin
-              //see if we can find L width
-              if not IsNaN(isgop.Value.value) then
-              begin
-                if not IsNaN(refObj.value)
-                then widthL := (isgop.Value.value + refObj.value) / 2
-                else widthL := isgop.Value.value;
-              end
-              else
-              begin
-                if not IsNaN(refObj.value)
-                then widthL := refObj.value
-                else validL := False;
-              end;
-              //see if we can find R width
-              if not IsNaN(isgop.Value.value2) then
-              begin
-                if not IsNaN(refObj.value2)
-                then widthR := (isgop.Value.value2 + refObj.value2) / 2
-                else widthR := isgop.Value.value2;
-              end
-              else
-              begin
-                if not IsNaN(refObj.value2)
-                then widthR := refObj.value2
-                else validR := False;
-              end;
-              //see if we can find L color
-              if not (IsNaN(isgop.Value.texture) or IsNaN(refObj.texture))
-              then colorsL := fPalette.ValueToColors(isgop.Value.texture-refObj.texture)
-              else validL := False;
-              //see if we can find R color
-              if not (IsNaN(isgop.Value.texture2) or IsNaN(refObj.texture2))
-              then colorsR := fPalette.ValueToColors(isgop.Value.texture2-refObj.texture2)
-              else validR := False;
+              widthL := CalculateWidth(curScenarioGeometryObject.value, refScenarioGeometryObject.value, validL);
+              widthR := CalculateWidth(curScenarioGeometryObject.value2, refScenarioGeometryObject.value2, validR);
+
+              colorsL := GetPaletteColor(curScenarioGeometryObject.texture, refScenarioGeometryObject.texture, validL);
+              colorsR := GetPaletteColor(curScenarioGeometryObject.texture2, refScenarioGeometryObject.texture2, validR);
             end;
 
             if not (validR or validL) then //if neither side is valid -> draw a thin black line
             begin
-              path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, isgop.Value.fGeometry);
-              try
-                aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
-                //aBitmap.Canvas.StrokeThickness := 1;
-                aBitmap.Canvas.Stroke.Thickness := 1;
-                aBitmap.Canvas.DrawPath(path, 1);
-              finally
-                path.Free;
-              end;
+              path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, curScenarioGeometryObject.fGeometry);
+              DrawDefaultPath(path, aBitmap);
             end
             else //draw our polygons
             begin
               setLength(polygon, 5);
-              for part in isgop.Value.fGeometry.parts do
+              for part in curScenarioGeometryObject.fGeometry.parts do
               begin
-                x := NaN;
-                y := NaN;
+                xCurr := NaN;
+                yCurr := NaN;
                 for point in part.points do
                 begin
                   // recalc coordinates relative to extent
-                  xPrev := x;
-                  yPrev := y;
-                  x := (point.X-aExtent.XMin)/aPixelWidth;
-                  y := (aExtent.YMax-point.Y)/aPixelHeight;
+                  xPrev := xCurr;
+                  yPrev := yCurr;
+                  xCurr := (point.X-aExtent.XMin)/aPixelWidth;
+                  yCurr := (aExtent.YMax-point.Y)/aPixelHeight;
                   if not IsNaN(xPrev) then
                   begin
-                    xn := y-yPrev;
-                    yn := xPrev-x;
+                    xn := yCurr-yPrev;
+                    yn := xPrev-xCurr;
                     // normalize..
-                    l := sqrt((xn*xn)+(yn*yn));
-                    polygon[0].X := xPrev;
-                    polygon[0].Y := yPrev;
-                    polygon[1].X := x;
-                    polygon[1].Y := y;
-                    polygon[4].X := xPrev;
-                    polygon[4].Y := yPrev;
-                    //draw right side
-                    if validR then
-                    begin
-                      xd := {(1+}widthR*capacityFactor{)}*xn/l;
-                      yd := {(1+}widthR*capacityFactor{)}*yn/l;
-                      polygon[2].X := x-xd;
-                      polygon[2].Y := y-yd;
-                      polygon[3].X := xPrev-xd;
-                      polygon[3].Y := yPrev-yd;
-                      // draw
-                      if colorsR.fillColor<>0  then
-                      begin
-                        aBitmap.Canvas.Fill.Color := colorsR.fillColor;
-                        aBitmap.Canvas.FillPolygon(polygon, 1);
-                      end;
-                      if colorsR.outlineColor<>0 then
-                      begin
-                        aBitmap.Canvas.Stroke.Color := colorsR.outlineColor;
-                        aBitmap.Canvas.DrawPolygon(polygon, 1);
-                      end;
-                    end;
+                    pointDist := sqrt((xn*xn)+(yn*yn));
+
                     //draw left side
                     if validL then
                     begin
-                      xd := {(1+}widthL*capacityFactor{)}*xn/l;
-                      yd := {(1+}widthL*capacityFactor{)}*yn/l;
+                      xd := {(1+}widthL*capacityFactor{)}*xn/pointDist;
+                      yd := {(1+}widthL*capacityFactor{)}*yn/pointDist;
                       // todo: wrong rotation direction..
-                      polygon[2].X := x+xd;
-                      polygon[2].Y := y+yd;
-                      polygon[3].X := xPrev+xd;
-                      polygon[3].Y := yPrev+yd;
-                      // draw left
-                      if colorsL.fillColor<>0 then
-                      begin
-                        aBitmap.Canvas.Fill.Color := colorsL.fillColor;
-                        aBitmap.Canvas.FillPolygon(polygon, 1);
-                      end;
-                      if colorsL.outlineColor<>0 then
-                      begin
-                        aBitmap.Canvas.Stroke.Color := colorsL.outlineColor;
-                        aBitmap.Canvas.DrawPolygon(polygon, 1);
-                      end;
+
+                      ConstructPolygon(xPrev, yPrev, xCurr, yCurr, xCurr+xd, yCurr+yd, xPrev+xd, yPrev+yd, polygon);
+
+                      DrawFillPolygon(colorsL, aBitmap, polygon);
+                    end;
+
+                    //draw right side
+                    if validR then
+                    begin
+                      xd := {(1+}widthR*capacityFactor{)}*xn/pointDist;
+                      yd := {(1+}widthR*capacityFactor{)}*yn/pointDist;
+
+                      ConstructPolygon(xPrev, yPrev, xCurr, yCurr, xCurr-xd, yCurr-yd, xPrev-xd, yPrev-yd, polygon);
+                      DrawFillPolygon(colorsR, aBitmap, polygon);
                     end;
                   end;
                 end;
@@ -3778,8 +3744,442 @@ begin
       aBitmap.Canvas.EndScene;
     end;
   end
-  else Log.WriteLn('TSliceDiffGeometryICLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+  else Log.WriteLn('TSliceDiffGeometryPolygonLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
 end;
+
+procedure TSliceDiffGeometryPolygonLR.DrawDefaultPath(path: TPathData; aBitmap: FMX.Graphics.TBitmap);
+begin
+  try
+    aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black or TAlphaColorRec.Alpha;
+    aBitmap.Canvas.Stroke.Thickness := 1;
+    aBitmap.Canvas.DrawPath(path, 1);
+  finally
+    path.Free;
+  end;
+end;
+
+function TSliceDiffGeometryPolygonLR.CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double;
+begin
+  if not IsNaN(aActiveValue) then
+  begin
+    if not IsNaN(aRefValue) then
+      Result := (aRefValue + aActiveValue) / 2
+    else Result := aActiveValue;
+  end
+  else
+  begin
+    if not IsNaN(aRefValue)
+    then Result := aRefValue
+    else aValidFlag := False;
+  end;
+end;
+
+function TSliceDiffGeometryPolygonLR.GetPaletteColor(aActiveTexture, aRefTexture: Double; var aValidFlag: Boolean): TGeoColors;
+begin
+  if not (IsNaN(aActiveTexture) or IsNaN(aRefTexture))then
+    Result := fPalette.ValueToColors(aActiveTexture-aRefTexture)
+  else aValidFlag := False;
+end;
+
+procedure TSliceDiffGeometryPolygonLR.ConstructPolygon(x1, y1, x2, y2, x3, y3, x4, y4: Double; var polygon: TPolygon);
+begin
+  polygon[0].X := x1;
+  polygon[0].Y := y1;
+
+  polygon[1].X := x2;
+  polygon[1].Y := y2;
+
+  polygon[2].X := x3;
+  polygon[2].Y := y3;
+
+  polygon[3].X := x4;
+  polygon[3].Y := y4;
+
+  polygon[4].X := x1;
+  polygon[4].Y := y1;
+end;
+
+procedure TSliceDiffGeometryPolygonLR.DrawFillPolygon(aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap; aPolygon: TPolygon);
+begin
+  if aColor.fillColor <> 0 then
+  begin
+    aBitmap.Canvas.Fill.Color := aColor.fillColor;
+    aBitmap.Canvas.FillPolygon(aPolygon, 1);
+  end;
+  if aColor.outlineColor <> 0 then
+  begin
+    aBitmap.Canvas.Stroke.Color := aColor.outlineColor;
+    aBitmap.Canvas.DrawPolygon(aPolygon, 1);
+  end;
+end;
+
+{ TSliceDiffGeometryDoublePolygonLR }
+
+constructor TSliceDiffGeometryDoublePolygonLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
+begin
+  inherited Create(aLayer, aPalette, aTimeStamp, aCurrentSlice, aRefSlice);
+end;
+
+destructor TSliceDiffGeometryDoublePolygonLR.Destroy;
+begin
+  inherited;
+end;
+
+function TSliceDiffGeometryDoublePolygonLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+var
+  isgop: TPair<TWDID, TSliceGeometryPolygonLRObject>;
+  capacityFactor: Double;
+  part: TWDGeometryPart;
+  point: TWDGeometryPoint;
+  path: TPathData;
+  xCurr, yCurr, xPrev, yPrev, xn, yn: Double;
+  pointDist: Double;
+  bufferExtent: TExtent;
+  widthL, widthR: Double;
+  colorsL: TGeoColors;
+  colorsR: TGeoColors;
+  validL, validR: Boolean;
+  refScenarioGeometryObject: TSliceGeometryPolygonLRObject;
+  curScenarioGeometryObject: TSliceGeometryPolygonLRObject;
+
+  xDCommon, yDCommon, xDExtra, yDExtra: Double;
+  isCommonPoly: Boolean;
+begin
+  widthL := Double.NaN;
+  widthR := Double.NaN;
+  Result := gtsFailed;
+  if Assigned(fPalette) then
+  begin
+    aBitmap.Canvas.BeginScene;
+    try
+      aBitmap.Canvas.Clear(0);
+      aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+      capacityFactor := IfThen((aExtent.YMax <> aExtent.YMin), 0.001/Abs(aExtent.YMax-aExtent.YMin), 0);
+      bufferExtent := aExtent.Inflate(1.3);
+      fCurrentSlice.fDataLock.BeginRead;
+      fRefSlice.fDataLock.BeginRead;
+      try
+        for isgop in (fCurrentSlice as TSliceGeometryPolygonLR).fGeometries do
+        begin
+          curScenarioGeometryObject := isgop.Value;
+          if bufferExtent.Intersects(curScenarioGeometryObject.fExtent) then
+          begin
+            validL := True;
+            validR := True;
+            if not (fRefSlice as TSliceGeometryPolygonLR).fGeometries.TryGetValue(isgop.Key, refScenarioGeometryObject) then
+            begin
+              validL := False;
+              validR := False;
+            end
+            else
+            begin
+              widthL := CalculateWidth(curScenarioGeometryObject.value, refScenarioGeometryObject.value, ValidL);
+              widthR := CalculateWidth(curScenarioGeometryObject.value2, refScenarioGeometryObject.value2, ValidR);
+
+              colorsL := GetPaletteColor(curScenarioGeometryObject.texture, refScenarioGeometryObject.texture, widthL, validL);
+              colorsR := GetPaletteColor(curScenarioGeometryObject.texture2, refScenarioGeometryObject.texture2, widthR, validR);
+            end;
+
+            if not (validR or validL) then
+            begin
+              path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, curScenarioGeometryObject.fGeometry);
+              DrawDefaultPath(path, aBitmap);
+            end
+            else
+            begin
+              for part in curScenarioGeometryObject.fGeometry.parts do
+              begin
+                xCurr := NaN;
+                yCurr := NaN;
+                for point in part.points do
+                begin
+                  xPrev := xCurr;
+                  yPrev := yCurr;
+                  xCurr := (point.X-aExtent.XMin)/aPixelWidth;
+                  yCurr := (aExtent.YMax-point.Y)/aPixelHeight;
+
+                  if not IsNaN(xPrev) then
+                  begin
+                    xn := yCurr-yPrev;
+                    yn := xPrev-xCurr;
+                    pointDist := sqrt((xn*xn)+(yn*yn));
+
+                    if validL then
+                    begin
+                      isCommonPoly := True;
+                      xDCommon := ComputeCoordinateDist(widthL, curScenarioGeometryObject.value, refScenarioGeometryObject.value, capacityFactor, xn, pointDist, isCommonPoly);
+                      yDCommon := ComputeCoordinateDist(widthL, curScenarioGeometryObject.value, refScenarioGeometryObject.value, capacityFactor, yn, pointDist, isCommonPoly);
+
+                      isCommonPoly := False;
+                      xDExtra := ComputeCoordinateDist(widthL, curScenarioGeometryObject.value, refScenarioGeometryObject.value, capacityFactor, xn, pointDist, isCommonPoly);
+                      yDExtra := ComputeCoordinateDist(widthL, curScenarioGeometryObject.value, refScenarioGeometryObject.value, capacityFactor, yn, pointDist, isCommonPoly);
+
+                      PolygonComputation(xDCommon, yDCommon, xDExtra, yDExtra, xPrev, yPrev, xCurr, yCurr, colorsL, aBitmap);
+                    end;
+
+                    if validR then
+                    begin
+                      isCommonPoly := True;
+                      xDCommon := ComputeCoordinateDist(widthR, curScenarioGeometryObject.value2, refScenarioGeometryObject.value2, capacityFactor, xn, pointDist, isCommonPoly);
+                      yDCommon := ComputeCoordinateDist(widthR, curScenarioGeometryObject.value2, refScenarioGeometryObject.value2, capacityFactor, yn, pointDist, isCommonPoly);
+
+                      isCommonPoly := False;
+                      xDExtra := ComputeCoordinateDist(widthR, curScenarioGeometryObject.value2, refScenarioGeometryObject.value2, capacityFactor, xn, pointDist, isCommonPoly);
+                      yDExtra := ComputeCoordinateDist(widthR, curScenarioGeometryObject.value2, refScenarioGeometryObject.value2, capacityFactor, yn, pointDist, isCommonPoly);
+
+                      PolygonComputation(-xDCommon, -yDCommon, -xDExtra, -yDExtra, xPrev, yPrev, xCurr, yCurr, colorsR, aBitmap);
+                    end;
+                  end;
+                end;
+              end;
+            end;
+          end;
+        end;
+      finally
+        fCurrentSlice.fDataLock.EndRead;
+        fRefSlice.fDataLock.EndRead;
+      end;
+      Result := gtsOk;
+    finally
+      aBitmap.Canvas.EndScene;
+    end;
+  end
+  else Log.WriteLn('TSliceDiffGeometryDoublePolygonLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+end;
+
+function TSliceDiffGeometryDoublePolygonLR.CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double;
+begin
+  if not IsNaN(aActiveValue) then
+  begin
+    if not IsNaN(aRefValue) then
+      Result := (aRefValue - aActiveValue)
+    else Result := aActiveValue;
+  end
+  else
+  begin
+    if not IsNaN(aRefValue)
+    then Result := aRefValue
+    else aValidFlag := False;
+  end;
+end;
+
+function TSliceDiffGeometryDoublePolygonLR.GetPaletteColor(aActiveTexture, aRefTexture, aWidth: Double; var aValidFlag: Boolean): TGeoColors;
+begin
+  if not (IsNaN(aActiveTexture) or IsNaN(aRefTexture)) then
+  begin
+    if awidth > 0 then
+      Result := fPalette.ValueToColors(fPalette.minValue())
+    else if awidth < 0 then
+      Result := fPalette.ValueToColors(fPalette.maxValue())
+    else
+      Result := fPalette.ValueToColors((fPalette.minValue() + fPalette.maxValue())/2);
+  end
+  else aValidFlag := False;
+end;
+
+procedure TSliceDiffGeometryDoublePolygonLR.PolygonComputation(aXDCommon, aYDCommon, aXDExtra, aYDExtra, aXPrev, aYPrev, aXCurr, aYCurr: Double; aColor: TGeoColors; aBitmap: FMX.Graphics.TBitmap);
+var
+  polygon: TPolygon;
+  defaultColor: TGeoColors;
+begin
+  setLength(polygon, 5);
+  ConstructPolygon(aXPrev, aYPrev, aXCurr, aYCurr, aXCurr+aXDCommon, aYCurr+aYDCommon, aXPrev+aXDCommon, aYPrev+aYDCommon, polygon);
+
+  defaultColor := TGeoColors.Create(TAlphaColorRec.Lightsteelblue,TAlphaColorRec.Lightsteelblue);
+  DrawFillPolygon(defaultColor, aBitmap, polygon);
+
+  if abs(aXDCommon) <> abs(aXDExtra) then
+  begin
+    ConstructPolygon(polygon[3].X, polygon[3].Y, polygon[2].X, polygon[2].Y, aXCurr+aXDExtra, aYCurr+aYDExtra, aXPrev+aXDExtra, aYPrev+aYDExtra, polygon);
+    DrawFillPolygon(aColor, aBitmap, polygon);
+  end;
+end;
+
+function TSliceDiffGeometryDoublePolygonLR.ComputeCoordinateDist(aWidth, aActiveValue, aRefValue, aCapacityFactor, aXY_Diff, aPerpDist: Double; aIsCommonPoly: Boolean): Double;
+begin
+  if aWidth > 0 then
+  begin
+    if aIsCommonPoly then
+      Result := aActiveValue*aCapacityFactor*aXY_Diff/aPerpDist
+    else
+      Result := aRefValue*aCapacityFactor*aXY_Diff/aPerpDist;
+  end
+  else
+  begin
+    if aWidth < 0 then
+    begin
+      if aIsCommonPoly then
+        Result := aRefValue*aCapacityFactor*aXY_Diff/aPerpDist
+      else
+        Result := aActiveValue*aCapacityFactor*aXY_Diff/aPerpDist;
+    end
+    else
+      Result := aRefValue*aCapacityFactor*aXY_Diff/aPerpDist;
+  end;
+end;
+
+{ TSliceDiffGeometryPolygonStripeLR }
+
+constructor TSliceDiffGeometryPolygonStripeLR.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceGeometryPolygonLR);
+begin
+  inherited Create(aLayer, aPalette, aTimeStamp, aCurrentSlice, aRefSlice);
+end;
+
+function TSliceDiffGeometryPolygonStripeLR.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+var
+  isgop: TPair<TWDID, TSliceGeometryPolygonLRObject>;
+  polygon: TPolygon;
+  capacityFactor: Double;
+  part: TWDGeometryPart;
+  point: TWDGeometryPoint;
+  path: TPathData;
+  xCurr, yCurr, xPrev, yPrev, xn, yn, xd, yd: Double;
+  pointDist: Double;
+  bufferExtent: TExtent;
+  widthL, widthR: Double;
+  colorsL: TGeoColors;
+  colorsR: TGeoColors;
+  validL, validR: Boolean;
+  refScenarioGeometryObject: TSliceGeometryPolygonLRObject;
+  curScenarioGeometryObject: TSliceGeometryPolygonLRObject;
+begin
+  widthL := Double.NaN;
+  widthR := Double.NaN;
+  Result := gtsFailed;
+  if Assigned(fPalette) then
+  begin
+    aBitmap.Canvas.BeginScene;
+    try
+      aBitmap.Canvas.Clear(0);
+      aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+      capacityFactor := IfThen((aExtent.YMax <> aExtent.YMin), 0.001/Abs(aExtent.YMax-aExtent.YMin), 0);
+      bufferExtent := aExtent.Inflate(1.3);
+      fCurrentSlice.fDataLock.BeginRead;
+      fRefSlice.fDataLock.BeginRead;
+      try
+        for isgop in (fCurrentSlice as TSliceGeometryPolygonLR).fGeometries do
+        begin
+          curScenarioGeometryObject := isgop.Value;
+          if bufferExtent.Intersects(curScenarioGeometryObject.fExtent) then
+          begin
+            validL := True;
+            validR := True;
+            if not (fRefSlice as TSliceGeometryPolygonLR).fGeometries.TryGetValue(isgop.Key, refScenarioGeometryObject) then
+            begin
+              validL := False;
+              validR := False;
+            end
+            else
+            begin
+              //L width
+              if IsNaN(curScenarioGeometryObject.value) and IsNaN(refScenarioGeometryObject.value) then
+                validL := False
+              else widthL := 60;
+
+              //R width
+              if IsNaN(curScenarioGeometryObject.value2) and IsNaN(refScenarioGeometryObject.value2) then
+                validR := False
+              else widthR := 60;
+
+              colorsL := GetPaletteColor(curScenarioGeometryObject.texture, refScenarioGeometryObject.texture, widthL, validL);
+              colorsR := GetPaletteColor(curScenarioGeometryObject.texture2, refScenarioGeometryObject.texture2, widthR, validR);
+            end;
+
+            if not (validR or validL) then
+            begin
+              path := GeometryToPath(aExtent, aPixelWidth, aPixelHeight, curScenarioGeometryObject.fGeometry);
+              DrawDefaultPath(path, aBitmap);
+            end
+
+            else
+            begin
+              setLength(polygon, 5);
+              for part in curScenarioGeometryObject.fGeometry.parts do
+              begin
+                xCurr := NaN;
+                yCurr := NaN;
+                for point in part.points do
+                begin
+                  xPrev := xCurr;
+                  yPrev := yCurr;
+                  xCurr := (point.X-aExtent.XMin)/aPixelWidth;
+                  yCurr := (aExtent.YMax-point.Y)/aPixelHeight;
+                  if not IsNaN(xPrev) then
+                  begin
+                    xn := yCurr-yPrev;
+                    yn := xPrev-xCurr;
+                    pointDist := sqrt((xn*xn)+(yn*yn));
+
+                    if validL then
+                    begin
+                      xd := widthL*capacityFactor*xn/pointDist;
+                      yd := widthL*capacityFactor*yn/pointDist;
+
+                      ConstructPolygon(xPrev, yPrev, xCurr, yCurr, xCurr+xd, yCurr+yd, xPrev+xd, yPrev+yd, polygon);
+
+                      DrawFillPolygon(colorsL, aBitmap, polygon);
+                    end;
+
+                    if validR then
+                    begin
+                      xd := widthR*capacityFactor*xn/pointDist;
+                      yd := widthR*capacityFactor*yn/pointDist;
+
+                      ConstructPolygon(xPrev, yPrev, xCurr, yCurr, xCurr-xd, yCurr-yd, xPrev-xd, yPrev-yd, polygon);
+
+                      DrawFillPolygon(colorsR, aBitmap, polygon);
+                    end;
+                  end;
+                end;
+              end;
+            end;
+          end;
+        end;
+
+      finally
+        fCurrentSlice.fDataLock.EndRead;
+        fRefSlice.fDataLock.EndRead;
+      end;
+      Result := gtsOk;
+    finally
+      aBitmap.Canvas.EndScene;
+    end;
+  end
+  else Log.WriteLn('TSliceDiffGeometryPolygonStripeLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+end;
+
+function TSliceDiffGeometryPolygonStripeLR.GetPaletteColor(aActiveTexture, aRefTexture: Double; var aWidth: Double; var aValidFlag: Boolean): TGeoColors;
+var
+  activeClass, refClass: Integer;
+begin
+  if not (IsNaN(aActiveTexture) or IsNaN(aRefTexture))then
+  begin
+    activeClass := ComputeICRatioClass(aActiveTexture);
+    refClass := ComputeICRatioClass(aRefTexture);
+
+    if activeClass<refClass then
+      Result := fPalette.ValueToColors(fPalette.minValue())
+    else if activeClass>refClass then
+      Result := fPalette.ValueToColors(fPalette.maxValue())
+    else
+      begin
+        Result := TGeoColors.Create(TAlphaColorRec.Lightsteelblue,TAlphaColorRec.Lightsteelblue);
+        aWidth := aWidth / 3;
+      end;
+  end
+  else aValidFlag := False;
+end;
+
+function TSliceDiffGeometryPolygonStripeLR.ComputeICRatioClass(aICValue: Double): Integer;
+begin
+  if aICValue <= 0.7 then
+    Result := 1
+  else if (aICValue > 0.7) and (aICValue <= 0.9) then
+    Result := 2
+  else
+    Result := 3;
+end;
+
 
 { TSliceDiffPOI }
 
@@ -4126,8 +4526,8 @@ begin
                           slice := TSliceGeometryI.Create(Self, palette.Clone, timeStamp);
                         stGeometryIC:
                           slice := TSliceGeometryIC.Create(Self, palette.Clone, timeStamp);
-                        stGeometryICLR:
-                          slice := TSliceGeometryICLR.Create(Self, palette.Clone, timeStamp);
+                        stGeometryICLR, stGeometryDoublePolygonLR, stGeometryPolygonStripeLR:
+                          slice := TSliceGeometryPolygonLR.Create(Self, palette.Clone, timeStamp);
                         stGeometryIH:
                           slice := TSliceGeometryIH.Create(Self, palette.Clone, timeStamp, lineThickness);
                         stPOI:
@@ -4146,8 +4546,12 @@ begin
                         stDiffGeometryIC:
                           slice := TSliceDiffGeometryIC.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryIC, refSlice as TSliceGeometryIC);
                         stDiffGeometryICLR:
-                          slice := TSliceDiffGeometryICLR.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryICLR, refSlice as TSliceGeometryICLR);
-                        stDiffPOI:
+                          slice := TSliceDiffGeometryPolygonLR.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryPolygonLR, refSlice as TSliceGeometryPolygonLR);
+                        stDiffGeometryDoublePolygonLR:
+                          slice := TSliceDiffGeometryDoublePolygonLR.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryPolygonLR, refSlice as TSliceGeometryPolygonLR);
+                        stDiffGeometryPolygonStripeLR:
+                          slice := TSliceDiffGeometryPolygonStripeLR.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceGeometryPolygonLR, refSlice as TSliceGeometryPolygonLR);
+						            stDiffPOI:
                           slice := TSliceDiffPOI.Create(Self, timeStamp, currentSlice as TSlicePOI, refSlice as TSlicePOI, colorRemovedPOI, colorSamePOI, colorNewPOI);
                         stDiffPNG:
                           slice := TSliceDiffPNG.Create(Self, timeStamp, currentSlice as TSlicePNG, refSlice as TSLicePNG);
@@ -5131,4 +5535,3 @@ finalization
   FreeAndNil(canvasLock);
   Log.Finish();
 end.
-
