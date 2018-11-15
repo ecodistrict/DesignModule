@@ -231,8 +231,10 @@ detailsControl.setCRD(crd);
 // bottom-left (reverse order)
 
 // info
+/*
 window.infoControl = L.control.info();
 map.addControl(infoControl);
+*/
 
 // legend
 window.legendControl = L.control.legend;
