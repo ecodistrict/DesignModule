@@ -3096,6 +3096,8 @@ var
   point: TPointF;
   rect: TRectF;
   colors: TGeoColors;
+  radiusPoint: TPointF;
+  valFrom, valTo: Double;
 begin
   Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
@@ -3108,15 +3110,28 @@ begin
       begin
         point := GeometryToPoint(aExtent, aPixelWidth, aPixelHeight, isgop.Value.lcoation);
         rect.Create(point);
-        rect.Inflate(isgop.Value.radius, isgop.Value.radius);
+//        rect.Inflate(isgop.Value.radius, isgop.Value.radius);
+        rect.Inflate(20, 20); //Hardcoded radius values for the junction test
         // todo: test intersection with bitmap
         if (rect.Right>=0) and (rect.Top>=0) and (rect.Left<=aBitmap.Width) and (rect.Bottom<=aBitmap.Height) then
         begin
           colors := fPalette.ValueToColors(isgop.Value.value);
           if colors.fillColor<>0 then
           begin
-            aBitmap.Canvas.Fill.Color := colors.fillColor;
-            aBitmap.Canvas.FillEllipse(rect, 1);
+//            aBitmap.Canvas.Fill.Color := colors.fillColor;
+//            aBitmap.Canvas.FillEllipse(rect, 1);
+
+            radiusPoint := PointF(20, 20);
+            aBitmap.Canvas.Fill.Color := TAlphaColorRec.Lightsteelblue;
+            aBitmap.Canvas.FillArc(point, radiusPoint, 0, 360, 1);
+
+            valFrom := -90;
+            valTo := isgop.Value.value * 360;
+
+            radiusPoint := PointF(15, 15);
+            aBitmap.Canvas.Stroke.Color := colors.fillColor;
+            aBitmap.Canvas.Stroke.Thickness := 10;
+            aBitmap.Canvas.DrawArc(point, radiusPoint, valFrom, valTo, 1);
           end;
           if colors.outlineColor<>0 then
           begin
