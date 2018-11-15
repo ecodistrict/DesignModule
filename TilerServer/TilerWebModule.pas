@@ -568,6 +568,7 @@ type
   protected
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    procedure UpdateBufferExtent(const aExtent: TExtent; capacityFactor, aPixelWidth, aPixelHeight: Double; var bufferExtent: TExtent);
     procedure DrawDefaultPath(path: TPathData; aBitmap: FMX.Graphics.TBitmap);
     function CalculateWidth(aActiveValue, aRefValue: Double; var aValidFlag: Boolean): Double; Virtual;
     function GetPaletteColor(aActiveTexture, aRefTexture: Double; var aValidFlag: Boolean): TGeoColors;
@@ -3655,7 +3656,7 @@ begin
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
       capacityFactor := IfThen((aExtent.YMax <> aExtent.YMin), 0.001/Abs(aExtent.YMax-aExtent.YMin), 0);
-      bufferExtent := aExtent.Inflate(1.3); // todo: make dependent on max values like TSlideGeometryPolygonLR
+      UpdateBufferExtent(aExtent, capacityFactor, aPixelWidth, aPixelHeight, bufferExtent);
       fCurrentSlice.fDataLock.BeginRead;
       fRefSlice.fDataLock.BeginRead;
       try
@@ -3745,6 +3746,37 @@ begin
     end;
   end
   else Log.WriteLn('TSliceDiffGeometryPolygonLR layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+end;
+
+procedure TSliceDiffGeometryPolygonLR.UpdateBufferExtent(const aExtent: TExtent; capacityFactor, aPixelWidth, aPixelHeight: Double; var bufferExtent: TExtent);
+var
+  maxAbsValue: Double;
+  maxPixels: Double;
+  isgop: TPair<TWDID, TSliceGeometryPolygonLRObject>;
+  value: Double;
+begin
+  maxAbsValue := double.NaN;
+  for isgop in (fCurrentSlice as TSliceGeometryPolygonLR).fGeometries do
+  begin
+    if not isgop.Value.value.IsNan then
+    begin
+      value := abs(isgop.Value.value);
+      if maxAbsValue.IsNan or (maxAbsValue<value)
+      then maxAbsValue := value;
+    end;
+
+    if not isgop.Value.value2.IsNan then
+    begin
+      value := abs(isgop.Value.value2);
+      if maxAbsValue.IsNan or (maxAbsValue<value)
+      then maxAbsValue := value;
+    end;
+  end;
+  // adjust extent to max dynamic width of geometry
+  if maxAbsValue.IsNan
+  then maxPixels := 0
+  else maxPixels := ceil(maxAbsValue*capacityFactor);
+  bufferExtent := aExtent.Inflate(maxPixels*aPixelWidth, maxPixels*aPixelHeight);
 end;
 
 procedure TSliceDiffGeometryPolygonLR.DrawDefaultPath(path: TPathData; aBitmap: FMX.Graphics.TBitmap);
@@ -3855,7 +3887,7 @@ begin
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
       capacityFactor := IfThen((aExtent.YMax <> aExtent.YMin), 0.001/Abs(aExtent.YMax-aExtent.YMin), 0);
-      bufferExtent := aExtent.Inflate(1.3);
+      UpdateBufferExtent(aExtent, capacityFactor, aPixelWidth, aPixelHeight, bufferExtent);
       fCurrentSlice.fDataLock.BeginRead;
       fRefSlice.fDataLock.BeginRead;
       try
@@ -4053,7 +4085,7 @@ begin
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
       capacityFactor := IfThen((aExtent.YMax <> aExtent.YMin), 0.001/Abs(aExtent.YMax-aExtent.YMin), 0);
-      bufferExtent := aExtent.Inflate(1.3);
+      UpdateBufferExtent(aExtent, capacityFactor, aPixelWidth, aPixelHeight, bufferExtent);
       fCurrentSlice.fDataLock.BeginRead;
       fRefSlice.fDataLock.BeginRead;
       try
