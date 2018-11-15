@@ -3753,19 +3753,23 @@ var
   maxValue: Double;
   maxPixels: Double;
   isgop: TPair<TWDID, TSliceGeometryPolygonLRObject>;
+  geometryPolygonLRObjectVal1, geometryPolygonLRObjectVal2: Double;
 begin
   maxValue := double.NaN;
   for isgop in (fCurrentSlice as TSliceGeometryPolygonLR).fGeometries do
   begin
-    if not isgop.Value.value.IsNan then
+    geometryPolygonLRObjectVal1 := isgop.Value.value;
+    if not geometryPolygonLRObjectVal1.IsNan then
     begin
-      if maxValue.IsNan or (maxValue<abs(isgop.Value.value))
-      then maxValue := abs(isgop.Value.value);
+      if maxValue.IsNan or (maxValue<abs(geometryPolygonLRObjectVal1))
+      then maxValue := abs(geometryPolygonLRObjectVal1);
     end;
-    if not isgop.Value.value2.IsNan then
+
+    geometryPolygonLRObjectVal2 := isgop.Value.value2;
+    if not geometryPolygonLRObjectVal2.IsNan then
     begin
-      if maxValue.IsNan or (maxValue<abs(isgop.Value.value2))
-      then maxValue := abs(isgop.Value.value2);
+      if maxValue.IsNan or (maxValue<abs(geometryPolygonLRObjectVal2))
+      then maxValue := abs(geometryPolygonLRObjectVal2);
     end;
   end;
   // adjust extent to max dynamic width of geometry
