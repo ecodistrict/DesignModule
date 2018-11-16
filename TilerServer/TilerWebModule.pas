@@ -162,7 +162,7 @@ const
     SliceTimeIDFormat = 'yyyymmdd.hhnn';
 
   HSC_SUCCESS_OK = 200;
-  //HSC_SUCCESS_CREATED = 201;
+  HSC_SUCCESS_CREATED = 201;
 
   HSC_ERROR_BADREQUEST = 400;
   HSC_ERROR_UNAUTHORIZED = 401;
@@ -367,8 +367,8 @@ type
   public
     procedure AddToQueue(aBuffer: TByteBuffer);
   public
-    procedure Load(aStream: TStream); virtual; // todo: abstract;
-    procedure Save(aStream: TStream; aSavedSlices: TList<TSlice>); virtual; // todo: abstract;
+    procedure Load(aStream: TStream); virtual; //abstract;
+    procedure Save(aStream: TStream; aSavedSlices: TList<TSlice>); virtual; //abstract;
   end;
 
   TSliceReceptor = class(TSlice)
@@ -678,12 +678,16 @@ type
   TTilerWebModule = class(TWebModule)
     procedure WebModuleCreate(Sender: TObject);
     procedure WebModuleDestroy(Sender: TObject);
-
     procedure WebModuleException(Sender: TObject; E: Exception; var Handled: Boolean);
+
     // url actions
+    // layer/slice status
     procedure WebModuleDefaultHandlerAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+    // tiles
     procedure WebModuleTilerRequestTileAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+    // calculate value based on lat/lon for specified layer/slice
     procedure WebModuleTilerRequestPointValueAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+    // connection and module status
     procedure TilerWebModuleRequestStatusAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
   end;
 
@@ -1627,7 +1631,7 @@ end;
 
 procedure TSlice.Load(aStream: TStream);
 begin
-  // todo: make abstract, remove body
+  // todo: make abstract, remove body, when all load methods for slices have been implemented
 end;
 
 function TSlice.PointValue(const aLat, aLon: Double; aThreadPool: TMyThreadPool): Double;
@@ -1667,7 +1671,7 @@ end;
 
 procedure TSlice.Save(aStream: TStream; aSavedSlices: TList<TSlice>);
 begin
-  // todo: make abstract, remove body
+  // todo: make abstract, remove body, when all save methods for slices have been implemented
 end;
 
 function TSlice.TimeFolder: string;
@@ -4953,7 +4957,8 @@ begin
 		  '<ul>';
 
   for s in model.fConnectedServices
-  do html := html+'<li>'+s+'</li>';
+  do html := html+
+        '<li>'+s+'</li>';
 
   html := html+
 		  '</ul>'+
