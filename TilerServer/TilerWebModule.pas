@@ -3098,6 +3098,11 @@ var
   colors: TGeoColors;
   radiusPoint: TPointF;
   valFrom, valTo: Double;
+
+  polygon: TPolygon;
+  polyColor: TAlphaColor;
+const
+  Offset = 0;
 begin
   Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
@@ -3106,6 +3111,7 @@ begin
     try
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+      setLength(polygon, 4);
       for isgop in fLocations do
       begin
         point := GeometryToPoint(aExtent, aPixelWidth, aPixelHeight, isgop.Value.lcoation);
@@ -3122,16 +3128,34 @@ begin
 //            aBitmap.Canvas.FillEllipse(rect, 1);
 
             radiusPoint := PointF(20, 20);
-            aBitmap.Canvas.Fill.Color := TAlphaColorRec.Lightsteelblue;
+            aBitmap.Canvas.Fill.Color := TAlphaColorRec.White;
             aBitmap.Canvas.FillArc(point, radiusPoint, 0, 360, 1);
 
             valFrom := -90;
             valTo := isgop.Value.value * 360;
 
-            radiusPoint := PointF(15, 15);
-            aBitmap.Canvas.Stroke.Color := colors.fillColor;
-            aBitmap.Canvas.Stroke.Thickness := 10;
-            aBitmap.Canvas.DrawArc(point, radiusPoint, valFrom, valTo, 1);
+            aBitmap.Canvas.Fill.Color := colors.fillColor;
+            aBitmap.Canvas.FillArc(point, radiusPoint, valFrom, valTo, 1);
+
+            polygon[0].X := point.X + Round(radiusPoint.X * Cos(DegToRad(Offset - valFrom)));
+            polygon[0].Y := point.Y - Round(radiusPoint.X * Sin(DegToRad(Offset - valFrom)));
+            polygon[1].X := point.X;
+            polygon[1].Y := point.Y;
+            polygon[2].X := point.X + Round(radiusPoint.X * Cos(DegToRad(Offset + 360 - valTo - valFrom)));
+            polygon[2].Y := point.Y - Round(radiusPoint.X * Sin(DegToRad(Offset + 360 - valTo - valFrom)));
+            polygon[3].X := point.X + Round(radiusPoint.X * Cos(DegToRad(Offset - valFrom)));
+            polygon[3].Y := point.Y - Round(radiusPoint.X * Sin(DegToRad(Offset - valFrom)));
+
+            if valTo <= 180 then
+              polyColor := colors.fillColor
+            else
+              polyColor := TAlphaColorRec.White;
+
+            if valTo <360 then
+            begin
+              aBitmap.Canvas.Fill.Color := polyColor;
+              aBitmap.Canvas.FillPolygon(polygon, 1);
+            end;
           end;
           if colors.outlineColor<>0 then
           begin
