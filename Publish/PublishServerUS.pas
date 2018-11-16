@@ -1232,7 +1232,7 @@ begin
         diffRange := defaultValue(diffRange, autoDiffRange*0.3);
       end;
     4,    // road color (VALUE_EXPR)
-    5:    // road color (VALUE_EXPR) and width (TEXTURE_EXPR)
+    5, 51, 52:    // road color (VALUE_EXPR) and width (TEXTURE_EXPR)
       begin
         objectTypes := '"road"';
         geometryType := 'LineString';
@@ -1484,7 +1484,7 @@ begin
         then Result := Result+' '+
           'WHERE '+PreJoin+JOINCONDITION;
       end;
-    5, 9:
+    5, 9, 51, 52:
       begin
         Result :=
           'SELECT '+
@@ -1562,7 +1562,7 @@ begin
           then Result := Result+PreJoin+JOINCONDITION +' AND ';
         Result := Result + ObjectIDPrefix+'OBJECT_ID in ';
       end;
-    5, 9:
+    5, 9, 51, 52:
       begin
         Result :=
           'SELECT '+ObjectIDPrefix+'OBJECT_ID, '+
@@ -1639,7 +1639,7 @@ begin
         if JOINCONDITION<>''
         then Result := Result+' AND '+ PreJoin+JOINCONDITION;
       end;
-    5, 9:
+    5, 9, 51, 52:
       begin
         Result :=
           'SELECT '+
@@ -1878,7 +1878,7 @@ begin
         end
         else (aObject as TGeometryLayerObject).value := value;
       end;
-    5,9: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
+    5,9, 51, 52: // road/energy (VALUE_EXPR) and width (TEXTURE_EXPR) left and right, for energy right will be null -> NaN
       begin
         // Left and right
         value := FieldFloatValueOrNaN(aQuery.Fields[1]);
@@ -2157,7 +2157,9 @@ begin
     9,  // energy color (VALUE_EXPR) and width (TEXTURE_EXPR), path, intensity/capacity unidirectional
     10, // control (VALUE_EXPR)
     11, // points, basic layer
-    21: // POI
+    21, // POI
+	51,
+	52:
       RegisterOnTiler(False, SliceType, name);
   end;
 end;
@@ -2169,7 +2171,7 @@ begin
     //2:; grid
     3,8: tilerLayer.signalAddSlice(fPalette.Clone); // buildings, RS buildings
     4:   tilerLayer.signalAddSlice(fPalette.Clone); // road color (VALUE_EXPR) unidirectional
-    5:   tilerLayer.signalAddSlice(fPalette.Clone); // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
+    5, 51, 52:   tilerLayer.signalAddSlice(fPalette.Clone); // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
     9:   tilerLayer.signalAddSlice(fPalette.Clone); // energy color (VALUE_EXPR) and width (TEXTURE_EXPR)
     10,11:  tilerLayer.signalAddSlice(fPalette.Clone); // points, basic layer
     21: // POI
@@ -2201,6 +2203,8 @@ begin
     9:   Result := stGeometryIC; // energy color (VALUE_EXPR) and width (TEXTURE_EXPR)
     10, 11:  Result := stLocation;  // controls, points: basic layer
     21:  Result := stPOI; // POI
+	  51:  Result := stGeometryDoublePolygonLR; // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
+    52:  Result := stGeometryPolygonStripeLR; // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
   else
          Result := stUndefined;
   end;
