@@ -21,6 +21,8 @@ uses
   WorldDataCode,
   WorldLegends,
 
+  IMB3Core,
+  ByteBuffers,
   IMB3NativeClient,
 
   imb4,
@@ -698,10 +700,13 @@ type
     procedure ReadIndicators (aTableNames: array of string; aOraSession: TOraSession);
     procedure ReadIndicator (aTableName: string; aOraSession: TOraSession);
     procedure ReadBasicLayers(aOraSession: TOraSession);
+  protected
+    procedure HandleNewMapView(aClient: TClient; aMapView: TMapView); override;
   public
     property IMBConnection: TIMBConnection read fIMBConnection;
   public
     property Tableprefix: string read fTableprefix;
+    function IMB3Prefix: string;
     function GetUSControlsJSON: string;
     procedure SendUSControlsMessage(aClient: TClient);
     procedure UpsertUSControlStatus(const aControlID, aActive: Integer);
@@ -2284,6 +2289,33 @@ function TUSScenario.HandleClientSubscribe(aClient: TClient): Boolean;
 begin
   Result := inherited;
   SendUSControlsMessage(aClient);
+end;
+
+procedure TUSScenario.HandleNewMapView(aClient: TClient; aMapView: TMapView);
+var
+  point: TGIS_Point;
+  focusPayload: ByteBuffers.TByteBuffer;
+begin
+  inherited;
+  point.X := aMapView.lon;
+  point.Y := aMapView.lat;
+  point := (project as TUSProject).fSourceProjection.FromGeocs(point);
+  focusPayload.Clear;
+  focusPayload.Prepare(point.X);
+  focusPayload.Prepare(point.Y);
+  focusPayload.PrepareApply;
+  focusPayload.QWrite(point.X);
+  focusPayload.QWrite(point.Y);
+  IMBConnection.SignalEvent(
+    IMB3Prefix+'.'+FocusEventName,
+    ekChangeObjectEvent,
+    focusPayload,
+    False);
+end;
+
+function TUSScenario.IMB3Prefix: string;
+begin
+  Result := (project as TUSProject).OraSession.Username+'#'+fTablePrefix.Replace('#', '');
 end;
 
 procedure TUSScenario.LayerRefreshed(aTilerLayerID: Integer; const aElementID: string; aTimeStamp: TDateTime; aLayer: TSubscribeObject);
@@ -3888,14 +3920,9 @@ var
   controlActive, controlID: Integer;
   payloadArray: TJSONArray;
   scenario: TUSScenario;
-//  oraSession: TOraSession;
-//  queryText: string;
-//  publishEventName: string;
-//  publishEvent: TIMBEventEntry;
   scenarioID: Integer;
   baseScenario: TScenario;
   requestID, requestType, responseJSON: string;
-//  table: TSubscribeObject;
 begin
   inherited;
   if aJSONObject.TryGetValue<TJSONValue>('payload', payloadValue) then
@@ -3962,8 +3989,6 @@ begin
         aClient.signalString(responseJSON);
       end;
     end
-    else if True then
-
   end;
 end;
 
