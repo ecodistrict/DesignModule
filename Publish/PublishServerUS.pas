@@ -1269,6 +1269,12 @@ begin
             aSourceProjection);
         end;
       end;
+    13:
+      begin
+        objectTypes := '"location"';
+        geometryType := 'Point';
+        diffRange := defaultValue(diffRange, autoDiffRange*0.3);
+      end;
     21:
       begin
         objectTypes := '"poi"';
@@ -1850,7 +1856,7 @@ begin
   objectsLock.BeginWrite;
   try
   case fLayerType of
-    1, 11:
+    1, 11, 13:
       begin
         value := FieldFloatValueOrNaN(aQuery.FieldByName('VALUE'));
         if not Assigned(aObject) then
@@ -2152,9 +2158,10 @@ begin
     9,  // energy color (VALUE_EXPR) and width (TEXTURE_EXPR), path, intensity/capacity unidirectional
     10, // control (VALUE_EXPR)
     11, // points, basic layer
+    13,
     21, // POI
-	51,
-	52:
+	  51,
+	  52:
       RegisterOnTiler(False, SliceType, name);
   end;
 end;
@@ -2168,7 +2175,7 @@ begin
     4:   tilerLayer.signalAddSlice(fPalette.Clone); // road color (VALUE_EXPR) unidirectional
     5, 51, 52:   tilerLayer.signalAddSlice(fPalette.Clone); // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
     9:   tilerLayer.signalAddSlice(fPalette.Clone); // energy color (VALUE_EXPR) and width (TEXTURE_EXPR)
-    10,11:  tilerLayer.signalAddSlice(fPalette.Clone); // points, basic layer
+    10,11,13:  tilerLayer.signalAddSlice(fPalette.Clone); // points, basic layer
     21: // POI
       begin
         // todo: does not work like this!!! TPicture <> TPngImage.. order of id..
@@ -2197,6 +2204,7 @@ begin
     5:   Result := stGeometryICLR; // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
     9:   Result := stGeometryIC; // energy color (VALUE_EXPR) and width (TEXTURE_EXPR)
     10, 11:  Result := stLocation;  // controls, points: basic layer
+    13:  Result := stJunctionsPie; // controls, points: basic layer, junction pie-chart (VALUE_EXPR)
     21:  Result := stPOI; // POI
 	  51:  Result := stGeometryDoublePolygonLR; // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
     52:  Result := stGeometryPolygonStripeLR; // road color (VALUE_EXPR) and width (TEXTURE_EXPR) left and right
