@@ -3800,13 +3800,18 @@ begin
   begin
     if not IsNaN(aRefValue) then
       Result := (aRefValue + aActiveValue) / 2
-    else Result := aActiveValue;
+    else
+      Result := aActiveValue;
   end
   else
   begin
-    if not IsNaN(aRefValue)
-    then Result := aRefValue
-    else aValidFlag := False;
+    if not IsNaN(aRefValue) then
+      Result := aRefValue
+    else
+    begin
+      aValidFlag := False;
+      Result := Double.NaN;
+    end;
   end;
 end;
 
@@ -3989,13 +3994,18 @@ begin
   begin
     if not IsNaN(aRefValue) then
       Result := (aRefValue - aActiveValue)
-    else Result := aActiveValue;
+    else
+      Result := aActiveValue;
   end
   else
   begin
-    if not IsNaN(aRefValue)
-    then Result := aRefValue
-    else aValidFlag := False;
+    if not IsNaN(aRefValue) then
+      Result := aRefValue
+    else
+    begin
+      aValidFlag := False;
+      Result := Double.NaN;
+    end;
   end;
 end;
 
