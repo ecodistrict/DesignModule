@@ -29,6 +29,8 @@ uses
 
   NDWLib,
 
+  IdHTTP, // authorization check
+
   System.JSON,
   System.SysUtils,
   System.Generics.Collections,
@@ -40,6 +42,8 @@ uses
   PublishServerMCLib;
 
 const
+  AuthorizationURL = 'https://vps17642.public.cloudvps.com/auth/';
+
   //hardcoded bounding box zones for the Park & Shuttle measure
   xMin = '119000';
   xMax = '120600';
@@ -57,6 +61,12 @@ const
     NDWRemotePrefixDefault = 'NDW';
 
 type
+  TUSDesignScenario = class(TUSScenario)
+  public
+    function HandleClientSubscribe(aClient: TClient): Boolean; override;
+    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
+  end;
+
   TUSDesignProject = class(TUSProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
@@ -84,13 +94,100 @@ type
   public
   end;
 
-  TUSDesignScenario = class(TUSScenario)
+  TPortalProjectState = (ppsClosed, ppsViewing, ppsEditing);
+
+  TUSPortalProjectStatus = class
+  constructor Create(const aProjectID: string);
+  destructor Destroy; override;
+  private
+    fProjectID: string;
+    fDescription: string;
+    fState: TPortalProjectState;
+    fClientStates: TDictionary<TClient, TPortalProjectState>;
+
   public
-    function HandleClientSubscribe(aClient: TClient): Boolean; override;
-    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
+    property projectID: string read fProjectID;
+    property state: TPortalProjectState read fState;
   end;
 
+  TUSPortal = class(TProject)
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
+  destructor Destroy; override;
+  private
+    fProjectStatus: TObjectDictionary<string, TUSPortalProjectStatus>;
+  protected
+    procedure handleNewClient(aClient: TClient); override;
+    //procedure handleTypedClientMessage(aClient: TClient; const aMessageType: string; var aJSONObject: TJSONObject); override;
+    procedure HandlePortalProjectList(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject);
+  public
+    function IsAuthorized(aClient: TClient; const aToken: string): Boolean; override;
+  end;
+
+procedure getUSReadProjectsStatusList(aOraSession: TOraSession; fProjectStatus: TObjectDictionary<string, TUSPortalProjectStatus>);
+
 implementation
+
+procedure getUSReadProjectsStatusList(aOraSession: TOraSession; fProjectStatus: TObjectDictionary<string, TUSPortalProjectStatus>);
+var
+  query: TOraQuery;
+  projectID: string;
+begin
+  query := TOraQuery.Create(nil);
+  try
+    try
+      query.Session := aOraSession;
+      query.SQL.Text :=
+        'SELECT * '+
+        'FROM '+PROJECT_TABLE_NAME + ' ' +
+        'WHERE ACTIVE != 0 AND UPPER(PROJECT_TYPE) =''PORTALPROJECT''';
+      query.Open;
+      while not query.Eof do
+      begin
+        projectID := query.FieldByName('PROJECTID').Value;
+        if not fProjectStatus.ContainsKey(projectID)
+        then fProjectStatus.Add(projectID, TUSPortalProjectStatus.Create(projectID));
+        query.Next;
+      end;
+    except
+      on E: Exception
+      do Log.WriteLn('Exception getting list of portal projects for '+aOraSession.ConnectString+': '+e.Message, llError);
+    end;
+  finally
+    query.Free;
+  end;
+end;
+
+function IsValidToken(const aToken: string): Boolean;
+var
+  i: Integer;
+begin
+  for i := 1 to length(aToken) do
+  begin
+    if not CharInSet(aToken[i], ['0'..'9', 'A'..'Z', 'a'..'z','.', '='])
+    then Exit(False);
+  end;
+  Exit(True);
+end;
+
+function CheckAuthorization(const aURL, aToken: string): boolean;
+var
+  lHTTP: TIdHTTP;
+begin
+  if IsValidToken(aToken) then
+  begin
+    lHTTP := TIdHTTP.Create;
+    try
+      lHTTP.HTTPOptions := lHTTP.HTTPOptions+[hoNoProtocolErrorException];
+      lHTTP.Request.CustomHeaders.AddValue('Authorization', aToken);
+      lHTTP.Get(aURL);
+      Result := lHTTP.ResponseCode=200;
+    finally
+      lHTTP.Free;
+    end;
+  end
+  else Result := False;
+end;
 
 { TUSDesignProject }
 
@@ -832,6 +929,67 @@ begin
   finally
     clientMCControlInterface.Lock.Release;
   end;
+end;
+
+{ TUSPortalProjectStatus }
+
+constructor TUSPortalProjectStatus.Create(const aProjectID: string);
+begin
+  inherited Create;
+  fProjectID := aProjectID;
+  fState := ppsClosed;
+  fClientStates := TDictionary<TClient, TPortalProjectState>.Create();
+end;
+
+destructor TUSPortalProjectStatus.Destroy;
+begin
+  FreeAndNil(fClientStates);
+  inherited;
+end;
+
+{ TUSPortalProject }
+
+constructor TUSPortal.Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection;
+  const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string; aDBConnection: TCustomConnection;
+  aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters, aSourceEPSG: Integer);
+begin
+  fProjectStatus := TObjectDictionary<string, TUSPortalProjectStatus>.Create([doOwnsValues]);
+  getUSReadProjectsStatusList(aDBConnection as TOraSession, fProjectStatus);
+  inherited Create(aSessionModel, aConnection, {aIMB3Connection,}
+    aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, {aDataSource, }aDBConnection,
+    false, aMaxNearestObjectDistanceInMeters, aMapView{, aPreLoadScenarios, aMaxNearestObjectDistanceInMeters, aSourceEPSG});
+
+  ClientMessageHandlers.AddOrSetValue('PortalProjectList', HandlePortalProjectList); // todo: add handlers
+
+  {
+  authorized check test code
+  if IsAuthorized(nil, 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1YmYyY2EyNjRhNTA0YzE5OThjMzQ1ZmQiLCJpYXQiOjE1NDI3MTgwNTUzMTF9.X9DZGcebrutBMw8JmRQNfGj6avNj5jayJhAyCPxkmd4')
+  then Log.WriteLn('Authorized', llOk)
+  else Log.WriteLn('NOT Authorized', llWarning);
+  }
+end;
+
+destructor TUSPortal.Destroy;
+begin
+  inherited;
+  FreeAndNil(fProjectStatus);
+end;
+
+procedure TUSPortal.handleNewClient(aClient: TClient);
+begin
+  inherited;
+end;
+
+procedure TUSPortal.HandlePortalProjectList(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject);
+begin
+  // todo: implement
+
+end;
+
+function TUSPortal.IsAuthorized(aClient: TClient; const aToken: string): Boolean;
+begin
+  // todo: first implement as always check token
+  Result := CheckAuthorization(AuthorizationURL, aToken);
 end;
 
 end.

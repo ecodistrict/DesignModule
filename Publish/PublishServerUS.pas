@@ -2298,9 +2298,17 @@ end;
 procedure TUSScenario.HandleNewMapView(aClient: TClient; aMapView: TMapView);
 var
   point: TGIS_Point;
-  focusPayload: ByteBuffers.TByteBuffer;
+  //focusPayload: ByteBuffers.TByteBuffer;
+  zoomLevel: Integer;
+  numtiles: Integer;
+  longitudeSpan: Double;
+  latitudeSpan: Double;
+  extent: TWDExtent;
+  extentStr: string;
 begin
   inherited;
+  {
+  // focus event
   point.X := aMapView.lon;
   point.Y := aMapView.lat;
   point := (project as TUSProject).fSourceProjection.FromGeocs(point);
@@ -2314,6 +2322,39 @@ begin
     IMB3Prefix+'.'+FocusEventName,
     ekChangeObjectEvent,
     focusPayload,
+    False);
+  }
+
+  // VI3D_VisibleExtent event
+  zoomLevel := trunc(aMapView.zoom)-2;
+  numtiles := 1 shl zoomLevel;
+  longitudeSpan := 360.0 / numtiles;
+  latitudeSpan :=  85.0511*2.0 / numtiles;
+  extent.xMin := aMapView.lon-longitudeSpan/2;
+  extent.xMax := aMapView.lon+longitudeSpan/2;
+  extent.yMin := aMapView.lat-latitudeSpan/2;
+  extent.yMax := aMapView.lat+latitudeSpan/2;
+
+  point.X := extent.xMin;
+  point.Y := extent.yMin;
+  point := (project as TUSProject).fSourceProjection.FromGeocs(point);
+  extent.xMin := point.X;
+  extent.yMin := point.Y;
+
+  point.X := extent.xMax;
+  point.Y := extent.yMax;
+  point := (project as TUSProject).fSourceProjection.FromGeocs(point);
+  extent.xMax := point.X;
+  extent.yMax := point.Y;
+
+  extentStr :=
+    FloatToStr(extent.xMin, dotFormat)+' '+FloatToStr(extent.yMin, dotFormat)+' '+
+    FloatToStr(extent.xMax, dotFormat)+' '+FloatToStr(extent.yMax, dotFormat);
+  IMBConnection.SignalChangeObject(
+    IMB3Prefix+'.'+'VI3D_VisibleExtent',
+    actionChange,
+    0,
+    extentStr,
     False);
 end;
 

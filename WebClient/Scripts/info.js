@@ -1,3 +1,5 @@
+L.Control.InfoTexts =  [];
+
 L.Control.Info = L.Control.extend({
     options: {
         collapsed: true,
@@ -108,10 +110,10 @@ L.Control.Info = L.Control.extend({
     _expand: function () {
         L.DomUtil.addClass(this._container, 'leaflet-control-info-expanded');
         var infoContainer, positionDiv;
-        for (var key in InfoTextControl) {
-            if (InfoTextControl.hasOwnProperty(key)) {
-                if (InfoTextControl[key].active) {
-                    if (!InfoTextControl[key].created) {
+        for (var key in L.Control.InfoTexts) {
+            if (L.Control.InfoTexts.hasOwnProperty(key)) {
+                if (L.Control.InfoTexts[key].active) {
+                    if (!L.Control.InfoTexts[key].created) {
 
                         infoContainer = document.createElement('div');
                         infoContainer.classList.add(key + '-info');
@@ -140,7 +142,7 @@ L.Control.Info = L.Control.extend({
                             e.preventDefault();
                             if (document.body.id == '') {
                                 infoContainer.style.position = 'fixed';
-                                setPosition(this.parentElement, InfoTextControl[this.parentElement.name], this.parentElement.name);
+                                setPosition(this.parentElement, L.Control.InfoTexts[this.parentElement.name], this.parentElement.name);
                             }
                             console.log(document.getElementsByClassName('leaflet-control-info-expanded')[0].getBoundingClientRect().height);
                             this.parentElement.children[1].style.bottom = document.getElementsByClassName('leaflet-control-info-expanded')[0].getBoundingClientRect().height + 27 + 'px';
@@ -149,15 +151,15 @@ L.Control.Info = L.Control.extend({
                         };
 
                         infoText = document.createElement('p');
-                        infoText.innerHTML = InfoTextControl[key].description;
+                        infoText.innerHTML = L.Control.InfoTexts[key].description;
                         infoText.classList.add('infoText');
 
                         infoContainer.appendChild(infoButton);
                         infoContainer.appendChild(infoText);
 
                         document.getElementsByClassName('leaflet-control-info-base')[0].appendChild(infoContainer);
-                        setPosition(infoContainer, InfoTextControl[key], key);
-                        InfoTextControl[key].created = true;
+                        setPosition(infoContainer, L.Control.InfoTexts[key], key);
+                        L.Control.InfoTexts[key].created = true;
                     }
                 }
 

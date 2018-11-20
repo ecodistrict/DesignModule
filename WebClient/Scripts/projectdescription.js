@@ -3,6 +3,9 @@ L.control.projectDescription = L.control();
 
 L.control.projectDescription.showInfo = true;
 
+//L.control.projectDescription.options.lead = false;
+//L.control.projectDescription.options.follow = true;
+
 L.control.projectDescription.showOptions = function (e) {
     //stop the leaflet and default context menu's from appearing
     e.preventDefault();
@@ -12,13 +15,36 @@ L.control.projectDescription.showOptions = function (e) {
     dialog.style.width = "300px";
 
     var container = L.DomUtil.create("div", "optionsContainer", dialog);
-
+       
     modelDialogAddButton(container, 'Refresh', function () {
         wsSend({
             type: "scenarioRefresh",
             payload: { scenario: DataManager.sessionInfo.scenario }
         });
     });
+
+    var chkLead = modelDialogAddCheck(container, 'Lead', L.control.projectDescription.options.lead, function (e) {
+        //L.control.projectDescription.options.lead = e.target.checked;
+        map.mapViewModel.lead = e.target.checked;
+        wsSend({
+            type: "mapView",
+            payload: { lead: map.mapViewModel.lead } //L.control.projectDescription.options.lead } 
+        });
+    });
+    chkLead.checked = map.mapViewModel.lead;
+    map.mapViewModel.on('lead', function (e) { chkLead.checked = e.lead; });
+
+    var chkFollow = modelDialogAddCheck(container, 'Follow', L.control.projectDescription.options.follow, function (e) {
+        //L.control.projectDescription.options.follow = e.target.checked;
+        map.mapViewModel.follow = e.target.checked;
+        wsSend({
+            type: "mapView",
+            payload: { follow: map.mapViewModel.follow } // L.control.projectDescription.options.follow } 
+        });
+    });
+
+    chkFollow.checked = map.mapViewModel.follow;
+    map.mapViewModel.on('follow', function (e) { chkFollow.checked = e.follow; });
 }
 
 L.control.projectDescription.showScenarios = function () {

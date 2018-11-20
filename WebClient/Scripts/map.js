@@ -1,4 +1,45 @@
-﻿// util to parse url parameters ie get the lat/lon/zoom/session
+﻿var MapViewModel = L.Evented.extend({
+
+    Initialize: function (opts) {
+        var options = opts || {};
+
+        var _view = options.view || { lat: 52.08606, lon: 5.17689, zoom: 11 };
+        Object.defineProperty(this, 'view', {
+            get: function () { return _view; },
+            set: function (newView) {
+                if (_view !== newView) {
+                    _view = newView;
+                    this.fire('view', { view: _view });
+                }
+            }
+        });
+
+        var _lead = options.lead || false;
+        Object.defineProperty(this, 'lead', {
+            get: function () { return _lead; },
+            set: function (newLead) {
+                if (_lead !== newLead) {
+                    _lead = newLead;
+                    this.fire('lead', { lead: _lead });
+                }
+            }
+        });
+
+        var _follow = options.follow || true;
+        Object.defineProperty(this, 'follow', {
+            get: function () { return _follow; },
+            set: function (newFollow) {
+                if (_follow !== newFollow) {
+                    _follow = newFollow;
+                    this.fire('follow', { follow: _follow });
+                }
+            }
+        });
+    }
+});
+
+
+// util to parse url parameters ie get the lat/lon/zoom/session
 function getParameterByName(name, def) {
     name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
     var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
@@ -50,27 +91,58 @@ map.mapView = function () {
     return {
         lat: center.lat,
         lon: center.lng,
-        zoom: map.getZoom()
+        zoom: map.getZoom(),
+        extent: map.getBounds()
     };
 };
 
 // send map view (center and zoom level to backend
-map._sendMapView = function () {
+map._sendMapViewView = function () {
     var center = map.getCenter();
     wsSend({
-        type: 'view',
-        payload: map.mapView()
+        type: 'mapView',
+        payload: { view: map.mapView() }
     });
     map._lastMapViewSend = Date.now();
 };
 
 // map move handler to send current map view (center location and zoom level) to  publisher
 map.on('move', function (e) {
-    if (typeof map._lastMapViewSend === 'undefined' || Date.now() - map._lastMapViewSend >= 300)
-        map._sendMapView();
+    // only handle if from gui (then e contains field orginalEvent)
+    if (typeof e.originalEvent !== 'undefined') {
+        if (typeof map._lastMapViewSend === 'undefined' || Date.now() - map._lastMapViewSend >= 100)
+            map._sendMapViewView();
+    }
+});
+
+// map zoom handler to send current map view (center location and zoom level) to  publisher
+map.on('zoomend', function (e) {
+    map._sendMapViewView();
 });
 
 // on end of map move always send current map view (center location and zoom level) to  publisher
 map.on('moveend', function (e) {
-    map._sendMapView();
+    if (typeof e.originalEvent !== 'undefined') {
+        map._sendMapViewView();
+    }
 });
+
+// send map view (center and zoom level to backend
+map.sendMapView = function () {
+    var center = map.getCenter();
+    wsSend({
+        type: 'mapView',
+        payload: {
+            lead: map.mapViewModel.lead,
+            follow: map.mapViewModel.follow,
+            view: map.mapView()
+        }
+    });
+    map._lastMapViewSend = Date.now();
+};
+
+
+map.mapViewModel = new MapViewModel();
+map.mapViewModel.Initialize();
+map.mapViewModel.on('view', function (e) { map.setView([e.view.lat, e.view.lon], e.view.zoom); }, map);
+

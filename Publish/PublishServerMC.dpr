@@ -44,6 +44,9 @@ const
 
   ProjectTypeSwitch = 'ProjectType';
 
+  PortalProjectIDSwitch = 'PortalProjectID';
+    DefaultPortalProjectID = '{82E533C0-03D2-47E0-AFEE-524A43BCAD5B}';
+
 //  RecoverySection = 'recovery';
 
 type
@@ -158,6 +161,12 @@ begin
             then projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
             sourceESPG := getUSSourceESPG(dbConnection, -1);
             projectTypes := getUSProjectTypes(dbConnection);
+            if GetSettingExists(PortalProjectIDSwitch) then
+            begin
+              // add portal project type option manually
+              SetLength(projectTypes, length(projectTypes)+1);
+              projectTypes[length(projectTypes)-1] := 'PORTAL';
+            end;
           except
             connectionError := True;
           end;
@@ -261,101 +270,114 @@ begin
     dbConnection := TOraSession.Create(nil);
     dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
     dbConnection.Open;
+
+    if aParameters.ParameterExists(SourceEPSGIntSwitch)
+    then sourceEPSG := StrToInt(aParameters.ParameterByName[SourceEPSGIntSwitch].ValueAsString)
+    else sourceEPSG := -1;
+
+    preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
+
     if aParameters.ParameterExists(ProjectTypeSwitch) then
     begin
       projectType := aParameters.ParameterByName[ProjectTypeSwitch].ValueAsString;
-      projectID := getUSProjectIDByType(dbConnection, projectType);
-      if projectID <> '' then
-      begin
-        projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString + '-' + projectType;
-        mapView := getUSMapView(dbConnection, TMapView.Create(52.31567, 4.90321, 13), projectID);
-        Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
-        preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
-        tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
-        if aParameters.ParameterExists(SourceEPSGIntSwitch)
-        then sourceEPSG := StrToInt(aParameters.ParameterByName[SourceEPSGIntSwitch].ValueAsString)
-        else sourceEPSG := -1;
-        setUSProjectID(dbConnection, projectID, mapView.lat, mapView.lon, mapView.zoom); // store project properties in database
+      projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString + '-' + projectType;
+      tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
 
-        if projectType.ToUpper = 'DESIGN' then
-        begin
-          fProject := TUSDesignProject.Create(
-            fSessionModel, fSessionModel.Connection, connection,
-            projectID, projectName,
-            tilerName,
-            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-            dbConnection.ConnectString,
-            dbConnection,
-            mapView,
-            preLoadScenarios,
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
-            sourceEPSG);
-          fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-          fSessionModel.Projects.Add(fProject);
-        end
-        else if projectType.ToUpper = 'MONITOR' then
-        begin
-          fProject := TUSMonitorProject.Create(
-            fSessionModel, fSessionModel.Connection, connection,
-            projectID, projectName,
-            tilerName,
-            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-            dbConnection.ConnectString,
-            dbConnection,
-            mapView,
-            preLoadScenarios,
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
-            sourceEPSG);
-          fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-          fSessionModel.Projects.Add(fProject);
-        end
-        else if projectType.ToUpper = 'EVALUATE' then
-        begin
-          fProject := TUSEvaluateProject.Create(
-            fSessionModel, fSessionModel.Connection, connection,
-            projectID, projectName,
-            tilerName,
-            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-            dbConnection.ConnectString,
-            dbConnection,
-            mapView,
-            preLoadScenarios,
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
-            sourceEPSG);
-          fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-          fSessionModel.Projects.Add(fProject);
-        end
-        else
-        begin
-          //type not recognized, start default us publisher
-          fProject := TUSProject.Create(
-            fSessionModel, fSessionModel.Connection, connection,
-            projectID, projectName,
-            tilerName,
-            GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
-            dbConnection.ConnectString,
-            dbConnection,
-            mapView,
-            preLoadScenarios, False,
-            GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
-            sourceEPSG);
-          fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
-          fSessionModel.Projects.Add(fProject);
-        end;
+      if projectType.ToUpper = 'PORTAL' then
+      begin
+        projectID := GetSetting(PortalProjectIDSwitch, DefaultPortalProjectID);
+        fProject := TUSPortal.Create(
+          fSessionModel, fSessionModel.Connection, connection,
+          projectID, projectName,
+          tilerName,
+          GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+          dbConnection.ConnectString,
+          dbConnection,
+          mapView,
+          preLoadScenarios,
+          GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+          sourceEPSG);
       end
       else
       begin
-        //something went wrong! logging and don't start publisher
-        Log.WriteLn('Error retreiving projectID from projectType: ' + projectType, llError);
+        projectID := getUSProjectIDByType(dbConnection, projectType);
+        if projectID <> '' then
+        begin
+          mapView := getUSMapView(dbConnection, TMapView.Create(52.31567, 4.90321, 13), projectID);
+          Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
+
+          setUSProjectID(dbConnection, projectID, mapView.lat, mapView.lon, mapView.zoom); // store project properties in database
+
+          if projectType.ToUpper = 'DESIGN' then
+          begin
+            fProject := TUSDesignProject.Create(
+              fSessionModel, fSessionModel.Connection, connection,
+              projectID, projectName,
+              tilerName,
+              GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+              dbConnection.ConnectString,
+              dbConnection,
+              mapView,
+              preLoadScenarios,
+              GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+              sourceEPSG);
+          end
+          else if projectType.ToUpper = 'MONITOR' then
+          begin
+            fProject := TUSMonitorProject.Create(
+              fSessionModel, fSessionModel.Connection, connection,
+              projectID, projectName,
+              tilerName,
+              GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+              dbConnection.ConnectString,
+              dbConnection,
+              mapView,
+              preLoadScenarios,
+              GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+              sourceEPSG);
+          end
+          else if projectType.ToUpper = 'EVALUATE' then
+          begin
+            fProject := TUSEvaluateProject.Create(
+              fSessionModel, fSessionModel.Connection, connection,
+              projectID, projectName,
+              tilerName,
+              GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+              dbConnection.ConnectString,
+              dbConnection,
+              mapView,
+              preLoadScenarios,
+              GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+              sourceEPSG);
+          end
+          else
+          begin
+            //type not recognized, start default us publisher
+            fProject := TUSProject.Create(
+              fSessionModel, fSessionModel.Connection, connection,
+              projectID, projectName,
+              tilerName,
+              GetSetting(TilerStatusURLSwitch, TilerStatusURLFromTilerName(tilerName)),
+              dbConnection.ConnectString,
+              dbConnection,
+              mapView,
+              preLoadScenarios, False,
+              GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+              sourceEPSG);
+          end;
+        end
+        else
+        begin
+          //something went wrong! logging and don't start publisher
+          fProject := nil;
+          Log.WriteLn('Error retreiving projectID from projectType: ' + projectType, llError);
+        end;
       end;
     end
     else
     begin
       projectID := aParameters.ParameterByName[ProjectIDSwitch].ValueAsString;
       projectName := aParameters.ParameterByName[ProjectNameSwitch].ValueAsString;
-      if aParameters.ParameterExists(SourceEPSGIntSwitch)
-      then sourceEPSG := StrToInt(aParameters.ParameterByName[SourceEPSGIntSwitch].ValueAsString)
-      else sourceEPSG := -1;
       mapView := getUSMapView(dbConnection as TOraSession, TMapView.Create(52.08606, 5.17689, 11));
       Log.WriteLn('MapView: lat:'+mapView.lat.ToString+' lon:'+mapView.lon.ToString+' zoom:'+mapView.zoom.ToString);
       preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
@@ -372,12 +394,13 @@ begin
         preLoadScenarios, False,
         GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
         sourceEPSG);
+    end;
+    if Assigned(fProject) then
+    begin
       fProject.timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
       fSessionModel.Projects.Add(fProject);
     end;
-
     // todo: relink existing clients
-
 
     // for now
     Log.WriteLn('URL: '+GetSetting(WebClientURISwitch, DefaultWebClientURI)+'?session='+projectID, llOK);

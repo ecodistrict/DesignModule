@@ -1,7 +1,6 @@
 ﻿// web socket connection
 var ws;
 var wsLastConnectDateTime;
-var InfoTextControl = [];
 var wsLookup = {
     // message handlers
     measures: function (payload) {
@@ -133,34 +132,47 @@ var wsLookup = {
         if (typeof payload.view !== "undefined") {
             map.setView([payload.view.lat, payload.view.lon], payload.view.zoom);
         }
+        if (typeof payload.mapView !== "undefined") {
+            //projectDescription.options.lead = typeof payload.mapView.lead !== "undefined" ? payload.mapView.lead : projectDescription.options.lead;
+            //projectDescription.options.follow = typeof payload.mapView.follow !== "undefined" ? payload.mapView.follow : projectDescription.options.follow;
+            //if (typeof payload.mapView.view !== "undefined" && projectDescription.options.follow) 
+            //    map.setView([payload.mapView.view.lat, payload.mapView.view.lon], payload.mapView.view.zoom);
+            if (typeof payload.mapView.lead !== "undefined")
+                map.mapViewModel.lead = payload.mapView.lead;
+            if (typeof payload.mapView.follow !== "undefined")
+                map.mapViewModel.follow =  payload.mapView.follow;
+            if (typeof payload.mapView.view !== "undefined")
+                map.mapViewModel.view = payload.mapView.view;
+
+        }
         if (typeof payload.timeslider !== 'undefined') {
             if (payload.timeslider) {
                 if (payload.timeslider == 1) {
                     map.addControl(timesliderControl);
                     timesliderControl._collapse();
-                    InfoTextControl['leaflet-control-timeslider'] = { active: false };
+                    L.Control.InfoTexts['leaflet-control-timeslider'] = { active: false };
 
                 }
                 else if (payload.timeslider == 2) {
                     map.addControl(timesliderControl);
                     timesliderControl._expand();
-                    InfoTextControl['leaflet-control-timeslider'] = { description: 'Change the time', active: true };
+                    L.Control.InfoTexts['leaflet-control-timeslider'] = { description: 'Change the time', active: true };
                 }
             }
             else {
                 timesliderControl._collapse();
-                InfoTextControl['leaflet-control-timeslider'] = { active: false };
+                L.Control.InfoTexts['leaflet-control-timeslider'] = { active: false };
                 map.removeControl(timesliderControl);
             }
         }
         if (typeof payload.selectionEnabled !== 'undefined') {
             if (payload.selectionEnabled) {
                 addSelectControl();
-                InfoTextControl['leaflet-draw-toolbar'] = { description: 'Select objects', active: true, iconPosition: 'right' };
+                L.Control.InfoTexts['leaflet-draw-toolbar'] = { description: 'Select objects', active: true, iconPosition: 'right' };
             }
             else {
                 removeSelectControl();
-                InfoTextControl['leaflet-draw-toolbar'] = { active: false };
+                L.Control.InfoTexts['leaflet-draw-toolbar'] = { active: false };
             }
         }
         if (typeof payload.simulationSettingsEnabled !== 'undefined') {
@@ -169,74 +181,76 @@ var wsLookup = {
         if (typeof payload.measuresEnabled !== 'undefined') {
             if (payload.measuresEnabled) {
                 map.addControl(measuresControl);
-                InfoTextControl['leaflet-control-measures-toggle'] = { description: 'Select measures to applied on objects', active: true, iconPosition: 'right' };
+                L.Control.InfoTexts['leaflet-control-measures-toggle'] = { description: 'Select measures to applied on objects', active: true, iconPosition: 'right' };
             } else {
                 map.removeControl(measuresControl);
-                InfoTextControl['leaflet-control-measures-toggle'] = { active: false };
+                L.Control.InfoTexts['leaflet-control-measures-toggle'] = { active: false };
             }
 
         }
         if (typeof payload.measuresHistoryEnabled !== 'undefined') {
             if (payload.measuresHistoryEnabled) {
-                InfoTextControl['leaflet-control-history-toggle'] = { description: 'Show and apply all selected measures', active: true, iconPosition: 'left' };
+                L.Control.InfoTexts['leaflet-control-history-toggle'] = { description: 'Show and apply all selected measures', active: true, iconPosition: 'left' };
                 map.addControl(historyControl);
             } else {
-                InfoTextControl['leaflet-control-history-toggle'] = { active: false };
+                L.Control.InfoTexts['leaflet-control-history-toggle'] = { active: false };
                 map.removeControl(historyControl);
             }
         }
         if (typeof payload.modelControlEnabled !== "undefined") {
             if (payload.modelControlEnabled) {
                 map.addControl(DataManager.modelControl);
-                InfoTextControl['leaflet-control-model'] = { description: 'View model control info', active: true, iconPosition: 'left' };
+                L.Control.InfoTexts['leaflet-control-model'] = { description: 'View model control info', active: true, iconPosition: 'left' };
             }
             else {
                 map.removeControl(DataManager.modelControl);
-                InfoTextControl['leaflet-control-model'] = { active: false };
+                L.Control.InfoTexts['leaflet-control-model'] = { active: false };
             }
         }
         if (typeof payload.filesControlEnabled !== "undefined") {
             if (payload.filesControlEnabled) {
                 map.addControl(DataManager.filesControl);
-                InfoTextControl['leaflet-control-files'] = { description: 'Upload/download files', active: true, iconPosition: 'right' };
+                L.Control.InfoTexts['leaflet-control-files'] = { description: 'Upload/download files', active: true, iconPosition: 'right' };
             }
             else {
                 map.removeControl(DataManager.filesControl);
-                InfoTextControl['leaflet-control-files'] = { active: false };
+                L.Control.InfoTexts['leaflet-control-files'] = { active: false };
             }
         }
         if (typeof payload.controlsControlEnabled !== "undefined") {
             if (payload.controlsControlEnabled) {
                 map.addControl(DataManager.controlsControl);
-                InfoTextControl['leaflet-control-controls'] = { description: 'Shows the controls of the current scenario', active: true, iconPosition: 'left' };
+                L.Control.InfoTexts['leaflet-control-controls'] = { description: 'Shows the controls of the current scenario', active: true, iconPosition: 'left' };
             }
             else {
                 map.removeControl(DataManager.controlsControl);
-                InfoTextControl['leaflet-control-controls'] = { active: false };
+                L.Control.InfoTexts['leaflet-control-controls'] = { active: false };
             }
         }
         if (typeof payload.overviewControlEnabled !== "undefined") {
             if (payload.overviewControlEnabled) {
                 map.addControl(DataManager.overviewControl);
-                InfoTextControl['leaflet-control-overview'] = { description: 'Overview of the controls of all scenarios', active: true, iconPosition: 'left' };
+                L.Control.InfoTexts['leaflet-control-overview'] = { description: 'Overview of the controls of all scenarios', active: true, iconPosition: 'left' };
             }
             else {
                 map.removeControl(DataManager.overviewControl);
-                InfoTextControl['leaflet-control-overview'] = { active: false };
+                L.Control.InfoTexts['leaflet-control-overview'] = { active: false };
             }
         }
         // basic controls
-        InfoTextControl['leaflet-control-zoom'] = { description: 'Zoom', active: true, iconPosition: 'right' };
-        InfoTextControl['leaflet-control-layers-toggle'] = { description: 'Selecteer de basis kaart', active: true, iconPosition: 'left' };
-        InfoTextControl['leaflet-control-domains-toggle'] = { description: 'Selecteer de relevante domeinen door deze aan te klikken', active: true, iconPosition: 'left' };
-        InfoTextControl['leaflet-control-details-toggle'] = { description: 'Selecteer de gewenste kaart uit een overzicht van beschikbare kaarten', active: true, iconPosition: 'left' };
-        InfoTextControl['projectDescription'] = { description: 'Klik hier om een scenario te selecteren en eventueel een referentiescenario aan te geven', active: true, iconPosition: 'bottom' };
+        L.Control.InfoTexts['leaflet-control-zoom'] = { description: 'Zoom', active: true, iconPosition: 'right' };
+        L.Control.InfoTexts['leaflet-control-layers-toggle'] = { description: 'Selecteer de basis kaart', active: true, iconPosition: 'left' };
+        L.Control.InfoTexts['leaflet-control-domains-toggle'] = { description: 'Selecteer de relevante domeinen door deze aan te klikken', active: true, iconPosition: 'left' };
+        L.Control.InfoTexts['leaflet-control-details-toggle'] = { description: 'Selecteer de gewenste kaart uit een overzicht van beschikbare kaarten', active: true, iconPosition: 'left' };
+        L.Control.InfoTexts['projectDescription'] = { description: 'Klik hier om een scenario te selecteren en eventueel een referentiescenario aan te geven', active: true, iconPosition: 'bottom' };
 
     },
     login: function (payload) {
         // login request, return login information
         // todo: NEW MESSAGE FORMAT
         wsSend({ login: { scenario: DataManager.sessionInfo.scenario, userid: DataManager.sessionInfo.userid } });
+        // update mapView state on login
+        map.sendMapView();
     },
     connection: function (payload) {
         // connection specific, from ws2imb

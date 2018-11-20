@@ -69,6 +69,29 @@ function modelDialogAddButton(aParent, aTitle, aOnClick) {
     return mddbutton;
 }
 
+function modelDialogAddCheck(aParent, aTitle, aValue, aOnClick) {
+    var mddcheck = aParent.appendChild(document.createElement('div'));
+    mddcheck.className = 'modalDialogButton'; // ?
+    var i = document.createElement('input');
+    i.className = 'button';
+    i.type = 'checkbox';
+    i.title = aTitle;
+    i.checked = aValue;
+    i.id = aTitle;
+    if (aOnClick)
+        i.onclick = aOnClick;
+    mddcheck.appendChild(i);
+    var l = document.createElement('label');
+    l.htmlFor = aTitle;
+    l.innerHTML = aTitle;
+    mddcheck.appendChild(l);
+    Object.defineProperty(mddcheck, 'checked', {
+        get: function () { return i.checked; },
+        set: function (newChecked) { i.checked = newChecked; }
+    });
+    return mddcheck;
+}
+
 function modelDialogAddCloseCross(aParentDiv) {
     var div = aParentDiv.appendChild(document.createElement('div'));
     div.className = 'modalDialog-close';
