@@ -78,4 +78,4 @@ Difference layer using Geometry Polygon Left-Right layer:
 ---
 
 **Difference Layer**
-![ActiveLayer](./images/Layer5_DiffLayer.PNG)
+![DifferenceLayer](./images/Layer5_DiffLayer.PNG)

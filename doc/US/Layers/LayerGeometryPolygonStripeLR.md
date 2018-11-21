@@ -17,7 +17,7 @@ Following is the client requirement provided for this layer:
 
 The first and the second layers represent the data for the reference and the active layers, while the third layer represents the expected difference layer. 
 
-## Logic - Difference Layer
+## Difference Layer Logic
 
 The data in the reference and the active layers is colored based on the following range criteria for the data value:
 
@@ -61,7 +61,7 @@ Only a new implementation for the difference layer has been added for this layer
 
 
 **Difference Layer:**
-![ReferenceLayer](./images/Layer52_DiffLayer.PNG)
+![DifferenceLayer](./images/Layer52_DiffLayer.PNG)
 
 **Difference Layer - Zoomed in:**
-![ReferenceLayer](./images/Layer52_DiffLayer_ZoomedIn.PNG)
+![DifferenceLayerZoomedIn](./images/Layer52_DiffLayer_ZoomedIn.PNG)

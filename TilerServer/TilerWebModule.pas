@@ -640,7 +640,7 @@ type
   end;
 
   TSliceDiffJunctionsPie = class(TSliceDiffOutLineFill)
-  constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceLocation);
+  constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceJunctionsPie);
   protected
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
@@ -3136,7 +3136,7 @@ begin
         rect.Create(point);
         rect.Inflate(isgop.Value.radius, isgop.Value.radius);
         // todo: test intersection with bitmap
-        if (rect.Right>=0) and (rect.Top>=0) and (rect.Left<=aBitmap.Width) and (rect.Bottom<=aBitmap.Height) then
+        if (rect.Right>=0) and (rect.Bottom>=0) and (rect.Left<=aBitmap.Width) and (rect.Top<=aBitmap.Height) then
         begin
           colors := fPalette.ValueToColors(isgop.Value.value);
           if colors.fillColor<>0 then
@@ -3328,14 +3328,11 @@ begin
 //        rect.Inflate(isgop.Value.radius, isgop.Value.radius);
         rect.Inflate(20, 20); //Hardcoded radius values for the junction test
         // todo: test intersection with bitmap
-        if (rect.Right>=0) and (rect.Top>=0) and (rect.Left<=aBitmap.Width) and (rect.Bottom<=aBitmap.Height) then
+        if (rect.Right>=0) and (rect.Bottom>=0) and (rect.Left<=aBitmap.Width) and (rect.Top<=aBitmap.Height) then
         begin
           colors := fPalette.ValueToColors(isgop.Value.value);
           if colors.fillColor<>0 then
           begin
-//            aBitmap.Canvas.Fill.Color := colors.fillColor;
-//            aBitmap.Canvas.FillEllipse(rect, 1);
-
             radiusPoint := PointF(20, 20);
             aBitmap.Canvas.Fill.Color := TAlphaColorRec.White;
             aBitmap.Canvas.FillArc(point, radiusPoint, 0, 360, 1);
@@ -3373,6 +3370,13 @@ begin
             aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Lightgray;
             aBitmap.Canvas.Stroke.Thickness := 1; // todo: default width?
             aBitmap.Canvas.DrawEllipse(rect, 1);
+          end
+          else
+          begin
+            radiusPoint := PointF(20, 20);
+            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black;
+            aBitmap.Canvas.Stroke.Thickness := 2;
+            aBitmap.Canvas.DrawArc(point, radiusPoint, 0, 360, 1);
           end;
           if colors.outlineColor<>0 then
           begin
@@ -4555,7 +4559,7 @@ end;
 
 { TSliceDiffJunctionsPie }
 
-constructor TSliceDiffJunctionsPie.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceLocation);
+constructor TSliceDiffJunctionsPie.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceJunctionsPie);
 begin
   inherited Create(aLayer, aPalette, aTimeStamp, aCurrentSlice, aRefSlice);
 end;
@@ -4576,14 +4580,14 @@ begin
     try
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
-      bufferExtent := aExtent.Inflate(1.2);
-      for isgop in (fCurrentSlice as TSliceLocation).fLocations do
+      bufferExtent := aExtent.Inflate(1.3);
+      for isgop in (fCurrentSlice as TSliceJunctionsPie).fLocations do
       begin
-        if bufferExtent.Intersects(isgop.Value.fExtent) and (fRefSlice as TSliceLocation).fLocations.TryGetValue(isgop.Key, refLoc) then
+        if bufferExtent.Intersects(isgop.Value.fExtent) and (fRefSlice as TSliceJunctionsPie).fLocations.TryGetValue(isgop.Key, refLoc) then
         begin
           point := GeometryToPoint(aExtent, aPixelWidth, aPixelHeight, isgop.Value.lcoation);
           rect.Create(point);
-          rect.Inflate(isgop.Value.radius, isgop.Value.radius);
+          rect.Inflate(isgop.Value.radius * 2, isgop.Value.radius * 2);
           colors := GetPaletteColor(isgop.Value.value, refLoc.value);
           //fPalette.ValueToColors(isgop.Value.value-refLoc.value);
           if colors.fillColor<>0 then
@@ -4932,7 +4936,7 @@ begin
                         stDiffLocation:
                           slice := TSliceDiffLocation.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceLocation, refSlice as TSliceLocation);
                         stDiffJunctionsPie:
-                          slice := TSliceDiffJunctionsPie.Create(Self, palette.Clone, timeStamp);
+                          slice := TSliceDiffJunctionsPie.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceJunctionsPie, refSlice as TSliceJunctionsPie);
                       end;
                       slice.start;
                       WORMLock.EndRead;
