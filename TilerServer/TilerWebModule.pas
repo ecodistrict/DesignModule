@@ -3306,12 +3306,13 @@ var
   rect: TRectF;
   colors: TGeoColors;
   radiusPoint: TPointF;
-  valFrom, valTo: Double;
+  startAngle, sweepAngle, stopAngle: Double;
+  //valFrom, valTo: Double;
 
   polygon: TPolygon;
   polyColor: TAlphaColor;
 const
-  Offset = 0;
+  pieRadius = 20;
 begin
   Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
@@ -3325,67 +3326,72 @@ begin
       begin
         point := GeometryToPoint(aExtent, aPixelWidth, aPixelHeight, isgop.Value.lcoation);
         rect.Create(point);
-//        rect.Inflate(isgop.Value.radius, isgop.Value.radius);
-        rect.Inflate(20, 20); //Hardcoded radius values for the junction test
-        // todo: test intersection with bitmap
+        rect.Inflate(pieRadius, pieRadius); //Hardcoded radius values for the junctions
         if (rect.Right>=0) and (rect.Bottom>=0) and (rect.Left<=aBitmap.Width) and (rect.Top<=aBitmap.Height) then
         begin
           colors := fPalette.ValueToColors(isgop.Value.value);
           if colors.fillColor<>0 then
           begin
-            radiusPoint := PointF(20, 20);
+            radiusPoint := PointF(pieRadius, pieRadius);
             aBitmap.Canvas.Fill.Color := TAlphaColorRec.White;
             aBitmap.Canvas.FillArc(point, radiusPoint, 0, 360, 1);
 
-            valFrom := -90;
-            valTo := isgop.Value.value * 360;
+            startAngle := -90;
+            sweepAngle := isgop.Value.value * 360;
 
+            aBitmap.Canvas.Fill.Color := colors.fillColor;
+            aBitmap.Canvas.FillArc(point, radiusPoint, startAngle, sweepAngle, 1);
 //            radiusPoint := PointF(15, 15);
 //            aBitmap.Canvas.Stroke.Color := colors.fillColor;
 //            aBitmap.Canvas.Stroke.Thickness := 7;
-//            aBitmap.Canvas.DrawArc(point, radiusPoint, valFrom, valTo, 1);
-            aBitmap.Canvas.Fill.Color := colors.fillColor;
-            aBitmap.Canvas.FillArc(point, radiusPoint, valFrom, valTo, 1);
+//            aBitmap.Canvas.DrawArc(point, radiusPoint, startAngle, sweepAngle, 1);
 
-            polygon[0].X := point.X + Round(radiusPoint.X * Cos(DegToRad(Offset - valFrom)));
-            polygon[0].Y := point.Y - Round(radiusPoint.X * Sin(DegToRad(Offset - valFrom)));
+            startAngle := 90;
+            stopAngle := (360 - sweepAngle) + startAngle;
+
+            polygon[0].X := point.X + Round((pieRadius + 1) * Cos(DegToRad(startAngle)));
+            polygon[0].Y := point.Y - Round((pieRadius + 1) * Sin(DegToRad(startAngle)));
             polygon[1].X := point.X;
             polygon[1].Y := point.Y;
-            polygon[2].X := point.X + Round(radiusPoint.X * Cos(DegToRad(Offset + 360 - valTo - valFrom)));
-            polygon[2].Y := point.Y - Round(radiusPoint.X * Sin(DegToRad(Offset + 360 - valTo - valFrom)));
-            polygon[3].X := point.X + Round(radiusPoint.X * Cos(DegToRad(Offset - valFrom)));
-            polygon[3].Y := point.Y - Round(radiusPoint.X * Sin(DegToRad(Offset - valFrom)));
+            polygon[2].X := point.X + Round((pieRadius + 1) * Cos(DegToRad(stopAngle)));
+            polygon[2].Y := point.Y - Round((pieRadius + 1) * Sin(DegToRad(stopAngle)));
+            polygon[3].X := polygon[0].X;
+            polygon[3].Y := polygon[0].Y;
 
-            if valTo <= 180 then
+            if sweepAngle <= 180 then
               polyColor := colors.fillColor
             else
               polyColor := TAlphaColorRec.White;
 
-            if valTo <360 then
+            if sweepAngle <360 then
             begin
               aBitmap.Canvas.Fill.Color := polyColor;
               aBitmap.Canvas.FillPolygon(polygon, 1);
             end;
-
-            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Lightgray;
-            aBitmap.Canvas.Stroke.Thickness := 1; // todo: default width?
-            aBitmap.Canvas.DrawEllipse(rect, 1);
-          end
-          else
-          begin
-            radiusPoint := PointF(20, 20);
-            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black;
-            aBitmap.Canvas.Stroke.Thickness := 2;
-            aBitmap.Canvas.DrawArc(point, radiusPoint, 0, 360, 1);
           end;
+
           if colors.outlineColor<>0 then
           begin
             aBitmap.Canvas.Stroke.Color := colors.outlineColor;
             aBitmap.Canvas.Stroke.Thickness := 1; // todo: default width?
             aBitmap.Canvas.DrawEllipse(rect, 1);
+          end
+          else
+          begin
+            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Lightgray;
+            aBitmap.Canvas.Stroke.Thickness := 1;
+            aBitmap.Canvas.DrawEllipse(rect, 1);
           end;
         end;
       end;
+//      rect.Create(0,0,aBitmap.Width,aBitmap.Height);
+//      aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black;
+//      aBitmap.Canvas.Stroke.Thickness := 1;
+//      aBitmap.Canvas.DrawRect(rect,0,0,AllCorners, 1);
+//
+//      aBitmap.Canvas.Stroke.Thickness := 1;
+//      aBitmap.Canvas.Fill.Color := TAlphaColors.Blue;
+//      aBitmap.Canvas.FillText(rect, IntToStr(fDataVersion), True, 1, [TFillTextFlag.RightToLeft], TTextAlign.Center, TTextAlign.Center);
       Result := gtsOk;
     finally
       aBitmap.Canvas.EndScene;
