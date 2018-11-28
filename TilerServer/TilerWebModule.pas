@@ -3341,10 +3341,6 @@ begin
 
             aBitmap.Canvas.Fill.Color := colors.fillColor;
             aBitmap.Canvas.FillArc(point, radiusPoint, startAngle, sweepAngle, 1);
-//            radiusPoint := PointF(15, 15);
-//            aBitmap.Canvas.Stroke.Color := colors.fillColor;
-//            aBitmap.Canvas.Stroke.Thickness := 7;
-//            aBitmap.Canvas.DrawArc(point, radiusPoint, startAngle, sweepAngle, 1);
 
             startAngle := 90;
             stopAngle := (360 - sweepAngle) + startAngle;
@@ -3384,14 +3380,6 @@ begin
           end;
         end;
       end;
-//      rect.Create(0,0,aBitmap.Width,aBitmap.Height);
-//      aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Black;
-//      aBitmap.Canvas.Stroke.Thickness := 1;
-//      aBitmap.Canvas.DrawRect(rect,0,0,AllCorners, 1);
-//
-//      aBitmap.Canvas.Stroke.Thickness := 1;
-//      aBitmap.Canvas.Fill.Color := TAlphaColors.Blue;
-//      aBitmap.Canvas.FillText(rect, IntToStr(fDataVersion), True, 1, [TFillTextFlag.RightToLeft], TTextAlign.Center, TTextAlign.Center);
       Result := gtsOk;
     finally
       aBitmap.Canvas.EndScene;
@@ -4533,7 +4521,7 @@ begin
     try
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
-      bufferExtent := aExtent.Inflate(1.2);
+      bufferExtent := aExtent.Inflate(1.3);
       for isgop in (fCurrentSlice as TSliceLocation).fLocations do
       begin
         if bufferExtent.Intersects(isgop.Value.fExtent) and (fRefSlice as TSliceLocation).fLocations.TryGetValue(isgop.Key, refLoc) then
