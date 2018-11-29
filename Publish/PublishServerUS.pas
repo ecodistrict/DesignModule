@@ -96,6 +96,7 @@ type
     MYC: Double;
     MYT: Double;
     IMB_EVENTCLASS: string;
+    DIFFLEGEND_FILE: string;
     // added for web interface
     domain: string;
     description: string;
@@ -106,8 +107,11 @@ type
     // indirect
     legendAVL: string;
     odbList: TODBList;
+    diff_odbList: TODBList;
+    diff_legendAVL: string;
   public
     procedure ReadFromQueryRow(aQuery: TOraQuery);
+    procedure ConstructOdbList(aQuery: TOraQuery; aLegendFile: String; var aOdbList: TODBList; var aLegendAVL: String);
     function BaseTable(const aTablePrefix:string): string;
     function BaseTableNoPrefix: string;
     function BuildJoin(const aTablePrefix: string; out aShapePrefix, aObjectIDPrefix, aPreJoin: string): string;
@@ -616,7 +620,7 @@ type
     aDefaultLoad: Boolean; const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
     const aConnectString, aNewQuery, aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry;
     aSourceProjection: TGIS_CSProjectedCoordinateSystem; aPalette: TWDPalette; aBasicLayer: Boolean=False;
-    aOpacity: Double=0.8);
+    aOpacity: Double=0.8; aDiffPalette: TWDPalette=nil);
   destructor Destroy; override;
   private
     fChangeMultipleQuery: string;
@@ -854,7 +858,11 @@ begin
       else noDataColor := odbList[i].Color;
     end;
   end;
-  Result := TDiscretePalette.Create(aDescription, entries, TGeoColors.Create(noDataColor));
+
+  if length(entries)=0 then
+    Result := nil
+  else
+    Result := TDiscretePalette.Create(aDescription, entries, TGeoColors.Create(noDataColor));
 end;
 
 function ReadMetaObject(aSession: TOraSession; const aTablePrefix: string; aMetaObjectEntries: TMetaObjectEntries): Boolean;
@@ -927,15 +935,6 @@ begin
            'PUBLISHED INTEGER)');
     aSession.Commit;
   end;
-
-  //TODO: discuss with Hans then implement!
-//  if TableExists(aSession, aTablePrefix+'META_LAYER') and not FieldExists(aSession, aTablePrefix+'META_LAYER', 'SELECTPROPERTIES') then
-//  begin
-//    aSession.ExecSQL(
-//      'ALTER TABLE '+aTableprefix+'META_LAYER '+
-//      'ADD (SELECTPROPERTIES VARCHAR2(255 BYTE)');
-//    aSession.Commit;
-//  end;
 
   query := TOraQuery.Create(nil);
   try
@@ -1305,7 +1304,8 @@ begin
       aSourceProjection,
       CreatePaletteFromODB(LEGEND_DESC, odbList, True),
       False,
-      aOpacity);
+      aOpacity,
+      CreatePaletteFromODB('Diff - ' + LEGEND_DESC, diff_odbList, True));
     (Result as TUSLayer).fLegendJSON := BuildLegendJSON(lfVertical);
     (Result as TUSLayer).query := SQLQuery(aTableprefix);
   end;
@@ -1343,8 +1343,8 @@ procedure TMetaLayerEntry.ReadFromQueryRow(aQuery: TOraQuery);
     else Result := aDefaultValue;
   end;
 
-var
-  sl: TStringList;
+//var
+//  sl: TStringList;
 begin
   // default
   OBJECT_ID := IntField('OBJECT_ID');
@@ -1371,6 +1371,7 @@ begin
   MYC := DoubleField('MYC');
   MYT := DoubleField('MYT');
   IMB_EVENTCLASS := StringField('IMB_EVENTCLASS');
+  DIFFLEGEND_FILE := StringField('DIFFLEGEND_FILE');
 
   // added for web interface
   domain := StringField('DOMAIN');
@@ -1386,16 +1387,24 @@ begin
   UPDATE V21#META_LAYER SET DIFFRANGE = 2 WHERE object_id in (142,52,53,54,55,153,3,4,28,32,141,56);
   }
 
-  LegendAVL := '';
-  setLength(odbList, 0);
-  if LEGEND_FILE<>'' then
+  ConstructOdbList(aQuery, LEGEND_FILE, odbList, legendAVL);
+  ConstructOdbList(aQuery, DIFFLEGEND_FILE, diff_odbList, diff_legendAVL);
+end;
+
+procedure TMetaLayerEntry.ConstructOdbList(aQuery: TOraQuery; aLegendFile: String; var aOdbList: TODBList; var aLegendAVL: String);
+var
+  sl: TStringList;
+begin
+  aLegendAVL := '';
+  setLength(aOdbList, 0);
+  if aLegendFile<>'' then
   begin
     sl := TStringList.Create;
     try
-      if SaveBlobToStrings(aQuery.Session, 'VI3D_MODEL', 'PATH', LEGEND_FILE, 'BINFILE', sl) then
+      if SaveBlobToStrings(aQuery.Session, 'VI3D_MODEL', 'PATH', aLegendFile, 'BINFILE', sl) then
       begin
-        LegendAVL := sl.Text;
-        odbList := ODBFileToODBList(sl);
+        aLegendAVL := sl.Text;
+        aOdbList := ODBFileToODBList(sl);
       end;
     finally
       sl.Free;
@@ -1752,7 +1761,7 @@ end;
 constructor TUSLayer.Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean;
   const aObjectTypes, aGeometryType: string; aLayerType: Integer; aDiffRange: Double;
   const aConnectString, aNewQuery, aChangeMultipleQuery: string; const aDataEvent: array of TIMBEventEntry; aSourceProjection: TGIS_CSProjectedCoordinateSystem;
-  aPalette: TWDPalette; aBasicLayer: Boolean; aOpacity: Double);
+  aPalette: TWDPalette; aBasicLayer: Boolean; aOpacity: Double; aDiffPalette: TWDPalette);
 var
   i: Integer;
 begin
@@ -1760,6 +1769,7 @@ begin
   fPoiCategories := TObjectDictionary<string, TUSPOI>.Create([doOwnsValues]);
   fNewPoiCatID := 0;
   fPalette := aPalette;
+  fDiffPalette := aDiffPalette;
   fConnectString := aConnectString;
 
   fOraSession := TOraSession.Create(nil);
