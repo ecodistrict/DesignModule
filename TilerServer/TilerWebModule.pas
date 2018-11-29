@@ -3392,6 +3392,7 @@ function TSliceJunctionsPie.getDataValueAtPoint(const aLat, aLon: Double; var aV
 var
   isgop: TPair<TWDID, TSliceLocationObject>;
 const
+  //TODO: Remove this and make use of some global constants
   degClickRadius = 360/(40000 * 1000);
 begin
   fDataLock.BeginRead;
@@ -4574,6 +4575,8 @@ begin
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
       //bufferExtent := aExtent.Inflate(1.3);
+
+      //TODO: Remove the hardcoded falcor (6) and try using the radius defined earlier
       bufferExtent := aExtent.Inflate(6*aPixelWidth, 6*aPixelHeight);
       for isgop in (fCurrentSlice as TSliceJunctionsPie).fLocations do
       begin
