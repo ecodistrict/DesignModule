@@ -3391,20 +3391,19 @@ end;
 function TSliceJunctionsPie.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
 var
   isgop: TPair<TWDID, TSliceLocationObject>;
+const
+  degClickRadius = 360/(40000 * 1000);
 begin
   fDataLock.BeginRead;
   try
     for isgop in fLocations do
     begin
-      if isgop.Value.extent.Contains(aLon, aLat) then
-      begin
         // test geometry, exit(isgop.Value) if within
-        if isgop.Value.extent.Contains(aLon, aLat) then
+        if isgop.Value.extent.Inflate(degClickRadius*5).Contains(aLon, aLat) then
         begin
           aValue := isgop.Value.value;
           exit(gtsOk);
         end;
-      end;
     end;
     aValue := NaN;
     exit(gtsFailed);
@@ -4574,7 +4573,8 @@ begin
     try
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
-      bufferExtent := aExtent.Inflate(1.3);
+      //bufferExtent := aExtent.Inflate(1.3);
+      bufferExtent := aExtent.Inflate(6*aPixelWidth, 6*aPixelHeight);
       for isgop in (fCurrentSlice as TSliceJunctionsPie).fLocations do
       begin
         if bufferExtent.Intersects(isgop.Value.fExtent) and (fRefSlice as TSliceJunctionsPie).fLocations.TryGetValue(isgop.Key, refLoc) then
