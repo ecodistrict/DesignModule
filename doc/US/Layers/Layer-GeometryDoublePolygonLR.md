@@ -17,7 +17,7 @@ Following is the client requirement provided for this layer:
 
 The first and the second layers represent the data for the reference and the active layers, while the third layer represents the expected difference layer. 
 
-## Logic - Difference Layer
+## Difference Layer Logic
 
 As can be seen from the client requirements, following are the three possible cases:
 
@@ -64,7 +64,7 @@ Only a new implementation for the difference layer has been added for this layer
 ![ReferenceLayer](./images/Layer51_RefLayer.PNG)
 
 **Difference Layer:**
-![ReferenceLayer](./images/Layer51_DiffLayer.PNG)
+![DifferenceLayer](./images/Layer51_DiffLayer.PNG)
 
 **Difference Layer - Zoomed in:**
-![ReferenceLayer](./images/Layer51_DiffLayer_ZoomedIn.PNG)
+![DifferenceLayerZoomedIn](./images/Layer51_DiffLayer_ZoomedIn.PNG)
