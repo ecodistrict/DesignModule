@@ -3312,7 +3312,7 @@ var
   polygon: TPolygon;
   polyColor: TAlphaColor;
 const
-  pieRadius = 20;
+  pieRadius = 10;
 begin
   Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
@@ -3374,7 +3374,7 @@ begin
           end
           else
           begin
-            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Lightgray;
+            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Gray;
             aBitmap.Canvas.Stroke.Thickness := 1;
             aBitmap.Canvas.DrawEllipse(rect, 1);
           end;

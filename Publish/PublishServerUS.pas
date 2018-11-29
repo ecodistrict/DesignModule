@@ -936,6 +936,14 @@ begin
     aSession.Commit;
   end;
 
+  if TableExists(aSession, aTablePrefix+'META_LAYER') and not FieldExists(aSession, aTablePrefix+'META_LAYER', 'DIFFLEGEND_FILE') then
+  begin
+    aSession.ExecSQL(
+      'ALTER TABLE '+aTableprefix+'META_LAYER '+
+      'ADD (DIFFLEGEND_FILE VARCHAR2(80 BYTE)');
+    aSession.Commit;
+  end;
+
   query := TOraQuery.Create(nil);
   try
     query.Session := aSession;
