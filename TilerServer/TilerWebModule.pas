@@ -4056,8 +4056,8 @@ begin
   end
   else
   begin
-    if not IsNaN(aRefValue)
-    then Result := aRefValue
+    if not IsNaN(aRefValue) then
+      Result := aRefValue
     else
     begin
       aValidFlag := False;
@@ -4249,8 +4249,8 @@ begin
   end
   else
   begin
-    if not IsNaN(aRefValue)
-    then Result := aRefValue
+    if not IsNaN(aRefValue) then
+      Result := aRefValue
     else
     begin
       aValidFlag := False;
