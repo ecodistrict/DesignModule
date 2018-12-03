@@ -105,13 +105,11 @@ type
     geometryType: string;
     _published: Integer;
     // indirect
-    legendAVL: string;
     odbList: TODBList;
     diff_odbList: TODBList;
-    diff_legendAVL: string;
   public
     procedure ReadFromQueryRow(aQuery: TOraQuery);
-    procedure ConstructOdbList(aQuery: TOraQuery; aLegendFile: String; var aOdbList: TODBList; var aLegendAVL: String);
+    procedure ConstructOdbList(aQuery: TOraQuery; aLegendFile: String; var aOdbList: TODBList);
     function BaseTable(const aTablePrefix:string): string;
     function BaseTableNoPrefix: string;
     function BuildJoin(const aTablePrefix: string; out aShapePrefix, aObjectIDPrefix, aPreJoin: string): string;
@@ -1313,7 +1311,7 @@ begin
       CreatePaletteFromODB(LEGEND_DESC, odbList, True),
       False,
       aOpacity,
-      CreatePaletteFromODB('Diff - ' + LEGEND_DESC, diff_odbList, True));
+      CreatePaletteFromODB('Diff - ' + LEGEND_DESC.Replace('~~', '-').replace('\', '-'), diff_odbList, True));
     (Result as TUSLayer).fLegendJSON := BuildLegendJSON(lfVertical);
     (Result as TUSLayer).query := SQLQuery(aTableprefix);
   end;
@@ -1395,15 +1393,14 @@ begin
   UPDATE V21#META_LAYER SET DIFFRANGE = 2 WHERE object_id in (142,52,53,54,55,153,3,4,28,32,141,56);
   }
 
-  ConstructOdbList(aQuery, LEGEND_FILE, odbList, legendAVL);
-  ConstructOdbList(aQuery, DIFFLEGEND_FILE, diff_odbList, diff_legendAVL);
+  ConstructOdbList(aQuery, LEGEND_FILE, odbList);
+  ConstructOdbList(aQuery, DIFFLEGEND_FILE, diff_odbList);
 end;
 
-procedure TMetaLayerEntry.ConstructOdbList(aQuery: TOraQuery; aLegendFile: String; var aOdbList: TODBList; var aLegendAVL: String);
+procedure TMetaLayerEntry.ConstructOdbList(aQuery: TOraQuery; aLegendFile: String; var aOdbList: TODBList);
 var
   sl: TStringList;
 begin
-  aLegendAVL := '';
   setLength(aOdbList, 0);
   if aLegendFile<>'' then
   begin
@@ -1411,7 +1408,6 @@ begin
     try
       if SaveBlobToStrings(aQuery.Session, 'VI3D_MODEL', 'PATH', aLegendFile, 'BINFILE', sl) then
       begin
-        aLegendAVL := sl.Text;
         aOdbList := ODBFileToODBList(sl);
       end;
     finally
