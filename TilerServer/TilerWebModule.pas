@@ -3316,7 +3316,7 @@ var
   polygon: TPolygon;
   polyColor: TAlphaColor;
 const
-  pieRadius = 20;
+  pieRadius = 10;
 begin
   Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
@@ -3378,7 +3378,7 @@ begin
           end
           else
           begin
-            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Lightgray;
+            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Gray;
             aBitmap.Canvas.Stroke.Thickness := 1;
             aBitmap.Canvas.DrawEllipse(rect, 1);
           end;
@@ -4269,12 +4269,7 @@ function TSliceDiffGeometryDoublePolygonLR.GetPaletteColor(aActiveTexture, aRefT
 begin
   if not (IsNaN(aActiveTexture) or IsNaN(aRefTexture)) then
   begin
-    if awidth > 0 then
-      Result := fPalette.ValueToColors(fPalette.minValue())
-    else if awidth < 0 then
-      Result := fPalette.ValueToColors(fPalette.maxValue())
-    else
-      Result := fPalette.ValueToColors((fPalette.minValue() + fPalette.maxValue())/2);
+      Result := fPalette.ValueToColors(aWidth);
   end
   else aValidFlag := False;
 end;
@@ -4287,7 +4282,7 @@ begin
   setLength(polygon, 5);
   ConstructPolygon(aXPrev, aYPrev, aXCurr, aYCurr, aXCurr+aXDCommon, aYCurr+aYDCommon, aXPrev+aXDCommon, aYPrev+aYDCommon, polygon);
 
-  defaultColor := TGeoColors.Create(TAlphaColorRec.Lightsteelblue,TAlphaColorRec.Lightsteelblue);
+  defaultColor := fPalette.ValueToColors(0);
   DrawFillPolygon(defaultColor, aBitmap, polygon);
 
   if abs(aXDCommon) <> abs(aXDExtra) then
@@ -4459,15 +4454,10 @@ begin
     activeClass := ComputeICRatioClass(aActiveTexture);
     refClass := ComputeICRatioClass(aRefTexture);
 
-    if activeClass<refClass then
-      Result := fPalette.ValueToColors(fPalette.minValue())
-    else if activeClass>refClass then
-      Result := fPalette.ValueToColors(fPalette.maxValue())
-    else
-      begin
-        Result := TGeoColors.Create(TAlphaColorRec.Lightsteelblue,TAlphaColorRec.Lightsteelblue);
-        aWidth := aWidth / 3;
-      end;
+    Result := fPalette.ValueToColors(refClass - activeClass);
+
+    if refClass = activeClass then
+      aWidth := aWidth / 3;
   end
   else aValidFlag := False;
 end;
@@ -4631,12 +4621,7 @@ begin
     activeClass := ComputeICRatioClass(aActiveTexture);
     refClass := ComputeICRatioClass(aRefTexture);
 
-    if activeClass<refClass then
-      Result := fPalette.ValueToColors(fPalette.minValue())
-    else if activeClass>refClass then
-      Result := fPalette.ValueToColors(fPalette.maxValue())
-    else
-        Result := TGeoColors.Create(TAlphaColorRec.Lightsteelblue,TAlphaColorRec.Lightsteelblue);
+    Result := fPalette.ValueToColors(refClass - activeClass);
   end
 end;
 

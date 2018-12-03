@@ -1309,7 +1309,8 @@ begin
               layer := imlep.value.CreateUSLayer(
                 self, tablePrefix, ConnectStringFromSession(oraSession),
                 SubscribeDataEvents(imb3Connection, federation, imlep.Value.IMB_EVENTCLASS),
-                sourceProjection, imlep.value.Domain, imlep.value.description);
+                sourceProjection, imlep.value.Domain, imlep.value.description,
+                1.0, false);
               if Assigned(layer) then
               begin
                 AddLayer(layer);

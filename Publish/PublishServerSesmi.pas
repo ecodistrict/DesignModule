@@ -1119,9 +1119,9 @@ begin
   finally
     TMonitor.Exit(fProject.scenarios);
   end;
-  removeClient(fCurrentScenario);
-  fCurrentScenario := scenario;
-  addClient(fCurrentScenario);
+  removeClient(currentScenario);
+  currentScenario := scenario;
+  addClient(currentScenario);
   Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
   SendSession();
   fProject.SendDomains(self, 'domains');
