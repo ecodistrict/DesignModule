@@ -317,7 +317,7 @@ var wsLookup = {
         timeslider.HandleEvents(payload);
     },
     canCopyScenario: function (payload) {
-        DataManager.canCopyScenario = payload
+        DataManager.canCopyScenario = payload;
     },
     controlProperties: function (payload) {
         //make function that shows properties

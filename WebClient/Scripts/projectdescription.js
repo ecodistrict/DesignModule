@@ -15,6 +15,10 @@ L.control.projectDescription.showOptions = function (e) {
     dialog.style.width = "300px";
 
     var container = L.DomUtil.create("div", "optionsContainer", dialog);
+
+    // make project description unselectable
+    container.onselectstart = function () { return false; };
+    container.unselectable = "on";
        
     modelDialogAddButton(container, 'Refresh', function () {
         wsSend({
