@@ -157,6 +157,7 @@ begin
           dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
           try
             dbConnection.Open;
+            {
             table := TOraTable.Create(nil);
             try
               table.Session := dbConnection;
@@ -188,7 +189,7 @@ begin
             finally
               table.Free;
             end;
-
+            }
             projectID := getUSProjectID(dbConnection, '');
             if projectID=''
             then projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');

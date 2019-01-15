@@ -1068,15 +1068,15 @@ begin
   // todo: implement
   Result := nil;
   Log.WriteLn('Start creating project '+aProjectID);
-
+  {
   pbls_portal table get base scenario and map view to create local project
   get new available scenario filter
   save local project to pbls_project with scenario filter
   copy base scenario and link to local project with scenario filter
 
-
   srcProjectID := 0;
   projectMapView := getUSMapView(dbConnection as TOraSession, mapView, srcProjectID);
+  }
   //Result := CreateLocalProject(
 
   //CopyUSScenario(aProject: TUSProject; aClient: TClient; aSrcID: Integer; const aConnectString: string; aIMB3Connection: TIMBConnection);
@@ -1674,7 +1674,7 @@ begin
   begin
     projectMapView := getUSMapView(dbConnection as TOraSession, mapView, aPortalProjectStatus.projectID);
     Result := CreateLocalProject(aPortalProjectStatus.projectID, aPortalProjectStatus.name, projectMapView);
-    if aOpenMode=om then
+    //if aOpenMode=om then
 
   end;
   Log.WriteLn('Open project '+aPortalProjectStatus.projectID+' in mode '+aOpenMode.ToString);
