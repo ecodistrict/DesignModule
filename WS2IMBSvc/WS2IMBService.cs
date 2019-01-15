@@ -17,6 +17,7 @@ using System.ServiceModel.Description;
 using System.ServiceModel.Dispatcher;
 using System.Web;
 using IMB;
+using Newtonsoft.Json;
 
 // see readme for setup details
 
@@ -69,30 +70,35 @@ namespace WS2IMBSvc
                 new TextWriterTraceListener(Console.Out)
             };
             Debug.AutoFlush = true;
-
             Debug.Listeners.AddRange(listeners);
+            Console.WriteLine("added listener for console and logging (to file " + logfile + ")");
 
             try
             {
-                Lookups.connection = new TSocketConnection(IMBModelName, IMBModelID, "", IMBHub);
-                Lookups.connection.onDisconnect += handle_disconnect;
-                Lookups.connection.onException += handle_exception;
+                // initialize imb connection
+                ServiceState.imbConnection = new TSocketConnection(IMBModelName, IMBModelID, "", IMBHub);
+                ServiceState.imbConnection.onDisconnect += IMBHandleDisconnect;
+                ServiceState.imbConnection.onException += IMBHandleException;
+
+
+                // initialize web socket
                 var baseAddresses = new List<Uri>();
                 foreach (var url in WebSocketUrl.Split('|'))
                     baseAddresses.Add(new Uri(url));
-                Lookups.host = new ServiceHost(typeof(WebSocketsServer), baseAddresses.ToArray());
+                ServiceState.serviceHost = new ServiceHost(typeof(WebSocketsServer), baseAddresses.ToArray());
 
                 // Enable metadata publishing.
-                ServiceMetadataBehavior smb = new ServiceMetadataBehavior();
-                smb.HttpGetEnabled = true;
-                smb.MetadataExporter.PolicyVersion = PolicyVersion.Policy15;
-                Lookups.host.Description.Behaviors.Add(smb);
+                ServiceMetadataBehavior serviceMetadataBehavior = new ServiceMetadataBehavior { HttpGetEnabled = true };
+                serviceMetadataBehavior.MetadataExporter.PolicyVersion = PolicyVersion.Policy15;
+                ServiceState.serviceHost.Description.Behaviors.Add(serviceMetadataBehavior);
 
-                CustomBinding binding = new CustomBinding();
                 // http://www.rauch.io/2015/06/25/all-wcf-timeouts-explained/
                 // https://msdn.microsoft.com/en-us/library/hh924831(v=vs.110).aspx
-                binding.ReceiveTimeout = new TimeSpan(3, 0, 0);
-                binding.SendTimeout = new TimeSpan(3, 0, 0);
+                CustomBinding binding = new CustomBinding
+                {
+                    ReceiveTimeout = new TimeSpan(3, 0, 0),
+                    SendTimeout = new TimeSpan(3, 0, 0)
+                };
                 binding.Elements.Add(new ByteStreamMessageEncodingBindingElement());
 
                 HttpTransportBindingElement transport = new HttpTransportBindingElement();
@@ -102,16 +108,18 @@ namespace WS2IMBSvc
                 transport.KeepAliveEnabled = true; // default true?
                 binding.Elements.Add(transport);
 
-                var endPoint = Lookups.host.AddServiceEndpoint(typeof(IWebSocketsServer), binding, "");
+                var endPoint = ServiceState.serviceHost.AddServiceEndpoint(typeof(IWebSocketsServer), binding, "");
                 endPoint.EndpointBehaviors.Add(new ClientTrackerEndpointBehavior());
 
                 try
                 {
-                    CustomBinding bindingSSL = new CustomBinding();
                     // http://www.rauch.io/2015/06/25/all-wcf-timeouts-explained/
                     // https://msdn.microsoft.com/en-us/library/hh924831(v=vs.110).aspx
-                    bindingSSL.ReceiveTimeout = new TimeSpan(3, 0, 0);
-                    bindingSSL.SendTimeout = new TimeSpan(3, 0, 0);
+                    CustomBinding bindingSSL = new CustomBinding
+                    {
+                        ReceiveTimeout = new TimeSpan(3, 0, 0),
+                        SendTimeout = new TimeSpan(3, 0, 0)
+                    };
                     bindingSSL.Elements.Add(new ByteStreamMessageEncodingBindingElement());
 
                     HttpsTransportBindingElement transportSSL = new HttpsTransportBindingElement();
@@ -121,7 +129,7 @@ namespace WS2IMBSvc
                     transportSSL.KeepAliveEnabled = true;
                     bindingSSL.Elements.Add(transportSSL);
 
-                    var endPointSSL = Lookups.host.AddServiceEndpoint(typeof(IWebSocketsServer), bindingSSL, "");
+                    var endPointSSL = ServiceState.serviceHost.AddServiceEndpoint(typeof(IWebSocketsServer), bindingSSL, "");
                     endPointSSL.EndpointBehaviors.Add(new ClientTrackerEndpointBehavior());
                 }
                 catch(Exception e)
@@ -129,9 +137,10 @@ namespace WS2IMBSvc
                     Debug.WriteLine(DateTime.Now + ": >> Could not bind SSL endpoint: " + e.Message);
                 }
 
+                // finally open web socket(s)
+                ServiceState.serviceHost.Open();
 
-                Lookups.host.Open();
-                //var dispatcher = Lookups.host.ChannelDispatchers[0] as ChannelDispatcher;
+                // done starting service
                 Debug.WriteLine(DateTime.Now + ": Started WS2IMB service");
             }
             catch(Exception e)
@@ -140,12 +149,12 @@ namespace WS2IMBSvc
             }
         }
 
-        private void handle_disconnect(TConnection aConnection)
+        private void IMBHandleDisconnect(TConnection aConnection)
         {
             Debug.WriteLine(DateTime.Now + ": ## disconnected");
         }
 
-        private void handle_exception(TConnection aConnection, Exception e)
+        private void IMBHandleException(TConnection aConnection, Exception e)
         {
             if (e is System.IO.IOException)
             {
@@ -164,14 +173,14 @@ namespace WS2IMBSvc
             {
                 try
                 {
-                    Lookups.host.Close();
-                    ((IDisposable)Lookups.host).Dispose();
-                    Lookups.host = null;
+                    ServiceState.serviceHost.Close();
+                    ((IDisposable)ServiceState.serviceHost).Dispose();
+                    ServiceState.serviceHost = null;
                     Debug.WriteLine(DateTime.Now + ": Stopped WS2IMB service");
                 }
                 finally
                 {
-                    Lookups.connection.close();
+                    ServiceState.imbConnection.close();
                 }
             }
             catch(Exception e)
@@ -181,22 +190,23 @@ namespace WS2IMBSvc
         }
     }
 
-    public class Lookups
+    public class ServiceState
     {
-        public static ServiceHost host = null;
-        public static string RootEventName = "USIdle.Sessions.WS2IMB";
-        public static TConnection connection = null;
+        public const string RootEventName = "USIdle.Sessions.WS2IMB";
+        private const int actionStatus = 4;
+
+        public static ServiceHost serviceHost = null;
+        public static TConnection imbConnection = null;
+        public static TEventEntry rootEvent = null;
         public static Dictionary<object, TEventEntry> channelToEvent = new Dictionary<object, TEventEntry>();
         public static Dictionary<object, string> channelToClientType = new Dictionary<object, string>();
         public static Dictionary<object, string> channelToRemoteAddress = new Dictionary<object, string>();
-        public static TEventEntry rootEvent = null;
-        const int actionStatus = 4;
-
+        
         public static void HookupRoot()
         {
             if (rootEvent == null)
             {
-                rootEvent = connection.subscribe(RootEventName, false);
+                rootEvent = imbConnection.subscribe(RootEventName, false);
                 rootEvent.onIntString += RootEvent_onIntString;
             }
         }
@@ -207,7 +217,7 @@ namespace WS2IMBSvc
             {
                 if (aInt == TEventEntry.actionInquire)
                 {
-                    var returnEvent = aString != "" ? connection.publish(aString, false) : aEventEntry;
+                    var returnEvent = aString != "" ? imbConnection.publish(aString, false) : aEventEntry;
                     Debug.WriteLine(DateTime.Now + ": received inquire on root " + aEventEntry.eventName + " (" + aString + "), return on "+returnEvent.eventName);
                     try
                     {
@@ -216,7 +226,7 @@ namespace WS2IMBSvc
                             string channelEventNamePostfix;
                             try
                             {
-                                var clientType = Lookups.channelToClientType[ctep.Key];
+                                var clientType = ServiceState.channelToClientType[ctep.Key];
                                 channelEventNamePostfix = (clientType != null) && (clientType.Length > 0) ? "&" + clientType : "";
                             }
                             catch
@@ -236,9 +246,9 @@ namespace WS2IMBSvc
                 {
 
                     // build status to return
-                    var status = "{\"id\":\"" + connection.modelName + " @ " + host.BaseAddresses[0].AbsoluteUri + "\",\"status\":\"" + host.State.ToString() + "\",\"info\":\"" + channelToEvent.Count.ToString() + " channels\"}";
+                    var status = "{\"id\":\"" + imbConnection.modelName + " @ " + serviceHost.BaseAddresses[0].AbsoluteUri + "\",\"status\":\"" + serviceHost.State.ToString() + "\",\"info\":\"" + channelToEvent.Count.ToString() + " channels\"}";
                     // signal status
-                    var returnEvent = aString != "" ? connection.publish(aString, false) : aEventEntry;
+                    var returnEvent = aString != "" ? imbConnection.publish(aString, false) : aEventEntry;
                     Debug.WriteLine(DateTime.Now + ": received status request on root " + aEventEntry.eventName + " (" + aString + "), return on " + returnEvent.eventName);
                     try
                     {
@@ -257,7 +267,7 @@ namespace WS2IMBSvc
             }
         }
 
-        public static bool checkForLastChannel(string aSessionEventNamePrefix)
+        public static bool CheckForLastChannel(string aSessionEventNamePrefix)
         {
             foreach (var ctep in channelToEvent)
                 // check if channel belongs to session
@@ -281,8 +291,7 @@ namespace WS2IMBSvc
         {
             Debug.WriteLine(DateTime.Now + ": Client disconnect: " + ((IClientChannel)sender).SessionId.ToString());
             // cleanup event
-            TEventEntry channelEvent;
-            if (Lookups.channelToEvent.TryGetValue(sender, out channelEvent))
+            if (ServiceState.channelToEvent.TryGetValue(sender, out TEventEntry channelEvent))
             {
                 // decode session part of event name
                 var sessionEventName = channelEvent.eventName.Substring(0, channelEvent.eventName.LastIndexOf('.'));
@@ -293,14 +302,12 @@ namespace WS2IMBSvc
                 channelEvent.unPublish();
                 channelEvent.unSubscribe();
                 channelEvent.Tag = null;
-                Lookups.channelToEvent.Remove(sender);
-                //Lookups.channelToClientType.Remove(sender);
-                //Lookups.channelToRemoteAddress.Remove(sender);
+                ServiceState.channelToEvent.Remove(sender);
 
-                lock (Lookups.rootEvent)
+                lock (ServiceState.rootEvent)
                 {
                     // check if last channel on session then session can be discarded
-                    if (Lookups.checkForLastChannel(sessionEventName + "."))
+                    if (ServiceState.CheckForLastChannel(sessionEventName + "."))
                     {
                         var sessionEvent = connection.publish(sessionEventName, false); // already published so is just a lookup
                         // remove handler
@@ -324,14 +331,14 @@ namespace WS2IMBSvc
                 try
                 {
                     var eventNameFilter = aEventEntry.eventName + ".";
-                    foreach (var ctep in Lookups.channelToEvent)
+                    foreach (var ctep in ServiceState.channelToEvent)
                         // check if channel belongs to session
                         if (ctep.Value.eventName.StartsWith(eventNameFilter))
                         {
                             string channelEventNamePostfix;
                             try
                             {
-                                var clientType = Lookups.channelToClientType[ctep.Key];
+                                var clientType = ServiceState.channelToClientType[ctep.Key];
                                 channelEventNamePostfix = (clientType != null) && (clientType.Length > 0) ? "&" + clientType : "";
                             }
                             catch
@@ -387,14 +394,13 @@ namespace WS2IMBSvc
                 var callback = OperationContext.Current.GetCallbackChannel<IMessageToClient>();
                 var channel = OperationContext.Current.Channel;
 
-                TEventEntry channelEvent;
-                if (!Lookups.channelToEvent.TryGetValue(channel, out channelEvent))
+                if (!ServiceState.channelToEvent.TryGetValue(channel, out TEventEntry channelEvent))
                 {
                     var queryParameters = HttpUtility.ParseQueryString((OperationContext.Current.IncomingMessageProperties["WebSocketMessageProperty"] as WebSocketMessageProperty).WebSocketContext.RequestUri.Query);
                     var sessionName = queryParameters["session"];
                     string clientType = "";
                     try { clientType = queryParameters["clienttype"]; } catch { }
-                    
+
 
                     if (sessionName == null || sessionName == "") sessionName = "unknown";
                     //var remoteAddress = OperationContext.Current.IncomingMessageHeaders.From;
@@ -405,13 +411,13 @@ namespace WS2IMBSvc
                     Debug.WriteLine(DateTime.Now + ": Start of client " + remoteAddress + " on session: " + sessionName + " (" + channel.SessionId.ToString() + ", " + clientType + ")");
                     try
                     {
-                        Lookups.channelToClientType[channel] = clientType;
-                        Lookups.channelToRemoteAddress[channel] = remoteAddress;
-                        var sessionEvent = Lookups.connection.publish(Lookups.RootEventName + "." + sessionName, false);
+                        ServiceState.channelToClientType[channel] = clientType;
+                        ServiceState.channelToRemoteAddress[channel] = remoteAddress;
+                        var sessionEvent = ServiceState.imbConnection.publish(ServiceState.RootEventName + "." + sessionName, false);
                         // make sure we have a root event
-                        Lookups.HookupRoot();
+                        ServiceState.HookupRoot();
                         // check if first channel on session
-                        lock (Lookups.rootEvent)
+                        lock (ServiceState.rootEvent)
                         {
                             if (!sessionEvent.isSubscribed)
                             {
@@ -423,9 +429,9 @@ namespace WS2IMBSvc
                             }
                         }
                         // setup channel
-                        channelEvent = Lookups.connection.subscribe(sessionEvent.eventName + "." + channel.SessionId, false);
-                        Lookups.channelToEvent[channel] = channelEvent;
-                        
+                        channelEvent = ServiceState.imbConnection.subscribe(sessionEvent.eventName + "." + channel.SessionId, false);
+                        ServiceState.channelToEvent[channel] = channelEvent;
+
                         channelEvent.Tag = callback;
                         channelEvent.onString += ChannelEvent_onString;
                         channelEvent.onStreamCreate += ChannelEvent_onStreamCreate;
@@ -475,7 +481,13 @@ namespace WS2IMBSvc
                 // NOT: aEventEntry.unPublish();
                 // signal web client session server is disconnected
                 if (aEventEntry.Tag != null)
-                    (aEventEntry.Tag as IMessageToClient).SendMessageToClient(CreateMessage("{\"type\":\"connection\",\"payload\":{\"message\":\"session server has disconnected\"}}"));
+                    (aEventEntry.Tag as IMessageToClient).SendMessageToClient(CreateMessage(
+                        //"{\"type\":\"connection\",\"payload\":{\"message\":\"session server has disconnected\"}}"
+                        JsonConvert.SerializeObject(new {
+                            type = "connection",
+                            payload = new { message = "session server has disconnected" }
+                        })
+                    ));
             }
         }
 
