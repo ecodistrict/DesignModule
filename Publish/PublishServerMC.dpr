@@ -36,9 +36,6 @@ const
 
   PreLoadScenariosSwitch = 'PreLoadScenarios';
 
-  WebClientURISwitch = 'WebClientURI';
-    DefaultWebClientURI = 'HTTP://vps17642.public.cloudvps.com';
-
   IMB4RemoteHostSwitch = 'IMB4RemoteHost';
   IMB4RemotePortSwitch = 'IMB4RemotePort';
 
@@ -46,6 +43,9 @@ const
 
   PortalProjectIDSwitch = 'PortalProjectID';
     DefaultPortalProjectID = '{82E533C0-03D2-47E0-AFEE-524A43BCAD5B}';
+
+  RedirectBackToPortalURLSwitch = 'RedirectBackToPortalURL';
+    DefaultRedirectBackToPortalURL = 'https://vps17642.public.cloudvps.com/portal-test/#/projects'; // hard coded mocked test portal url!
 
 //  RecoverySection = 'recovery';
 
@@ -129,11 +129,12 @@ var
   i: Integer;
   dbConnection: TOraSession;
   connectionError: Boolean;
+  table: TOraTable;
 begin
   try
     // todo: reset sessionmodel imb4 connection
     connectionError := False;
-    if sessionModel.Connection.Reset() then
+    if sessionModel.Connection.connected or sessionModel.Connection.Reset() then
     begin
       // add parameters with default values
       // DataSourceParameterName and FederationParameterName parameters should be set to
@@ -156,6 +157,38 @@ begin
           dbConnection.ConnectString := aParameters.ParameterByName[DataSourceParameterName].ValueAsString;
           try
             dbConnection.Open;
+            table := TOraTable.Create(nil);
+            try
+              table.Session := dbConnection;
+              table.SQL.Text :=
+                'SELECT '+
+                  'PROJECTID, NAME, PROJECT_TYPE, SOURCE_EPSG '+
+                  //'PROJECTID, LAT, LON, ZOOM, '+
+                  //'STARTPUBLISHEDSCENARIOID, PROJECT_TYPE, ACTIVE, SCENARIO_FILTER, SOURCE_EPSG, '+
+	                //'PORTALNAME, PORTALDESCRIPTION, PORTALICON '+
+                'FROM '+PROJECT_TABLE_NAME+' '+
+                'WHERE ACTIVE != 0';
+              try
+                table.Execute;
+                try
+                  if table.FindFirst then
+                  begin
+                    while not table.Eof do
+                    begin
+
+                    end;
+                  end;
+                finally
+                  table.Close;
+                end;
+              except
+                // todo: check table structure and update if needed
+
+              end;
+            finally
+              table.Free;
+            end;
+
             projectID := getUSProjectID(dbConnection, '');
             if projectID=''
             then projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
@@ -275,7 +308,9 @@ begin
     then sourceEPSG := StrToInt(aParameters.ParameterByName[SourceEPSGIntSwitch].ValueAsString)
     else sourceEPSG := -1;
 
-    preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
+    if aParameters.ParameterExists(PreLoadScenariosSwitch)
+    then preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value
+    else preLoadScenarios := GetSetting(PreLoadScenariosSwitch, True);
 
     if aParameters.ParameterExists(ProjectTypeSwitch) then
     begin
@@ -286,6 +321,7 @@ begin
       if projectType.ToUpper = 'PORTAL' then
       begin
         projectID := GetSetting(PortalProjectIDSwitch, DefaultPortalProjectID);
+        mapView := getUSMapView(dbConnection, TMapView.Create(52.31567, 4.90321, 13), projectID);
         fProject := TUSPortal.Create(
           fSessionModel, fSessionModel.Connection, connection,
           projectID, projectName,
@@ -296,6 +332,8 @@ begin
           mapView,
           preLoadScenarios,
           GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
+          GetSetting(AuthorizationURLSwitch, DefaultAuthorizationURL),
+          GetSetting(RedirectBackToPortalURLSwitch, DefaultRedirectBackToPortalURL),
           sourceEPSG);
       end
       else
@@ -403,7 +441,7 @@ begin
     // todo: relink existing clients
 
     // for now
-    Log.WriteLn('URL: '+GetSetting(WebClientURISwitch, DefaultWebClientURI)+'?session='+projectID, llOK);
+    Log.WriteLn('URL: '+fProject.ClientURL, llOK);
 
     // signal we are busy so we do not get killed (this model is different from the standard model)
     SignalModelState(msBusy);
