@@ -88,7 +88,6 @@ type
 
   TMCScenario = class(TScenario)
   constructor Create(aProject: TProject; const aID, aName, aDescription, aFederation: string; aAddbasicLayers: Boolean; aMapView: TMapView);
-  destructor Destroy; override;
   private
     fFederation: string;
   protected
@@ -206,6 +205,7 @@ begin
     fIMB3Connection, '', aMCDataSource, // todo: datasource
     Self,
     aMCIdlePrefix);
+  // todo: order of creation?
   inherited Create(aSessionModel, aConnection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDBConnection,
     aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView);
   fModelManager := TMCProjectModelManager.Create;
@@ -257,12 +257,6 @@ constructor TMCScenario.Create(aProject: TProject; const aID, aName,
 begin
   fFederation := aFederation;
   inherited Create(aProject, aID, aName, aDescription, aAddbasicLayers, aMapView);
-end;
-
-destructor TMCScenario.Destroy;
-begin
-
-  inherited;
 end;
 
 procedure TMCScenario.FillModelControl(aClient: TClient);
@@ -392,6 +386,7 @@ end;
 
 constructor TMCProjectModelManager.Create;
 begin
+  inherited Create;
   fMCProjectModels := TObjectList<TMCProjectModel>.Create; //owns by default
 end;
 

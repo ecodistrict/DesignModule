@@ -770,7 +770,7 @@ begin
       Self.forEachSubscriber<TClient>(
         procedure(aClient: TClient)
         begin
-          Self.project.SendDomains(aClient, 'updatedomains');
+          aClient.SendDomains('updatedomains');
         end);
     end);
 end;
@@ -3613,7 +3613,7 @@ begin
       isp.Value.forEachSubscriber<TClient>(
         procedure(aClient: TClient)
         begin
-          project.SendDomains(aClient, 'updatedomains');
+          aClient.SendDomains('updatedomains');
         end);
     end;
   end

@@ -1,5 +1,24 @@
 unit PublishServerDME;
 
+{
+  portal todo's:
+  - implement create project
+  - update fClientStates
+
+  - time out for open project should be longer (wait cursor?) at least several minutes (like create project?)
+  - when OT module is not available parameters gives back error but create project dialog is still shown..
+  - unblock can be pressed while waiting to open project -> redirect will occure anyway
+  - view mode still allows edit of properties (right click on road -> properties)
+  fixed - unlock updates web client but TClient stays in edit mode
+  - copy scenario does not add scenario to list
+
+  ..
+  middelste project
+  copy scenario v178
+
+
+}
+
 interface
 
 uses
@@ -17,6 +36,7 @@ uses
 
   WorldDataCode,
   WorldLegends,
+  WorldJSON,
 
   IMB3NativeClient,
 
@@ -29,10 +49,19 @@ uses
 
   NDWLib,
 
+  Vcl.Imaging.pngimage,
+
   IdHTTP, // authorization check
+
+  // authorization check 2
+  IPPeerClient,
+  REST.Client,
+  REST.HttpClient,
+  REST.Types,
 
   System.JSON,
   System.SysUtils,
+  System.Classes,
   System.Generics.Collections,
 
   PublishServerOra,
@@ -42,7 +71,8 @@ uses
   PublishServerMCLib;
 
 const
-  AuthorizationURL = 'https://vps17642.public.cloudvps.com/auth/';
+  AuthorizationURLSwitch = 'AuthorizationURL';
+    DefaultAuthorizationURL = 'https://vps17642.public.cloudvps.com/auth/';
 
   //hardcoded bounding box zones for the Park & Shuttle measure
   xMin = '119000';
@@ -60,19 +90,27 @@ const
     //NDWRemotePrefixDefault = 'US_RT.NWB';
     NDWRemotePrefixDefault = 'NDW';
 
-type
-  TUSDesignScenario = class(TUSScenario)
-  public
-    function HandleClientSubscribe(aClient: TClient): Boolean; override;
-    function HandleClientUnsubscribe(aClient: TClient): Boolean; override;
-  end;
+  HSC_SUCCESS_OK = 200;
+  HSC_SUCCESS_CREATED = 201;
 
+  HSC_ERROR_BADREQUEST = 400;
+  HSC_ERROR_UNAUTHORIZED = 401;
+  HSC_ERROR_FORBIDDEN = 403;
+  HSC_ERROR_NOT_FOUND = 404;
+  HSC_ERROR_CONFLICT = 409;
+  HSC_ERROR_NOTIMPLEMENTED = 501;
+
+  //TPortalOpenProjectMode
+	popmView = 0;
+  popmEdit = 1;
+
+
+
+type
   TUSDesignProject = class(TUSProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
-  destructor Destroy; override;
   public
-    procedure ReadBasicData(); override;
     procedure handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject); override;
     procedure handleNewClient(aClient: TClient); override;
   end;
@@ -90,38 +128,92 @@ type
   TUSEvaluateProject = class(TUSProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
     aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
-  destructor Destroy; override;
-  public
   end;
 
-  TPortalProjectState = (ppsClosed, ppsViewing, ppsEditing);
+  TPortalProjectState = (
+    ppsDisabled, // 0
+    ppsUnlocked, // 1
+    ppsLocked // 2
+  );
 
   TUSPortalProjectStatus = class
-  constructor Create(const aProjectID: string);
+  constructor Create(const aProjectID, aName, aDescription: string; aIcon: TPngImage);
   destructor Destroy; override;
   private
     fProjectID: string;
+    fName: string;
     fDescription: string;
     fState: TPortalProjectState;
-    fClientStates: TDictionary<TClient, TPortalProjectState>;
-
+    fIcon: TPngImage;
   public
     property projectID: string read fProjectID;
-    property state: TPortalProjectState read fState;
+    property name: string read fName;
+    property description: string read fDescription;
+    property state: TPortalProjectState read fState write fState;
+    property icon: TPngImage read fIcon;
   end;
 
-  TUSPortal = class(TProject)
+  TUSPortal = class; // forward
+
+  TUSPortalProject = class(TUSProject)
   constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
-    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer; aSourceEPSG: Integer);
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
+    aPortal: TUSPortal; aSourceEPSG: Integer=-1);
+  private
+    fPortal : TUSPortal; // ref only
+    procedure SendRedirect(aClient: TClient; const aNewURL: string);
+  protected
+    procedure SetEditControlsOnClient(aClient: TClient; aEnabled: Boolean);
+
+    procedure HandleCloseProject(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+  public
+    procedure Login(aClient: TClient; aJSONObject: TJSONObject); override;
+  end;
+
+  TUSPortal = class(TMCProject)
+  constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection; const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
+    aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
+    const aAuthorizationURL, aRedirectBackToPortalURL: string; aSourceEPSG: Integer);
   destructor Destroy; override;
   private
     fProjectStatus: TObjectDictionary<string, TUSPortalProjectStatus>;
+    fTokenCache: TDictionary<string, TDateTime>;
+    fMaxTokenAge: TDateTime;
+    fPreLoadScenarios: Boolean;
+    fSourceEPSG: Integer;
+    fAuthorizationURL: string;
+    fRedirectBackToPortalURL: string;
+    procedure SendStatus(aClient: TClient; const aResponseType: string; aCode: Integer; const aMessage: string);
+    procedure SendRedirect(aClient: TClient; const aNewURL: string);
+    procedure SendParameters(aClient: TClient; aParameters: TModelParameters);
   protected
     procedure handleNewClient(aClient: TClient); override;
-    //procedure handleTypedClientMessage(aClient: TClient; const aMessageType: string; var aJSONObject: TJSONObject); override;
-    procedure HandlePortalProjectList(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject);
+
+    procedure HandlePortalLogin(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+    procedure HandlePortalProjectList(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+    procedure HandlePortalOpenProject(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+    procedure HandlePortalUnlockProject(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+    procedure HandlePortalGetParameters(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+    procedure HandlePortalCreateProject(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+
+    function UpdateProjectListAsJSON: string;
+    function isCreateProjectAllowedAsJSON(aIsCreateProjectAllowed: Boolean): string;
+    function RedirectURLPostFix(aOpenMode: Integer): string;
+    function isValidCachedToken(const aToken: string): Boolean;
+    function isCreateProjectAllowed: Boolean;
   public
-    function IsAuthorized(aClient: TClient; const aToken: string): Boolean; override;
+    procedure ReadBasicData; override;
+    function isAuthorized(aClient: TClient; const aToken: string): Boolean; override;
+    procedure handleNotAuthorized(aClient: TClient; aMessage: TJSONObject; const aToken: string); override;
+  public
+    function FindProjectStatus(const aProjectID: string): TUSPortalProjectStatus;
+    procedure UnlockProjectStatus(aPortalProjectStatus: TUSPortalProjectStatus; aClient: TClient);
+    // works on list of projects in session model (parent of all projects)
+    function FindLocalProject(const aProjectID: string): TUSProject;
+    function CreateLocalProject(const aProjectID, aProjectName: string {aPortalProjectStatus: TUSPortalProjectStatus}; const aMapView: TMapView): TUSProject;
+    // works on requests of client
+    function OpenProject(aPortalProjectStatus: TUSPortalProjectStatus; aOpenMode: Integer; aClient: TClient): TUSProject;
+    function CreateProject(const aProjectID, aName, aDescription: string; aParameters: TModelParameters; aClient: TClient; const aMapView: TMapView): TUSProject;
   end;
 
 procedure getUSReadProjectsStatusList(aOraSession: TOraSession; fProjectStatus: TObjectDictionary<string, TUSPortalProjectStatus>);
@@ -132,6 +224,10 @@ procedure getUSReadProjectsStatusList(aOraSession: TOraSession; fProjectStatus: 
 var
   query: TOraQuery;
   projectID: string;
+  description: string;
+  iconStream: TStream;
+  icon: TPngImage;
+  name: string;
 begin
   query := TOraQuery.Create(nil);
   try
@@ -140,13 +236,36 @@ begin
       query.SQL.Text :=
         'SELECT * '+
         'FROM '+PROJECT_TABLE_NAME + ' ' +
-        'WHERE ACTIVE != 0 AND UPPER(PROJECT_TYPE) =''PORTALPROJECT''';
+        'WHERE ACTIVE != 0 AND UPPER(PROJECT_TYPE) =''PORTAL''';
       query.Open;
       while not query.Eof do
       begin
         projectID := query.FieldByName('PROJECTID').Value;
-        if not fProjectStatus.ContainsKey(projectID)
-        then fProjectStatus.Add(projectID, TUSPortalProjectStatus.Create(projectID));
+        if not fProjectStatus.ContainsKey(projectID) then
+        begin
+          try
+            name := query.FieldByName('NAME').Value;
+          except
+            name := '';
+          end;
+          try
+            description := query.FieldByName('DESCRIPTION').Value;
+          except
+            description := '';
+          end;
+          icon := TPngImage.Create;
+          try
+            iconStream := query.CreateBlobStream(query.FieldByName('ICON'), bmRead);
+            try
+              icon.LoadFromStream(iconStream);
+            finally
+              iconStream.Free;
+            end;
+          except
+            icon.LoadFromFile('defaultPortProjectIcon.png');
+          end;
+          fProjectStatus.Add(projectID, TUSPortalProjectStatus.Create(projectID, name, description, icon));
+        end;
         query.Next;
       end;
     except
@@ -162,12 +281,16 @@ function IsValidToken(const aToken: string): Boolean;
 var
   i: Integer;
 begin
-  for i := 1 to length(aToken) do
+  if length(aToken)>0 then
   begin
-    if not CharInSet(aToken[i], ['0'..'9', 'A'..'Z', 'a'..'z','.', '='])
-    then Exit(False);
-  end;
-  Exit(True);
+    for i := 1 to length(aToken) do
+    begin
+      if not CharInSet(aToken[i], ['0'..'9', 'A'..'Z', 'a'..'z', '.', '=', '-', '_', '+'])
+      then Exit(False);
+    end;
+    Exit(True);
+  end
+  else Exit(False);
 end;
 
 function CheckAuthorization(const aURL, aToken: string): boolean;
@@ -181,13 +304,46 @@ begin
       lHTTP.HTTPOptions := lHTTP.HTTPOptions+[hoNoProtocolErrorException];
       lHTTP.Request.CustomHeaders.AddValue('Authorization', aToken);
       lHTTP.Get(aURL);
-      Result := lHTTP.ResponseCode=200;
+      Result := lHTTP.ResponseCode=HSC_SUCCESS_OK;
     finally
       lHTTP.Free;
     end;
   end
   else Result := False;
 end;
+
+function CheckAuthorization2(const aURL, aToken: string): boolean;
+var
+  r: TRestRequest;
+  c: TRESTClient;
+  code: Integer;
+begin
+  if IsValidToken(aToken) then
+  begin
+    r := TRestRequest.Create(nil);
+    try
+      c := TRESTClient.Create(aURL);
+      try
+        r.Client := c;
+        r.AddAuthParameter('Authorization', aToken, TRestRequestParameterKind.pkHTTPHEADER, []);
+        try
+          r.Execute;
+          code := r.Response.StatusCode;
+        except
+          on e: EHTTPProtocolException
+          do code := e.ErrorCode;
+        end;
+      finally
+        c.Free;
+      end;
+    finally
+      r.Free;
+    end;
+    Result := code=HSC_SUCCESS_OK;
+  end
+  else Result := False;
+end;
+
 
 { TUSDesignProject }
 
@@ -204,11 +360,6 @@ begin
   EnableControl(modelControl);
   EnableControl(controlsControl);
   EnableControl(overviewControl);
-end;
-
-destructor TUSDesignProject.Destroy;
-begin
-  inherited;
 end;
 
 procedure TUSDesignProject.handleClientMessage(aClient: TClient; aScenario: TScenario; aJSONObject: TJSONObject);
@@ -778,37 +929,7 @@ end;
 procedure TUSDesignProject.handleNewClient(aClient: TClient);
 begin
   inherited;
-  aClient.signalString('{"type": "canCopyScenario", "payload":1}');
-end;
-
-procedure TUSDesignProject.ReadBasicData;
-//var
-  //scenarioID: Integer;
-  //s: string;
-begin
-  inherited;
-//  ReadScenarios;
-//  ReadMeasures;
-//  // load current scenario and ref scenario first
-//  scenarioID := getUSCurrentPublishedScenarioID(OraSession, GetCurrentScenarioID(OraSession));
-//  fProjectCurrentScenario := ReadScenario(scenarioID.ToString);
-//  Log.WriteLn('current US scenario: '+fProjectCurrentScenario.ID+' ('+(fProjectCurrentScenario as TUSScenario).Tableprefix+'): "'+fProjectCurrentScenario.description+'"', llOk);
-//  // ref
-//  scenarioID := GetScenarioBaseID(OraSession, scenarioID);
-//  if scenarioID>=0 then
-//  begin
-//    fProjectRefScenario := ReadScenario(scenarioID.ToString);
-//    Log.WriteLn('reference US scenario: '+fProjectRefScenario.ID+' ('+(fProjectRefScenario as TUSScenario).Tableprefix+'): "'+fProjectRefScenario.description+'"', llOk);
-//  end
-//  else Log.WriteLn('NO reference US scenario', llWarning);
-//  if PreLoadScenarios then
-//  begin
-//    for s in USDBScenarios.Keys do
-//    begin
-//      if USDBScenarios[s]._published=1
-//        then ReadScenario(s);
-//    end;
-//  end;
+  aClient.CanCopyScenario := True;
 end;
 
 { TUSMonitorProject }
@@ -867,83 +988,21 @@ begin
   EnableControl(modelControl);
 end;
 
-destructor TUSEvaluateProject.Destroy;
-begin
-
-  inherited;
-end;
-
-{ TUSDesignScenario }
-
-function TUSDesignScenario.HandleClientSubscribe(aClient: TClient): Boolean;
-var
-  clientMCControlInterface: TClientMCControlInterface;
-  jsonNewModels: String;
-  model: TCIModelEntry2;
-begin
-  Result := inherited HandleClientSubscribe(aClient);
-
-  //send the model control information
-  clientMCControlInterface := (project as TMCProject).controlInterface;
-  clientMCControlInterface.Lock.Acquire;
-  try
-    jsonNewModels := '';
-    for model in clientMCControlInterface.Models do
-    begin
-      if model.IsThisSession(aClient.currentScenario.ID) then
-      begin
-        if jsonNewModels<>''
-          then jsonNewModels := jsonNewModels+',';
-        jsonNewModels := jsonNewModels+clientMCControlInterface.jsonModelStatusNew(model.UID.ToString, model.ModelName, model.State.ToString, model.Progress)
-      end;
-    end;
-    aClient.signalString(clientMCControlInterface.jsonModelStatusArray(jsonNewModels));
-  finally
-    clientMCControlInterface.Lock.Release;
-  end;
-end;
-
-function TUSDesignScenario.HandleClientUnsubscribe(aClient: TClient): Boolean;
-var
-  clientMCControlInterface: TClientMCControlInterface;
-  jsonDeleteModels: String;
-  model: TCIModelEntry2;
-begin
-  Result := inherited HandleClientUnsubscribe(aClient);
-
-  //delete the models of this scenario from the ModelControlInterface
-  clientMCControlInterface := (project as TMCProject).controlInterface;
-  clientMCControlInterface.Lock.Acquire;
-  try
-    jsonDeleteModels := '';
-    for model in clientMCControlInterface.Models do
-    begin
-      if model.IsThisSession(aClient.currentScenario.ID) then
-      begin
-        if jsonDeleteModels<>''
-          then jsonDeleteModels := jsonDeleteModels+',';
-        jsonDeleteModels := jsonDeleteModels+clientMCControlInterface.jsonModelStatusDelete(model.UID.ToString);
-      end;
-    end;
-    aClient.signalString(clientMCControlInterface.jsonModelStatusArray(jsonDeleteModels));
-  finally
-    clientMCControlInterface.Lock.Release;
-  end;
-end;
-
 { TUSPortalProjectStatus }
 
-constructor TUSPortalProjectStatus.Create(const aProjectID: string);
+constructor TUSPortalProjectStatus.Create(const aProjectID, aName, aDescription: string; aIcon: TPngImage);
 begin
   inherited Create;
   fProjectID := aProjectID;
-  fState := ppsClosed;
-  fClientStates := TDictionary<TClient, TPortalProjectState>.Create();
+  fName := aName;
+  fDescription := aDescription;
+  fState := ppsDisabled;
+  fIcon := aIcon;
 end;
 
 destructor TUSPortalProjectStatus.Destroy;
 begin
-  FreeAndNil(fClientStates);
+  FreeAndNil(fIcon);
   inherited;
 end;
 
@@ -951,45 +1010,963 @@ end;
 
 constructor TUSPortal.Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection;
   const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string; aDBConnection: TCustomConnection;
-  aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters, aSourceEPSG: Integer);
+  aMapView: TMapView; aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
+  const aAuthorizationURL, aRedirectBackToPortalURL: string; aSourceEPSG: Integer);
 begin
   fProjectStatus := TObjectDictionary<string, TUSPortalProjectStatus>.Create([doOwnsValues]);
-  getUSReadProjectsStatusList(aDBConnection as TOraSession, fProjectStatus);
-  inherited Create(aSessionModel, aConnection, {aIMB3Connection,}
-    aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, {aDataSource, }aDBConnection,
-    false, aMaxNearestObjectDistanceInMeters, aMapView{, aPreLoadScenarios, aMaxNearestObjectDistanceInMeters, aSourceEPSG});
+  fTokenCache := TDictionary<string, TDateTime>.Create;
+  fMaxTokenAge := 30/(24*60); // todo: half hour, parameterize
+  fPreLoadScenarios := aPreLoadScenarios;
+  fSourceEPSG := aSourceEPSG;
+  fAuthorizationURL := aAuthorizationURL;
+  fRedirectBackToPortalURL := aRedirectBackToPortalURL;
 
-  ClientMessageHandlers.AddOrSetValue('PortalProjectList', HandlePortalProjectList); // todo: add handlers
+  inherited Create(aSessionModel, aConnection, aIMB3Connection,
+    aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection,
+    false, aMaxNearestObjectDistanceInMeters, aMapView);
+
+  ClientMessageHandlers.AddOrSetValue('RequestPortalLogin', HandlePortalLogin);
+  ClientMessageHandlers.AddOrSetValue('RequestPortalProjectList', HandlePortalProjectList);
+  ClientMessageHandlers.AddOrSetValue('RequestPortalOpenProject', HandlePortalOpenProject);
+  ClientMessageHandlers.AddOrSetValue('RequestPortalParameters', HandlePortalGetParameters);
+  ClientMessageHandlers.AddOrSetValue('RequestPortalUnlockProject', HandlePortalUnlockProject);
+  ClientMessageHandlers.AddOrSetValue('RequestPortalCreateProject', HandlePortalCreateProject);
 
   {
   authorized check test code
-  if IsAuthorized(nil, 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1YmYyY2EyNjRhNTA0YzE5OThjMzQ1ZmQiLCJpYXQiOjE1NDI3MTgwNTUzMTF9.X9DZGcebrutBMw8JmRQNfGj6avNj5jayJhAyCPxkmd4')
+
+  if IsAuthorized(nil, 'zeyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1YmYyY2EyNjRhNTA0YzE5OThjMzQ1ZmQiLCJpYXQiOjE1NDI3MTgwNTUzMTF9.X9DZGcebrutBMw8JmRQNfGj6avNj5jayJhAyCPxkmd4')
   then Log.WriteLn('Authorized', llOk)
   else Log.WriteLn('NOT Authorized', llWarning);
   }
+end;
+
+function TUSPortal.CreateLocalProject(const aProjectID, aProjectName: string {aPortalProjectStatus: TUSPortalProjectStatus}; const aMapView: TMapView): TUSProject;
+begin
+  // create a design mode project but without the client having default edit rights!
+  Result := TUSPortalProject.Create(
+    fSessionModel, connection, fIMB3Connection,
+    aProjectID, aProjectName,
+    tiler.tilerFQDN,
+    tiler.tilerStatusURL,
+    ControlInterface.DataSource,
+    dbConnection,
+    aMapView,
+    fPreLoadScenarios,
+    True, // this is essence a design project so we want to show basic layers
+    maxNearestObjectDistanceInMeters,
+    self,
+    fSourceEPSG);
+  fSessionModel.Projects.Add(Result);
+end;
+
+function TUSPortal.CreateProject(const aProjectID, aName, aDescription: string; aParameters: TModelParameters;
+  aClient: TClient; const aMapView: TMapView): TUSProject;
+var
+  projectMapView: TMapView;
+begin
+  // todo: implement
+  Result := nil;
+  Log.WriteLn('Start creating project '+aProjectID);
+  {
+  pbls_portal table get base scenario and map view to create local project
+  get new available scenario filter
+  save local project to pbls_project with scenario filter
+  copy base scenario and link to local project with scenario filter
+
+  srcProjectID := 0;
+  projectMapView := getUSMapView(dbConnection as TOraSession, mapView, srcProjectID);
+  }
+  //Result := CreateLocalProject(
+
+  //CopyUSScenario(aProject: TUSProject; aClient: TClient; aSrcID: Integer; const aConnectString: string; aIMB3Connection: TIMBConnection);
+  {
+  MakeThreadedScenarioCopy(
+          scenarioID,
+          ConnectStringFromSession(Self.oraSession),
+          aClient,
+          Self,
+          fIMB3Connection);
+  }
+  // check scenario state
+  // copy base scenario to new scenario
+  // fill scenario from OTConnector (OmniTrans): parameters, claim, wait, unlcaim
+  // open scenario
+
 end;
 
 destructor TUSPortal.Destroy;
 begin
   inherited;
   FreeAndNil(fProjectStatus);
+  FreeAndNil(fTokenCache);
+end;
+
+function TUSPortal.FindLocalProject(const aProjectID: string): TUSProject;
+var
+  p: TProject;
+begin
+  //for Sessions
+  for p in fSessionModel.Projects do
+  begin
+    if p.ProjectID.ToUpper=aProjectID.ToUpper
+    then Exit(p as TUSProject);
+  end;
+  Exit(nil);
+end;
+
+function TUSPortal.FindProjectStatus(const aProjectID: string): TUSPortalProjectStatus;
+begin
+  if not fProjectStatus.TryGetValue(aProjectID, Result)
+  then Result := nil;
 end;
 
 procedure TUSPortal.handleNewClient(aClient: TClient);
 begin
   inherited;
+  // to avoid race condition on startup that websocket is up but on imb client is not connected to publisher:
+  // client can start sending without publisher receiving
+  aClient.signalString('{"type":"ready"}');
 end;
 
-procedure TUSPortal.HandlePortalProjectList(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject);
+procedure TUSPortal.handleNotAuthorized(aClient: TClient; aMessage: TJSONObject; const aToken: string);
+var
+  messageType: string;
 begin
-  // todo: implement
-
+  if not aMessage.TryGetValue<string>('type', messageType)
+  then messageType := '';
+  // build UN-AUTH response
+  if messageType.toUpper='RequestPortalProjectList'.toUpper
+  then SendStatus(aClient, 'ResponsePortalProjectList', HSC_ERROR_UNAUTHORIZED, 'Unautherized token')
+  else if messageType.toUpper='RequestPortalLogin'.toUpper
+  then SendStatus(aClient, 'ResponsePortalLogin', HSC_ERROR_UNAUTHORIZED, 'Unautherized token')
+  else SendStatus(aClient, 'Response', HSC_ERROR_UNAUTHORIZED, 'Unautherized token');
 end;
 
-function TUSPortal.IsAuthorized(aClient: TClient; const aToken: string): Boolean;
+procedure TUSPortal.HandlePortalCreateProject(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+var
+  m: TCIModelEntry2;
+  parameters: TModelParameters;
+  parameterList: TJSONArray;
+  p: TJSONValue;
+  n: string;
+  v: TJSONValue;
+  parameter: TModelParameter;
+  found: Boolean;
+  _projectID: string;
+  _projectName: string;
+  _projectDescription: string;
+  _project: TUSProject;
+  _projectIcon: TPngImage;
+  _projectState: TUSPortalProjectStatus;
+  newProjectListJSON: string;
+  createProjectAllowedJSON: string;
 begin
-  // todo: first implement as always check token
-  Result := CheckAuthorization(AuthorizationURL, aToken);
+  // find OT connector model and get default parameters
+  for m in controlInterface.Models do
+  begin
+    if m.ModelName='OTConnector' then
+    begin
+      if aPayload.TryGetValue<string>('name', _projectName) and aPayload.TryGetValue<string>('description', _projectDescription) then
+      begin
+        // update paramaters with values passed from client
+        if aPayload.TryGetValue<TJSONArray>('parameterList', parameterList) then
+        begin
+          // we should already have the default parameters on the model because of the earlier parameter list request?
+          //controlInterface.RequestModelDefaultParameters;
+
+          // create copy of default parameters
+          parameters := TModelParameters.Create(m.DefaultParameters);
+          try
+            for p in parameterList do
+            begin
+              if p is TJSONObject then
+              begin
+                if (p as TJSONObject).TryGetValue<string>('name', n) and (p as TJSONObject).TryGetValue<TJSONValue>('value', v) then
+                begin
+                  found := False;
+                  for parameter in parameters do
+                  begin
+                    if parameter.Name=n then
+                    begin
+                      found := True;
+                      case parameter.ValueType of
+                        mpvtFloat:   parameter.Value := (v as TJSONNumber).AsDouble;
+                        mpvtBoolean: parameter.Value := (v as TJSONBool).AsBoolean;
+                        mpvtInteger: parameter.Value := (v as TJSONNumber).AsInt;
+                      else // mpvtString
+                                     parameter.Value := v.Value;
+                      end;
+                    end
+                  end;
+                  if not found
+                  then Log.WriteLn('TUSPortal.HandlePortalCreateProject: parameter "'+n+'" not found to set value ['+v.Value+'] for', llWarning);
+                end
+                else
+                begin
+                  Log.WriteLn('TUSPortal.HandlePortalCreateProject: malformed parameter '+p.ToJSON, llError);
+                  SendStatus(
+                    aClient,
+                    'ResponsePortalCreateProject',
+                    HSC_ERROR_BADREQUEST,
+                    'malformed parameter');
+                  Exit;
+                end;
+              end;
+            end;
+            // we now have a list of parameters to call create project with
+            // create project id
+            _projectID := TGUID.NewGuid.ToString;
+            _project := CreateProject(_projectID, _projectName, _projectDescription, parameters, aClient, mapView);
+            if Assigned(_project) then
+            begin
+              _projectIcon := nil; // todo: get default image
+              _projectState := TUSPortalProjectStatus.Create(_projectID, _projectName, _projectDescription, _projectIcon);
+              _projectState.state := ppsUnlocked;
+              fProjectStatus.Add(_projectState.projectID, _projectState);
+              // send redirect url to client
+              SendRedirect(aClient, _project.ClientURL);
+              // update "create project is allowed" state
+              createProjectAllowedJSON := isCreateProjectAllowedAsJSON(isCreateProjectAllowed);
+              forEachClient(
+                procedure(aClient: TCLient)
+                begin
+                  // only send if already validated once before
+                  if aClient.lastValidToken<>'' then
+                  begin
+                    aClient.signalString(createProjectAllowedJSON);
+                  end;
+                end);
+              // send updated project list to all clients
+              newProjectListJSON := UpdateProjectListAsJSON;
+              forEachClient(
+                procedure(aClient: TCLient)
+                begin
+                  // only send if already validated once before
+                  if aClient.lastValidToken<>'' then
+                  begin
+                    aClient.signalString(newProjectListJSON);
+                  end;
+                end);
+            end
+            else
+            begin
+              SendStatus(
+                aClient,
+                'ResponsePortalCreateProject',
+                HSC_ERROR_CONFLICT,
+                'could not create project');
+            end;
+          finally
+            parameters.Free;
+          end;
+        end
+        else
+        begin
+          Log.WriteLn('TUSPortal.HandlePortalCreateProject: missing parameter list in '+aPayload.ToJSON, llError);
+          SendStatus(
+            aClient,
+            'ResponsePortalCreateProject',
+            HSC_ERROR_BADREQUEST,
+            'missing parameter list');
+        end;
+      end
+      else
+      begin
+        Log.WriteLn('TUSPortal.HandlePortalCreateProject: missing name and/or description '+aPayload.ToJSON, llError);
+        SendStatus(
+          aClient,
+          'ResponsePortalCreateProject',
+          HSC_ERROR_BADREQUEST,
+          'missing project name or description');
+      end;
+      Exit;
+    end;
+  end;
+  // when we come to this point the OT connector model is not found
+  SendStatus(
+    aClient,
+    'ResponsePortalCreateProject',
+    HSC_ERROR_NOT_FOUND,
+    'OT model not available');
+end;
+
+procedure TUSPortal.HandlePortalGetParameters(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+var
+  m: TCIModelEntry2;
+  parameters: TModelParameters;
+  parameter: TModelParameter;
+begin
+  // find OT connector model and get default parameters
+  for m in controlInterface.Models do
+  begin
+    if m.ModelName='OTConnector' then
+    begin
+      // request default parameters
+      controlInterface.RequestModelDefaultParameters(m);
+      parameters := TModelParameters.Create();
+      try
+        // filter parameters
+        for parameter in m.DefaultParameters do
+        begin
+          //
+          {
+          ('OT2US Car Matrix -> Traf_OD', mpvtBoolean, False, ())
+          ('OT2US Freight Matrix -> Traf_OD', mpvtBoolean, False, ())
+          ('OT2US copy traf_od to ref_od', mpvtBoolean, False, ())
+          ('OT2US Skim Car TravelTime -> Traf_OD', mpvtBoolean, False, ())
+          ('OT2US Skim PT TravelTime -> Traf_OD', mpvtBoolean, False, ())
+          ('OT2US links+Nodes -> gene_road + gene_node', mpvtBoolean, False, ())
+          ('OT2US BPRs -> Traf_linetypes', mpvtBoolean, False, ())
+          ('OT2US Zones -> Traf_zone', mpvtBoolean, False, ())
+          ('OT2US districts -> gene_district (Not yet implemented)', mpvtBoolean, False, ())
+          ('OT RUN (flow, turndelay, junction delay will sync. automatically)', mpvtBoolean, False, ())
+          ('OT2US Environment Zone', mpvtBoolean, False, ())
+          ('US2OT Controls -> OT', mpvtBoolean, False, ())
+          ('US2OT Links -> OT', mpvtBoolean, False, ())
+          ('OT Project', mpvtString, 'OT812_150215_Zuidas_v2a', ())
+          ('OT Project Variant', mpvtString, 'A_KnipOnderA10', ('A_KnipOnderA10', 'Basis', 'B_KipBovenA10', 'C_EenrichtingMahler', 'D_KleinRondjeZuidas', 'E_EenrichtingAlles', 'F_KnipEenrichtingAlles', 'G_CombiKnipEenrichting', 'Play'))
+          }
+          if (parameter.name='OT Project') or
+             (parameter.name='OT Project Variant') then
+          begin
+            parameters.Add(TModelParameter.Create(parameter));
+          end;
+        end;
+        // build response and send to client
+        SendParameters(aClient, parameters);
+      finally
+        parameters.Free;
+      end;
+      Exit;
+    end;
+  end;
+  // when we come to this point the OT connector model is not found
+  SendStatus(
+    aClient,
+    'ResponsePortalParameters',
+    HSC_ERROR_NOT_FOUND,
+    'OT model not available');
+end;
+
+procedure TUSPortal.HandlePortalLogin(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+begin
+  SendStatus(aClient, 'ResponsePortalLogin', HSC_SUCCESS_OK, 'Successfull login');
+  aClient.signalString(isCreateProjectAllowedAsJSON(isCreateProjectAllowed));
+end;
+
+procedure TUSPortal.HandlePortalOpenProject(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+var
+  portalProjectStatus: TUSPortalProjectStatus;
+  newProjectListJSON: string;
+  mode: Integer;
+  id: string;
+  project: TUSProject;
+  createProjectAllowedJSON: string;
+begin
+  if aPayload.TryGetValue<string>('projectID', id) then
+  begin
+    portalProjectStatus := FindProjectStatus(id);
+    if Assigned(portalProjectStatus) then
+    begin
+      if aPayload.TryGetValue<integer>('mode', mode) then
+      begin
+        if (mode=popmView) or (portalProjectStatus.state<ppsLocked) then
+        begin
+          if mode=popmView then
+          begin
+            // make sure minimum project state is now: unlocked
+            if portalProjectStatus.state<ppsUnlocked
+            then portalProjectStatus.state := ppsUnlocked;
+          end
+          else
+          begin
+            // lock project
+            portalProjectStatus.state := ppsLocked;
+          end;
+          // send new list to all clients
+          newProjectListJSON := UpdateProjectListAsJSON;
+          forEachClient(
+            procedure(aClient: TCLient)
+            begin
+              // only send if already validated once before
+              if aClient.lastValidToken<>''
+              then aClient.signalString(newProjectListJSON);
+            end);
+          // open project
+          try
+            project := OpenProject(portalProjectStatus, mode, aClient);
+            if Assigned(project) then
+            begin
+              // respond to client with new status
+              SendStatus(
+                aClient,
+                'ResponsePortalOpenProject',
+                HSC_SUCCESS_OK,
+                'Project open succeeded');
+              // send redirect
+              SendRedirect(aClient, project.ClientURL+RedirectURLPostFix(mode));
+              // update "create project is allowed" state
+              createProjectAllowedJSON := isCreateProjectAllowedAsJSON(isCreateProjectAllowed);
+              forEachClient(
+                procedure(aClient: TCLient)
+                begin
+                  // only send if already validated once before
+                  if aClient.lastValidToken<>'' then
+                  begin
+                    aClient.signalString(createProjectAllowedJSON);
+                  end;
+                end);
+            end
+            else
+            begin
+              SendStatus(
+                aClient,
+                'ResponsePortalOpenProject',
+                HSC_ERROR_CONFLICT,
+                'Project open failed');
+            end;
+          except
+            on E: Exception do
+            begin
+              SendStatus(
+                aClient,
+                'ResponsePortalOpenProject',
+                HSC_ERROR_CONFLICT,
+                'Project open failed: '+E.Message);
+            end;
+          end;
+        end
+        else
+        begin
+          SendStatus(
+            aClient,
+            'ResponsePortalOpenProject',
+            HSC_ERROR_BADREQUEST,
+            'ProjectID defined in RequestPortalUnlockProject is already locked');
+        end;
+      end
+      else
+      begin
+        SendStatus(
+          aClient,
+          'ResponsePortalOpenProject',
+          HSC_ERROR_BADREQUEST,
+          'mode not defined in RequestPortalOpenProject');
+      end;
+    end
+    else
+    begin
+      SendStatus(
+        aClient,
+        'ResponsePortalOpenProject',
+        HSC_ERROR_BADREQUEST,
+        'Unknown projectID defined in RequestPortalOpenProject');
+    end;
+  end
+  else
+  begin
+    SendStatus(
+      aClient,
+      'ResponsePortalOpenProject',
+      HSC_ERROR_BADREQUEST,
+      'projectID not defined in RequestPortalOpenProject');
+  end;
+end;
+
+procedure TUSPortal.HandlePortalProjectList(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+var
+  o: TWDJSONObject;
+  projectInfo: TPair<string, TUSPortalProjectStatus>;
+begin
+  o := nil;
+  try
+    with WDJSONCreate(o) do
+    begin
+      add('type', 'ResponsePortalProjectList');
+      with addObject('payload') do
+      begin
+        add('status', HSC_SUCCESS_OK);
+        add('message', 'Successfull request of list of projects');
+        with addArray('projectList') do
+        begin
+          for projectInfo in fProjectStatus do
+          begin
+            with addObject do
+            begin
+              add('projectID', projectInfo.Value.projectID);
+              add('name', projectInfo.Value.name);
+              add('description', projectInfo.Value.description);
+              add('state', Ord(projectInfo.Value.state));
+              add('icon', ImageToBase64(projectInfo.Value.icon));
+            end;
+          end;
+        end;
+      end;
+    end;
+    aClient.signalString(o.JSON());
+  finally
+    o.Free;
+  end;
+end;
+
+procedure TUSPortal.HandlePortalUnlockProject(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+var
+  portalProjectStatus: TUSPortalProjectStatus;
+  id: string;
+  project: TUSPortalProject;
+begin
+  if aPayload.TryGetValue('projectID', id) then
+  begin
+    portalProjectStatus := FindProjectStatus(id);
+    if Assigned(portalProjectStatus) then
+    begin
+      if portalProjectStatus.state=ppsLocked then
+      begin
+        // unlock project
+        project := FindLocalProject(id) as TUSPortalProject;
+        if Assigned(project) then
+        begin
+          // change mode to view mode for all connected clients to this project
+          project.forEachClient(
+            procedure(aClient: TClient)
+            begin
+              if aClient.editMode=popmEdit.ToString then
+              begin
+                aClient.editMode := popmView.ToString;
+                project.SetEditControlsOnClient(aClient, False);
+                aClient.SendMessage(
+                  'Edit mode is disabled due to explicit unlock command from portal',
+                  TMessageType.mtWarning,
+                  5000);
+              end;
+            end);
+        end;
+        // unlock project itself and update all connected portal clients
+        UnlockProjectStatus(portalProjectStatus, aClient);
+        // respond to client with new status
+        SendStatus(
+          aClient,
+          'ResponsePortalUnlockProject',
+          HSC_SUCCESS_OK,
+          'Project is now unlocked');
+
+      end
+      else
+      begin
+        SendStatus(
+          aClient,
+          'ResponsePortalUnlockProject',
+          HSC_ERROR_BADREQUEST,
+          'ProjectID defined in RequestPortalUnlockProject is not locked');
+      end;
+    end
+    else
+    begin
+      SendStatus(
+        aClient,
+        'ResponsePortalUnlockProject',
+        HSC_ERROR_BADREQUEST,
+        'Unknown projectID defined in RequestPortalUnlockProject');
+    end;
+  end
+  else
+  begin
+    SendStatus(
+      aClient,
+      'ResponsePortalUnlockProject',
+      HSC_ERROR_BADREQUEST,
+      'projectID not defined in RequestPortalUnlockProject');
+  end;
+end;
+
+function TUSPortal.isAuthorized(aClient: TClient; const aToken: string): Boolean;
+begin
+  if aToken<>'' then
+  begin
+    // check cache first
+    Result := isValidCachedToken(aToken);
+    // if not validated token check auth service
+    if not Result then
+    begin
+      try
+        Result := CheckAuthorization2(fAuthorizationURL, aToken);
+        if Result
+        then fTokenCache.AddOrSetValue(aToken, Now);
+      except
+        on E: Exception do
+        begin
+          Log.WriteLn('Could not check authorization: '+e.Message, llError);
+          Result := False;
+        end;
+      end;
+    end;
+  end
+  else
+  begin
+    Result := False;
+    Log.WriteLn('No token provided for authorization', llError);
+  end;
+end;
+
+function TUSPortal.isCreateProjectAllowed: Boolean;
+var
+  projectStatus: TPair<string, TUSPortalProjectStatus>;
+begin
+  for projectStatus in fProjectStatus do
+  begin
+    if projectStatus.Value.state=TPortalProjectState.ppsLocked
+    then Exit(False);
+  end;
+  Exit(True);
+end;
+
+function TUSPortal.isCreateProjectAllowedAsJSON(aIsCreateProjectAllowed: Boolean): string;
+var
+  o: TWDJSONObject;
+begin
+  o := nil;
+  try
+    with WDJSONCreate(o) do
+    begin
+      add('type', 'UpdateIsCreateProjectAllowed');
+      with addObject('payload') do
+      begin
+        add('isAllowed', aIsCreateProjectAllowed);
+      end;
+    end;
+    Result := o.JSON();
+  finally
+    o.Free;
+  end;
+end;
+
+function TUSPortal.isValidCachedToken(const aToken: string): Boolean;
+var
+  timestampToken: TDateTime;
+begin
+  if aToken<>'' then
+  begin
+    if fTokenCache.tryGetValue(aToken, timestampToken) then
+    begin
+      // check if still valid
+      if timestampToken+fMaxTokenAge>=now then
+      begin
+        Result := True;
+      end
+      else
+      begin
+        fTokenCache.Remove(aToken);
+        Result := False;
+      end;
+    end
+    else Result := False;
+  end
+  else Result := False;
+end;
+
+function TUSPortal.OpenProject(aPortalProjectStatus: TUSPortalProjectStatus; aOpenMode: Integer; aClient: TClient): TUSProject;
+var
+  projectMapView: TMapView;
+begin
+  Result := FindLocalProject(aPortalProjectStatus.projectID);
+  if not Assigned(Result) then
+  begin
+    projectMapView := getUSMapView(dbConnection as TOraSession, mapView, aPortalProjectStatus.projectID);
+    Result := CreateLocalProject(aPortalProjectStatus.projectID, aPortalProjectStatus.name, projectMapView);
+    //if aOpenMode=om then
+
+  end;
+  Log.WriteLn('Open project '+aPortalProjectStatus.projectID+' in mode '+aOpenMode.ToString);
+end;
+
+procedure TUSPortal.ReadBasicData;
+var
+  p: TPair<string, TUSPortalProjectStatus>;
+begin
+  inherited;
+  getUSReadProjectsStatusList(fDBConnection as TOraSession, fProjectStatus);
+  // unlock all projects
+  for p in fProjectStatus
+  do p.Value.state := ppsUnlocked;
+  Log.WriteLn('Read '+fProjectStatus.Count.toString+' portal projects');
+end;
+
+function TUSPortal.RedirectURLPostFix(aOpenMode: Integer): string;
+begin
+  Result := '&editMode='+aOpenMode.toString;
+end;
+
+procedure TUSPortal.SendParameters(aClient: TClient; aParameters: TModelParameters);
+var
+  o: TWDJSONObject;
+  parameter: TModelParameter;
+  vv: Variant;
+begin
+  o := nil;
+  try
+    with WDJSONCreate(o) do
+    begin
+      add('type', 'ResponsePortalParameters');
+      with addObject('payload') do
+      begin
+        add('status', HSC_SUCCESS_OK);
+        add('message', 'Parameter list read');
+        with addArray('parameterList') do
+        begin
+          if Assigned(aParameters) then
+          begin
+            for parameter in aParameters do
+            begin
+              with addObject do
+              begin
+                add('name', parameter.Name);
+                add('description', parameter.Name); // todo: no description available yet
+                add('type', Ord(parameter.ValueType));
+                case parameter.ValueType of
+                  mpvtFloat:
+                    begin
+                      add('defaultValue', Double(parameter.Value));
+                      if length(parameter.ValueList)>0 then
+                        with addArray('selection')
+                        do for vv in parameter.ValueList
+                           do add(Double(vv));
+                    end;
+                  mpvtBoolean:
+                    begin
+                      add('defaultValue', Boolean(parameter.Value));
+                      if length(parameter.ValueList)>0 then
+                        with addArray('selection')
+                        do for vv in parameter.ValueList
+                           do add(Boolean(vv));
+                    end;
+                  mpvtInteger:
+                    begin
+                      add('defaultValue', Integer(parameter.Value));
+                      if length(parameter.ValueList)>0 then
+                        with addArray('selection')
+                        do for vv in parameter.ValueList
+                           do add(Integer(vv));
+                    end
+                else
+                  //mpvtString..
+                      add('defaultValue', parameter.ValueAsString);
+                      if length(parameter.ValueList)>0 then
+                        with addArray('selection')
+                        do for vv in parameter.ValueList
+                           do add(string(vv));
+                end;
+                add('freeEdit', length(parameter.ValueList)=0);
+              end;
+            end;
+          end;
+        end;
+      end;
+    end;
+    aClient.signalString(o.JSON());
+  finally
+    o.Free;
+  end;
+end;
+
+procedure TUSPortal.SendRedirect(aClient: TClient; const aNewURL: string);
+var
+  o: TWDJSONObject;
+begin
+  o := nil;
+  try
+    with WDJSONCreate(o) do
+    begin
+      add('type', 'Redirect');
+      with addObject('payload') do
+      begin
+        add('url', aNewURL);
+      end;
+    end;
+    aClient.signalString(o.JSON());
+  finally
+    o.Free;
+  end;
+end;
+
+procedure TUSPortal.SendStatus(aClient: TClient; const aResponseType: string; aCode: Integer; const aMessage: string);
+var
+  o: TWDJSONObject;
+begin
+  o := nil;
+  try
+    with WDJSONCreate(o) do
+    begin
+      add('type', aResponseType);
+      with addObject('payload') do
+      begin
+        add('status', aCode);
+        add('message', aMessage);
+      end;
+    end;
+    aClient.signalString(o.JSON());
+  finally
+    o.Free;
+  end;
+end;
+
+procedure TUSPortal.UnlockProjectStatus(aPortalProjectStatus: TUSPortalProjectStatus; aClient: TClient);
+var
+  createProjectAllowedJSON: string;
+  newProjectListJSON: string;
+begin
+  aPortalProjectStatus.state := ppsUnlocked;
+  // update "create project is allowed" state
+  createProjectAllowedJSON := isCreateProjectAllowedAsJSON(isCreateProjectAllowed);
+  forEachClient(
+    procedure(aClient: TCLient)
+    begin
+      // only send if already validated once before
+      if aClient.lastValidToken<>'' then
+      begin
+        aClient.signalString(createProjectAllowedJSON);
+      end;
+    end);
+  // send new list to all clients
+  newProjectListJSON := UpdateProjectListAsJSON;
+  forEachClient(
+    procedure(aClient: TCLient)
+    begin
+      // only send if already validated once before
+      if aClient.lastValidToken<>''
+      then aClient.signalString(newProjectListJSON);
+    end);
+end;
+
+function TUSPortal.UpdateProjectListAsJSON: string;
+var
+  o: TWDJSONObject;
+  projectInfo: TPair<string, TUSPortalProjectStatus>;
+begin
+  o := nil;
+  try
+    with WDJSONCreate(o) do
+    begin
+      add('type', 'UpdatePortalProjectList');
+      with addObject('payload') do
+      begin
+        with addArray('projectList') do
+        begin
+          for projectInfo in fProjectStatus do
+          begin
+            with addObject do
+            begin
+              add('projectID', projectInfo.Value.projectID);
+              add('name', projectInfo.Value.name);
+              add('description', projectInfo.Value.description);
+              add('state', Ord(projectInfo.Value.state));
+              add('icon', ImageToBase64(projectInfo.Value.icon));
+            end;
+          end;
+        end;
+      end;
+    end;
+    Result := o.JSON();
+  finally
+    o.Free;
+  end;
+end;
+
+{ TUSPortalProject }
+
+constructor TUSPortalProject.Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection;
+  const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string; aDBConnection: TCustomConnection;
+  aMapView: TMapView; aPreLoadScenarios, aAddBasicLayers: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
+  aPortal: TUSPortal; aSourceEPSG: Integer);
+begin
+  fPortal := aPortal;
+  inherited Create(aSessionModel, aConnection, aIMB3Connection,
+    aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource, aDBConnection,
+    aMapView, aPreLoadScenarios, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aSourceEPSG);
+  ClientMessageHandlers.AddOrSetValue('closeProject', HandleCloseProject);
+end;
+
+procedure TUSPortalProject.SetEditControlsOnClient(aClient: TClient; aEnabled: Boolean);
+var
+  controlState: string;
+begin
+  if aEnabled then
+  begin
+    aClient.CanCopyScenario := True;
+    controlState := controlEnabled
+  end
+  else
+  begin
+    aClient.CanCopyScenario := False;
+    controlState := controlDisabled;
+  end;
+  aClient.Control[selectControl] := controlState;
+  aClient.Control[measuresControl] := controlState;
+  aClient.Control[measuresHistoryControl] := controlState;
+  aClient.Control[modelControl] := controlState;
+  aClient.Control[controlsControl] := controlState;
+  aClient.Control[overviewControl] := controlState;
+  aClient.Control[closeProjectControl] := '{"url":"'+fPortal.fRedirectBackToPortalURL+'"}';
+  aClient.signalControls;
+end;
+
+procedure TUSPortalProject.HandleCloseProject(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+var
+  redirectURL: string;
+  unlock: Boolean;
+  portalProjectStatus: TUSPortalProjectStatus;
+begin
+  if aPayload.TryGetValue<string>('url', redirectURL)
+  then SendRedirect(aClient, redirectURL)
+  else Log.WriteLn('Did not receive redirect url in HandleCloseProject', llError);
+  // client is closing project so no need to update edit mode to view mode for this client (?)
+  // check if we should unlock the project
+  if aClient.editMode=popmEdit.ToString then
+  begin
+    // we were editing so unlock if no one else is editing
+    unlock := True;
+    forEachClient(
+      procedure(aClient2: TClient)
+      begin
+        if (aClient2<>aClient) and (aClient2.editMode=popmEdit.ToString)
+        then unlock := False;
+      end);
+    if unlock then
+    begin
+      portalProjectStatus := fPortal.FindProjectStatus(aProject.ProjectID);
+      if Assigned(portalProjectStatus) then
+      begin
+        fPortal.UnlockProjectStatus(portalProjectStatus, aClient);
+      end;
+    end;
+  end;
+end;
+
+procedure TUSPortalProject.Login(aClient: TClient; aJSONObject: TJSONObject);
+begin
+  inherited;
+  // set controls like design mode or us mode based on edit mode request of
+  SetEditControlsOnClient(aClient, aClient.editMode=popmEdit.ToString);
+end;
+
+procedure TUSPortalProject.SendRedirect(aClient: TClient; const aNewURL: string);
+var
+  o: TWDJSONObject;
+begin
+  o := nil;
+  try
+    with WDJSONCreate(o) do
+    begin
+      add('type', 'Redirect');
+      with addObject('payload') do
+      begin
+        add('url', aNewURL);
+      end;
+    end;
+    aClient.signalString(o.JSON());
+  finally
+    o.Free;
+  end;
 end;
 
 end.

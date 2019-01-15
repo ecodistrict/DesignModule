@@ -667,7 +667,6 @@ type
 
   TUSControl = class
   constructor Create(aID: string; aName, aDescription: string; aLat, aLon: Double);
-  destructor Destroy; override;
   private
     fID: string;
     fName, fDescription: string;
@@ -682,7 +681,6 @@ type
 
   TUSControlStatus = class
   constructor Create(aID: Integer; aActive: Boolean);
-  destructor Destroy; override;
   private
     fID: Integer;
     fActive: Boolean; //TODO: rewrite to Integer to reflect database
@@ -799,8 +797,8 @@ type
     procedure handleInternalControlsChange(aSender: TSubscribeObject; const aAction, aObjectID: Integer);
     procedure HandleControlsQueueEvent();
   private //typed message handles
-    procedure HandleClientMeasureMessage(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject);
-    procedure HandleControlPropertyChange(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject);
+    procedure HandleClientMeasureMessage(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
+    procedure HandleControlPropertyChange(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue);
   public
     function GetTableSync(const aUSTableName: string): TSubscribeObject;
     procedure SendInternalTableUpdate(const aUSTableName: string; aAction, aObjectID: Integer);
@@ -819,8 +817,68 @@ function getUSScenarioFilter(aOraSession: TOraSession; const aProjectID: string)
 function ReadMetaLayer(aSession: TOraSession; const aTablePrefix: string; aMetaLayer: TMetaLayer): Boolean;
 function SubscribeUSDataEvents(const aUserName, aIMBEventClass, aTablePrefix: string; aIMBConnection: TIMBConnection): TIMBEventEntryArray;
 
+procedure CopyUSScenario(aProject: TUSProject; aClient: TClient; aSrcID: Integer; const aConnectString: string; aIMB3Connection: TIMBConnection);
 
 implementation
+
+procedure CopyUSScenario(aProject: TUSProject; aClient: TClient; aSrcID: Integer; const aConnectString: string; aIMB3Connection: TIMBConnection);
+var
+  dbConnection: TOraSession;
+  scenario: TUSScenario;
+  dstID: Integer;
+  dstDescription: string;
+  dstScenario: TScenario;
+begin
+  dbConnection := TOraSession.Create(nil);
+  try
+    dbConnection.ConnectString := aConnectString;
+    dbConnection.Open;
+    aClient.SendMessage('Starting scenario copy', mtSucces, 10000);
+    if CopyScenario(dbConnection, aSrcID, dstID, dstDescription) then
+    begin
+      aClient.SendMessage('Done copying scenario V' + aSrcID.ToString + ' to V' + dstID.ToString, mtSucces);
+      log.WriteLn('Done copying scenario V' + aSrcID.ToString + ' to V' + dstID.ToString, llOk);
+      scenario := TUSScenario.Create(aProject, dstID.ToString, 'V' + dstID.ToString, dstDescription, dbConnection.Username.ToUpper + '#V' + dstID.ToString, aProject.addBasicLayers, aProject.mapView, aIMB3Connection, 'V' + dstID.ToString + '#');
+      TMonitor.Enter(aProject.Scenarios);
+      try
+        aProject.fScenarios.Add(dstID.ToString, scenario);
+
+        aProject.fScenarioLinks.children.Add(TScenarioLink.Create(
+            dstID.ToString, aSrcID.ToString, aSrcID.ToString,
+            'V' + dstID.ToString, dstDescription, 'OPEN', scenario));
+        if GetSetting(UseScenarioHierarchySwitch, False)
+        then aProject.fScenarioLinks.buildHierarchy() // todo: use hierarchy via setting?
+        else aProject.fScenarioLinks.sortChildren(); // todo: sort scenario links?
+      finally
+        TMonitor.Exit(aProject.Scenarios);
+      end;
+      aProject.forEachClient(
+        procedure(aClient: TClient)
+        begin;
+          aClient.SendDomains('updatedomains');
+          aClient.UpdateSession(aProject); //todo check if this works
+        end);
+    end
+    else //error copying scenario
+    begin
+      aClient.SendMessage('Error copying scenario', mtError);
+      log.WriteLn('Error copying scenario V' + aSrcID.ToString + ' to V' + dstID.ToString, llWarning);
+    end;
+    // todo: handle scenario add
+    dstScenario := aProject.ReadScenario(dstID.ToString);
+    if Assigned(dstScenario) then
+    begin
+      aProject.forEachClient(
+        procedure(aClient: TClient)
+        begin
+          // update list of scenarios
+          aClient.UpdateSession(aProject);
+        end);
+    end;
+  finally
+    dbConnection.Free
+  end;
+end;
 
 function ConnectToUSProject(const aConnectString, aProjectID: string; out aMapView: TMapView): TOraSession;
 var
@@ -2239,13 +2297,13 @@ constructor TUSScenario.Create(aProject: TProject; const aID, aName, aDescriptio
 begin
   fTablePrefix := aTablePrefix;
   fIMBConnection := aIMBConnection;
+  fUSChartGroups := TObjectList<TUSChartGroup>.Create(True);
+  inherited Create(aProject, aID, aName, aDescription, aFederation, aAddbasicLayers, aMapView);
   fLayerRefreshEvent := fIMBConnection.Publish(
     (aProject as TUSProject).OraSession.Username+
     aTableprefix.Substring(aTableprefix.Length-1)+ // #
     aTableprefix.Substring(0, aTablePrefix.length-1)+
     '.'+'TilerLayers', false);
-  fUSChartGroups := TObjectList<TUSChartGroup>.Create(True);
-  inherited Create(aProject, aID, aName, aDescription, aFederation, aAddbasicLayers, aMapView);
 end;
 
 destructor TUSScenario.Destroy;
@@ -3038,7 +3096,7 @@ begin
 end;
 
 procedure TUSProject.HandleClientMeasureMessage(aProject: TProject;
-  aClient: TClient; const aType: string; aPayload: TJSONObject);
+  aClient: TClient; const aType: string; aPayload: TJSONValue);
 var
   layer: TLayerBase;
   basicLayer: TUSBasicLayer;
@@ -3697,7 +3755,7 @@ begin
 end;
 
 procedure TUSProject.HandleControlPropertyChange(aProject: TProject;
-  aClient: TClient; const aType: string; aPayload: TJSONObject);
+  aClient: TClient; const aType: string; aPayload: TJSONValue);
 var
   jsonArray: TJSONArray;
   jsonValue: TJSONValue;
@@ -3936,59 +3994,26 @@ begin
   end;
 end;
 
-procedure TUSProject.handleTypedClientMessage(aClient: TClient;
-  const aMessageType: string; var aJSONObject: TJSONObject);
-
-  function MakeThreadedScenarioCopy(aSrcID, aConnectString: string; aClient: TClient; aProject: TUSProject): TProc;
-  begin
-    Result := procedure ()
-    var
-      dbConnection: TOraSession;
-      scenario: TUSScenario;
-      dstID, dstDescription: string;
+{
+function MakeCopyUSScenarioProc(aSrcID: Integer; const aConnectString: string; aClient: TClient; aProject: TUSProject; aIMB3Connection: TIMBConnection): TProc;
+begin
+  // return anonymous function as a result to access given parameters
+  Result :=
+    procedure ()
     begin
-      dbConnection := TOraSession.Create(nil);
-      try
-        dbConnection.ConnectString := aConnectString;
-        dbConnection.Open;
-        aClient.SendMessage('Starting scenario copy', mtSucces, 10000);
-        if CopyScenario(aSrcID, dbConnection.Username, dbConnection, dstID, dstDescription) then
-        begin
-          aClient.SendMessage('Done copying scenario V' + aSrcID + ' to V' + dstID, mtSucces);
-
-          scenario := TUSScenario.Create(Self, dstID, 'V' + dstID, dstDescription, dbConnection.Username.ToUpper + '#V' + dstID, aProject.addBasicLayers, aProject.mapView, fIMB3Connection, 'V' + dstID + '#');
-          aProject.fScenarios.Add(dstID, scenario);
-
-          aProject.fScenarioLinks.children.Add(TScenarioLink.Create(
-              dstID, aSrcID, aSrcID,
-              'V' + dstID, dstDescription, 'OPEN', scenario));
-          if GetSetting(UseScenarioHierarchySwitch, False)
-          then aProject.fScenarioLinks.buildHierarchy() // todo: use hierarchy via setting?
-          else aProject.fScenarioLinks.sortChildren(); // todo: sort scenario links?
-          aProject.forEachClient(procedure(aClient: TClient)
-          begin;
-            SendDomains(aClient, 'updatedomains');
-            aClient.UpdateSession; //todo check if this works
-          end);
-        end
-        else //error copying scenario
-        begin
-          aClient.SendMessage('Error copying scenario', mtError);
-        end;
-        //handle scenario add
-      finally
-        dbConnection.Free
-      end;
+      CopyUSScenario(aProject, aClient, aSrcID, aConnectString, aIMB3Connection);
     end;
-  end;
+end;
+}
 
+procedure TUSProject.handleTypedClientMessage(aClient: TClient; const aMessageType: string; var aJSONObject: TJSONObject);
 var
   jsonArrayItem, payloadValue: TJSONValue;
   controlActive, controlID: Integer;
   payloadArray: TJSONArray;
   scenario: TUSScenario;
   scenarioID: Integer;
-  baseScenario: TScenario;
+//  baseScenario: TScenario;
   requestID, requestType, responseJSON: string;
 begin
   inherited;
@@ -4027,15 +4052,19 @@ begin
     end
     else if (aMessageType = 'copyScenario') and payloadValue.TryGetValue<Integer>('scenario', scenarioID) then
     begin
-      TMonitor.Enter(fScenarios);
-      try
-        if fScenarios.TryGetValue(scenarioID.ToString, baseScenario) then
+      TThread.CreateAnonymousThread(
+        procedure()
         begin
-          TThread.CreateAnonymousThread(MakeThreadedScenarioCopy(baseScenario.ID, ConnectStringFromSession(Self.oraSession), aClient, Self)).Start;
-        end;
-      finally
-        TMonitor.Exit(fScenarios);
-      end;
+          CopyUSScenario(Self, aClient, scenarioID, ConnectStringFromSession(Self.oraSession), fIMB3Connection);
+        end);
+        {
+        MakeCopyUSScenarioProc(
+          scenarioID,
+          ConnectStringFromSession(Self.oraSession),
+          aClient,
+          Self,
+          fIMB3Connection)).Start;
+        }
     end
     else if (aMessageType = 'dialogDataRequest') and payloadValue.TryGetValue<string>('id', requestID) and payloadValue.TryGetValue<string>('type', requestType) then
     begin
@@ -4076,8 +4105,17 @@ begin
     fProjectCurrentScenario := ReadScenario(scenarioID.ToString);
     if not Assigned(fProjectCurrentScenario) then
     begin
-      fProjectCurrentScenario := ReadScenario(scenarios.Keys.ToArray[0]);
-      Log.WriteLn('current scenario '+scenarioID.ToString+' not found, override by using first', llWarning);
+      if scenarios.Count>0 then
+      begin
+        fProjectCurrentScenario := ReadScenario(scenarios.Keys.ToArray[0]);   //todo: range check error
+        Log.WriteLn('current scenario '+scenarioID.ToString+' not found, override by using first', llWarning);
+      end
+      else
+      begin
+        fProjectCurrentScenario := nil;
+        Log.WriteLn('current scenario '+scenarioID.ToString+' not found, no scenarios found to override', llError);
+        raise Exception.Create('Could not find a scenario to start with');
+      end;
     end;
     Log.WriteLn('current US scenario: '+fProjectCurrentScenario.ID+' ('+(fProjectCurrentScenario as TUSScenario).fTableprefix+'): "'+fProjectCurrentScenario.description+'"', llOk);
     // ref
@@ -4291,10 +4329,12 @@ begin
     // try to read view from database
     table := TOraTable.Create(nil);
     try
-      queryText := 'SELECT Lat, Lon, Zoom '+
+      queryText :=
+        'SELECT Lat, Lon, Zoom '+
         'FROM '+PROJECT_TABLE_NAME;
-      if aProjectID <> '' then
-        queryText := queryText + ' WHERE PROJECTID='''+aProjectID+'''';
+      if aProjectID <> ''
+      then queryText := queryText + ' '+
+        'WHERE PROJECTID='''+aProjectID+'''';
       table.Session := aOraSession;
       table.SQL.Text := queryText;
       try
@@ -4703,7 +4743,7 @@ begin
     else
       break;
   end;
-
+  // todo: check creation order
   inherited Create(aScenario, domain, RemoveTablePrefix(aTableName) + aPrefix, name, description, defaultLoad, 'bar');
 end;
 
@@ -5293,6 +5333,7 @@ end;
 constructor TUSControl.Create(aID: string; aName, aDescription: string; aLat,
   aLon: Double);
 begin
+  inherited Create;
   fID := aID;
   fName := aName;
   fDescription := aDescription;
@@ -5300,24 +5341,13 @@ begin
   fLon := aLon;
 end;
 
-destructor TUSControl.Destroy;
-begin
-
-  inherited;
-end;
-
 { TUSControlSetting }
 
 constructor TUSControlStatus.Create(aID: Integer; aActive: Boolean);
 begin
+  inherited Create;
   fID := aID;
   fActive := aActive;
-end;
-
-destructor TUSControlStatus.Destroy;
-begin
-
-  inherited;
 end;
 
 { TMetaObjectsEntry }

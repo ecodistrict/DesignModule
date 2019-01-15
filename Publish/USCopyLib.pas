@@ -11,79 +11,17 @@ uses
 const
   tasksPerScenarioCopy = 4;
 
-procedure CreateIndexesExceptPrimaryKey(const aTableNameSrc, aTableNameDst, aOwner: string; aCopySpatialIndex: Boolean; aSession: TOraSession);
 procedure CreateIndexesIncludingPrimaryKey(const aTableNameSrc, aTableNameDst, aOwner: string; aCopySpatialIndex: Boolean; aSession: TOraSession);
 procedure CreateIndex(const aIndexNameSrc, aTableNameSrc, aTableNameDst, aOwner: string; aSession: TOraSession);
 procedure CreatePrimaryKey(const aIndexNameSrc, aTableNameSrc, aTableNameDst, aOwner: string; aSession: TOraSession);
 function GetPrimaryKeyConstraintName(const aTableName, aOwner: string; aSession: TOraSession): string;
 procedure CreateTableWithPrimaryKey(const aTableNameSrc, aTableNameDst, aOwner: string; aSession: TOraSession);
-function CopyScenario(const aSrcID, aOwner: string; aSession: TOraSession; out aNewID, aNewDescription: string): Boolean;
+
+function CopyScenario(
+  aSession: TOraSession; aSrcID: Integer;
+  out aNewID: Integer; out aNewDescription: string): Boolean;
 
 implementation
-
-procedure CreateIndexesExceptPrimaryKey(const aTableNameSrc, aTableNameDst, aOwner: string; aCopySpatialIndex: Boolean; aSession: TOraSession);
-var
-  PrimaryKeyConstraintName: string;
-  QueryIndexNames: TOraQuery;
-  IndexNameSrc: string;
-  IndexNameDst: string;
-  queryTexts: TStringList;
-  i: Integer;
-begin
-  PrimaryKeyConstraintName := GetPrimaryKeyConstraintName(aTableNameSrc, aOwner, aSession);
-  queryTexts := TStringList.Create;
-  try
-    QueryIndexNames := TOraQuery.Create(nil);
-    try
-      QueryIndexNames.Session := aSession;
-      QueryIndexNames.SQL.Text :=
-        'SELECT index_name, ityp_name '+
-        'FROM user_indexes '+
-        'WHERE table_name='''+aTableNameSrc+''' AND INDEX_TYPE<>''LOB''';
-      QueryIndexNames.Execute;//SQL;
-      if QueryIndexNames.FindFirst then
-      begin
-        repeat
-          IndexNameSrc := QueryIndexNames.Fields[0].AsString;
-          IndexNameDst := IndexNameSrc;
-          if (aTableNameSrc<>aTableNameDst) and Contains(IndexNameDst, aTableNameSrc)
-          then IndexNameDst := Replace(IndexNameDst, aTableNameSrc, aTableNameDst);
-          if IndexNameSrc<>PrimaryKeyConstraintName then
-          begin
-            //if aDropIndexes
-            //then WriteLn('DROP INDEX '++';');
-
-            if QueryIndexNames.Fields[1].AsString='SPATIAL_INDEX' then
-            begin
-              if aCopySpatialIndex
-              // copy entry from original
-              then queryTexts.Add( 'INSERT INTO USER_SDO_GEOM_METADATA '+
-                                'SELECT '''+aTableNameDst+''' AS TABLE_NAME, COLUMN_NAME, DIMINFO, SRID '+
-                                'FROM USER_SDO_GEOM_METADATA '+
-                                'WHERE table_name='''+aTableNameSrc+'''')
-              // manually create entry from defaults
-              else queryTexts.Add( 'INSERT INTO USER_SDO_GEOM_METADATA  (TABLE_NAME, COLUMN_NAME, DIMINFO) '+
-                                'VALUES( '''+aTableNameDst+''', '+
-                                         '''SHAPE'', '+
-                                         'MDSYS.SDO_DIM_ARRAY( MDSYS.SDO_DIM_ELEMENT(''X'', 0, 300000, 0.005), '+
-                                                          'MDSYS.SDO_DIM_ELEMENT(''Y'', 300000, 625000, 0.005))'+
-                                         ')');
-            end
-            else
-              CreateIndex(IndexNameSrc, aTableNameSrc, aTableNameDst, aOwner, aSession);
-          end;
-        until not QueryIndexNames.FindNext;
-      end;
-    finally
-      QueryIndexNames.Free;
-    end;
-    for I := 0 to queryTexts.Count-1 do
-      aSession.ExecSQL(queryTexts[i]);
-    aSession.Commit;
-  finally
-    queryTexts.Free;
-  end;
-end;
 
 procedure CreateIndexesIncludingPrimaryKey(const aTableNameSrc, aTableNameDst, aOwner: string; aCopySpatialIndex: Boolean; aSession: TOraSession);
 var
@@ -110,14 +48,8 @@ begin
       if QueryIndexNames.FindFirst then
       begin
         repeat
-          if Length(aTableNameSrc) > 27 then
-            TableTrimSrc := aTableNameSrc.Substring(0, 27)
-          else
-            TableTrimSrc := aTableNameSrc;
-          if Length(aTableNameDst) > 27 then
-            TableTrimDst := aTableNameDst.Substring(0, 27)
-          else
-            TableTrimDst := aTableNameDst;
+          TableTrimSrc := aTableNameSrc.Substring(0, 27);
+          TableTrimDst := aTableNameDst.Substring(0, 27);
           IndexNameSrc := QueryIndexNames.Fields[0].AsString;
           IndexNameDst := IndexNameSrc;
           if (aTableNameSrc<>aTableNameDst) and Contains(IndexNameDst, TableTrimSrc)
@@ -128,25 +60,23 @@ begin
             begin
               if aCopySpatialIndex
               // copy entry from original
-              then queryTexts.Add( 'INSERT INTO USER_SDO_GEOM_METADATA '+
-                                  'SELECT '''+aTableNameDst+''' AS TABLE_NAME, COLUMN_NAME, DIMINFO, SRID '+
-                                  'FROM USER_SDO_GEOM_METADATA '+
-                                  'WHERE table_name='''+aTableNameSrc+'''')
+              then aSession.ExecSQL(
+                'INSERT INTO USER_SDO_GEOM_METADATA '+
+                  'SELECT '''+aTableNameDst+''' AS TABLE_NAME, COLUMN_NAME, DIMINFO, SRID '+
+                  'FROM USER_SDO_GEOM_METADATA '+
+                  'WHERE table_name='''+aTableNameSrc+'''')
               // manually create entry from defaults
-              else queryTexts.Add( 'INSERT INTO USER_SDO_GEOM_METADATA  (TABLE_NAME, COLUMN_NAME, DIMINFO) '+
-                                  'VALUES( '''+aTableNameDst+''', '+
-                                           '''SHAPE'', '+
-                                           'MDSYS.SDO_DIM_ARRAY( MDSYS.SDO_DIM_ELEMENT(''X'', 0, 300000, 0.005), '+
-                                                            'MDSYS.SDO_DIM_ELEMENT(''Y'', 300000, 625000, 0.005))'+
-                                           ')');
-            end
-            else
-              CreateIndex(IndexNameSrc, aTableNameSrc, aTableNameDst, aOwner, aSession);
+              else aSession.ExecSQL(
+                'INSERT INTO USER_SDO_GEOM_METADATA  (TABLE_NAME, COLUMN_NAME, DIMINFO) '+
+                  'VALUES( '''+aTableNameDst+''', '+
+                           '''SHAPE'', '+
+                           'MDSYS.SDO_DIM_ARRAY( MDSYS.SDO_DIM_ELEMENT(''X'', 0, 300000, 0.005), '+
+                                              'MDSYS.SDO_DIM_ELEMENT(''Y'', 300000, 625000, 0.005)))');
+              aSession.Commit;
+            end;
+            CreateIndex(IndexNameSrc, aTableNameSrc, aTableNameDst, aOwner, aSession);
           end
-          else
-          begin
-            CreatePrimaryKey(IndexNameSrc, aTableNameSrc, aTableNameDst, aOwner, aSession);
-          end;
+          else CreatePrimaryKey(IndexNameSrc, aTableNameSrc, aTableNameDst, aOwner, aSession);
         until not QueryIndexNames.FindNext;
       end;
     finally
@@ -169,14 +99,8 @@ var
   TableTrimSrc, TableTrimDst: string;
 begin
   queryText := '';
-  if Length(aTableNameSrc) > 27 then
-    TableTrimSrc := aTableNameSrc.Substring(0, 27)
-  else
-    TableTrimSrc := aTableNameSrc;
-  if Length(aTableNameDst) > 27 then
-    TableTrimDst := aTableNameDst.Substring(0, 27)
-  else
-    TableTrimDst := aTableNameDst;
+  TableTrimSrc := aTableNameSrc.Substring(0, 27);
+  TableTrimDst := aTableNameDst.Substring(0, 27);
   QueryIndexDef := TOraQuery.Create(nil);
   try
     QueryIndexDef.Session := aSession;
@@ -217,22 +141,10 @@ var
   QueryIndexDef: TOraQuery;
   p: Integer;
   queryText, keyText: string;
-  TableTrimSrc, TableTrimDst: string;
   IndexNameDst: string;
 begin
   queryText := '';
-  if Length(aTableNameSrc) > 27 then
-    TableTrimSrc := aTableNameSrc.Substring(0, 27)
-  else
-    TableTrimSrc := aTableNameSrc;
-  if Length(aTableNameDst) > 27 then
-    TableTrimDst := aTableNameDst.Substring(0, 27)
-  else
-    TableTrimDst := aTableNameDst;
-  if aIndexNameSrc.Contains(TableTrimSrc) then
-    IndexNameDst := aIndexNameSrc.Replace(TableTrimSrc, TableTrimDst)
-  else
-    IndexNameDst := aIndexNameSrc;
+  IndexNameDst := Copy(aTableNameDst, 1, 27)+'_pk';
   QueryIndexDef := TOraQuery.Create(nil);
   try
     QueryIndexDef.Session := aSession;
@@ -353,17 +265,18 @@ begin
 
 end;
 
-function CopyScenario(const aSrcID, aOwner: string; aSession: TOraSession; out aNewID, aNewDescription: string): Boolean;
+function CopyScenario(aSession: TOraSession; aSrcID: Integer; out aNewID: Integer; out aNewDescription: string): Boolean;
 var
-  dstID, srcDescription: string;
+  srcDescription: string;
   query: TOraQuery;
-  succes: Boolean;
   start: TDateTime;
   tableNames: TList<string>;
+  res: TParallel.TLoopResult;
+  newID: Integer;
+  srcPublished: Integer;
 begin
   //make meta_scenarios entry so we have the new id.
   Result := False;
-  succes := False;
   start := Now;
   Log.WriteLn('Starting scenario copy', llNormal);
   aSession.StartTransaction;
@@ -373,32 +286,31 @@ begin
       query.Connection := aSession;
       query.SQL.Text := 'LOCK TABLE META_SCENARIOS IN EXCLUSIVE MODE';
       query.ExecSQL;
-      //query.SQL.Text := 'SELECT * FROM ((SELECT (MAX(ID)+1) as NEWID FROM META_SCENARIOS) cross join (SELECT NOTES FROM META_SCENARIOS where ID = ' + aSrcID + '));';
       query.SQL.Text := 'SELECT (MAX(ID) + 1) as NEWID FROM META_SCENARIOS';
       query.ExecSQL;
       if query.FindFirst then
       begin
-        dstID := query.FieldByName('NEWID').AsString;
-        aNewID := dstID;
-        query.SQL.Text := 'SELECT NOTES FROM META_SCENARIOS WHERE ID = :ID';
+        aNewID := query.FieldByName('NEWID').AsInteger;
+        query.SQL.Text := 'SELECT NOTES, PUBLISHED FROM META_SCENARIOS WHERE ID = :ID';
         query.ParamByName('ID').Value := aSrcID;
         query.ExecSQL;
         if query.FindFirst then
         begin
           srcDescription := query.FieldByName('NOTES').AsString;
-          aNewDescription := 'Copy of V' + aSrcID + ' ' + srcDescription;
+          srcPublished := query.FieldByName('PUBLISHED').AsInteger;
+          aNewDescription := 'Copy of V' + aSrcID.ToString + ' ' + srcDescription;
           query.SQL.Text := 'INSERT INTO META_SCENARIOS (ID, NAME, FEDERATE, PARENT_ID, BASE_ID, SCENARIO_STATUS, NOTES, PUBLISHED) ' +
                               'VALUES (:ID, :NAME, :FEDERATE, :PARENT_ID, :BASE_ID, :SCENARIO_STATUS, :NOTES, :PUBLISHED)';
-          query.ParamByName('ID').Value := dstID;
-          query.ParamByName('NAME').Value := 'V' + dstID;
-          query.ParamByName('FEDERATE').Value := aSession.Username.ToUpper + '#V' + dstID;
+          query.ParamByName('ID').Value := aNewID;
+          query.ParamByName('NAME').Value := 'V' + aNewID.ToString;
+          query.ParamByName('FEDERATE').Value := aSession.Username.ToUpper + '#V' + aNewID.ToString;
           query.ParamByName('PARENT_ID').Value := aSrcID;
           query.ParamByName('BASE_ID').Value := aSrcID;
           query.ParamByName('SCENARIO_STATUS').Value := 'CLOSED';
-          query.ParamByName('NOTES').Value := 'Copy of V' + aSrcID + ' ' + srcDescription;
-          query.ParamByName('PUBLISHED').Value := '0';
+          query.ParamByName('NOTES').Value := 'Copy of V' + aSrcID.ToString + ' ' + srcDescription;
+          query.ParamByName('PUBLISHED').Value := 0;
           query.ExecSQL;
-          succes := True;
+          Result := True;
         end;
       end;
     finally
@@ -409,9 +321,9 @@ begin
     aSession.Rollback;
   end;
   //copy all tables
-  //...
-  if succes then
+  if Result then
   begin
+    // assume all goes well
     query := TOraQuery.Create(nil);
     try
       tableNames := TList<string>.Create;
@@ -419,7 +331,7 @@ begin
         query.Connection := aSession;
         query.SQL.Text := 'SELECT TABLE_NAME FROM All_Tables WHERE OWNER=:OWNER and TABLE_NAME like :PREFIX ORDER BY TABLE_NAME';
         query.ParamByName('OWNER').Value := aSession.username.ToUpper;
-        query.ParamByName('PREFIX').Value := 'V' + aSrcID + '#%';
+        query.ParamByName('PREFIX').Value := 'V' + aSrcID.ToString + '#%';
         query.ExecSQL;
         query.First;
         while (not query.Eof) do
@@ -429,40 +341,69 @@ begin
         end;
         if tableNames.Count > 0 then
         begin
-          TParallel.&For(0, tableNames.Count - 1, procedure(I: Integer)
-          var
-            parOraSession: TOraSession;
-            parSrcTable, parPostfix, parDstTable: string;
-          begin
-            parSrcTable := tableNames[i];
-            parPostfix := parSrcTable.Substring(Length(aSrcID) + 2);
-            parDstTable := 'V' + dstID + '#' + parPostfix;
-            parOraSession := TORaSession.Create(nil);
-            try
-              parOraSession.ConnectString := aSession.userName+'/'+aSession.password+'@'+aSession.server;
-              //CreateTableWithPrimaryKey(parSrcTable, parDstTable, aSession.Username.ToUpper, parOraSession, lockObject);
-              //parOraSession.ExecSQL('INSERT INTO '+parDstTable+' SELECT * FROM '+parSrcTable);
-              parOraSession.ExecSQL('CREATE TABLE '+parDstTable+' AS SELECT * FROM '+parSrcTable);
-              parOraSession.Commit;
-              //CreateIndexesExceptPrimaryKey(parSrcTable, parDstTable, aSession.Username.ToUpper, True, parOraSession, lockObject);
-              CreateIndexesIncludingPrimaryKey(parSrcTable, parDstTable, aSession.Username.ToUpper, True, parOraSession);
-            finally
-              parOraSession.Free;
-            end;
-            Log.WriteLn('Created and copied data to: ' + parDstTable, llNormal);
-          end);
+          newID := aNewID; // for capture in TParallel.For
+          res := TParallel.&For(0, tableNames.Count - 1,
+            procedure(I: Integer; aLoopState: TParallel.TLoopState)
+            var
+              parOraSession: TOraSession;
+              parSrcTable, parPostfix, parDstTable: string;
+            begin
+              parSrcTable := tableNames[i];
+              try
+                parPostfix := parSrcTable.Substring(Length(aSrcID.ToString) + 2);
+                parDstTable := 'V' + newID.ToString + '#' + parPostfix;
+                parOraSession := TORaSession.Create(nil);
+                try
+                  parOraSession.ConnectString := aSession.userName+'/'+aSession.password+'@'+aSession.server;
+                  parOraSession.Open;
+                  if parOraSession.Connected then
+                  begin
+                    parOraSession.ExecSQL('CREATE TABLE '+parDstTable+' AS SELECT * FROM '+parSrcTable);
+                    parOraSession.Commit;
+                    CreateIndexesIncludingPrimaryKey(parSrcTable, parDstTable, aSession.Username.ToUpper, True, parOraSession);
+                  end
+                  else
+                  begin
+                    Log.WriteLn('Could not open oracle connection for: '+parSrcTable+' -> '+parDstTable, llError);
+                    // signal error
+                    aLoopState.Stop;
+                  end;
+                finally
+                  parOraSession.Free;
+                end;
+                Log.WriteLn('Created and copied data to: ' + parDstTable, llNormal);
+              except
+                on E: Exception do
+                begin
+                  Log.WriteLn('Exception copying '+parSrcTable+': '+e.Message, llError);
+                  // signal error
+                  aLoopState.Stop;
+                end;
+              end;
+            end);
+
+          Result := res.Completed;
+        end
+        else
+        begin
+          Log.WriteLn('No tables to copy for V' + aSrcID.ToString, llWarning);
+          Result := True; // no tables to copy
         end;
-        Log.WriteLn('Done creating and copying tables', llNormal);
-        query.SQL.Text := 'UPDATE META_SCENARIOS ' +
-                            'SET SCENARIO_STATUS = :SCENARIO_STATUS,' +
-                            'PUBLISHED = :PUBLISHED WHERE ID = :ID';
-        query.ParamByName('SCENARIO_STATUS').Value := 'OPEN';
-        query.ParamByName('PUBLISHED').Value := '1';
-        query.ParamByName('ID').Value := dstID;
-        query.ExecSQL;
-        aSession.Commit;
-        Log.WriteLn('Finished copying scenario in: ' + DateUtils.MilliSecondsBetween(Now, start).ToString + ' milliseconds', llNormal);
-        Result := True;
+        if Result then
+        begin
+          Log.WriteLn('Done creating and copying tables', llNormal);
+          query.SQL.Text :=
+            'UPDATE META_SCENARIOS ' +
+            'SET SCENARIO_STATUS = :SCENARIO_STATUS,' +
+                'PUBLISHED = :PUBLISHED '+
+            'WHERE ID = :ID';
+          query.ParamByName('SCENARIO_STATUS').Value := 'OPEN';
+          query.ParamByName('PUBLISHED').Value := srcPublished;
+          query.ParamByName('ID').Value := aNewID;
+          query.ExecSQL;
+          aSession.Commit;
+          Log.WriteLn('Finished copying scenario in: ' + DateUtils.MilliSecondsBetween(Now, start).ToString + ' milliseconds', llNormal);
+        end;
       finally
         FreeAndNil(tableNames);
       end;
