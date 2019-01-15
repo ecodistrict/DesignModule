@@ -516,6 +516,21 @@ type
     function ClearSlice(): Boolean; override;
   end;
 
+  TSliceJunctionsPie  = class(TSliceOutLineFill)
+  constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime);
+  destructor Destroy; override;
+  protected
+    fLocations: TObjectDictionary<TWDID, TSliceLocationObject>;
+  protected
+    // tile generation
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    function getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus; override;
+  public
+    // for updating data
+    function HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean; override;
+    function ClearSlice(): Boolean; override;
+  end;
+
   TDiffSlice = class(TSlice)
   constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSlice);
   destructor Destroy; override;
@@ -622,6 +637,15 @@ type
   protected
     // tile generation
     function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+  end;
+
+  TSliceDiffJunctionsPie = class(TSliceDiffOutLineFill)
+  constructor Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceJunctionsPie);
+  protected
+    // tile generation
+    function GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus; override;
+    function GetPaletteColor(aActiveTexture, aRefTexture: Double): TGeoColors;
+    function ComputeICRatioClass(aICValue: Double): Integer;
   end;
 
   TModel = class; // forward
@@ -3100,6 +3124,8 @@ var
   point: TPointF;
   rect: TRectF;
   colors: TGeoColors;
+const
+  Offset = 0;
 begin
   Result := gtsFailed; // sentinel
   if Assigned(fPalette) then
@@ -3114,7 +3140,7 @@ begin
         rect.Create(point);
         rect.Inflate(isgop.Value.radius, isgop.Value.radius);
         // todo: test intersection with bitmap
-        if (rect.Right>=0) and (rect.Top>=0) and (rect.Left<=aBitmap.Width) and (rect.Bottom<=aBitmap.Height) then
+        if (rect.Right>=0) and (rect.Bottom>=0) and (rect.Left<=aBitmap.Width) and (rect.Top<=aBitmap.Height) then
         begin
           colors := fPalette.ValueToColors(isgop.Value.value);
           if colors.fillColor<>0 then
@@ -3251,6 +3277,236 @@ begin
     geometry.Free;
   end;
 end;
+
+
+{ TSliceJunctionsPie }
+
+constructor TSliceJunctionsPie.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime);
+begin
+  inherited Create(aLayer, aPalette, aTimeStamp);
+  fLocations := TObjectDictionary<TWDID, TSliceLocationObject>.Create([doOwnsValues]);
+end;
+
+destructor TSliceJunctionsPie.Destroy;
+begin
+  FreeAndNil(fLocations);
+  inherited;
+end;
+
+function TSliceJunctionsPie.ClearSlice: Boolean;
+begin
+  Result := Inherited ClearSlice;
+  if fLocations.Count>0 then
+  begin
+    fLocations.Clear;
+    Result := True;
+  end;
+end;
+
+function TSliceJunctionsPie.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+var
+  isgop: TPair<TWDID, TSliceLocationObject>;
+  point: TPointF;
+  rect: TRectF;
+  colors: TGeoColors;
+  radiusPoint: TPointF;
+  startAngle, sweepAngle, stopAngle: Double;
+  //valFrom, valTo: Double;
+
+  polygon: TPolygon;
+  polyColor: TAlphaColor;
+const
+  pieRadius = 10;
+begin
+  Result := gtsFailed; // sentinel
+  if Assigned(fPalette) then
+  begin
+    aBitmap.Canvas.BeginScene;
+    try
+      aBitmap.Canvas.Clear(0);
+      aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+      setLength(polygon, 4);
+      for isgop in fLocations do
+      begin
+        point := GeometryToPoint(aExtent, aPixelWidth, aPixelHeight, isgop.Value.lcoation);
+        rect.Create(point);
+        rect.Inflate(pieRadius, pieRadius); //Hardcoded radius values for the junctions
+        if (rect.Right>=0) and (rect.Bottom>=0) and (rect.Left<=aBitmap.Width) and (rect.Top<=aBitmap.Height) then
+        begin
+          colors := fPalette.ValueToColors(isgop.Value.value);
+          if colors.fillColor<>0 then
+          begin
+            radiusPoint := PointF(pieRadius, pieRadius);
+            aBitmap.Canvas.Fill.Color := TAlphaColorRec.White;
+            aBitmap.Canvas.FillArc(point, radiusPoint, 0, 360, 1);
+
+            startAngle := -90;
+            sweepAngle := isgop.Value.value * 360;
+
+            aBitmap.Canvas.Fill.Color := colors.fillColor;
+            aBitmap.Canvas.FillArc(point, radiusPoint, startAngle, sweepAngle, 1);
+
+            startAngle := 90;
+            stopAngle := (360 - sweepAngle) + startAngle;
+
+            polygon[0].X := point.X + Round((pieRadius + 1) * Cos(DegToRad(startAngle)));
+            polygon[0].Y := point.Y - Round((pieRadius + 1) * Sin(DegToRad(startAngle)));
+            polygon[1].X := point.X;
+            polygon[1].Y := point.Y;
+            polygon[2].X := point.X + Round((pieRadius + 1) * Cos(DegToRad(stopAngle)));
+            polygon[2].Y := point.Y - Round((pieRadius + 1) * Sin(DegToRad(stopAngle)));
+            polygon[3].X := polygon[0].X;
+            polygon[3].Y := polygon[0].Y;
+
+            if sweepAngle <= 180 then
+              polyColor := colors.fillColor
+            else
+              polyColor := TAlphaColorRec.White;
+
+            if sweepAngle <360 then
+            begin
+              aBitmap.Canvas.Fill.Color := polyColor;
+              aBitmap.Canvas.FillPolygon(polygon, 1);
+            end;
+          end;
+
+          if colors.outlineColor<>0 then
+          begin
+            aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+            aBitmap.Canvas.Stroke.Thickness := 1; // todo: default width?
+            aBitmap.Canvas.DrawEllipse(rect, 1);
+          end
+          else
+          begin
+            aBitmap.Canvas.Stroke.Color := TAlphaColorRec.Gray;
+            aBitmap.Canvas.Stroke.Thickness := 1;
+            aBitmap.Canvas.DrawEllipse(rect, 1);
+          end;
+        end;
+      end;
+      Result := gtsOk;
+    finally
+      aBitmap.Canvas.EndScene;
+    end;
+  end
+  else Log.WriteLn('TSliceJunctionsPie layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+end;
+
+function TSliceJunctionsPie.getDataValueAtPoint(const aLat, aLon: Double; var aValue: Double): TGenerateTileStatus;
+var
+  isgop: TPair<TWDID, TSliceLocationObject>;
+const
+  //TODO: Remove this and make use of some global constants
+  degClickRadius = 360/(40000 * 1000);
+begin
+  fDataLock.BeginRead;
+  try
+    for isgop in fLocations do
+    begin
+        // test geometry, exit(isgop.Value) if within
+        if isgop.Value.extent.Inflate(degClickRadius*5).Contains(aLon, aLat) then
+        begin
+          aValue := isgop.Value.value;
+          exit(gtsOk);
+        end;
+    end;
+    aValue := NaN;
+    exit(gtsFailed);
+  finally
+    fDataLock.EndRead;
+  end;
+end;
+
+function TSliceJunctionsPie.HandleSliceUpdate(const aBuffer: TByteBuffer; var aCursor: Integer; aLimit: Integer): Boolean;
+var
+  id: TWDID;
+  fieldInfo: Uint32;
+  geometry: TWDGeometryPoint;
+  len: Uint64;
+  sgo: TSliceLocationObject;
+  value: Double;
+  radius: Double;
+begin
+  Result := True; // trigger refresh
+  id := '';
+  value := NaN;
+  radius := 3; // todo: parameterize default radius
+  geometry := nil;
+  sgo := nil;
+  try
+    while aCursor<aLimit do
+    begin
+      fieldInfo := aBuffer.bb_read_UInt32(aCursor);
+      case fieldInfo of
+        (icehObjectID shl 3) or wtLengthDelimited:
+          begin
+            id := aBuffer.bb_read_rawbytestring(aCursor);
+            if fLocations.TryGetValue(id, sgo) then
+            begin
+              if Assigned(geometry) then
+              begin
+                // Assume that geometry is modified if we received geometry in the payload.
+                // We remove the geometry from fLocations. The list will free the geometry.
+                fLocations.Remove(id);
+                sgo := TSliceLocationObject.Create(geometry, value, radius);
+                if fMaxExtent.IsEmpty
+                then fMaxExtent := sgo.extent
+                else fMaxExtent.Expand(sgo.extent);
+                fLocations.Add(id, sgo);
+                geometry := nil; // do not free. Object is owned by fLocations
+              end
+              else
+              begin
+                if not IsNaN(value)
+                then sgo.value := value;
+                if not IsNaN(radius)
+                then sgo.radius := radius;
+              end;
+            end
+            else
+            begin
+              if Assigned(geometry) then
+              begin
+                sgo := TSliceLocationObject.Create(geometry, value, radius);
+                if fMaxExtent.IsEmpty
+                then fMaxExtent := sgo.extent
+                else fMaxExtent.Expand(sgo.extent);
+                fLocations.Add(id, sgo);
+                geometry := nil;
+                value := NaN;
+              end;
+            end;
+          end;
+        (icehTilerValue shl 3) or wt64Bit:
+          begin
+            value := aBuffer.bb_read_double(aCursor);
+          end;
+        (icehTilerLocationRadius shl 3) or wt64Bit:
+          begin
+            radius := aBuffer.bb_read_double(aCursor);
+          end;
+        (icehTilerGeometryPoint shl 3) or wtLengthDelimited:
+          begin
+            geometry.Free;
+            geometry := TWDGeometryPoint.Create;
+            len := aBuffer.bb_read_uint64(aCursor);
+            geometry.Decode(aBuffer, aCursor, aCursor+Integer(len));
+          end;
+        (icehNoObjectID shl 3) or wtLengthDelimited:
+          begin
+            id := aBuffer.bb_read_rawbytestring(aCursor);
+            fLocations.Remove(id);
+          end;
+      else
+        aBuffer.bb_read_skip(aCursor, fieldInfo and 7);
+      end;
+    end;
+  finally
+    geometry.Free;
+  end;
+end;
+
+
 
 { TDiffSlice }
 
@@ -4013,12 +4269,7 @@ function TSliceDiffGeometryDoublePolygonLR.GetPaletteColor(aActiveTexture, aRefT
 begin
   if not (IsNaN(aActiveTexture) or IsNaN(aRefTexture)) then
   begin
-    if awidth > 0 then
-      Result := fPalette.ValueToColors(fPalette.minValue())
-    else if awidth < 0 then
-      Result := fPalette.ValueToColors(fPalette.maxValue())
-    else
-      Result := fPalette.ValueToColors((fPalette.minValue() + fPalette.maxValue())/2);
+      Result := fPalette.ValueToColors(aWidth);
   end
   else aValidFlag := False;
 end;
@@ -4031,7 +4282,7 @@ begin
   setLength(polygon, 5);
   ConstructPolygon(aXPrev, aYPrev, aXCurr, aYCurr, aXCurr+aXDCommon, aYCurr+aYDCommon, aXPrev+aXDCommon, aYPrev+aYDCommon, polygon);
 
-  defaultColor := TGeoColors.Create(TAlphaColorRec.Lightsteelblue,TAlphaColorRec.Lightsteelblue);
+  defaultColor := fPalette.ValueToColors(0);
   DrawFillPolygon(defaultColor, aBitmap, polygon);
 
   if abs(aXDCommon) <> abs(aXDExtra) then
@@ -4203,15 +4454,10 @@ begin
     activeClass := ComputeICRatioClass(aActiveTexture);
     refClass := ComputeICRatioClass(aRefTexture);
 
-    if activeClass<refClass then
-      Result := fPalette.ValueToColors(fPalette.minValue())
-    else if activeClass>refClass then
-      Result := fPalette.ValueToColors(fPalette.maxValue())
-    else
-      begin
-        Result := TGeoColors.Create(TAlphaColorRec.Lightsteelblue,TAlphaColorRec.Lightsteelblue);
-        aWidth := aWidth / 3;
-      end;
+    Result := fPalette.ValueToColors(refClass - activeClass);
+
+    if refClass = activeClass then
+      aWidth := aWidth / 3;
   end
   else aValidFlag := False;
 end;
@@ -4279,7 +4525,7 @@ begin
     try
       aBitmap.Canvas.Clear(0);
       aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
-      bufferExtent := aExtent.Inflate(1.2);
+      bufferExtent := aExtent.Inflate(1.3);
       for isgop in (fCurrentSlice as TSliceLocation).fLocations do
       begin
         if bufferExtent.Intersects(isgop.Value.fExtent) and (fRefSlice as TSliceLocation).fLocations.TryGetValue(isgop.Key, refLoc) then
@@ -4307,6 +4553,86 @@ begin
     end;
   end
   else Log.WriteLn('TSliceDiffLocation layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+end;
+
+{ TSliceDiffJunctionsPie }
+
+constructor TSliceDiffJunctionsPie.Create(aLayer: TLayer; aPalette: TWDPalette; aTimeStamp: TDateTime; aCurrentSlice, aRefSlice: TSliceJunctionsPie);
+begin
+  inherited Create(aLayer, aPalette, aTimeStamp, aCurrentSlice, aRefSlice);
+end;
+
+function TSliceDiffJunctionsPie.GenerateTileCalc(const aExtent: TExtent; aBitmap: FMX.Graphics.TBitmap; aPixelWidth, aPixelHeight: Double): TGenerateTileStatus;
+var
+  isgop: TPair<TWDID, TSliceLocationObject>;
+  refLoc: TSliceLocationObject;
+  point: TPointF;
+  rect: TRectF;
+  bufferExtent: TExtent;
+  colors: TGeoColors;
+begin
+  Result := gtsFailed;
+  if Assigned(fPalette) then
+  begin
+    aBitmap.Canvas.BeginScene;
+    try
+      aBitmap.Canvas.Clear(0);
+      aBitmap.Canvas.Fill.Kind := TBrushKind.Solid;
+      //bufferExtent := aExtent.Inflate(1.3);
+
+      //TODO: Remove the hardcoded falcor (6) and try using the radius defined earlier
+      bufferExtent := aExtent.Inflate(6*aPixelWidth, 6*aPixelHeight);
+      for isgop in (fCurrentSlice as TSliceJunctionsPie).fLocations do
+      begin
+        if bufferExtent.Intersects(isgop.Value.fExtent) and (fRefSlice as TSliceJunctionsPie).fLocations.TryGetValue(isgop.Key, refLoc) then
+        begin
+          point := GeometryToPoint(aExtent, aPixelWidth, aPixelHeight, isgop.Value.lcoation);
+          rect.Create(point);
+          rect.Inflate(isgop.Value.radius * 2, isgop.Value.radius * 2);
+          colors := GetPaletteColor(isgop.Value.value, refLoc.value);
+          //fPalette.ValueToColors(isgop.Value.value-refLoc.value);
+          if colors.fillColor<>0 then
+          begin
+            aBitmap.Canvas.Fill.Color := colors.fillColor;
+            aBitmap.Canvas.FillEllipse(rect, 1);
+          end;
+          if colors.outlineColor<>0 then
+          begin
+            aBitmap.Canvas.Stroke.Color := colors.outlineColor;
+            aBitmap.Canvas.Stroke.Thickness := 1; // todo: default width?
+            aBitmap.Canvas.DrawEllipse(rect, 1);
+          end;
+        end;
+      end;
+      Result := gtsOk;
+    finally
+      aBitmap.Canvas.EndScene;
+    end;
+  end
+  else Log.WriteLn('TSliceDiffJunctionsPie layer '+fLayer.LayerID.ToString+': no palette defined', llError);
+end;
+
+function TSliceDiffJunctionsPie.GetPaletteColor(aActiveTexture, aRefTexture: Double): TGeoColors;
+var
+  activeClass, refClass: Integer;
+begin
+  if not (IsNaN(aActiveTexture) or IsNaN(aRefTexture))then
+  begin
+    activeClass := ComputeICRatioClass(aActiveTexture);
+    refClass := ComputeICRatioClass(aRefTexture);
+
+    Result := fPalette.ValueToColors(refClass - activeClass);
+  end
+end;
+
+function TSliceDiffJunctionsPie.ComputeICRatioClass(aICValue: Double): Integer;
+begin
+  if aICValue <= 0.7 then
+    Result := 1
+  else if (aICValue > 0.7) and (aICValue <= 0.9) then
+    Result := 2
+  else
+    Result := 3;
 end;
 
 { TLayer }
@@ -4582,6 +4908,8 @@ begin
                           slice := TSlicePNG.Create(Self, timeStamp, pngExtent, pngImage, discreteColorsOnStretch);
                         stLocation:
                           slice := TSliceLocation.Create(Self, palette.Clone, timeStamp);
+                        stJunctionsPie:
+                          slice := TSliceJunctionsPie.Create(Self, palette.Clone, timeStamp);
                         // diff slice types
                         stDiffReceptor:
                           slice := TSliceDiffReceptor.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceReceptor, refSlice as TSliceReceptor);
@@ -4603,6 +4931,8 @@ begin
                           slice := TSliceDiffPNG.Create(Self, timeStamp, currentSlice as TSlicePNG, refSlice as TSLicePNG);
                         stDiffLocation:
                           slice := TSliceDiffLocation.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceLocation, refSlice as TSliceLocation);
+                        stDiffJunctionsPie:
+                          slice := TSliceDiffJunctionsPie.Create(Self, palette.Clone, timeStamp, currentSlice as TSliceJunctionsPie, refSlice as TSliceJunctionsPie);
                       end;
                       slice.start;
                       WORMLock.EndRead;
