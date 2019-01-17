@@ -1430,7 +1430,7 @@ begin
 
           project.forEachClient(procedure(aClient: TClient)
             begin
-              project.SendDomains(aClient, 'updatedomains');
+              aClient.SendDomains('updatedomains');
             end);
           finally
             TMonitor.Exit(fStatistics);
@@ -2002,7 +2002,7 @@ begin
   end;
   forEachClient(procedure(aClient: TCLient)
     begin
-      aClient.UpdateSession;
+      aClient.UpdateSession(Self);
     end);
 end;
 
@@ -2148,8 +2148,8 @@ begin
     // update domains for all clients on this project
     forEachClient(procedure(aClient: TClient)
       begin;
-        SendDomains(aClient, 'updatedomains');
-        aClient.UpdateSession; //todo check if this works
+        aClient.SendDomains('updatedomains');
+        aClient.UpdateSession(Self); //todo check if this works
       end);
   finally
     aSender.Free;
@@ -2168,7 +2168,7 @@ begin
     scenarios.Add(scenario.ID, scenario);
     projectCurrentScenario := scenario;
   end;
-  scenario.SetControl(simulationSetupControl, '{"data":' + fSimulationSetup + '}');
+  scenario.Control[simulationSetupControl] := '{"data":' + fSimulationSetup + '}';
   // inquire scenarios from database module
   payload.Clear();
   payload.Write(fPrivateEvent.EventName);

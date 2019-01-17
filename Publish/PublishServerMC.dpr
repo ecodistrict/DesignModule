@@ -129,7 +129,7 @@ var
   i: Integer;
   dbConnection: TOraSession;
   connectionError: Boolean;
-  table: TOraTable;
+//  table: TOraTable;
 begin
   try
     // todo: reset sessionmodel imb4 connection

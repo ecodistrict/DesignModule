@@ -1688,7 +1688,7 @@ begin
   forEachSubscriber<TClient>(
     procedure(aClient: TClient)
     begin
-      fProject.SendDomains(aClient, 'updatedomains');
+      aClient.SendDomains('updatedomains');
     end);
 end;
 {
@@ -1885,19 +1885,19 @@ begin
   SetControl(timeSliderControl, '2');
   windControl.update(10, 5.4, 1); // init by first use
   clientMessageHandlers.Add(timeSliderControl,
-    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue)
     begin
       if Assigned(aClient.currentScenario) and (aClient.currentScenario is TExpoSenseScenario)  then
       begin
-        (aClient.currentScenario as TExpoSenseScenario).HandleTimeSliderEvent(aClient, aType, aPayload);
+        (aClient.currentScenario as TExpoSenseScenario).HandleTimeSliderEvent(aClient, aType, aPayload as TJSONObject);
       end;
     end);
   clientMessageHandlers.Add('scenarioRefresh',
-    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue)
     begin
       if Assigned(aClient.currentScenario) and (aClient.currentScenario is TExpoSenseScenario)  then
       begin
-        (aClient.currentScenario as TExpoSenseScenario).HandleScenarioRefresh(aClient, aType, aPayload);
+        (aClient.currentScenario as TExpoSenseScenario).HandleScenarioRefresh(aClient, aType, aPayload as TJSONObject);
       end;
     end);
 end;

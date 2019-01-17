@@ -982,7 +982,7 @@ begin
   layer.LoadPreviewFromCache('EWSensorLayer.png');
 
   clientMessageHandlers.Add('windData',
-    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue)
     var
       windChanged: Boolean;
       cursor: TCursor;
@@ -1022,7 +1022,7 @@ begin
   setTimeTimer := Timers.CreateInactiveTimer;
   setTimeTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*0.5);
   clientMessageHandlers.Add('timeslider',
-    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue)
     var
       selectedTime: string;
       active: Boolean;

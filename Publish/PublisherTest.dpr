@@ -94,7 +94,7 @@ begin
         project.EnableControl(presenterViewerControl);
         project.EnableControl(filesControl);
 
-        project.SetControl('timeslider', '1');
+        project.Control['timeslider'] := '1';
         project.windControl;
 
 

@@ -511,7 +511,7 @@ begin
   fTimeSliderTimer.MaxPostponeDelta := DateTimeDelta2HRT(dtOneSecond*0.3);
 
   clientMessageHandlers.Add('timeslider',
-    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue)
     var
       selectedTime: string;
       selectedEvent: TJSONValue;
@@ -546,7 +546,7 @@ begin
   LoadBusDefaults;
 
   ClientMessageHandlers.AddOrSetValue('measure',
-    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue)
     var
       formID: string;
       formTitle: string;

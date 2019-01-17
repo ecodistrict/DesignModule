@@ -1062,8 +1062,8 @@ end;
 
 function TUSPortal.CreateProject(const aProjectID, aName, aDescription: string; aParameters: TModelParameters;
   aClient: TClient; const aMapView: TMapView): TUSProject;
-var
-  projectMapView: TMapView;
+//var
+//  projectMapView: TMapView;
 begin
   // todo: implement
   Result := nil;

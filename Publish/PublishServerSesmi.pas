@@ -78,12 +78,12 @@ const
     MaxTimeSliderUpdateTime = 20; // seconds
 
 type
+  {
   TSesmiClient = class(TClient)
-  constructor Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
   protected
     procedure Login(aJSONObject: TJSONObject); override;
   end;
-
+  }
   TSesmiTrackLayer = class(TLayer)
   constructor Create(aScenario: TScenario; const aDomain, aID, aName, aDescription: string; aDefaultLoad: Boolean; aShowInDomains: Boolean; const aLegendJSON: string; aPalette: TWDPalette);
   protected
@@ -157,8 +157,8 @@ type
     procedure handleRemoveClient(aClient: TClient); override;
     procedure checkForEmptyScenarios(aTimer: TTimer; aTime: THighResTicks);
   public
-    function addClient(const aClientID: string): TClient; override;
     function CreateSesmiScenario(const aScenarioID: string; aGUID: TGUID; aLowerTimeStamp, aUpperTimeStamp: Double): TSesmiScenario;
+    procedure Login(aClient: TClient; aJSONObject: TJSONObject); override;
   public
     property ExpertScenarioGUID: TGUID read fExpertScenarioGUID;
   end;
@@ -967,17 +967,6 @@ end;
 
 { TSesmiProject }
 
-function TSesmiProject.addClient(const aClientID: string): TClient;
-begin
-  Result := TSesmiClient.Create(Self, fProjectCurrentScenario, fProjectRefScenario, aClientID);
-  TMonitor.Enter(clients);
-  try
-    clients.Add(Result);
-  finally
-    TMonitor.Exit(clients);
-  end;
-end;
-
 procedure TSesmiProject.checkForEmptyScenarios(aTimer: TTimer; aTime: THighResTicks);
 var
   scenario: TScenario;
@@ -1016,21 +1005,21 @@ begin
     aTilerStatusURL, nil, aAddBasicLayers, aMaxNearestObjectDistanceInMeters, aMapView);
   fTiler.onTilerStatus := handleTilerStatus;
   //Set Sesmi controls
-  SetControl('timeslider', '1');
+  Control['timeslider'] := '1';
   clientMessageHandlers.Add('timeslider',
-    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue)
     begin
       if Assigned(aClient.currentScenario) and (aClient.currentScenario is TSesmiScenario)  then
       begin
-        (aClient.currentScenario as TSesmiScenario).HandleTimeSliderEvent(aClient, aType, aPayload);
+        (aClient.currentScenario as TSesmiScenario).HandleTimeSliderEvent(aClient, aType, aPayload as TJSONObject);
       end;
     end);
   clientMessageHandlers.Add('scenarioRefresh',
-    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONObject)
+    procedure(aProject: TProject; aClient: TClient; const aType: string; aPayload: TJSONValue)
     begin
       if Assigned(aClient.currentScenario) and (aClient.currentScenario is TSesmiScenario)  then
       begin
-        (aClient.currentScenario as TSesmiScenario).HandleScenarioRefresh(aClient, aType, aPayload);
+        (aClient.currentScenario as TSesmiScenario).HandleScenarioRefresh(aClient, aType, aPayload as TJSONObject);
       end;
     end);
 
@@ -1072,14 +1061,7 @@ begin
   end;
 end;
 
-{ TSesmiClient }
-
-constructor TSesmiClient.Create(aProject: TProject; aCurrentScenario, aRefScenario: TScenario; const aClientID: string);
-begin
-  inherited;
-end;
-
-procedure TSesmiClient.Login(aJSONObject: TJSONObject);
+procedure TSesmiProject.Login(aClient: TClient; aJSONObject: TJSONObject);
 var
   scenarioID: string;
   userID: string;
@@ -1109,24 +1091,23 @@ begin
       Log.WriteLn('EXPERT scenario: '+scenarioID+' '+lts.ToString+' <= ts <= '+uts.ToString, llWarning);
     end;
   end;
-  TMonitor.Enter(fProject.scenarios);
+  TMonitor.Enter(scenarios);
   try
-    if not fProject.scenarios.TryGetValue(scenarioID, scenario) then
+    if not scenarios.TryGetValue(scenarioID, scenario) then
     begin
-      scenario := (fProject as TSesmiProject).CreateSesmiScenario(scenarioID, guid, lts, uts);
-      fProject.scenarios.Add(scenario.ID, scenario);
+      scenario := CreateSesmiScenario(scenarioID, guid, lts, uts);
+      scenarios.Add(scenario.ID, scenario);
     end;
   finally
-    TMonitor.Exit(fProject.scenarios);
+    TMonitor.Exit(scenarios);
   end;
-  removeClient(currentScenario);
-  currentScenario := scenario;
-  addClient(currentScenario);
+  aClient.removeClient(aClient.currentScenario);
+  aClient.currentScenario := scenario;
+  aClient.addClient(aClient.currentScenario);
   Log.WriteLn('connected to scenario '+scenarioID+' user '+userid);
-  SendSession();
-  fProject.SendDomains(self, 'domains');
+  aClient.SendSession(Self);
+  aClient.SendDomains('domains');
 end;
-
 
 end.
 

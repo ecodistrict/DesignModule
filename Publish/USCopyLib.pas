@@ -277,6 +277,7 @@ var
 begin
   //make meta_scenarios entry so we have the new id.
   Result := False;
+  srcPublished := -1;
   start := Now;
   Log.WriteLn('Starting scenario copy', llNormal);
   aSession.StartTransaction;
