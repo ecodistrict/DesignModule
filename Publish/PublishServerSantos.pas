@@ -177,7 +177,8 @@ type
     constructor Create(aScenario: TScenario; aBusBlock: Integer;
         aBaseDay, aBaseMonth, aBaseYear: Word;
         const aDomain, aID, aName, aDescription, aConnectString, aTablePrefix: string;
-        aPubEntry: TIMBEventEntry; aIndicEntry, aSocEntry: TIMBEventEntry);
+        aPubEntry: TIMBEventEntry; aIndicEntry, aSocEntry: TIMBEventEntry;
+        aSourceProjection: TGIS_CSProjectedCoordinateSystem);
     destructor Destroy; override;
   private
     fEventEntry: TIMBEventEntry;
@@ -230,7 +231,7 @@ type
     constructor Create(aSessionModel: TSessionModel; aConnection: TConnection; aIMB3Connection: TIMBConnection;
                        const aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
                        aDBConnection: TCustomConnection; aMapView: TMapView; aPreLoadScenarios: Boolean;
-                       aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string);
+                       aMaxNearestObjectDistanceInMeters: Integer; aStartScenario: string; aSourceEPSG: Integer);
     destructor Destroy; override;
   private
     fTimeSliderTimer: TTimer;
@@ -492,7 +493,7 @@ constructor TSantosProject.Create(aSessionModel: TSessionModel;
   aProjectName, aTilerFQDN, aTilerStatusURL, aDataSource: string;
   aDBConnection: TCustomConnection; aMapView: TMapView;
   aPreLoadScenarios: Boolean; aMaxNearestObjectDistanceInMeters: Integer;
-  aStartScenario: string);
+  aStartScenario: string; aSourceEPSG: Integer);
 var
   measureCat: TMeasureCategory;
 begin
@@ -502,7 +503,8 @@ begin
   fCurrentChargerStopName := '';
 
   inherited Create(aSessionModel, aConnection, aIMB3Connection, aProjectID, aProjectName, aTilerFQDN, aTilerStatusURL,
-                   aDataSource, aDBConnection, aMapView, aPreLoadScenarios , False, aMaxNearestObjectDistanceInMeters);
+                   aDataSource, aDBConnection, aMapView, aPreLoadScenarios , False, aMaxNearestObjectDistanceInMeters,
+                   aSourceEPSG);
 
   EnableControl(modelControl);
   SetControl('timeslider', '1');
@@ -670,7 +672,7 @@ begin
     socChart := TChartLines.Create(aScenario, 'Santos' , SocChartID, 'State of Charge',
                  'State of Charge', True, 'line',
               TChartAxis.Create('Time (hour of day)', 'lightBlue', 'Time', 'h'{, True, 0, 36*60*60}),
-              [ TChartAxis.Create('State of Charge (%)', 'lightBlue', 'Dimensionless', '%', True, 0, 100)]);
+              [ TChartAxis.Create('State of Charge (%)', 'lightBlue', 'Dimensionless', '%', True, -100, 100)]);
 
   end;
 
@@ -1010,7 +1012,7 @@ begin
 
           santosLayer := TSantosLayer.Create(Result, fCurrentBusBlock, fBaseDay[0], fBaseDay[1], fBaseDay[2], 'Santos', 'Santos'+fCurrentBusBlock.ToString,
               'Bus block '+fCurrentBusBlock.ToString, 'Bus block '+fCurrentBusBlock.ToString+' stops',
-              (self as TMCProject).controlInterface.DataSource, tablePrefix, fIMB3Connection.Publish('EBUS_CHARGELOCATION'), indic_event, soc_event);
+              (self as TMCProject).controlInterface.DataSource, tablePrefix, fIMB3Connection.Publish('EBUS_CHARGELOCATION'), indic_event, soc_event, sourceProjection);
           santosLayer.LoadPreviewFromCache('santos.png');
           TMonitor.Enter(santosLayer.fSliderData);
           try
@@ -1133,7 +1135,8 @@ end;
 constructor TSantosLayer.Create(aScenario: TScenario; aBusBlock: Integer;
   aBaseDay, aBaseMonth, aBaseYear: Word;
   const aDomain, aID, aName, aDescription, aConnectString, aTablePrefix: string;
-  aPubEntry: TIMBEventEntry; aIndicEntry, aSocEntry: TIMBEventEntry);
+  aPubEntry: TIMBEventEntry; aIndicEntry, aSocEntry: TIMBEventEntry;
+  aSourceProjection: TGIS_CSProjectedCoordinateSystem);
 var
   oraSession: TOraSession;
   //entries: TPaletteRampEntryArray;
@@ -1141,7 +1144,7 @@ var
 begin
   // TODO
   inherited Create(aScenario, aDomain, aID, aName, aDescription);
-  fSourceProjection := CSProjectedCoordinateSystemList.ByEPSG(28992);
+  fSourceProjection := aSourceProjection;// CSProjectedCoordinateSystemList.ByEPSG(28992);
   fTablePrefix := aTablePrefix;
   fBlockID := aBusBlock;
   fEventEntry := aPubEntry;

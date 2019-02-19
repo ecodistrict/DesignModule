@@ -809,7 +809,7 @@ function getUSMapView(aOraSession: TOraSession; const aDefault: TMapView; const 
 function getUSProjectID(aOraSession: TOraSession; const aDefault: string): string;
 function getUSProjectTypes(aOraSession: TORaSession): TStringArray;
 function getUSProjectIDByType(aOraSession: TOraSession; aProjectType: string): string;
-function getUSSourceESPG(aOraSession: TOraSession; const aDefault: Integer): Integer;
+function getUSSourceESPG(aOraSession: TOraSession; const aDefault: Integer; const aProjectID: string=''): Integer;
 procedure setUSProjectID(aOraSession: TOraSession; const aProjectID: string; aLat, aLon, aZoomLevel: Double);
 function getUSCurrentPublishedScenarioID(aOraSession: TOraSession; aDefault: Integer; const aProjectID: string): Integer;
 function getUSScenarioFilter(aOraSession: TOraSession; const aProjectID: string): TStringArray;
@@ -1001,7 +1001,7 @@ begin
   begin
     aSession.ExecSQL(
       'ALTER TABLE '+aTableprefix+'META_LAYER '+
-      'ADD (DIFFLEGEND_FILE VARCHAR2(80 BYTE)');
+      'ADD (DIFFLEGEND_FILE VARCHAR2(80 BYTE))');
     aSession.Commit;
   end;
 
@@ -4356,7 +4356,7 @@ begin
   else Result := aDefault;
 end;
 
-function getUSSourceESPG(aOraSession: TOraSession; const aDefault: Integer): Integer;
+function getUSSourceESPG(aOraSession: TOraSession; const aDefault: Integer; const aProjectID: string): Integer;
 var
   table: TOraTable;
 begin
@@ -4373,7 +4373,12 @@ begin
     table := TORaTable.Create(nil);
     try
       table.Session := aOraSession;
-      table.SQL.Text := 'SELECT SOURCE_EPSG FROM '+PROJECT_TABLE_NAME;
+      table.SQL.Text :=
+        'SELECT SOURCE_EPSG '+
+        'FROM '+PROJECT_TABLE_NAME+' ';
+      if aProjectID<>''
+      then table.SQL.Text := table.SQL.Text+
+        'WHERE PROJECTID='''+aProjectID+'''';
       try
         table.Execute;
         try

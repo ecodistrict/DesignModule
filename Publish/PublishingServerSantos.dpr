@@ -129,6 +129,7 @@ var
   projectName: string;
   i: Integer;
   dbConnection: TOraSession;
+  sourceEPSG: Integer;
 begin
   try
     // add parameters with default values
@@ -150,6 +151,8 @@ begin
       end;
     end;
 
+    sourceEPSG := GetSetting(SourceEPSGIntSwitch, -1);
+
     //projectName := GetSetting(ProjectNameSwitch,
     if aParameters.ParameterExists(DataSourceParameterName) then
     begin
@@ -161,6 +164,7 @@ begin
         projectID := getUSProjectID(dbConnection, '');
         if projectID=''
         then projectID := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
+        sourceEPSG := getUSSourceESPG(dbConnection, sourceEPSG, projectID);
       finally
         dbConnection.Free;
       end;
@@ -184,6 +188,7 @@ begin
     aParameters.Add(TModelParameter.Create(ProjectIDSwitch, projectID));
     aParameters.Add(TModelParameter.Create(ProjectNameSwitch, projectName));
     aParameters.Add(TModelParameter.Create(PreLoadScenariosSwitch, GetSetting(PreLoadScenariosSwitch, True)));
+    aParameters.Add(TModelParameter.Create(SourceEPSGIntSwitch, sourceEPSG));
   except
     on E: Exception
     do log.WriteLn('Exception in TModel.ParameterRequest: '+E.Message, llError);
@@ -206,6 +211,7 @@ var
   mapView: TMapView;
   preLoadScenarios: Boolean;
   tilerName: string;
+  sourceEPSG: Integer;
 begin
   try
     fIMBLogger := AddIMBLogger(Log, Self.Connection);
@@ -222,6 +228,7 @@ begin
     preLoadScenarios := aParameters.ParameterByName[PreLoadScenariosSwitch].Value;
     tilerName := aParameters.ParameterByName[TilerNameSwitch].ValueAsString;
     setUSProjectID(dbConnection, projectID, mapView.lat, mapView.lon, mapView.zoom); // store project properties in database
+    sourceEPSG := aParameters.ParameterByName[SourceEPSGIntSwitch].Value;
 
     fSantosProject := TSantosProject.Create(fSessionModel, fSessionModel.Connection, connection,
       projectID, projectName,
@@ -232,7 +239,8 @@ begin
       mapView,
       preLoadScenarios,
       GetSetting(MaxNearestObjectDistanceInMetersSwitch, DefaultMaxNearestObjectDistanceInMeters),
-      GetSetting(BaseScenarioIDSwitch, DefaultBaseScenarioID));
+      GetSetting(BaseScenarioIDSwitch, DefaultBaseScenarioID),
+      sourceEPSG);
     fSantosProject.Timers.SetTimer(ProgressTimerTick, hrtNow+DateTimeDelta2HRT(dtOneSecond*5), DateTimeDelta2HRT(dtOneSecond*5));
     fSessionModel.Projects.Add(fSantosProject);
 
